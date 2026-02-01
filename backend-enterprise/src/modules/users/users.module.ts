@@ -1,12 +1,12 @@
-// =============================================
-// 👥 USERS MODULE
-// =============================================
+// src/modules/users/users.module.ts
 
 import { Module } from '@nestjs/common';
-import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { UsersController } from './users.controller';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService],

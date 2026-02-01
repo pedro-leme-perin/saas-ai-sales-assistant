@@ -1,0 +1,658 @@
+# 📚 GUIA COMPLETO DE INSTALAÇÃO - Passo a Passo Detalhado
+
+## 📋 Índice
+1. [Etapa 1: Extrair o ZIP](#etapa-1-extrair-o-zip)
+2. [Etapa 2: Criar as pastas e copiar arquivos](#etapa-2-criar-as-pastas-e-copiar-arquivos)
+3. [Etapa 3: Copiar .env.local](#etapa-3-copiar-envlocal)
+4. [Etapa 4: Atualizar globals.css](#etapa-4-atualizar-globalscss)
+5. [Etapa 5: Atualizar tailwind.config.ts](#etapa-5-atualizar-tailwindconfigts)
+6. [Etapa 6: Configurar Clerk no painel](#etapa-6-configurar-clerk-no-painel)
+7. [Etapa 7: Testar a aplicação](#etapa-7-testar-a-aplicação)
+
+---
+
+## Etapa 1: Extrair o ZIP
+
+### O que fazer:
+Extrair o arquivo `frontend-pages.zip` que você baixou.
+
+### Passo a passo:
+
+1. **Localize o arquivo baixado**
+   - Provavelmente está em `C:\Users\Pedro Perin\Downloads\frontend-pages.zip`
+
+2. **Clique com o botão direito** no arquivo `frontend-pages.zip`
+
+3. **Selecione "Extrair tudo..."** ou "Extract All..."
+
+4. **Escolha onde extrair**
+   - Recomendo extrair na área de trabalho ou na pasta Downloads mesmo
+   - Clique em "Extrair"
+
+5. **Verifique o conteúdo extraído**
+   - Você deve ter uma pasta `frontend-pages` com esta estrutura:
+   ```
+   frontend-pages/
+   ├── .env.local
+   ├── INSTRUCOES.md
+   └── src/
+       └── app/
+           ├── globals-updated.css
+           ├── (auth)/
+           │   ├── layout.tsx
+           │   ├── login/
+           │   │   └── [[...login]]/
+           │   │       └── page.tsx
+           │   └── register/
+           │       └── [[...register]]/
+           │           └── page.tsx
+           └── dashboard/
+               ├── layout.tsx
+               ├── page.tsx
+               ├── calls/
+               │   └── page.tsx
+               ├── whatsapp/
+               │   └── page.tsx
+               ├── analytics/
+               │   └── page.tsx
+               ├── team/
+               │   └── page.tsx
+               ├── billing/
+               │   └── page.tsx
+               └── settings/
+                   └── page.tsx
+   ```
+
+---
+
+## Etapa 2: Criar as pastas e copiar arquivos
+
+### O que fazer:
+Criar a estrutura de pastas no seu projeto e copiar os arquivos.
+
+### Passo a passo:
+
+#### 2.1 Abrir o PowerShell como Administrador
+
+1. Pressione `Windows + X`
+2. Clique em "Terminal (Admin)" ou "PowerShell (Admin)"
+3. Se pedir confirmação, clique em "Sim"
+
+#### 2.2 Navegar até a pasta do frontend
+
+```powershell
+cd "C:\Users\Pedro Perin\Desktop\PROJETO SAAS IA OFICIAL\frontend-enterprise"
+```
+
+**Verifique se está na pasta certa:**
+```powershell
+Get-Location
+```
+Deve mostrar: `C:\Users\Pedro Perin\Desktop\PROJETO SAAS IA OFICIAL\frontend-enterprise`
+
+#### 2.3 Criar todas as pastas necessárias
+
+Execute CADA comando abaixo, um por vez:
+
+```powershell
+# Pasta para login (com catch-all route do Next.js)
+New-Item -ItemType Directory -Force -Path "src\app\(auth)\login\[[...login]]"
+```
+
+```powershell
+# Pasta para registro (com catch-all route do Next.js)
+New-Item -ItemType Directory -Force -Path "src\app\(auth)\register\[[...register]]"
+```
+
+```powershell
+# Pasta para dashboard principal
+New-Item -ItemType Directory -Force -Path "src\app\dashboard"
+```
+
+```powershell
+# Pasta para página de ligações
+New-Item -ItemType Directory -Force -Path "src\app\dashboard\calls"
+```
+
+```powershell
+# Pasta para página de WhatsApp
+New-Item -ItemType Directory -Force -Path "src\app\dashboard\whatsapp"
+```
+
+```powershell
+# Pasta para página de analytics
+New-Item -ItemType Directory -Force -Path "src\app\dashboard\analytics"
+```
+
+```powershell
+# Pasta para página de equipe
+New-Item -ItemType Directory -Force -Path "src\app\dashboard\team"
+```
+
+```powershell
+# Pasta para página de faturamento
+New-Item -ItemType Directory -Force -Path "src\app\dashboard\billing"
+```
+
+```powershell
+# Pasta para página de configurações
+New-Item -ItemType Directory -Force -Path "src\app\dashboard\settings"
+```
+
+#### 2.4 Verificar se as pastas foram criadas
+
+```powershell
+Get-ChildItem -Path "src\app" -Recurse -Directory | Select-Object FullName
+```
+
+Você deve ver todas as pastas listadas.
+
+#### 2.5 Copiar os arquivos
+
+Agora vamos copiar os arquivos do ZIP extraído. Supondo que você extraiu em `C:\Users\Pedro Perin\Downloads\frontend-pages`:
+
+```powershell
+# Definir variável com o caminho do ZIP extraído
+$origem = "C:\Users\Pedro Perin\Downloads\frontend-pages"
+
+# Definir variável com o caminho do projeto
+$destino = "C:\Users\Pedro Perin\Desktop\PROJETO SAAS IA OFICIAL\frontend-enterprise"
+```
+
+Agora copie cada arquivo:
+
+```powershell
+# Layout do auth
+Copy-Item "$origem\src\app\(auth)\layout.tsx" "$destino\src\app\(auth)\layout.tsx" -Force
+```
+
+```powershell
+# Página de login
+Copy-Item "$origem\src\app\(auth)\login\[[...login]]\page.tsx" "$destino\src\app\(auth)\login\[[...login]]\page.tsx" -Force
+```
+
+```powershell
+# Página de registro
+Copy-Item "$origem\src\app\(auth)\register\[[...register]]\page.tsx" "$destino\src\app\(auth)\register\[[...register]]\page.tsx" -Force
+```
+
+```powershell
+# Layout do dashboard
+Copy-Item "$origem\src\app\dashboard\layout.tsx" "$destino\src\app\dashboard\layout.tsx" -Force
+```
+
+```powershell
+# Página principal do dashboard
+Copy-Item "$origem\src\app\dashboard\page.tsx" "$destino\src\app\dashboard\page.tsx" -Force
+```
+
+```powershell
+# Página de ligações
+Copy-Item "$origem\src\app\dashboard\calls\page.tsx" "$destino\src\app\dashboard\calls\page.tsx" -Force
+```
+
+```powershell
+# Página de WhatsApp
+Copy-Item "$origem\src\app\dashboard\whatsapp\page.tsx" "$destino\src\app\dashboard\whatsapp\page.tsx" -Force
+```
+
+```powershell
+# Página de analytics
+Copy-Item "$origem\src\app\dashboard\analytics\page.tsx" "$destino\src\app\dashboard\analytics\page.tsx" -Force
+```
+
+```powershell
+# Página de equipe
+Copy-Item "$origem\src\app\dashboard\team\page.tsx" "$destino\src\app\dashboard\team\page.tsx" -Force
+```
+
+```powershell
+# Página de faturamento
+Copy-Item "$origem\src\app\dashboard\billing\page.tsx" "$destino\src\app\dashboard\billing\page.tsx" -Force
+```
+
+```powershell
+# Página de configurações
+Copy-Item "$origem\src\app\dashboard\settings\page.tsx" "$destino\src\app\dashboard\settings\page.tsx" -Force
+```
+
+#### 2.6 Verificar se os arquivos foram copiados
+
+```powershell
+Get-ChildItem -Path "src\app" -Recurse -Filter "*.tsx" | Select-Object FullName
+```
+
+Você deve ver todos os arquivos `.tsx` listados.
+
+---
+
+## Etapa 3: Copiar .env.local
+
+### O que fazer:
+Copiar o arquivo de configuração de ambiente com as chaves do Clerk.
+
+### Passo a passo:
+
+#### 3.1 Copiar o arquivo
+
+```powershell
+Copy-Item "$origem\.env.local" "$destino\.env.local" -Force
+```
+
+#### 3.2 Verificar se o arquivo existe
+
+```powershell
+Get-Item "$destino\.env.local"
+```
+
+#### 3.3 Verificar o conteúdo (opcional)
+
+```powershell
+Get-Content "$destino\.env.local"
+```
+
+Você deve ver:
+```
+# 🔐 CLERK AUTHENTICATION
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_cHJvLXBpZ2xldC01NS5jbGVyay5hY2NvdW50cy5kZXYk
+CLERK_SECRET_KEY=sk_test_NdLmjMFA2Dah6vhQG0L29FwPhv3ADGsZDJFmgQdS1A
+...
+```
+
+---
+
+## Etapa 4: Atualizar globals.css
+
+### O que fazer:
+Substituir o CSS global antigo pelo novo que tem as variáveis do sidebar.
+
+### Passo a passo:
+
+#### 4.1 Fazer backup do arquivo original (opcional, mas recomendado)
+
+```powershell
+Copy-Item "$destino\src\app\globals.css" "$destino\src\app\globals.css.backup" -Force
+```
+
+#### 4.2 Substituir pelo novo arquivo
+
+```powershell
+Copy-Item "$origem\src\app\globals-updated.css" "$destino\src\app\globals.css" -Force
+```
+
+#### 4.3 Verificar se foi substituído
+
+```powershell
+Get-Content "$destino\src\app\globals.css" | Select-Object -First 30
+```
+
+Deve mostrar o novo CSS com as variáveis `--sidebar`.
+
+---
+
+## Etapa 5: Atualizar tailwind.config.ts
+
+### O que fazer:
+Adicionar as cores do sidebar ao arquivo de configuração do Tailwind CSS.
+
+### Passo a passo:
+
+#### 5.1 Abrir o arquivo no editor de código
+
+**Opção A - Usando VS Code:**
+```powershell
+code "$destino\tailwind.config.ts"
+```
+
+**Opção B - Usando Notepad:**
+```powershell
+notepad "$destino\tailwind.config.ts"
+```
+
+#### 5.2 Localizar a seção `colors` dentro de `theme.extend`
+
+O arquivo deve ter algo assim:
+```typescript
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  // ...
+  theme: {
+    extend: {
+      colors: {
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        // ... outras cores ...
+      },
+      // ...
+    },
+  },
+  // ...
+};
+
+export default config;
+```
+
+#### 5.3 Adicionar as cores do sidebar
+
+**DENTRO do objeto `colors`**, adicione o seguinte bloco (pode ser no final, antes do último `}`):
+
+```typescript
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          primary: 'hsl(var(--sidebar-primary))',
+          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+        },
+```
+
+#### 5.4 Exemplo do arquivo final
+
+```typescript
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  darkMode: ['class'],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        // ⬇️ ADICIONE ESTE BLOCO AQUI ⬇️
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          primary: 'hsl(var(--sidebar-primary))',
+          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+        },
+        // ⬆️ FIM DO BLOCO ⬆️
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+    },
+  },
+  plugins: [require('tailwindcss-animate')],
+};
+
+export default config;
+```
+
+#### 5.5 Salvar o arquivo
+- No VS Code: `Ctrl + S`
+- No Notepad: `Ctrl + S` ou Arquivo > Salvar
+
+---
+
+## Etapa 6: Configurar Clerk no painel
+
+### O que fazer:
+Configurar as URLs de redirecionamento no painel de administração do Clerk.
+
+### Passo a passo:
+
+#### 6.1 Acessar o painel do Clerk
+
+1. Abra seu navegador
+2. Acesse: **https://dashboard.clerk.com**
+3. Faça login com a conta que você usou para criar o aplicativo
+
+#### 6.2 Selecionar o aplicativo
+
+1. Você verá uma lista de aplicativos
+2. Clique no aplicativo que você criou (provavelmente "SaaS AI Sales Assistant")
+
+#### 6.3 Acessar configurações de Paths
+
+1. No menu lateral esquerdo, clique em **"Configure"**
+2. No submenu que aparece, clique em **"Paths"**
+
+#### 6.4 Configurar as URLs
+
+Preencha os campos da seguinte forma:
+
+| Campo | Valor |
+|-------|-------|
+| **Sign-in URL** | `/login` |
+| **Sign-up URL** | `/register` |
+| **After sign-in URL** | `/dashboard` |
+| **After sign-up URL** | `/dashboard` |
+
+**Visualmente:**
+```
+┌─────────────────────────────────────────────────┐
+│ Paths                                           │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│ Sign-in URL:          [  /login              ] │
+│                                                 │
+│ Sign-up URL:          [  /register           ] │
+│                                                 │
+│ After sign-in URL:    [  /dashboard          ] │
+│                                                 │
+│ After sign-up URL:    [  /dashboard          ] │
+│                                                 │
+│                        [ Save Changes ]         │
+└─────────────────────────────────────────────────┘
+```
+
+#### 6.5 Salvar as configurações
+
+1. Clique no botão **"Save"** ou **"Save Changes"**
+2. Aguarde a confirmação de que foi salvo
+
+#### 6.6 Verificar a configuração (opcional)
+
+1. Ainda no painel do Clerk
+2. Vá em **"Configure" > "Authentication"**
+3. Verifique se "Email" e/ou "Google" estão habilitados como métodos de login
+
+---
+
+## Etapa 7: Testar a aplicação
+
+### O que fazer:
+Iniciar o servidor de desenvolvimento e testar se tudo funciona.
+
+### Passo a passo:
+
+#### 7.1 Abrir o terminal na pasta do projeto
+
+```powershell
+cd "C:\Users\Pedro Perin\Desktop\PROJETO SAAS IA OFICIAL\frontend-enterprise"
+```
+
+#### 7.2 Verificar se todas as dependências estão instaladas
+
+```powershell
+pnpm install
+```
+
+Se aparecer erro de que `@clerk/nextjs` não está instalado, execute:
+```powershell
+pnpm add @clerk/nextjs
+```
+
+#### 7.3 Iniciar o servidor de desenvolvimento
+
+```powershell
+pnpm dev
+```
+
+Você deve ver algo como:
+```
+  ▲ Next.js 15.x.x
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Ready in 2.3s
+```
+
+#### 7.4 Testar as páginas
+
+Abra o navegador e acesse cada URL:
+
+| URL | O que deve aparecer |
+|-----|---------------------|
+| http://localhost:3000 | Landing Page (página inicial) |
+| http://localhost:3000/login | Formulário de login do Clerk |
+| http://localhost:3000/register | Formulário de registro do Clerk |
+| http://localhost:3000/dashboard | Dashboard (vai redirecionar para login se não autenticado) |
+
+#### 7.5 Testar o fluxo de autenticação
+
+1. **Acesse:** http://localhost:3000/register
+2. **Crie uma conta** usando email ou Google
+3. **Confirme o email** (se necessário)
+4. **Você será redirecionado** para o Dashboard
+5. **Navegue pelas páginas:**
+   - Dashboard
+   - Ligações
+   - WhatsApp
+   - Analytics
+   - Equipe
+   - Faturamento
+   - Configurações
+
+#### 7.6 Verificar se há erros
+
+Se aparecer algum erro no terminal ou no navegador:
+
+**Erro comum 1: "Module not found"**
+```
+Error: Cannot find module '@clerk/nextjs'
+```
+**Solução:**
+```powershell
+pnpm add @clerk/nextjs
+```
+
+**Erro comum 2: "CLERK_SECRET_KEY is not defined"**
+```
+Error: Clerk: Missing Clerk Secret Key
+```
+**Solução:** Verifique se o arquivo `.env.local` está na raiz do projeto e contém as chaves.
+
+**Erro comum 3: "Invalid src prop" em imagens**
+```
+Error: Invalid src prop (url) on next/image
+```
+**Solução:** Este erro pode ser ignorado por enquanto ou configure `next.config.js`.
+
+**Erro comum 4: Página branca ou erro de compilação**
+- Verifique o terminal para ver o erro específico
+- Geralmente é problema de importação ou arquivo faltando
+
+---
+
+## ✅ Checklist Final
+
+Marque cada item conforme completar:
+
+- [ ] ZIP extraído
+- [ ] Pastas criadas no projeto
+- [ ] Arquivos copiados para as pastas corretas
+- [ ] `.env.local` copiado para a raiz
+- [ ] `globals.css` atualizado
+- [ ] `tailwind.config.ts` atualizado com `sidebar`
+- [ ] Clerk configurado no painel (URLs)
+- [ ] `pnpm install` executado
+- [ ] `pnpm dev` funcionando
+- [ ] Landing Page carregando (localhost:3000)
+- [ ] Página de login carregando (localhost:3000/login)
+- [ ] Registro funcionando
+- [ ] Dashboard carregando após login
+- [ ] Navegação do sidebar funcionando
+
+---
+
+## 🆘 Problemas Comuns e Soluções
+
+### Problema: "O comando não é reconhecido"
+**Solução:** Certifique-se de estar usando PowerShell (não CMD).
+
+### Problema: "Acesso negado" ao copiar arquivos
+**Solução:** Execute o PowerShell como Administrador.
+
+### Problema: Página de login não aparece
+**Solução:** 
+1. Verifique se `middleware.ts` está configurado corretamente
+2. Verifique se as chaves do Clerk estão no `.env.local`
+
+### Problema: Erro de importação de componentes
+**Solução:** Verifique se você tem os componentes UI em `src/components/ui/`. Se não tiver:
+```powershell
+pnpm add lucide-react
+pnpm dlx shadcn-ui@latest init
+pnpm dlx shadcn-ui@latest add button card
+```
+
+### Problema: Sidebar não aparece com as cores certas
+**Solução:** Verifique se:
+1. `globals.css` tem as variáveis `--sidebar-*`
+2. `tailwind.config.ts` tem o bloco `sidebar` em `colors`
+
+---
+
+## 🎉 Parabéns!
+
+Se você chegou até aqui e tudo está funcionando, o frontend está configurado!
+
+**Próximos passos:**
+1. Configurar o Backend (PostgreSQL + Redis)
+2. Configurar Stripe para pagamentos
+3. Configurar OpenAI/Claude para sugestões de IA
+4. Conectar frontend com backend
+
+Me avise quando terminar para continuarmos! 🚀

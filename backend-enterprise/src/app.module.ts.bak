@@ -1,0 +1,514 @@
+// =============================================
+// 🏠 APP MODULE - Root Module
+// =============================================
+// Central composition root following Clean Architecture
+// Dependency Injection Container - all modules wired here
+// 
+// Principles Applied:
+// - Clean Architecture: Composition Root pattern
+// - Dependency Inversion: Modules depend on abstractions
+// - 12-Factor App: Config in environment
+// - System Design Interview Ch.4: Rate limiting
+// 
+// References:
+// - Clean Architecture Ch.11 (DIP - Dependency Inversion)
+// - System Design Interview Ch.4 (Rate Limiter)
+// - Release It! Ch.4 (Stability Patterns)
+// =============================================
+
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
+
+// =============================================
+// INFRASTRUCTURE MODULES
+// =============================================
+
+/**
+ * Database & Cache
+ * 
+ * Designing Data-Intensive Applications:
+ * - Prisma for transactional data (PostgreSQL)
+ * - Redis for caching and session storage
+ */
+import { PrismaModule } from '@infrastructure/database/prisma.module';
+import { CacheModule } from '@infrastructure/cache/cache.module';
+
+// =============================================
+// FEATURE MODULES (DOMAIN)
+// =============================================
+
+/**
+ * Core Business Modules
+ * 
+ * Clean Architecture:
+ * - Each module is self-contained
+ * - Dependencies injected via constructor
+ * - Domain logic independent of frameworks
+ */
+import { AuthModule } from '@modules/auth/auth.module';
+import { UsersModule } from '@modules/users/users.module';
+import { CompaniesModule } from '@modules/companies/companies.module';
+import { CallsModule } from '@modules/calls/calls.module';
+import { WhatsappModule } from '@modules/whatsapp/whatsapp.module';
+import { AiModule } from '@modules/ai/ai.module';
+import { BillingModule } from '@modules/billing/billing.module';
+import { NotificationsModule } from '@modules/notifications/notifications.module';
+
+// =============================================
+// PRESENTATION LAYER
+// =============================================
+
+/**
+ * Controllers (Interface Adapters)
+ * 
+ * Clean Architecture Ch.22:
+ * - Health checks (no authentication)
+ * - Webhooks (external authentication)
+ */
+import { HealthController } from '@presentation/controllers/health.controller';
+import { StripeWebhookController } from '@presentation/webhooks/stripe.webhook';
+import { TwilioWebhookController } from '@presentation/webhooks/twilio.webhook';
+import { WhatsappWebhookController } from '@presentation/webhooks/whatsapp.webhook';
+
+// =============================================
+// COMMON (CROSS-CUTTING CONCERNS)
+// =============================================
+
+/**
+ * Middleware
+ * 
+ * Release It!: Observability and transparency
+ * - Request logging for debugging
+ * - Request ID tracking
+ * - Performance monitoring
+ */
+import { RequestLoggerMiddleware } from '@common/middleware/request-logger.middleware';
+
+// =============================================
+// CONFIGURATION
+// =============================================
+
+/**
+ * Application Configuration
+ * 
+ * 12-Factor App: Store config in environment
+ * - Database URLs
+ * - API keys
+ * - Feature flags
+ */
+import configuration from '@config/configuration';
+import { HealthModule } from './common/health.module';
+
+// =============================================
+// APP MODULE
+// =============================================
+
+/**
+ * Root Application Module
+ * 
+ * Composition Root (Clean Architecture):
+ * - All dependencies are wired here
+ * - Modules declare what they need
+ * - NestJS DI container resolves dependencies
+ * 
+ * Module Organization:
+ * 1. Core Modules (Config, Events, Rate Limiting)
+ * 2. Infrastructure (Database, Cache)
+ * 3. Feature Modules (Business Logic)
+ * 4. Controllers (Presentation Layer)
+ * 5. Middleware (Cross-cutting concerns)
+ * 
+ * Security:
+ * - Rate limiting to prevent abuse
+ * - Request logging for audit trail
+ * - Health checks for monitoring
+ */
+@Module({
+  imports: [
+
+    // =============================================
+    // 1. CORE MODULES
+    // =============================================
+
+    /**
+     * Configuration Module
+     * 
+     * 12-Factor App (Release It! Ch.7):
+     * "Store config in the environment"
+     * 
+     * Features:
+     * - Global: Available in all modules
+     * - Multi-file: .env.local overrides .env
+     * - Type-safe: ConfigService with generics
+     * - Validated: Zod schemas in configuration.ts
+     */
+    ConfigModule.forRoot({
+      isGlobal: true, // Available everywhere (no need to import)
+      cache: true, // Cache config for performance
+      load: [configuration], // Load typed configuration
+      envFilePath: ['.env.local', '.env'], // Priority: local > default
+      expandVariables: true, // Support ${VAR} syntax
+      ignoreEnvFile: process.env.NODE_ENV === 'production', // Use system env in prod
+    }),
+
+    /**
+     * Event Emitter Module
+     * 
+     * Event-Driven Architecture (Fundamentals Ch.15):
+     * - Decouples modules via events
+     * - Async processing (non-blocking)
+     * - Examples: call.completed, message.received
+     * 
+     * Use Cases:
+     * - Send email when user registers
+     * - Generate AI suggestion when call starts
+     * - Update analytics when chat closes
+     */
+    EventEmitterModule.forRoot({
+      // Event names can use wildcards (e.g., user.*)
+      wildcard: true,
+      
+      // Event namespace delimiter
+      delimiter: '.',
+      
+      // Don't emit newListener/removeListener events
+      newListener: false,
+      removeListener: false,
+      
+      // Max listeners per event (prevent memory leaks)
+      maxListeners: 20,
+      
+      // Log warning when max listeners exceeded
+      verboseMemoryLeak: true,
+      
+      // Don't ignore errors in event handlers (fail fast)
+      ignoreErrors: false,
+    }),
+
+    /**
+     * Rate Limiting (Throttler)
+     * 
+     * System Design Interview Ch.4: Design a Rate Limiter
+     * 
+     * Strategy: Sliding Window Counter
+     * - More memory efficient than sliding window log
+     * - More accurate than fixed window
+     * 
+     * Tiers:
+     * - Short (1s): Prevent rapid-fire requests (20 req/s)
+     * - Medium (10s): Burst protection (100 req/10s)
+     * - Long (1min): Overall quota (200 req/min)
+     * 
+     * Release It! Ch.4: Shed Load stability pattern
+     * - Reject requests when over capacity
+     * - Better than degrading performance for everyone
+     */
+    ThrottlerModule.forRootAsync({
+      imports: [
+    HealthModule,ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        // Multiple throttlers can be applied
+        throttlers: [
+          {
+            name: 'short',
+            ttl: 1000, // 1 second window
+            limit: 20, // 20 requests per second
+          },
+          {
+            name: 'medium',
+            ttl: 10000, // 10 second window
+            limit: 100, // 100 requests per 10 seconds
+          },
+          {
+            name: 'long',
+            ttl: 60000, // 60 second (1 minute) window
+            limit: config.get<number>('THROTTLE_LIMIT', 200), // Configurable
+          },
+        ],
+        
+        // Skip throttling for these paths
+        ignoreUserAgents: [
+          /health-check/i, // Health check bots
+        ],
+        
+        // Custom error message
+        errorMessage: 'Too many requests, please try again later.',
+      }),
+    }),
+
+    /**
+     * Schedule Module
+     * 
+     * Scheduled Jobs (Cron):
+     * - Clean up old data
+     * - Generate daily reports
+     * - Sync with external APIs
+     * - Process queued tasks
+     * 
+     * Release It!: Admin processes
+     * - Run as separate one-off tasks
+     * - Don't block HTTP requests
+     */
+    ScheduleModule.forRoot(),
+
+    // =============================================
+    // 2. INFRASTRUCTURE MODULES
+    // =============================================
+
+    /**
+     * Prisma Module
+     * 
+     * Designing Data-Intensive Applications:
+     * - Repository pattern for data access
+     * - Transactional guarantees (ACID)
+     * - Type-safe queries
+     * - Connection pooling
+     */
+    PrismaModule,
+
+    /**
+     * Cache Module
+     * 
+     * System Design Interview Ch.1: Cache Tier
+     * - Redis for distributed caching
+     * - Session storage
+     * - Rate limiting state
+     * - Pub/Sub for real-time events
+     */
+    CacheModule,
+
+    // =============================================
+    // 3. FEATURE MODULES (BUSINESS LOGIC)
+    // =============================================
+
+    /**
+     * Authentication Module
+     * 
+     * Release It! Ch.11: Security
+     * - Clerk integration
+     * - JWT validation
+     * - Webhook handling
+     * - User session management
+     */
+    AuthModule,
+
+    /**
+     * Users Module
+     * 
+     * Clean Architecture:
+     * - User domain logic
+     * - Profile management
+     * - RBAC (Role-Based Access Control)
+     */
+    UsersModule,
+
+    /**
+     * Companies Module
+     * 
+     * Multi-Tenancy:
+     * - Company profiles
+     * - Subscription management
+     * - Usage tracking
+     * - Settings
+     */
+    CompaniesModule,
+
+    /**
+     * Calls Module
+     * 
+     * Core Business Logic:
+     * - Call tracking
+     * - Transcript processing
+     * - Sentiment analysis
+     * - AI suggestion generation
+     */
+    CallsModule,
+
+    /**
+     * WhatsApp Module
+     * 
+     * Real-time Messaging:
+     * - Chat management
+     * - Message handling
+     * - AI-powered responses
+     * - WebSocket notifications
+     */
+    WhatsappModule,
+
+    /**
+     * AI Module
+     * 
+     * Machine Learning:
+     * - OpenAI/Claude integration
+     * - Suggestion generation
+     * - Prompt engineering
+     * - Response caching
+     */
+    AiModule,
+
+    /**
+     * Billing Module
+     * 
+     * Subscription Management:
+     * - Stripe integration
+     * - Plan management
+     * - Invoice generation
+     * - Usage enforcement
+     */
+    BillingModule,
+
+    /**
+     * Notifications Module
+     * 
+     * Real-time Updates:
+     * - WebSocket gateway
+     * - Push notifications
+     * - Email notifications
+     * - In-app alerts
+     */
+    NotificationsModule,
+  ],
+
+  // =============================================
+  // 4. CONTROLLERS (PRESENTATION LAYER)
+  // =============================================
+
+  /**
+   * Root-level Controllers
+   * 
+   * These controllers are not part of feature modules:
+   * - Health checks (operational, no business logic)
+   * - Webhooks (external integrations, special auth)
+   */
+  controllers: [
+    /**
+     * Health Controller
+     * 
+     * Site Reliability Engineering Ch.6:
+     * - Liveness probe: /health/live (is app running?)
+     * - Readiness probe: /health/ready (can accept traffic?)
+     * - Overall health: /health (combined checks)
+     * 
+     * Used by:
+     * - Kubernetes liveness/readiness probes
+     * - Load balancer health checks
+     * - Monitoring tools (Datadog, New Relic)
+     * 
+     * Security: No authentication required
+     */
+    HealthController,
+
+    /**
+     * Webhook Controllers
+     * 
+     * External Integrations:
+     * - Stripe: Payment events
+     * - Twilio: Call events
+     * - WhatsApp: Message events
+     * 
+     * Security:
+     * - Signature verification (not JWT)
+     * - IP whitelist (optional)
+     * - HTTPS only (production)
+     * 
+     * Release It!: Integration points
+     * - Idempotent handlers (webhooks retry)
+     * - Circuit breaker for downstream calls
+     * - Timeout protection
+     */
+    StripeWebhookController,
+    TwilioWebhookController,
+    WhatsappWebhookController,
+  ],
+
+  // =============================================
+  // 5. PROVIDERS (GLOBAL SERVICES)
+  // =============================================
+
+  /**
+   * Global Providers
+   * 
+   * Note: Most providers are in feature modules
+   * Only truly global, cross-cutting services here
+   * 
+   * Examples (if needed):
+   * - Logger service
+   * - Metrics collector
+   * - Feature flags
+   */
+  providers: [
+    // Currently empty - all providers in feature modules
+    // This follows Clean Architecture: keep modules self-contained
+  ],
+})
+export class AppModule implements NestModule {
+  // =============================================
+  // MIDDLEWARE CONFIGURATION
+  // =============================================
+
+  /**
+   * Configure Middleware
+   * 
+   * Release It! Ch.6: Transparency Patterns
+   * 
+   * Middleware Chain (in order):
+   * 1. RequestLoggerMiddleware (all routes)
+   *    - Logs request method, path, duration
+   *    - Adds X-Request-ID header
+   *    - Tracks performance metrics
+   * 
+   * 2. [NestJS built-in middleware]
+   *    - CORS (configured in main.ts)
+   *    - Helmet (security headers)
+   *    - Compression (gzip)
+   * 
+   * 3. [Guards - per route]
+   *    - Authentication (JWT validation)
+   *    - Authorization (RBAC)
+   *    - Rate limiting (throttler)
+   * 
+   * 4. [Interceptors - global]
+   *    - LoggingInterceptor (request/response logging)
+   *    - TransformInterceptor (standardize responses)
+   * 
+   * Clean Architecture:
+   * - Middleware is cross-cutting concern
+   * - Business logic doesn't know about it
+   * - Can be added/removed without touching domain
+   */
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(
+        /**
+         * Request Logger Middleware
+         * 
+         * Site Reliability Engineering:
+         * - Structured logging for observability
+         * - Request ID for distributed tracing
+         * - Performance metrics (response time)
+         * 
+         * Logged Data:
+         * - Request ID (X-Request-ID header)
+         * - HTTP method (GET, POST, etc)
+         * - Request path
+         * - Response status code
+         * - Response time (ms)
+         * - User ID (if authenticated)
+         * - IP address
+         * - User agent
+         * 
+         * Use Cases:
+         * - Debugging production issues
+         * - Performance analysis
+         * - Audit trail
+         * - Security monitoring
+         */
+        RequestLoggerMiddleware,
+      )
+      .forRoutes('*'); // Apply to ALL routes
+  }
+}

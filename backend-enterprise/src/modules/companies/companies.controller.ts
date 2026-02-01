@@ -1,48 +1,88 @@
-// =============================================
-// 🏢 COMPANIES CONTROLLER
-// =============================================
+// =====================================================
+// 🏢 COMPANIES CONTROLLER - COMPLETE AND FIXED
+// =====================================================
 
-import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
-import { CurrentUser, AuthenticatedUser, Roles, CompanyId } from '@common/decorators';
-import { RolesGuard } from '@common/guards/roles.guard';
+import { CreateCompanyDto } from './dto/create-company.dto';
+import { UpdateCompanyDto } from './dto/update-company.dto';
+import { AuthGuard } from '@modules/auth/guards/auth.guard';
+import { TenantGuard } from '@modules/auth/guards/tenant.guard';
+import { RolesGuard } from '@modules/auth/guards/roles.guard';
+import { Roles } from '@modules/auth/decorators/roles.decorator';
+import { Public } from '@modules/auth/decorators/public.decorator';
+import { CurrentUser } from '@modules/auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
-import { UpdateCompanyDto } from './dto/company.dto';
 
 @ApiTags('Companies')
-@ApiBearerAuth('JWT-auth')
 @Controller('companies')
+@UseGuards(AuthGuard, TenantGuard, RolesGuard)
+@ApiBearerAuth('JWT')
 export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
-  @Get('current')
-  @ApiOperation({ summary: 'Get current company details' })
-  async getCurrentCompany(@CompanyId() companyId: string) {
-    return this.companiesService.findById(companyId);
-  }
-
-  @Get('current/stats')
-  @ApiOperation({ summary: 'Get company statistics' })
-  async getStats(@CompanyId() companyId: string) {
-    return this.companiesService.getStats(companyId);
-  }
-
-  @Get('current/usage')
-  @ApiOperation({ summary: 'Get company usage limits' })
-  async getUsage(@CompanyId() companyId: string) {
-    return this.companiesService.getUsage(companyId);
-  }
-
-  @Put('current')
+  @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Update company details' })
+  @ApiOperation({ summary: 'Create a new company' })
+  @ApiResponse({ status: 201, description: 'Company created successfully' })
+  async create(@Body() createCompanyDto: CreateCompanyDto) {
+    const company = await this.companiesService.create(createCompanyDto);
+    return {
+      success: true,
+      data: company,
+    };
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get company by ID' })
+  @ApiResponse({ status: 200, description: 'Company found' })
+  @ApiResponse({ status: 404, description: 'Company not found' })
+  async findOne(@Param('id') id: string) {
+    const company = await this.companiesService.findOne(id);
+    return {
+      success: true,
+      data: company,
+    };
+  }
+
+  @Put(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update company' })
+  @ApiResponse({ status: 200, description: 'Company updated successfully' })
   async update(
-    @CompanyId() companyId: string,
-    @Body() dto: UpdateCompanyDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() updateCompanyDto: UpdateCompanyDto,
   ) {
-    return this.companiesService.update(companyId, dto, user);
+    const company = await this.companiesService.update(id, updateCompanyDto);
+    return {
+      success: true,
+      data: company,
+    };
+  }
+
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Get company statistics' })
+  @ApiResponse({ status: 200, description: 'Statistics retrieved' })
+  async getStats(@Param('id') id: string) {
+    const stats = await this.companiesService.getStats(id);
+    return {
+      success: true,
+      data: stats,
+    };
   }
 }

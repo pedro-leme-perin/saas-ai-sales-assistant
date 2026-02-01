@@ -3,7 +3,6 @@
 // =============================================
 // System health checks for monitoring
 // =============================================
-
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '@infrastructure/database/prisma.service';
@@ -39,12 +38,23 @@ export class HealthController {
   @ApiResponse({ status: 200, description: 'System is healthy' })
   @ApiResponse({ status: 503, description: 'System is unhealthy' })
   async check(): Promise<HealthStatus> {
-    const [dbHealth, cacheHealth] = await Promise.all([
-      this.prisma.healthCheck(),
-      this.cache.healthCheck(),
-    ]);
+    const start = Date.now();
 
-    const isHealthy = dbHealth.status === 'healthy' && cacheHealth.status === 'healthy';
+    // Check database
+    let dbStatus: 'healthy' | 'unhealthy' = 'healthy';
+    let dbLatency = 0;
+    try {
+      const dbStart = Date.now();
+      await this.prisma.$queryRaw`SELECT 1`;
+      dbLatency = Date.now() - dbStart;
+    } catch (error) {
+      dbStatus = 'unhealthy';
+    }
+
+    // Check cache
+    const cacheHealth = await this.cache.healthCheck();
+
+    const isHealthy = dbStatus === 'healthy' && cacheHealth.status === 'healthy';
 
     return {
       status: isHealthy ? 'healthy' : 'unhealthy',
@@ -52,12 +62,12 @@ export class HealthController {
       uptime: process.uptime(),
       services: {
         api: 'ok',
-        database: dbHealth.status === 'healthy' ? 'ok' : 'error',
+        database: dbStatus === 'healthy' ? 'ok' : 'error',
         cache: cacheHealth.status === 'healthy' ? 'ok' : 'error',
       },
       latency: {
-        database: dbHealth.latencyMs,
-        cache: cacheHealth.latencyMs,
+        database: dbLatency,
+        cache: cacheHealth.latency || 0,
       },
     };
   }

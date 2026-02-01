@@ -1,96 +1,126 @@
-// =============================================
-// 📞 CALLS CONTROLLER
-// =============================================
-
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Param, Body, Req, Res, HttpCode } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
-import { CurrentUser, AuthenticatedUser, CompanyId, UserId } from '@common/decorators';
-import { PaginationDto } from '@common/dto/pagination.dto';
-import { CreateCallDto, UpdateCallDto, CallFilterDto, AddTranscriptDto } from './dto/call.dto';
+import { Request, Response } from 'express';
+import * as twilio from 'twilio';
 
 @ApiTags('Calls')
-@ApiBearerAuth('JWT-auth')
 @Controller('calls')
 export class CallsController {
   constructor(private readonly callsService: CallsService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'List all calls with filters' })
-  async findAll(
-    @CompanyId() companyId: string,
-    @Query() pagination: PaginationDto,
-    @Query() filters: CallFilterDto,
+  @Get(':companyId')
+  async findAll(@Param('companyId') companyId: string) {
+    return this.callsService.findAll(companyId);
+  }
+
+  @Get(':companyId/:id')
+  async findOne(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
   ) {
-    return this.callsService.findAll(companyId, pagination, filters);
-  }
-
-  @Get('stats')
-  @ApiOperation({ summary: 'Get call statistics' })
-  async getStats(@CompanyId() companyId: string) {
-    return this.callsService.getStats(companyId);
-  }
-
-  @Get('active')
-  @ApiOperation({ summary: 'Get active calls' })
-  async getActiveCalls(@CompanyId() companyId: string) {
-    return this.callsService.getActiveCalls(companyId);
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get call by ID' })
-  async findOne(@Param('id') id: string, @CompanyId() companyId: string) {
     return this.callsService.findOne(id, companyId);
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Create new call' })
+  @Post(':companyId')
   async create(
-    @Body() dto: CreateCallDto,
-    @CompanyId() companyId: string,
-    @UserId() userId: string,
+    @Param('companyId') companyId: string,
+    @Body() data: any,
   ) {
-    return this.callsService.create(dto, companyId, userId);
+    return this.callsService.create(companyId, data);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update call' })
+  @Put(':companyId/:id')
   async update(
+    @Param('companyId') companyId: string,
     @Param('id') id: string,
-    @Body() dto: UpdateCallDto,
-    @CompanyId() companyId: string,
+    @Body() data: any,
   ) {
-    return this.callsService.update(id, dto, companyId);
+    return this.callsService.update(id, companyId, data);
   }
 
-  @Post(':id/transcript')
-  @ApiOperation({ summary: 'Add transcript segment to call' })
-  async addTranscript(
+  @Post(':companyId/initiate')
+  @ApiOperation({ summary: 'Initiate outbound call via Twilio' })
+  async initiateCall(
+    @Param('companyId') companyId: string,
+    @Body() data: { userId: string; phoneNumber: string; webhookUrl?: string },
+  ) {
+    const webhookUrl = data.webhookUrl || process.env.BACKEND_URL || 'http://localhost:3001';
+    return this.callsService.initiateCall(
+      companyId,
+      data.userId,
+      data.phoneNumber,
+      webhookUrl,
+    );
+  }
+
+  @Post(':companyId/:id/end')
+  @ApiOperation({ summary: 'End an active call' })
+  async endCall(
+    @Param('companyId') companyId: string,
     @Param('id') id: string,
-    @Body() dto: AddTranscriptDto,
-    @CompanyId() companyId: string,
   ) {
-    return this.callsService.addTranscript(id, dto, companyId);
+    return this.callsService.endCall(id, companyId);
   }
 
-  @Post(':id/complete')
-  @ApiOperation({ summary: 'Mark call as completed' })
-  async completeCall(
-    @Param('id') id: string,
-    @CompanyId() companyId: string,
+  @Get(':companyId/stats')
+  @ApiOperation({ summary: 'Get call statistics' })
+  async getStats(@Param('companyId') companyId: string) {
+    return this.callsService.getCallStats(companyId);
+  }
+
+  // Twilio Webhooks (não autenticados - Twilio chama diretamente)
+  @Post('webhook/voice/:callId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Twilio voice webhook - returns TwiML' })
+  async handleVoiceWebhook(
+    @Param('callId') callId: string,
+    @Res() res: Response,
   ) {
-    return this.callsService.completeCall(id, companyId);
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+
+    // Mensagem inicial da chamada
+    response.say(
+      { voice: 'Polly.Camila', language: 'pt-BR' },
+      'Olá! Esta é uma chamada do sistema de vendas. Por favor, aguarde enquanto conectamos você.',
+    );
+
+    // Gravar a chamada para transcrição posterior
+    response.record({
+      transcribe: true,
+      transcribeCallback: `/api/calls/webhook/transcription/${callId}`,
+      maxLength: 3600, // 1 hora máximo
+      playBeep: false,
+    });
+
+    res.type('text/xml');
+    res.send(response.toString());
   }
 
-  @Get(':id/suggestions')
-  @ApiOperation({ summary: 'Get AI suggestions for call' })
-  async getSuggestions(@Param('id') id: string, @CompanyId() companyId: string) {
-    return this.callsService.getSuggestions(id, companyId);
+  @Post('webhook/status/:callId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Twilio status callback webhook' })
+  async handleStatusWebhook(
+    @Param('callId') callId: string,
+    @Body() body: { CallStatus: string; CallDuration?: string },
+  ) {
+    const duration = body.CallDuration ? parseInt(body.CallDuration, 10) : undefined;
+    await this.callsService.handleStatusWebhook(callId, body.CallStatus, duration);
+    return { success: true };
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete call' })
-  async remove(@Param('id') id: string, @CompanyId() companyId: string) {
-    return this.callsService.remove(id, companyId);
+  @Post('webhook/transcription/:callId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Twilio transcription callback webhook' })
+  async handleTranscriptionWebhook(
+    @Param('callId') callId: string,
+    @Body() body: { TranscriptionText?: string },
+  ) {
+    if (body.TranscriptionText) {
+      // Aqui você pode salvar a transcrição e gerar sugestões de IA
+      console.log(`Transcription for call ${callId}: ${body.TranscriptionText}`);
+    }
+    return { success: true };
   }
 }

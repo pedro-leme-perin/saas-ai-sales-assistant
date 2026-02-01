@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pegar Token Clerk</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .step {
+            background: #e7f3ff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+        .step h2 {
+            margin-top: 0;
+            color: #1976D2;
+        }
+        .button {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+        .button:active {
+            background: #3d8b40;
+        }
+        #result {
+            display: none;
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        #result.show {
+            display: block;
+        }
+        .copy-btn {
+            background: #2196F3;
+            margin-top: 10px;
+        }
+        .copy-btn:hover {
+            background: #1976D2;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+            border: 1px solid #c3e6cb;
+        }
+        .success.show {
+            display: block;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+            border: 1px solid #f5c6cb;
+        }
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Pegar Token do Clerk</h1>
+        
+        <div class="step">
+            <h2>Passo 1: Fazer Login no Clerk</h2>
+            <p>Se ainda não fez login, clique no botão abaixo:</p>
+            <a href="https://pro-piglet-55.accounts.dev" target="_blank">
+                <button class="button">Abrir Clerk Login</button>
+            </a>
+            <p style="margin-top: 15px; color: #666;">
+                <strong>Usuários disponíveis:</strong><br>
+                • leme.baseapr@gmail.com<br>
+                • pedroperin@yahoo.com.br
+            </p>
+        </div>
+
+        <div class="step">
+            <h2>Passo 2: Gerar Token</h2>
+            <p>Depois de fazer login, clique no botão abaixo:</p>
+            <button class="button" onclick="gerarToken()">GERAR TOKEN AGORA</button>
+        </div>
+
+        <div id="result"></div>
+        
+        <button class="button copy-btn" onclick="copiarToken()" style="display: none;" id="copyBtn">
+            📋 COPIAR TOKEN
+        </button>
+        
+        <div id="success" class="success"></div>
+        <div id="error" class="error"></div>
+
+        <div class="step" style="margin-top: 30px;">
+            <h2>Passo 3: Usar no Swagger</h2>
+            <p>Depois de copiar o token:</p>
+            <ol>
+                <li>Abra: <a href="http://localhost:3001/api/docs" target="_blank">http://localhost:3001/api/docs</a></li>
+                <li>Clique no botão "Authorize" (cadeado no topo)</li>
+                <li>Cole o token (Ctrl+V)</li>
+                <li>Clique "Authorize" → "Close"</li>
+                <li>Teste a rota: GET /api/users/me</li>
+            </ol>
+            <a href="http://localhost:3001/api/docs" target="_blank">
+                <button class="button" style="background: #FF9800;">Abrir Swagger</button>
+            </a>
+        </div>
+    </div>
+
+    <!-- Clerk SDK -->
+    <script
+        async
+        crossorigin="anonymous"
+        data-clerk-publishable-key="pk_test_c3Ryb25nLWRlZXItNzAuY2xlcmsuYWNjb3VudHMuZGV2JA"
+        src="https://strong-deer-70.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+        type="text/javascript"
+    ></script>
+
+    <script>
+        let tokenGerado = '';
+
+        async function gerarToken() {
+            const resultDiv = document.getElementById('result');
+            const successDiv = document.getElementById('success');
+            const errorDiv = document.getElementById('error');
+            const copyBtn = document.getElementById('copyBtn');
+
+            // Limpar mensagens anteriores
+            resultDiv.classList.remove('show');
+            successDiv.classList.remove('show');
+            errorDiv.classList.remove('show');
+            copyBtn.style.display = 'none';
+
+            try {
+                // Aguardar Clerk carregar
+                if (typeof Clerk === 'undefined') {
+                    errorDiv.textContent = '❌ Clerk ainda não carregou. Aguarde alguns segundos e tente novamente.';
+                    errorDiv.classList.add('show');
+                    return;
+                }
+
+                await Clerk.load();
+
+                // Verificar se está logado
+                if (!Clerk.session) {
+                    errorDiv.innerHTML = '❌ Você não está logado!<br>Clique em "Abrir Clerk Login" acima e faça login primeiro.';
+                    errorDiv.classList.add('show');
+                    return;
+                }
+
+                // Pegar token
+                const token = await Clerk.session.getToken();
+                tokenGerado = 'Bearer ' + token;
+
+                // Mostrar token
+                resultDiv.textContent = tokenGerado;
+                resultDiv.classList.add('show');
+                copyBtn.style.display = 'block';
+
+                successDiv.textContent = '✅ Token gerado com sucesso! Clique em "COPIAR TOKEN" abaixo.';
+                successDiv.classList.add('show');
+
+            } catch (error) {
+                errorDiv.textContent = '❌ Erro: ' + error.message;
+                errorDiv.classList.add('show');
+                console.error('Erro ao gerar token:', error);
+            }
+        }
+
+        function copiarToken() {
+            if (!tokenGerado) {
+                alert('❌ Nenhum token para copiar. Clique em "GERAR TOKEN" primeiro.');
+                return;
+            }
+
+            navigator.clipboard.writeText(tokenGerado).then(() => {
+                const successDiv = document.getElementById('success');
+                successDiv.innerHTML = '✅ Token copiado para clipboard!<br>Agora abra o Swagger e cole no botão "Authorize".';
+                successDiv.classList.add('show');
+                
+                alert('✅ Token copiado! Agora abra o Swagger e cole no Authorize.');
+            }).catch(err => {
+                alert('❌ Erro ao copiar. Selecione o token manualmente e copie com Ctrl+C.');
+            });
+        }
+
+        // Verificar quando Clerk carregar
+        window.addEventListener('load', async () => {
+            try {
+                await Clerk.load();
+                console.log('✅ Clerk carregado');
+                
+                if (Clerk.session) {
+                    console.log('✅ Usuário já está logado!');
+                    const email = Clerk.session.user.primaryEmailAddress.emailAddress;
+                    const successDiv = document.getElementById('success');
+                    successDiv.textContent = '✅ Você está logado como: ' + email;
+                    successDiv.classList.add('show');
+                } else {
+                    console.log('⚠️ Usuário não está logado');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar Clerk:', error);
+            }
+        });
+    </script>
+</body>
+</html>

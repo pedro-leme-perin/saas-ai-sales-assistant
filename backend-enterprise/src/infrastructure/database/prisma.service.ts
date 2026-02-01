@@ -1,169 +1,73 @@
-// =============================================
-// 🗄️ PRISMA SERVICE
-// =============================================
-// Database connection management
-// Fundamentado em: Clean Architecture - Infrastructure Layer
-// =============================================
-
-import {
-  Injectable,
-  OnModuleInit,
-  OnModuleDestroy,
-  Logger,
-} from '@nestjs/common';
-import { PrismaClient, Prisma } from '@prisma/client';
+﻿import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
     super({
+      datasources: {
+        db: {
+          url: configService.get<string>('DATABASE_URL'),
+        },
+      },
       log: [
-        { level: 'query', emit: 'event' },
-        { level: 'error', emit: 'stdout' },
-        { level: 'warn', emit: 'stdout' },
+        { emit: 'event', level: 'query' },
+        { emit: 'stdout', level: 'info' },
+        { emit: 'stdout', level: 'warn' },
+        { emit: 'stdout', level: 'error' },
       ],
-      errorFormat: 'pretty',
     });
 
-    // Log slow queries in development
-    if (process.env.NODE_ENV === 'development') {
-      // @ts-expect-error - Prisma event typing
-      this.$on('query', (e: Prisma.QueryEvent) => {
-        if (e.duration > 500) {
-          this.logger.warn(
-            `⚠️ Slow query (${e.duration}ms): ${e.query.substring(0, 200)}...`,
-          );
-        }
+    // Log queries em desenvolvimento
+    if (configService.get('NODE_ENV') === 'development') {
+      (this as any).$on('query', (e: any) => {
+        this.logger.debug(`Query: ${e.query}`);
+        this.logger.debug(`Duration: ${e.duration}ms`);
       });
     }
   }
 
   async onModuleInit() {
     this.logger.log('🔌 Connecting to database...');
-    
-    try {
-      await this.$connect();
-      this.logger.log('✅ Database connected successfully');
-    } catch (error) {
-      this.logger.error('❌ Database connection failed', error);
-      throw error;
+
+    let retries = 5;
+    while (retries > 0) {
+      try {
+        await this.$connect();
+        this.logger.log('✅ Database connected!');
+
+        // Test query
+        const userCount = await this.user.count();
+        this.logger.log(`📊 Total users in database: ${userCount}`);
+        
+        return;
+      } catch (error) {
+        retries--;
+        this.logger.warn(`Database connection failed. Retries left: ${retries}`);
+        if (retries === 0) {
+          this.logger.error('❌ Could not connect to database after 5 attempts');
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
     }
   }
 
   async onModuleDestroy() {
-    this.logger.log('🔌 Disconnecting from database...');
     await this.$disconnect();
-    this.logger.log('✅ Database disconnected');
+    this.logger.log('❌ Prisma disconnected from database');
   }
 
-  // =============================================
-  // TRANSACTION HELPER
-  // =============================================
-  async executeInTransaction<T>(
-    operations: (tx: Prisma.TransactionClient) => Promise<T>,
-    options?: {
-      maxWait?: number;
-      timeout?: number;
-      isolationLevel?: Prisma.TransactionIsolationLevel;
-    },
-  ): Promise<T> {
-    return this.$transaction(operations, {
-      maxWait: options?.maxWait ?? 5000,
-      timeout: options?.timeout ?? 10000,
-      isolationLevel: options?.isolationLevel,
-    });
-  }
-
-  // =============================================
-  // HEALTH CHECK
-  // =============================================
-  async healthCheck(): Promise<{
-    status: 'healthy' | 'unhealthy';
-    latencyMs: number;
-    error?: string;
-  }> {
-    const startTime = Date.now();
-    
+  // Método para health check
+  async isHealthy(): Promise<boolean> {
     try {
       await this.$queryRaw`SELECT 1`;
-      return {
-        status: 'healthy',
-        latencyMs: Date.now() - startTime,
-      };
-    } catch (error) {
-      return {
-        status: 'unhealthy',
-        latencyMs: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return true;
+    } catch {
+      return false;
     }
-  }
-
-  // =============================================
-  // SOFT DELETE HELPERS
-  // =============================================
-  
-  /**
-   * Adds soft delete filter to where clause
-   */
-  withoutDeleted<T extends { deletedAt?: Date | null }>(
-    where: T,
-  ): T & { deletedAt: null } {
-    return { ...where, deletedAt: null };
-  }
-
-  /**
-   * Soft delete a record
-   */
-  async softDelete<T>(
-    model: string,
-    where: Record<string, any>,
-  ): Promise<T> {
-    return (this as any)[model].update({
-      where,
-      data: { deletedAt: new Date() },
-    });
-  }
-
-  // =============================================
-  // CLEANUP
-  // =============================================
-  async cleanupExpiredData(): Promise<{
-    deletedNotifications: number;
-    deletedAuditLogs: number;
-  }> {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    const [notificationsResult, auditLogsResult] = await this.$transaction([
-      this.notification.deleteMany({
-        where: {
-          read: true,
-          createdAt: { lt: thirtyDaysAgo },
-        },
-      }),
-      this.auditLog.deleteMany({
-        where: {
-          createdAt: { lt: ninetyDaysAgo },
-        },
-      }),
-    ]);
-
-    this.logger.log(
-      `🧹 Cleanup: ${notificationsResult.count} notifications, ${auditLogsResult.count} audit logs`,
-    );
-
-    return {
-      deletedNotifications: notificationsResult.count,
-      deletedAuditLogs: auditLogsResult.count,
-    };
   }
 }

@@ -1,98 +1,84 @@
-// =============================================
-// 💬 WHATSAPP CONTROLLER
-// =============================================
-
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Body } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { WhatsappService } from './whatsapp.service';
-import { CompanyId, UserId } from '@common/decorators';
-import { PaginationDto } from '@common/dto/pagination.dto';
-import { CreateChatDto, SendMessageDto, UpdateChatDto, ChatFilterDto } from './dto/whatsapp.dto';
+import { AiService } from '../ai/ai.service';
 
 @ApiTags('WhatsApp')
-@ApiBearerAuth('JWT-auth')
 @Controller('whatsapp')
 export class WhatsappController {
-  constructor(private readonly whatsappService: WhatsappService) {}
+  constructor(
+    private readonly whatsappService: WhatsappService,
+    private readonly aiService: AiService,
+  ) {}
 
-  @Get('chats')
-  @ApiOperation({ summary: 'List all WhatsApp chats' })
-  async findAllChats(
-    @CompanyId() companyId: string,
-    @Query() pagination: PaginationDto,
-    @Query() filters: ChatFilterDto,
-  ) {
-    return this.whatsappService.findAllChats(companyId, pagination, filters);
+  @Get('chats/:companyId')
+  async findAllChats(@Param('companyId') companyId: string) {
+    return this.whatsappService.findAllChats(companyId);
   }
 
-  @Get('chats/active')
-  @ApiOperation({ summary: 'Get active chats' })
-  async getActiveChats(@CompanyId() companyId: string) {
-    return this.whatsappService.getActiveChats(companyId);
-  }
-
-  @Get('chats/:id')
-  @ApiOperation({ summary: 'Get chat by ID with messages' })
-  async findOneChat(@Param('id') id: string, @CompanyId() companyId: string) {
-    return this.whatsappService.findOneChat(id, companyId);
-  }
-
-  @Post('chats')
-  @ApiOperation({ summary: 'Create new chat' })
-  async createChat(
-    @Body() dto: CreateChatDto,
-    @CompanyId() companyId: string,
-    @UserId() userId: string,
-  ) {
-    return this.whatsappService.createChat(dto, companyId, userId);
-  }
-
-  @Put('chats/:id')
-  @ApiOperation({ summary: 'Update chat' })
-  async updateChat(
+  @Get('chats/:companyId/:id')
+  async findChat(
+    @Param('companyId') companyId: string,
     @Param('id') id: string,
-    @Body() dto: UpdateChatDto,
-    @CompanyId() companyId: string,
   ) {
-    return this.whatsappService.updateChat(id, dto, companyId);
+    return this.whatsappService.findChat(id, companyId);
   }
 
-  @Post('chats/:id/messages')
-  @ApiOperation({ summary: 'Send message in chat' })
-  async sendMessage(
-    @Param('id') chatId: string,
-    @Body() dto: SendMessageDto,
-    @CompanyId() companyId: string,
-    @UserId() userId: string,
-  ) {
-    return this.whatsappService.sendMessage(chatId, dto, companyId, userId);
-  }
-
-  @Get('chats/:id/messages')
-  @ApiOperation({ summary: 'Get chat messages' })
+  @Get('messages/:companyId/:chatId')
   async getMessages(
-    @Param('id') chatId: string,
-    @CompanyId() companyId: string,
-    @Query() pagination: PaginationDto,
+    @Param('companyId') companyId: string,
+    @Param('chatId') chatId: string,
   ) {
-    return this.whatsappService.getMessages(chatId, companyId, pagination);
+    return this.whatsappService.getMessages(chatId, companyId);
   }
 
-  @Get('chats/:id/suggestion')
+  @Get('chats/:companyId/:chatId/suggestion')
   @ApiOperation({ summary: 'Get AI suggestion for chat' })
-  async getSuggestion(@Param('id') chatId: string, @CompanyId() companyId: string) {
-    return this.whatsappService.getSuggestion(chatId, companyId);
+  async getSuggestion(
+    @Param('companyId') companyId: string,
+    @Param('chatId') chatId: string,
+  ) {
+    // Buscar últimas mensagens do chat para contexto
+    const messages = await this.whatsappService.getMessages(chatId, companyId);
+    
+    // Pegar última mensagem do cliente
+    const lastCustomerMessage = messages
+      .filter((m: any) => m.direction === 'INCOMING')
+      .pop();
+
+    if (!lastCustomerMessage) {
+      return {
+        suggestion: 'Inicie a conversa perguntando como você pode ajudar o cliente.',
+        confidence: 0.8,
+        type: 'general',
+        context: 'whatsapp',
+      };
+    }
+
+    // Montar histórico
+    const conversationHistory = messages
+      .slice(-10)
+      .map((m: any) => `${m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor'}: ${m.content}`)
+      .join('\n');
+
+    // Gerar sugestão com IA
+    const suggestion = await this.aiService.generateSuggestion({
+      currentMessage: lastCustomerMessage.content,
+      conversationHistory,
+      context: 'whatsapp',
+      customerSentiment: 'neutral',
+    });
+
+    return suggestion;
   }
 
-  @Delete('chats/:id')
-  @ApiOperation({ summary: 'Delete chat' })
-  async deleteChat(@Param('id') id: string, @CompanyId() companyId: string) {
-    return this.whatsappService.deleteChat(id, companyId);
-  }
-
-  @Get('stats')
-  @ApiOperation({ summary: 'Get WhatsApp statistics' })
-  async getStats(@CompanyId() companyId: string) {
-    return this.whatsappService.getStats(companyId);
+  @Post('chats/:companyId/:chatId/messages')
+  @ApiOperation({ summary: 'Send message to chat' })
+  async sendMessage(
+    @Param('companyId') companyId: string,
+    @Param('chatId') chatId: string,
+    @Body() body: { content: string; type?: string; aiSuggestionUsed?: boolean },
+  ) {
+    return this.whatsappService.sendMessage(chatId, companyId, body);
   }
 }

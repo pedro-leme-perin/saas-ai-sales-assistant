@@ -1,124 +1,129 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+// ====================================================
+// 🏢 COMPANIES SERVICE
+// ====================================================
+
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
-import { CacheService } from '@infrastructure/cache/cache.service';
-import { UpdateCompanyDto } from './dto/company.dto';
-import { AuditAction } from '@prisma/client';
+import { CreateCompanyDto } from './dto/create-company.dto';
+import { UpdateCompanyDto } from './dto/update-company.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class CompaniesService {
-  private readonly logger = new Logger(CompaniesService.name);
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly cache: CacheService,
-  ) {}
+  /**
+   * Create a new company
+   * Following Clean Architecture principles - only include defined fields
+   */
+  async create(createCompanyDto: CreateCompanyDto) {
+    const data: Prisma.CompanyCreateInput = {
+      name: createCompanyDto.name,
+    };
 
-  async findById(id: string) {
-    const cacheKey = this.cache.companyKey(id);
-    const cached = await this.cache.get(cacheKey);
-    if (cached) return cached;
+    // Only include optional fields if they are provided
+    if (createCompanyDto.slug !== undefined) {
+      data.slug = createCompanyDto.slug;
+    }
 
+    if (createCompanyDto.plan !== undefined) {
+      data.plan = createCompanyDto.plan;
+    }
+
+    if (createCompanyDto.stripeCustomerId !== undefined) {
+      data.stripeCustomerId = createCompanyDto.stripeCustomerId;
+    }
+
+    return this.prisma.company.create({ data });
+  }
+
+  /**
+   * Find one company by ID with related data
+   */
+  async findOne(id: string) {
     const company = await this.prisma.company.findUnique({
       where: { id },
-      include: { _count: { select: { users: true, calls: true, whatsappChats: true } } },
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        _count: {
+          select: {
+            calls: true,
+            whatsappChats: true,
+          },
+        },
+      },
     });
 
-    if (!company) throw new NotFoundException('Company not found');
+    if (!company) {
+      throw new NotFoundException(`Company with ID ${id} not found`);
+    }
 
-    await this.cache.set(cacheKey, company, 300);
     return company;
   }
 
-  async getStats(companyId: string) {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+  /**
+   * Update company data
+   * Following SOLID principles - only update provided fields
+   */
+  async update(id: string, updateCompanyDto: UpdateCompanyDto) {
+    // Check if company exists
+    await this.findOne(id);
 
-    const [
-      usersCount,
-      activeUsersCount,
-      totalCalls,
-      callsThisMonth,
-      callsThisWeek,
-      activeChats,
-      totalMessages,
-    ] = await Promise.all([
-      this.prisma.user.count({ where: { companyId } }),
-      this.prisma.user.count({ where: { companyId, isActive: true } }),
-      this.prisma.call.count({ where: { companyId } }),
-      this.prisma.call.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
-      this.prisma.call.count({ where: { companyId, createdAt: { gte: startOfWeek } } }),
-      this.prisma.whatsappChat.count({ where: { companyId, status: 'ACTIVE' } }),
-      this.prisma.whatsappMessage.count({ where: { chat: { companyId } } }),
-    ]);
+    const data: Prisma.CompanyUpdateInput = {};
 
-    return {
-      users: { total: usersCount, active: activeUsersCount },
-      calls: { total: totalCalls, thisMonth: callsThisMonth, thisWeek: callsThisWeek },
-      chats: { active: activeChats },
-      messages: { total: totalMessages },
-    };
-  }
+    // Only include fields that are provided
+    if (updateCompanyDto.name !== undefined) {
+      data.name = updateCompanyDto.name;
+    }
 
-  async getUsage(companyId: string) {
-    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
-    if (!company) throw new NotFoundException('Company not found');
+    if (updateCompanyDto.slug !== undefined) {
+      data.slug = updateCompanyDto.slug;
+    }
 
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    if (updateCompanyDto.plan !== undefined) {
+      data.plan = updateCompanyDto.plan;
+    }
 
-    const [usersCount, callsThisMonth, chatsThisMonth] = await Promise.all([
-      this.prisma.user.count({ where: { companyId } }),
-      this.prisma.call.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
-      this.prisma.whatsappChat.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
-    ]);
+    if (updateCompanyDto.stripeCustomerId !== undefined) {
+      data.stripeCustomerId = updateCompanyDto.stripeCustomerId;
+    }
 
-    return {
-      users: {
-        used: usersCount,
-        limit: company.maxUsers,
-        percentage: Math.round((usersCount / company.maxUsers) * 100),
-      },
-      calls: {
-        used: callsThisMonth,
-        limit: company.maxCallsPerMonth,
-        percentage: Math.round((callsThisMonth / company.maxCallsPerMonth) * 100),
-      },
-      chats: {
-        used: chatsThisMonth,
-        limit: company.maxChatsPerMonth,
-        percentage: Math.round((chatsThisMonth / company.maxChatsPerMonth) * 100),
-      },
-      plan: company.plan,
-    };
-  }
-
-  async update(id: string, dto: UpdateCompanyDto, userId: string) {
-    const company = await this.prisma.company.findUnique({ where: { id } });
-    if (!company) throw new NotFoundException('Company not found');
-
-    const oldValues = { name: company.name, website: company.website, industry: company.industry };
-
-    const updated = await this.prisma.company.update({
+    return this.prisma.company.update({
       where: { id },
-      data: dto,
+      data,
     });
+  }
 
-    await this.prisma.auditLog.create({
-      data: {
-        companyId: id,
-        userId,
-        action: AuditAction.UPDATE,
-        resource: 'company',
-        resourceId: id,
-        description: 'Company updated',
-        oldValues,
-        newValues: dto as any,
-      },
-    });
+  /**
+   * Get company statistics
+   * Efficient parallel queries using Promise.all
+   */
+  async getStats(id: string) {
+    // Check if company exists
+    await this.findOne(id);
 
-    await this.cache.del(this.cache.companyKey(id));
-    this.logger.log(`Company ${id} updated by user ${userId}`);
+    const [totalCalls, totalChats, totalUsers, activeCalls] =
+      await Promise.all([
+        this.prisma.call.count({ where: { companyId: id } }),
+        this.prisma.whatsappChat.count({ where: { companyId: id } }),
+        this.prisma.user.count({ where: { companyId: id } }),
+        this.prisma.call.count({
+          where: { companyId: id, status: 'IN_PROGRESS' },
+        }),
+      ]);
 
-    return updated;
+    return {
+      totalCalls,
+      totalChats,
+      totalUsers,
+      activeCalls,
+    };
   }
 }

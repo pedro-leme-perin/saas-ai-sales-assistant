@@ -1,0 +1,525 @@
+// =============================================
+// 🚀 MAIN.TS - Application Entry Point
+// =============================================
+// Production-ready NestJS bootstrap
+// 
+// Principles Applied:
+// - 12-Factor App (Release It! Ch.7): Config, Disposability, Logs
+// - Graceful Shutdown: SIGTERM/SIGINT handlers
+// - Health Checks: Liveness and Readiness probes
+// - Security: Helmet, CORS, Cookie security
+// - Observability: Structured logging, request tracking
+// 
+// References:
+// - Release It! Ch.7 (Foundations - 12-Factor App)
+// - Site Reliability Engineering Ch.6 (Monitoring)
+// - High Performance Browser Networking (CORS, Compression)
+// =============================================
+
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe, Logger, VersioningType } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import compression from 'compression';
+
+import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from '@common/filters/global-exception.filter';
+import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
+import { TransformInterceptor } from '@common/interceptors/transform.interceptor';
+
+// =============================================
+// TYPES & CONSTANTS
+// =============================================
+
+/**
+ * Graceful shutdown timeout
+ * Release It!: Fast startup and graceful shutdown
+ */
+const SHUTDOWN_TIMEOUT_MS = 10000; // 10 seconds
+
+/**
+ * Application metadata
+ */
+const APP_METADATA = {
+  name: 'SaaS AI Sales Assistant API',
+  version: '1.0.0',
+  description: 'Enterprise-grade AI-powered Sales Assistant API',
+} as const;
+
+// =============================================
+// BOOTSTRAP FUNCTION
+// =============================================
+
+/**
+ * Bootstrap NestJS application
+ * 
+ * 12-Factor App Compliance (Release It! Ch.7):
+ * 1. ✅ Codebase: Single codebase tracked in Git
+ * 2. ✅ Dependencies: package.json + lockfile
+ * 3. ✅ Config: Environment variables (ConfigService)
+ * 4. ✅ Backing Services: DB, Redis, etc as attached resources
+ * 5. ✅ Build/Release/Run: Separate stages
+ * 6. ✅ Processes: Stateless (sessions in Redis)
+ * 7. ✅ Port Binding: Binds to PORT env var
+ * 8. ✅ Concurrency: Horizontal scaling ready
+ * 9. ✅ Disposability: Graceful shutdown implemented
+ * 10. ✅ Dev/Prod Parity: Same Docker image
+ * 11. ✅ Logs: stdout/stderr streams
+ * 12. ✅ Admin Processes: Prisma migrations as one-off tasks
+ * 
+ * Production-Ready Features:
+ * - Security hardening (helmet, CORS)
+ * - Health checks (liveness, readiness)
+ * - Graceful shutdown (SIGTERM, SIGINT)
+ * - Request validation (class-validator)
+ * - Global error handling
+ * - API versioning
+ * - Compression
+ * - Swagger documentation (dev only)
+ */
+async function bootstrap() {
+  // =============================================
+  // 1. CREATE APPLICATION
+  // =============================================
+  
+  const logger = new Logger('Bootstrap');
+  logger.log('🚀 Starting application bootstrap...');
+
+  try {
+    const app = await NestFactory.create(AppModule, {
+      // Release It!: Treat logs as event streams
+      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+      bufferLogs: true, // Buffer until logger is ready
+      abortOnError: false, // Don't crash on startup errors
+    });
+
+    // =============================================
+    // 2. LOAD CONFIGURATION
+    // =============================================
+    
+    const configService = app.get(ConfigService);
+    
+    // 12-Factor App: Store config in environment
+    const port = configService.get<number>('PORT', 3001);
+    const nodeEnv = configService.get<string>('NODE_ENV', 'development');
+    const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    
+    const isProduction = nodeEnv === 'production';
+    const isDevelopment = nodeEnv === 'development';
+
+    logger.log(`📝 Environment: ${nodeEnv}`);
+    logger.log(`🌐 Frontend URL: ${frontendUrl}`);
+
+    // =============================================
+    // 3. SECURITY MIDDLEWARE
+    // =============================================
+    
+    /**
+     * Helmet: Security headers
+     * 
+     * Release It! Ch.11 (Security):
+     * - Content Security Policy (CSP)
+     * - XSS Protection
+     * - HSTS (HTTP Strict Transport Security)
+     * - X-Frame-Options (clickjacking protection)
+     * - X-Content-Type-Options (MIME sniffing protection)
+     */
+    app.use(
+      helmet({
+        // Content Security Policy
+        contentSecurityPolicy: isProduction
+          ? {
+              directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"], // Required for Swagger
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", 'data:', 'https:'],
+                connectSrc: ["'self'"],
+                fontSrc: ["'self'"],
+                objectSrc: ["'none'"],
+                mediaSrc: ["'self'"],
+                frameSrc: ["'none'"],
+              },
+            }
+          : false, // Disable in development for easier debugging
+        
+        // HSTS: Force HTTPS in production
+        hsts: isProduction
+          ? {
+              maxAge: 31536000, // 1 year
+              includeSubDomains: true,
+              preload: true,
+            }
+          : false,
+        
+        // Cross-Origin Embedder Policy
+        crossOriginEmbedderPolicy: false, // Required for some APIs
+        
+        // X-Frame-Options: Prevent clickjacking
+        frameguard: { action: 'deny' },
+        
+        // Hide X-Powered-By header
+        hidePoweredBy: true,
+        
+        // X-Content-Type-Options: Prevent MIME sniffing
+        noSniff: true,
+        
+        // Referrer-Policy
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      }),
+    );
+
+    /**
+     * CORS: Cross-Origin Resource Sharing
+     * 
+     * High Performance Browser Networking:
+     * - Restrict origins in production
+     * - Allow credentials (cookies)
+     * - Whitelist methods and headers
+     */
+    app.enableCors({
+      // Origin whitelist
+      origin: isProduction
+        ? [frontendUrl] // Only production frontend
+        : [frontendUrl, 'http://localhost:3000', 'http://localhost:3001'], // Dev + Prod
+      
+      // Allow cookies (authentication)
+      credentials: true,
+      
+      // Allowed HTTP methods
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      
+      // Allowed headers
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'X-Request-ID',
+        'X-Correlation-ID',
+      ],
+      
+      // Expose headers to client
+      exposedHeaders: ['X-Request-ID', 'X-RateLimit-Remaining'],
+      
+      // Preflight cache duration (24 hours)
+      maxAge: 86400,
+      
+      // Allow OPTIONS pre-flight requests
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+    });
+
+    /**
+     * Cookie Parser
+     * 
+     * Release It! Ch.11: Secure cookie handling
+     */
+    app.use(
+      cookieParser(
+        configService.get<string>('COOKIE_SECRET'), // Sign cookies
+      ),
+    );
+
+    /**
+     * Compression
+     * 
+     * High Performance Browser Networking:
+     * - Reduce response size
+     * - Faster data transfer
+     * - Lower bandwidth costs
+     */
+    app.use(
+      compression({
+        threshold: 1024, // Only compress > 1KB
+        level: 6, // Compression level (0-9, 6 = balanced)
+      }),
+    );
+
+    logger.log('✅ Security middleware configured');
+
+    // =============================================
+    // 4. GLOBAL PIPES, FILTERS, INTERCEPTORS
+    // =============================================
+    
+    /**
+     * Validation Pipe
+     * 
+     * Release It!: Validate Input stability pattern
+     * - Reject invalid data early (fail fast)
+     * - Transform DTOs automatically
+     * - Strip unknown properties (security)
+     */
+    app.useGlobalPipes(
+      new ValidationPipe({
+        // Strip properties not in DTO (security)
+        whitelist: true,
+        
+        // Throw error if unknown properties sent
+        forbidNonWhitelisted: true,
+        
+        // Transform payloads to DTO instances
+        transform: true,
+        
+        // Enable implicit type conversion
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+        
+        // Detailed error messages (only in dev)
+        disableErrorMessages: isProduction,
+        
+        // Validate nested objects
+        validateCustomDecorators: true,
+        
+        // Stop on first error (performance)
+        stopAtFirstError: false,
+      }),
+    );
+
+    /**
+     * Global Exception Filter
+     * 
+     * Release It!: Proper error handling and logging
+     */
+    app.useGlobalFilters(new GlobalExceptionFilter());
+
+    /**
+     * Global Interceptors
+     * 
+     * Site Reliability Engineering Ch.6:
+     * - Logging for observability
+     * - Transform responses for consistency
+     */
+    app.useGlobalInterceptors(
+      new LoggingInterceptor(), // Request/response logging
+      new TransformInterceptor(), // Standardize response format
+    );
+
+    logger.log('✅ Global pipes, filters, interceptors configured');
+
+    // =============================================
+    // 5. API CONFIGURATION
+    // =============================================
+    
+    /**
+     * API Versioning
+     * 
+     * Release It! Ch.13: Version your APIs
+     * Format: /api/v1/resource
+     */
+    app.enableVersioning({
+      type: VersioningType.URI,
+      defaultVersion: '1',
+      prefix: 'api/v',
+    });
+
+    /**
+     * Global Prefix
+     * 
+     * Excludes:
+     * - /health (health checks)
+     * - /health/live (liveness probe)
+     * - /health/ready (readiness probe)
+     * - /webhooks/* (webhook endpoints)
+     */
+    app.setGlobalPrefix('api', {
+      exclude: [
+        'health',
+        'health/live',
+        'health/ready',
+        'webhooks/(.*)', // All webhook routes
+      ],
+    });
+
+    /**
+     * WebSocket Adapter
+     * 
+     * For real-time AI suggestions
+     */
+    app.useWebSocketAdapter(new IoAdapter(app));
+
+    logger.log('✅ API configuration complete');
+
+    // =============================================
+    // 6. SWAGGER DOCUMENTATION
+    // =============================================
+    
+    /**
+     * Swagger (OpenAPI)
+     * 
+     * Only in non-production environments
+     * Security: Don't expose API docs in production
+     */
+    if (!isProduction) {
+      const swaggerConfig = new DocumentBuilder()
+        .setTitle(APP_METADATA.name)
+        .setDescription(APP_METADATA.description)
+        .setVersion(APP_METADATA.version)
+        .addBearerAuth(
+          {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            description: 'Enter JWT token from Clerk authentication',
+            in: 'header',
+          },
+          'JWT-auth',
+        )
+        .addTag('Authentication', 'Clerk webhook endpoints')
+        .addTag('Billing', 'Subscription and payment management')
+        .addTag('Calls', 'Phone call tracking and analytics')
+        .addTag('Companies', 'Company profile and settings')
+        .addTag('Users', 'User management')
+        .addTag('WhatsApp', 'WhatsApp chat management')
+        .addTag('Notifications', 'Real-time notifications')
+        .addServer(`http://localhost:${port}`, 'Development')
+        .build();
+
+      const document = SwaggerModule.createDocument(app, swaggerConfig);
+      SwaggerModule.setup('docs', app, document, {
+        customSiteTitle: `${APP_METADATA.name} - API Docs`,
+        customfavIcon: '/favicon.ico',
+        customCss: '.swagger-ui .topbar { display: none }', // Hide Swagger topbar
+        swaggerOptions: {
+          persistAuthorization: true, // Remember auth token
+          docExpansion: 'none', // Collapse all by default
+          filter: true, // Enable search
+          showRequestDuration: true, // Show request timing
+        },
+      });
+
+      logger.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+    }
+
+    // =============================================
+    // 7. GRACEFUL SHUTDOWN
+    // =============================================
+    
+    /**
+     * Graceful Shutdown Handler
+     * 
+     * 12-Factor App (Release It! Ch.7):
+     * "Maximize robustness with fast startup and graceful shutdown"
+     * 
+     * Handles:
+     * - SIGTERM (Kubernetes, Docker stop)
+     * - SIGINT (Ctrl+C in terminal)
+     * 
+     * Process:
+     * 1. Stop accepting new requests
+     * 2. Wait for existing requests to complete (max 10s)
+     * 3. Close database connections
+     * 4. Close Redis connections
+     * 5. Exit cleanly
+     * 
+     * Site Reliability Engineering:
+     * - Prevents request failures during deployment
+     * - Ensures data consistency
+     */
+    app.enableShutdownHooks();
+
+    // Handle SIGTERM (graceful shutdown in Kubernetes/Docker)
+    process.on('SIGTERM', async () => {
+      logger.log('⚠️  SIGTERM signal received: closing HTTP server gracefully');
+      
+      const shutdownTimer = setTimeout(() => {
+        logger.error('❌ Graceful shutdown timeout exceeded, forcing exit');
+        process.exit(1);
+      }, SHUTDOWN_TIMEOUT_MS);
+
+      try {
+        await app.close();
+        clearTimeout(shutdownTimer);
+        logger.log('✅ Application closed gracefully');
+        process.exit(0);
+      } catch (error) {
+        logger.error('❌ Error during graceful shutdown:', error);
+        process.exit(1);
+      }
+    });
+
+    // Handle SIGINT (Ctrl+C in terminal)
+    process.on('SIGINT', async () => {
+      logger.log('⚠️  SIGINT signal received: shutting down');
+      await app.close();
+      logger.log('✅ Application closed');
+      process.exit(0);
+    });
+
+    // Handle uncaught exceptions (should never happen in production)
+    process.on('uncaughtException', (error) => {
+      logger.error('❌ UNCAUGHT EXCEPTION:', error);
+      process.exit(1);
+    });
+
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('❌ UNHANDLED REJECTION at:', promise, 'reason:', reason);
+      process.exit(1);
+    });
+
+    logger.log('✅ Graceful shutdown handlers configured');
+
+    // =============================================
+    // 8. START SERVER
+    // =============================================
+    
+    /**
+     * Listen on all interfaces (0.0.0.0)
+     * 
+     * Release It!: Required for Docker containers
+     * - 0.0.0.0 allows external connections
+     * - localhost only works within container
+     */
+    await app.listen(port, '0.0.0.0');
+
+    // =============================================
+    // 9. STARTUP BANNER
+    // =============================================
+    
+    logger.log('╔═══════════════════════════════════════════╗');
+    logger.log(`║  ${APP_METADATA.name.padEnd(38)}  ║`);
+    logger.log('╚═══════════════════════════════════════════╝');
+    logger.log('');
+    logger.log(`📝 Environment: ${nodeEnv}`);
+    logger.log(`🌐 Server: http://localhost:${port}`);
+    logger.log(`❤️  Health: http://localhost:${port}/health`);
+    logger.log(`📊 Metrics: http://localhost:${port}/health/ready`);
+    
+    if (!isProduction) {
+      logger.log(`📚 API Docs: http://localhost:${port}/docs`);
+    }
+    
+    logger.log('');
+    logger.log('╔═══════════════════════════════════════════╗');
+    logger.log('║  ✅ APPLICATION READY                    ║');
+    logger.log('╚═══════════════════════════════════════════╝');
+  } catch (error) {
+    logger.error('❌ Failed to bootstrap application:', error);
+    throw error;
+  }
+}
+
+// =============================================
+// EXECUTE BOOTSTRAP
+// =============================================
+
+/**
+ * Execute bootstrap with error handling
+ * 
+ * Release It!: Fail fast on startup errors
+ * - Log error clearly
+ * - Exit with non-zero code
+ * - Let orchestrator (Docker, K8s) restart
+ */
+bootstrap().catch((error) => {
+  console.error('\n╔═══════════════════════════════════════════╗');
+  console.error('║  ❌ FATAL: APPLICATION FAILED TO START   ║');
+  console.error('╚═══════════════════════════════════════════╝\n');
+  console.error(error);
+  console.error('\nExiting with code 1...\n');
+  process.exit(1);
+});

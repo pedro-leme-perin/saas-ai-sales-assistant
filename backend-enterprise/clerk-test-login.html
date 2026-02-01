@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clerk Test Login - Get JWT Token</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        #clerk-signin {
+            margin: 30px 0;
+        }
+        .token-section {
+            margin-top: 30px;
+            display: none;
+        }
+        .token-section.show {
+            display: block;
+        }
+        .token-label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .token-display {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            border: 2px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .copy-btn {
+            margin-top: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+        .copy-btn:active {
+            background: #4451b8;
+        }
+        .success-msg {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+            border: 1px solid #c3e6cb;
+        }
+        .success-msg.show {
+            display: block;
+        }
+        .user-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #b3d9ff;
+        }
+        .user-info p {
+            margin: 5px 0;
+            color: #333;
+        }
+        .user-info strong {
+            color: #0056b3;
+        }
+        .instructions {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #ffeaa7;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+            color: #856404;
+        }
+        .instructions li {
+            margin: 5px 0;
+        }
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        .logout-btn:hover {
+            background: #c82333;
+        }
+        .swagger-link {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .swagger-link:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Clerk JWT Token Generator</h1>
+        <p class="subtitle">SaaS AI Sales Assistant - Development Testing</p>
+        
+        <div class="instructions">
+            <h3>📋 Como Usar:</h3>
+            <ol>
+                <li>Faça login com uma das contas Clerk</li>
+                <li>O JWT token será exibido automaticamente abaixo</li>
+                <li>Clique em "Copy Token" para copiar</li>
+                <li>Abra o Swagger clicando em "Open Swagger"</li>
+                <li>No Swagger, clique em "Authorize" e cole: <code>Bearer {token}</code></li>
+            </ol>
+        </div>
+
+        <div id="clerk-signin"></div>
+
+        <div id="user-info" class="user-info" style="display: none;">
+            <h3>👤 Informações do Usuário</h3>
+            <p><strong>Email:</strong> <span id="user-email"></span></p>
+            <p><strong>User ID:</strong> <span id="user-id"></span></p>
+            <p><strong>Status:</strong> <span style="color: green;">✅ Autenticado</span></p>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+
+        <div id="token-section" class="token-section">
+            <div class="token-label">🎫 JWT Token:</div>
+            <div class="token-display" id="token-display"></div>
+            <button class="copy-btn" onclick="copyToken()">📋 Copy Token to Clipboard</button>
+            <a href="http://localhost:3001/api/docs" target="_blank" class="swagger-link">🚀 Open Swagger</a>
+            <div id="success-msg" class="success-msg">✅ Token copiado com sucesso!</div>
+        </div>
+    </div>
+
+    <!-- Clerk Frontend API -->
+    <script
+        async
+        crossorigin="anonymous"
+        data-clerk-publishable-key="pk_test_c3Ryb25nLWRlZXItNzAuY2xlcmsuYWNjb3VudHMuZGV2JA"
+        src="https://strong-deer-70.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+        type="text/javascript"
+    ></script>
+
+    <script>
+        let currentToken = '';
+
+        window.addEventListener('load', async function () {
+            await Clerk.load();
+
+            // Mount Clerk sign-in component
+            Clerk.mountSignIn(document.getElementById('clerk-signin'));
+
+            // Listen for session changes
+            Clerk.addListener(async (session) => {
+                if (session) {
+                    console.log('✅ User signed in:', session);
+                    await displayUserInfo(session);
+                } else {
+                    console.log('❌ User signed out');
+                    hideUserInfo();
+                }
+            });
+
+            // Check if already signed in
+            const session = Clerk.session;
+            if (session) {
+                await displayUserInfo(session);
+            }
+        });
+
+        async function displayUserInfo(session) {
+            try {
+                // Get JWT token
+                const token = await session.getToken();
+                currentToken = token;
+
+                // Display token
+                document.getElementById('token-display').textContent = token;
+                document.getElementById('token-section').classList.add('show');
+
+                // Display user info
+                const user = session.user;
+                document.getElementById('user-email').textContent = user.primaryEmailAddress.emailAddress;
+                document.getElementById('user-id').textContent = user.id;
+                document.getElementById('user-info').style.display = 'block';
+
+                // Hide sign-in component
+                document.getElementById('clerk-signin').style.display = 'none';
+
+                console.log('📋 JWT Token:', token);
+                console.log('👤 User:', user);
+                console.log('\n🎯 Para usar no Swagger:');
+                console.log('1. Abra: http://localhost:3001/api/docs');
+                console.log('2. Clique em "Authorize"');
+                console.log('3. Cole: Bearer ' + token);
+            } catch (error) {
+                console.error('❌ Error getting token:', error);
+            }
+        }
+
+        function hideUserInfo() {
+            document.getElementById('token-section').classList.remove('show');
+            document.getElementById('user-info').style.display = 'none';
+            document.getElementById('clerk-signin').style.display = 'block';
+            currentToken = '';
+        }
+
+        function copyToken() {
+            if (!currentToken) {
+                alert('❌ No token available. Please sign in first.');
+                return;
+            }
+
+            // Copy with "Bearer " prefix for convenience
+            const tokenWithBearer = 'Bearer ' + currentToken;
+            
+            navigator.clipboard.writeText(tokenWithBearer).then(() => {
+                const successMsg = document.getElementById('success-msg');
+                successMsg.textContent = '✅ Token copiado com "Bearer" prefix! Cole diretamente no Swagger.';
+                successMsg.classList.add('show');
+                
+                console.log('✅ Token copiado para clipboard com Bearer prefix');
+                
+                setTimeout(() => {
+                    successMsg.classList.remove('show');
+                }, 5000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy token. Check console.');
+            });
+        }
+
+        async function handleLogout() {
+            await Clerk.signOut();
+            hideUserInfo();
+        }
+    </script>
+</body>
+</html>

@@ -1,33 +1,51 @@
-// =============================================
-// 🔐 AUTH CONTROLLER
-// =============================================
+// src/modules/auth/auth.controller.ts
 
-import { Controller, Get, Post, Body, Logger } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
-import { AuthService } from './auth.service';
-import { Public, CurrentUser, AuthenticatedUser } from '@common/decorators';
+import { Controller, Get, Logger } from '@nestjs/common';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { UserWithCompany } from '@/modules/users/users.service';
 
-@ApiTags('Auth')
-@Controller('auth')
+@Controller('auth')  // ← CORRIGIDO: removido 'api/'
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
-
+  /**
+   * GET /api/auth/me
+   * Retorna dados do usuário autenticado
+   */
   @Get('me')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current authenticated user' })
-  @ApiResponse({ status: 200, description: 'Current user info' })
-  @ApiResponse({ status: 401, description: 'Not authenticated' })
-  async getCurrentUser(@CurrentUser() user: AuthenticatedUser) {
-    return this.authService.getCurrentUser(user.id);
+  async getMe(@CurrentUser() user: UserWithCompany) {
+    this.logger.debug(`Getting user profile: ${user.id}`);
+    
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+      phone: user.phone,
+      status: user.status,
+      companyId: user.companyId,  // ← ADICIONADO: necessário para o frontend
+      company: {
+        id: user.company.id,
+        name: user.company.name,
+        plan: user.company.plan,
+      },
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
-  @Post('webhook/clerk')
-  @Public()
-  @ApiOperation({ summary: 'Clerk webhook endpoint' })
-  async handleClerkWebhook(@Body() body: any) {
-    this.logger.log(`Clerk webhook: ${body?.type}`);
-    return this.authService.handleClerkWebhook(body);
+  /**
+   * GET /api/auth/session
+   * Verifica se a sessão é válida (usado pelo frontend)
+   */
+  @Get('session')
+  async checkSession(@CurrentUser() user: UserWithCompany) {
+    return {
+      valid: true,
+      userId: user.id,
+      companyId: user.companyId,
+      role: user.role,
+    };
   }
 }

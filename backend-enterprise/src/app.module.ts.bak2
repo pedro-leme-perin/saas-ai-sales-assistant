@@ -1,0 +1,74 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
+
+// Database
+import { PrismaModule } from './prisma/prisma.module';
+
+// Common modules
+import { CacheService } from './common/cache/cache.service';
+
+// Feature modules
+import { HealthModule } from './health/health.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { CompaniesModule } from './modules/companies/companies.module';
+import { CallsModule } from './modules/calls/calls.module';
+import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
+import { AiModule } from './modules/ai/ai.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+
+@Module({
+  imports: [
+    // Configuration
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+
+    // Rate Limiting
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute
+      },
+    ]),
+
+    // Cache (Redis)
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        store: await redisStore({
+          socket: {
+            host: configService.get('REDIS_HOST', 'localhost'),
+            port: configService.get('REDIS_PORT', 6379),
+          },
+          ttl: 60 * 1000, // 1 minute default TTL
+        }),
+      }),
+    }),
+
+    // Database
+    PrismaModule,
+
+    // Feature Modules
+    HealthModule,
+    AuthModule,
+    UsersModule,
+    CompaniesModule,
+    CallsModule,
+    WhatsappModule,
+    AiModule,
+    BillingModule,
+    NotificationsModule,
+    AnalyticsModule,
+  ],
+  providers: [CacheService],
+})
+export class AppModule {}

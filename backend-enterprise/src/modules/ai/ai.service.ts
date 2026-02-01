@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CacheService } from '@infrastructure/cache/cache.service';
-import { createHash } from 'crypto';
+import OpenAI from 'openai';
 
 export interface SuggestionRequest {
   currentMessage: string;
@@ -18,132 +17,186 @@ export interface SuggestionResponse {
   context?: string;
 }
 
-export interface ConversationAnalysis {
-  sentiment: 'positive' | 'neutral' | 'negative';
-  score: number;
-  summary: string;
-  keywords: string[];
-  actionItems: string[];
-}
-
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly openaiApiKey: string;
+  private readonly openai: OpenAI | null = null;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly cache: CacheService,
-  ) {
-    this.openaiApiKey = this.configService.get<string>('ai.openai.apiKey') || '';
+  constructor(private readonly configService: ConfigService) {
+    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+    
+    if (apiKey) {
+      this.openai = new OpenAI({ apiKey });
+      this.logger.log('✅ OpenAI client initialized');
+    } else {
+      this.logger.warn('⚠️ OpenAI API key not configured - using mock responses');
+    }
   }
 
   async generateSuggestion(request: SuggestionRequest): Promise<SuggestionResponse> {
-    const cacheKey = this.cache.aiSuggestionKey(
-      createHash('md5').update(request.currentMessage).digest('hex')
-    );
+    this.logger.debug('Generating AI suggestion');
 
-    const cached = await this.cache.get<SuggestionResponse>(cacheKey);
-    if (cached) {
-      this.logger.debug('AI suggestion cache hit');
-      return cached;
+    if (!this.openai) {
+      return this.getMockSuggestion(request);
     }
 
-    // Use OpenAI if configured
-    if (this.openaiApiKey && !this.openaiApiKey.includes('xxx')) {
-      try {
-        const response = await this.callOpenAI(request);
-        await this.cache.set(cacheKey, response, 300);
-        return response;
-      } catch (error) {
-        this.logger.error('OpenAI error, using mock:', error);
-      }
-    }
+    try {
+      const systemPrompt = this.buildSystemPrompt(request.context);
+      const userPrompt = this.buildUserPrompt(request);
 
-    // Mock response for development
-    const mockResponse = this.getMockSuggestion(request.currentMessage);
-    await this.cache.set(cacheKey, mockResponse, 300);
-    return mockResponse;
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 150,
+        temperature: 0.7,
+      });
+
+      const suggestion = response.choices[0]?.message?.content?.trim() || '';
+
+      return {
+        suggestion,
+        confidence: 0.9,
+        type: this.detectSuggestionType(suggestion),
+        context: request.context,
+      };
+    } catch (error) {
+      this.logger.error('OpenAI API error:', error);
+      return this.getMockSuggestion(request);
+    }
   }
 
-  private async callOpenAI(request: SuggestionRequest): Promise<SuggestionResponse> {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.openaiApiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
-        messages: [
-          { role: 'system', content: 'Você é um assistente de vendas brasileiro. Dê sugestões concisas (máx 2 frases) para ajudar vendedores.' },
-          { role: 'user', content: `Cliente disse: "${request.currentMessage}"\n\nDê uma sugestão de resposta.` }
-        ],
-        max_tokens: 200,
-        temperature: 0.7,
-      }),
-    });
+  async analyzeConversation(transcript: string): Promise<{
+    sentiment: string;
+    score: number;
+    summary: string;
+    keywords: string[];
+    actionItems: string[];
+  }> {
+    this.logger.debug('Analyzing conversation');
 
-    const data = await response.json() as any;
-    const content = data.choices?.[0]?.message?.content || 'Continue ouvindo ativamente.';
+    if (!this.openai) {
+      return this.getMockAnalysis();
+    }
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Você é um analista de vendas especializado. Analise a conversa e retorne um JSON com:
+- sentiment: "positive", "neutral" ou "negative"
+- score: número de 0 a 1 indicando intensidade do sentimento
+- summary: resumo de 1-2 frases da conversa
+- keywords: array com 3-5 palavras-chave importantes
+- actionItems: array com 1-3 próximos passos recomendados
+
+Responda APENAS com o JSON, sem markdown.`,
+          },
+          { role: 'user', content: transcript },
+        ],
+        max_tokens: 300,
+        temperature: 0.3,
+      });
+
+      const content = response.choices[0]?.message?.content?.trim() || '{}';
+      
+      try {
+        return JSON.parse(content);
+      } catch {
+        return this.getMockAnalysis();
+      }
+    } catch (error) {
+      this.logger.error('OpenAI API error:', error);
+      return this.getMockAnalysis();
+    }
+  }
+
+  private buildSystemPrompt(context?: string): string {
+    const basePrompt = `Você é um assistente de vendas experiente que ajuda vendedores em tempo real.
+Suas sugestões devem ser:
+- Curtas e diretas (máximo 2 frases)
+- Específicas para a situação
+- Em português brasileiro
+- Focadas em avançar a venda ou resolver objeções`;
+
+    if (context === 'phone_call') {
+      return `${basePrompt}
+
+Contexto: Ligação telefônica de vendas.
+Foque em: tom de voz, pausas estratégicas, perguntas abertas.`;
+    }
+
+    if (context === 'whatsapp') {
+      return `${basePrompt}
+
+Contexto: Conversa no WhatsApp Business.
+Foque em: respostas rápidas, emojis moderados, links úteis.`;
+    }
+
+    return basePrompt;
+  }
+
+  private buildUserPrompt(request: SuggestionRequest): string {
+    let prompt = `Mensagem do cliente: "${request.currentMessage}"`;
+
+    if (request.conversationHistory) {
+      prompt = `Histórico da conversa:\n${request.conversationHistory}\n\n${prompt}`;
+    }
+
+    if (request.customerSentiment) {
+      prompt += `\n\nSentimento detectado: ${request.customerSentiment}`;
+    }
+
+    if (request.productContext) {
+      prompt += `\n\nProduto/Serviço: ${request.productContext}`;
+    }
+
+    prompt += '\n\nSugira uma resposta para o vendedor:';
+
+    return prompt;
+  }
+
+  private detectSuggestionType(suggestion: string): string {
+    const lower = suggestion.toLowerCase();
     
+    if (lower.includes('objeção') || lower.includes('entendo sua preocupação')) {
+      return 'objection_handling';
+    }
+    if (lower.includes('fechar') || lower.includes('próximo passo')) {
+      return 'closing';
+    }
+    if (lower.includes('?')) {
+      return 'question';
+    }
+    return 'general';
+  }
+
+  private getMockSuggestion(request: SuggestionRequest): SuggestionResponse {
+    const suggestions = {
+      positive: 'Ótimo! Aproveite o interesse do cliente e apresente os benefícios principais do produto.',
+      neutral: 'Faça uma pergunta aberta para entender melhor as necessidades do cliente.',
+      negative: 'Demonstre empatia e pergunte o que poderia ser feito para atender melhor às expectativas.',
+    };
+
     return {
-      suggestion: content,
-      confidence: 0.85,
-      type: this.detectType(request.currentMessage),
+      suggestion: suggestions[request.customerSentiment || 'neutral'],
+      confidence: 0.7,
+      type: 'general',
       context: request.context,
     };
   }
 
-  private getMockSuggestion(message: string): SuggestionResponse {
-    const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('olá') || lowerMessage.includes('oi') || lowerMessage.includes('bom dia')) {
-      return { suggestion: 'Olá! Seja bem-vindo! Como posso ajudá-lo hoje? 😊', confidence: 0.9, type: 'greeting' };
-    }
-    if (lowerMessage.includes('caro') || lowerMessage.includes('preço') || lowerMessage.includes('desconto')) {
-      return { suggestion: 'Entendo sua preocupação com o investimento. Nosso produto oferece ROI comprovado em 3 meses. Posso mostrar casos de sucesso similares ao seu?', confidence: 0.85, type: 'objection' };
-    }
-    if (lowerMessage.includes('interesse') || lowerMessage.includes('gostei') || lowerMessage.includes('quero')) {
-      return { suggestion: 'Excelente! Vejo que você tem interesse. Que tal agendarmos uma demonstração personalizada para mostrar como podemos atender suas necessidades específicas?', confidence: 0.9, type: 'closing' };
-    }
-    if (lowerMessage.includes('?') || lowerMessage.includes('como') || lowerMessage.includes('qual')) {
-      return { suggestion: 'Ótima pergunta! Deixa eu explicar de forma clara...', confidence: 0.8, type: 'question' };
-    }
-    
-    return { suggestion: 'Entendo. Me conta mais sobre sua situação para eu poder ajudar melhor.', confidence: 0.7, type: 'general' };
-  }
-
-  private detectType(message: string): string {
-    const lower = message.toLowerCase();
-    if (lower.includes('olá') || lower.includes('oi')) return 'greeting';
-    if (lower.includes('caro') || lower.includes('preço')) return 'objection';
-    if (lower.includes('interesse') || lower.includes('quero')) return 'closing';
-    if (lower.includes('?')) return 'question';
-    return 'general';
-  }
-
-  async analyzeConversation(transcript: string): Promise<ConversationAnalysis> {
-    const positiveWords = ['bom', 'ótimo', 'excelente', 'gostei', 'interesse', 'sim', 'quero'];
-    const negativeWords = ['não', 'caro', 'difícil', 'problema', 'ruim', 'cancelar'];
-
-    const words = transcript.toLowerCase().split(/\s+/);
-    const positiveCount = words.filter(w => positiveWords.some(p => w.includes(p))).length;
-    const negativeCount = words.filter(w => negativeWords.some(n => w.includes(n))).length;
-
-    const score = (positiveCount - negativeCount + 5) / 10;
-    const normalizedScore = Math.max(0, Math.min(1, score));
-
-    let sentiment: 'positive' | 'neutral' | 'negative' = 'neutral';
-    if (normalizedScore > 0.6) sentiment = 'positive';
-    else if (normalizedScore < 0.4) sentiment = 'negative';
-
+  private getMockAnalysis() {
     return {
-      sentiment,
-      score: normalizedScore,
-      summary: `Conversa com sentimento ${sentiment}. ${positiveCount} sinais positivos, ${negativeCount} negativos.`,
-      keywords: words.filter(w => w.length > 5).slice(0, 5),
-      actionItems: sentiment === 'positive' ? ['Agendar follow-up', 'Enviar proposta'] : ['Investigar objeções', 'Oferecer alternativas'],
+      sentiment: 'neutral',
+      score: 0.5,
+      summary: 'Conversa em andamento, cliente demonstra interesse moderado.',
+      keywords: ['produto', 'preço', 'interesse'],
+      actionItems: ['Apresentar benefícios', 'Enviar proposta'],
     };
   }
 }

@@ -6,17 +6,15 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { Toaster } from 'sonner';
 import apiClient from '@/lib/api-client';
-import wsClient from '@/lib/websocket';
+import { wsClient } from '@/lib/websocket';
 import { useUserStore, useNotificationsStore, useAISuggestionsStore } from '@/stores';
-import { authService, companiesService, notificationsService } from '@/services/api';
-import type { WSNotification, WSAISuggestion } from '@/types';
+import { authService } from '@/services/api';
 
-// Create a client
 function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000, // 1 minute
+        staleTime: 60 * 1000,
         refetchOnWindowFocus: false,
         retry: 1,
       },
@@ -37,7 +35,6 @@ function getQueryClient() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
-
   return (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -47,11 +44,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Auth Provider - syncs Clerk with our backend
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { setUser, setCompany, setLoading, clear } = useUserStore();
-  const { setNotifications, setUnreadCount, addNotification } = useNotificationsStore();
+  const { addNotification } = useNotificationsStore();
   const { addSuggestion } = useAISuggestionsStore();
 
   useEffect(() => {
@@ -67,37 +63,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setLoading(true);
 
-        // Get Clerk token and set it for API calls
+        // Get Clerk token
         const token = await getToken();
         if (token) {
           apiClient.setAuthToken(token);
         }
 
-        // Fetch user from our backend
+        // Fetch user from backend (includes company info)
         const user = await authService.getMe();
         setUser(user);
 
-        // Fetch company
-        const company = await companiesService.getCurrent();
-        setCompany(company);
-
-        // Fetch notifications
-        const notificationsRes = await notificationsService.getAll({ limit: 20 });
-        setNotifications(notificationsRes.data);
-
-        const unreadRes = await notificationsService.getUnreadCount();
-        setUnreadCount(unreadRes.count);
+        // Set company from user response
+        if (user.company) {
+          setCompany(user.company);
+        }
 
         // Connect WebSocket
-        if (user && company) {
-          wsClient.connect(user.id, company.id);
+        if (user && user.companyId) {
+          wsClient.connect(token || undefined);
+          wsClient.joinRoom(`user:${user.id}`);
+          wsClient.joinRoom(`company:${user.companyId}`);
 
-          // Listen for real-time events
-          wsClient.on<WSNotification>('notification', (data) => {
+          wsClient.on('notification', (data: any) => {
             addNotification(data.notification);
           });
 
-          wsClient.on<WSAISuggestion>('ai:suggestion', (data) => {
+          wsClient.on('ai:suggestion', (data: any) => {
             addSuggestion(data.suggestion);
           });
         }
@@ -114,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       wsClient.disconnect();
     };
-  }, [isLoaded, isSignedIn, getToken, setUser, setCompany, setLoading, clear, setNotifications, setUnreadCount, addNotification, addSuggestion]);
+  }, [isLoaded, isSignedIn, getToken, setUser, setCompany, setLoading, clear, addNotification, addSuggestion]);
 
   return <>{children}</>;
 }
