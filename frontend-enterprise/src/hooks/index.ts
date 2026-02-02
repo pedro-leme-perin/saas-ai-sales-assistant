@@ -27,7 +27,7 @@ export function useWebSocket(userId: string | undefined, companyId: string | und
       addSuggestion(data.suggestion);
     });
 
-    const unsubNotification = wsClient.on('notification', (data) => {
+    const unsubNotification = wsClient.on('notification', (data: WSNotification) => {
       addNotification(data.notification);
     });
 
