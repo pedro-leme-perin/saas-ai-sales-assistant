@@ -1,14 +1,14 @@
-import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { AIProviderType } from '@/infrastructure/ai/ai-manager.service';
 
 @Controller('ai')
-@UseGuards(JwtAuthGuard)
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('suggestion')
+  @UseGuards(JwtAuthGuard)
   async generateSuggestion(
     @Body()
     body: {
@@ -25,6 +25,7 @@ export class AiController {
   }
 
   @Post('suggestion/balanced')
+  @UseGuards(JwtAuthGuard)
   async generateSuggestionBalanced(
     @Body() body: { transcript: string; context?: Record<string, any> },
   ) {
@@ -35,6 +36,7 @@ export class AiController {
   }
 
   @Post('analyze')
+  @UseGuards(JwtAuthGuard)
   async analyzeConversation(
     @Body()
     body: {
