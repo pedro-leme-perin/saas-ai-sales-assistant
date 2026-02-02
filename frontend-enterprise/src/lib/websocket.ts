@@ -115,4 +115,11 @@ class WebSocketClient {
 }
 
 export const wsClient = new WebSocketClient();
+startTyping(chatId: string) {
+    this.emit('typing:start', { chatId });
+  }
+
+  stopTyping(chatId: string) {
+    this.emit('typing:stop', { chatId });
+  }
 export const websocketService = wsClient;
