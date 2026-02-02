@@ -1,202 +1,84 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
-
-export interface SuggestionRequest {
-  currentMessage: string;
-  conversationHistory?: string;
-  context?: 'phone_call' | 'whatsapp';
-  customerSentiment?: 'positive' | 'neutral' | 'negative';
-  productContext?: string;
-}
-
-export interface SuggestionResponse {
-  suggestion: string;
-  confidence: number;
-  type: string;
-  context?: string;
-}
+import { AIManagerService, AIProviderType } from '@/infrastructure/ai/ai-manager.service';
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly openai: OpenAI | null = null;
 
-  constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-    
-    if (apiKey) {
-      this.openai = new OpenAI({ apiKey });
-      this.logger.log('✅ OpenAI client initialized');
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly aiManager: AIManagerService,
+  ) {
+    const providers = this.aiManager.getAvailableProviders();
+    if (providers.length === 0) {
+      this.logger.warn('⚠️ No AI providers configured - using mock responses');
     } else {
-      this.logger.warn('⚠️ OpenAI API key not configured - using mock responses');
+      this.logger.log(`✅ AI Service initialized with providers: ${providers.join(', ')}`);
     }
   }
 
-  async generateSuggestion(request: SuggestionRequest): Promise<SuggestionResponse> {
-    this.logger.debug('Generating AI suggestion');
-
-    if (!this.openai) {
-      return this.getMockSuggestion(request);
-    }
-
+  /**
+   * Gerar sugestão de vendas
+   * @param transcript - Transcrição da fala do cliente
+   * @param context - Contexto adicional (sentimento, histórico, etc)
+   * @param provider - Provider específico (opcional, usa fallback se não especificado)
+   */
+  async generateSuggestion(
+    transcript: string,
+    context?: Record<string, any>,
+    provider?: AIProviderType,
+  ) {
     try {
-      const systemPrompt = this.buildSystemPrompt(request.context);
-      const userPrompt = this.buildUserPrompt(request);
-
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 150,
-        temperature: 0.7,
-      });
-
-      const suggestion = response.choices[0]?.message?.content?.trim() || '';
-
-      return {
-        suggestion,
-        confidence: 0.9,
-        type: this.detectSuggestionType(suggestion),
-        context: request.context,
-      };
+      return await this.aiManager.generateSuggestion(transcript, context, provider);
     } catch (error) {
-      this.logger.error('OpenAI API error:', error);
-      return this.getMockSuggestion(request);
+      this.logger.error('Error generating suggestion:', error);
+      throw error;
     }
   }
 
-  async analyzeConversation(transcript: string): Promise<{
-    sentiment: string;
-    score: number;
-    summary: string;
-    keywords: string[];
-    actionItems: string[];
-  }> {
-    this.logger.debug('Analyzing conversation');
-
-    if (!this.openai) {
-      return this.getMockAnalysis();
-    }
-
+  /**
+   * Analisar conversa completa
+   */
+  async analyzeConversation(
+    transcript: string,
+    context?: Record<string, any>,
+    provider?: AIProviderType,
+  ) {
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Você é um analista de vendas especializado. Analise a conversa e retorne um JSON com:
-- sentiment: "positive", "neutral" ou "negative"
-- score: número de 0 a 1 indicando intensidade do sentimento
-- summary: resumo de 1-2 frases da conversa
-- keywords: array com 3-5 palavras-chave importantes
-- actionItems: array com 1-3 próximos passos recomendados
-
-Responda APENAS com o JSON, sem markdown.`,
-          },
-          { role: 'user', content: transcript },
-        ],
-        max_tokens: 300,
-        temperature: 0.3,
-      });
-
-      const content = response.choices[0]?.message?.content?.trim() || '{}';
-      
-      try {
-        return JSON.parse(content);
-      } catch {
-        return this.getMockAnalysis();
-      }
+      return await this.aiManager.analyzeConversation(transcript, context, provider);
     } catch (error) {
-      this.logger.error('OpenAI API error:', error);
-      return this.getMockAnalysis();
+      this.logger.error('Error analyzing conversation:', error);
+      throw error;
     }
   }
 
-  private buildSystemPrompt(context?: string): string {
-    const basePrompt = `Você é um assistente de vendas experiente que ajuda vendedores em tempo real.
-Suas sugestões devem ser:
-- Curtas e diretas (máximo 2 frases)
-- Específicas para a situação
-- Em português brasileiro
-- Focadas em avançar a venda ou resolver objeções`;
-
-    if (context === 'phone_call') {
-      return `${basePrompt}
-
-Contexto: Ligação telefônica de vendas.
-Foque em: tom de voz, pausas estratégicas, perguntas abertas.`;
+  /**
+   * Gerar sugestão com load balancing (round-robin entre providers)
+   */
+  async generateSuggestionBalanced(
+    transcript: string,
+    context?: Record<string, any>,
+  ) {
+    try {
+      return await this.aiManager.generateSuggestionBalanced(transcript, context);
+    } catch (error) {
+      this.logger.error('Error in balanced suggestion:', error);
+      throw error;
     }
-
-    if (context === 'whatsapp') {
-      return `${basePrompt}
-
-Contexto: Conversa no WhatsApp Business.
-Foque em: respostas rápidas, emojis moderados, links úteis.`;
-    }
-
-    return basePrompt;
   }
 
-  private buildUserPrompt(request: SuggestionRequest): string {
-    let prompt = `Mensagem do cliente: "${request.currentMessage}"`;
-
-    if (request.conversationHistory) {
-      prompt = `Histórico da conversa:\n${request.conversationHistory}\n\n${prompt}`;
-    }
-
-    if (request.customerSentiment) {
-      prompt += `\n\nSentimento detectado: ${request.customerSentiment}`;
-    }
-
-    if (request.productContext) {
-      prompt += `\n\nProduto/Serviço: ${request.productContext}`;
-    }
-
-    prompt += '\n\nSugira uma resposta para o vendedor:';
-
-    return prompt;
+  /**
+   * Health check de todos os providers
+   */
+  async healthCheck() {
+    return await this.aiManager.healthCheckAll();
   }
 
-  private detectSuggestionType(suggestion: string): string {
-    const lower = suggestion.toLowerCase();
-    
-    if (lower.includes('objeção') || lower.includes('entendo sua preocupação')) {
-      return 'objection_handling';
-    }
-    if (lower.includes('fechar') || lower.includes('próximo passo')) {
-      return 'closing';
-    }
-    if (lower.includes('?')) {
-      return 'question';
-    }
-    return 'general';
-  }
-
-  private getMockSuggestion(request: SuggestionRequest): SuggestionResponse {
-    const suggestions = {
-      positive: 'Ótimo! Aproveite o interesse do cliente e apresente os benefícios principais do produto.',
-      neutral: 'Faça uma pergunta aberta para entender melhor as necessidades do cliente.',
-      negative: 'Demonstre empatia e pergunte o que poderia ser feito para atender melhor às expectativas.',
-    };
-
-    return {
-      suggestion: suggestions[request.customerSentiment || 'neutral'],
-      confidence: 0.7,
-      type: 'general',
-      context: request.context,
-    };
-  }
-
-  private getMockAnalysis() {
-    return {
-      sentiment: 'neutral',
-      score: 0.5,
-      summary: 'Conversa em andamento, cliente demonstra interesse moderado.',
-      keywords: ['produto', 'preço', 'interesse'],
-      actionItems: ['Apresentar benefícios', 'Enviar proposta'],
-    };
+  /**
+   * Listar providers disponíveis
+   */
+  getAvailableProviders() {
+    return this.aiManager.getAvailableProviders();
   }
 }

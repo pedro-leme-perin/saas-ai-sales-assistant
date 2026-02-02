@@ -37,8 +37,10 @@
     "prepare": "prisma generate"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.1",
     "@clerk/backend": "^2.29.5",
     "@clerk/clerk-sdk-node": "^5.1.6",
+    "@google/generative-ai": "^0.24.1",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^10.4.0",
     "@nestjs/config": "^3.3.0",
