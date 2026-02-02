@@ -16,7 +16,7 @@ export function useWebSocket(userId: string | undefined, companyId: string | und
   useEffect(() => {
     if (!userId || !companyId) return;
 
-    wsClient.connect(userId, companyId);
+    wsClient.connect();
 
     const checkConnection = setInterval(() => {
       setIsConnected(wsClient.isConnected);
