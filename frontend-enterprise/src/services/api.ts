@@ -128,6 +128,7 @@ export const callsService = {
      totalDuration,
      avgDuration: total > 0 ? Math.round(totalDuration / total) : 0,
    };
+ },
 
   async create(data: {
     phoneNumber: string;
