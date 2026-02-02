@@ -1,6 +1,6 @@
 'use client';
 
-export function RecentCallsList({ calls }) {
+export function RecentCallsList({ calls }: { calls: any[] }) {
   if (!calls || calls.length === 0) {
     return (
       <div className="rounded-lg border bg-white p-6">
