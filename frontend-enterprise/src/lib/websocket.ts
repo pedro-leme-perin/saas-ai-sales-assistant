@@ -51,6 +51,7 @@ class WebSocketClient {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
+
     this.listeners.get(event)!.add(callback);
 
     if (this.socket) {
@@ -65,7 +66,6 @@ class WebSocketClient {
 
   off(event: string, callback: Function) {
     this.listeners.get(event)?.delete(callback);
-
     if (this.socket) {
       this.socket.off(event, callback as any);
     }
@@ -112,14 +112,15 @@ class WebSocketClient {
   onNewMessage(callback: (message: any) => void) {
     return this.on('new-message', callback);
   }
-}
 
-export const wsClient = new WebSocketClient();
-startTyping(chatId: string) {
+  startTyping(chatId: string) {
     this.emit('typing:start', { chatId });
   }
 
   stopTyping(chatId: string) {
     this.emit('typing:stop', { chatId });
   }
+}
+
+export const wsClient = new WebSocketClient();
 export const websocketService = wsClient;
