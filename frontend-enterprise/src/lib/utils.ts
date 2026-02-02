@@ -180,3 +180,21 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2);
 }
+
+export function getPlanLabel(plan: string): string {
+  const labels: Record<string, string> = {
+    STARTER: 'Starter',
+    PROFESSIONAL: 'Professional',
+    ENTERPRISE: 'Enterprise',
+  };
+  return labels[plan] || plan;
+}
+
+export function getPlanColor(plan: string): string {
+  const colors: Record<string, string> = {
+    STARTER: 'bg-blue-500',
+    PROFESSIONAL: 'bg-purple-500',
+    ENTERPRISE: 'bg-orange-500',
+  };
+  return colors[plan] || 'bg-gray-500';
+}
