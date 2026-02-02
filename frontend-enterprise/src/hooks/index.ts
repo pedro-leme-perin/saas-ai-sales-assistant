@@ -93,7 +93,7 @@ export function useChatWebSocket(chatId: string | null) {
       }
     });
 
-    const unsubTypingStart = wsClient.on {
+    const unsubTypingStart = wsClient.on('typing:start', (data: any) => {
       if (data.chatId === chatId) {
         setOtherTyping(true);
       }
