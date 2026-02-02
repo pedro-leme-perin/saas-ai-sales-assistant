@@ -1,6 +1,6 @@
 'use client';
 
-export function WhatsAppChatsList({ chats }) {
+export function WhatsAppChatsList({ chats }: { chats: any[] }) {
   if (!chats || chats.length === 0) {
     return (
       <div className="rounded-lg border bg-white p-6">
