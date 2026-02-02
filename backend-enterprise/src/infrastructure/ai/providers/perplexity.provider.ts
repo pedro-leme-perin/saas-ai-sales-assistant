@@ -50,7 +50,7 @@ export class PerplexityProvider extends AIProvider {
         latencyMs,
         tokensUsed: response.usage?.total_tokens,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Perplexity error: ${error.message}`);
     }
   }
@@ -84,7 +84,7 @@ export class PerplexityProvider extends AIProvider {
         confidence: 0.8,
         provider: this.providerName,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Perplexity analysis error: ${error.message}`);
     }
   }

@@ -47,7 +47,7 @@ export class ClaudeProvider extends AIProvider {
         latencyMs,
         tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Claude error: ${error.message}`);
     }
   }
@@ -82,7 +82,7 @@ export class ClaudeProvider extends AIProvider {
         confidence: 0.88,
         provider: this.providerName,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Claude analysis error: ${error.message}`);
     }
   }

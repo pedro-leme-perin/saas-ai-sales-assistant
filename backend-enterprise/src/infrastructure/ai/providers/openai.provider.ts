@@ -48,7 +48,7 @@ export class OpenAIProvider extends AIProvider {
         latencyMs,
         tokensUsed: response.usage?.total_tokens,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`OpenAI error: ${error.message}`);
     }
   }
@@ -83,7 +83,7 @@ export class OpenAIProvider extends AIProvider {
         confidence: 0.85,
         provider: this.providerName,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`OpenAI analysis error: ${error.message}`);
     }
   }

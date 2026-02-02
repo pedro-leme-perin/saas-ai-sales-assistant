@@ -62,12 +62,14 @@ export class WhatsappController {
       .join('\n');
 
     // Gerar sugestão com IA
-    const suggestion = await this.aiService.generateSuggestion({
-      currentMessage: lastCustomerMessage.content,
-      conversationHistory,
-      context: 'whatsapp',
-      customerSentiment: 'neutral',
-    });
+    const suggestion = await this.aiService.generateSuggestion(
+      lastCustomerMessage.content,
+      {
+        conversationHistory: conversationHistory,
+        context: chat.context,
+        customerSentiment: 'neutral',
+      },
+    );
 
     return suggestion;
   }

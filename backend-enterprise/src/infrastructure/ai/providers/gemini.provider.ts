@@ -57,7 +57,7 @@ export class GeminiProvider extends AIProvider {
         latencyMs,
         tokensUsed: result.response.usageMetadata?.totalTokenCount,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Gemini error: ${error.message}`);
     }
   }
@@ -97,7 +97,7 @@ export class GeminiProvider extends AIProvider {
         confidence: 0.83,
         provider: this.providerName,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Gemini analysis error: ${error.message}`);
     }
   }

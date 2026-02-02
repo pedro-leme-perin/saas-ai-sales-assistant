@@ -88,7 +88,7 @@ export class AIManagerService {
         return await this.providers
           .get(preferredProvider)!
           .generateSuggestion(transcript, context);
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `${preferredProvider} failed, trying fallback: ${error.message}`,
         );
@@ -103,7 +103,7 @@ export class AIManagerService {
       try {
         this.logger.log(`Trying provider: ${providerType}`);
         return await provider.generateSuggestion(transcript, context);
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(`${providerType} failed: ${error.message}`);
         continue;
       }
@@ -126,7 +126,7 @@ export class AIManagerService {
         return await this.providers
           .get(preferredProvider)!
           .analyzeConversation(transcript, context);
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `${preferredProvider} analysis failed: ${error.message}`,
         );
@@ -140,7 +140,7 @@ export class AIManagerService {
 
       try {
         return await provider.analyzeConversation(transcript, context);
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `${providerType} analysis failed: ${error.message}`,
         );
@@ -173,7 +173,7 @@ export class AIManagerService {
       return await this.providers
         .get(provider)!
         .generateSuggestion(transcript, context);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Load balanced provider ${provider} failed`);
       return this.generateSuggestion(transcript, context);
     }
