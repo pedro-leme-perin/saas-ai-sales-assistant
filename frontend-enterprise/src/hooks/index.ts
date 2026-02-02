@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import wsClient from '@/lib/websocket';
+import { wsClient } from '@/lib/websocket';
 import { useAISuggestionsStore, useNotificationsStore, useActiveCallStore } from '@/stores';
 import type { WSAISuggestion, WSCallStatus, WSNewMessage, WSNotification } from '@/types';
 
