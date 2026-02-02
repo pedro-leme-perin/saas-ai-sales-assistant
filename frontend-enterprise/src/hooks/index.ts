@@ -23,7 +23,7 @@ export function useWebSocket(userId: string | undefined, companyId: string | und
     }, 1000);
 
     // Subscribe to events
-    const unsubSuggestion = wsClient.on('ai:suggestion', (data) => {
+    const unsubSuggestion = wsClient.on('ai:suggestion', (data: WSAISuggestion) => {
       addSuggestion(data.suggestion);
     });
 
@@ -55,7 +55,7 @@ export function useCallWebSocket(callId: string | null) {
 
     wsClient.joinCall(callId);
 
-    const unsubStatus = wsClient.on('call:status', (data) => {
+    const unsubStatus = wsClient.on('call:status', (data: WSCallStatus) => {
       if (data.callId === callId) {
         if (data.status === 'COMPLETED' || data.status === 'FAILED') {
           endCall();
@@ -86,7 +86,7 @@ export function useChatWebSocket(chatId: string | null) {
 
     wsClient.joinChat(chatId);
 
-    const unsubMessage = wsClient.on('whatsapp:message', (data) => {
+    const unsubMessage = wsClient.on('whatsapp:message', (data: WSNewMessage) => {
       if (data.chatId === chatId) {
         queryClient.invalidateQueries({ queryKey: ['chat-messages', chatId] });
         queryClient.invalidateQueries({ queryKey: ['whatsapp-chats'] });
@@ -99,7 +99,7 @@ export function useChatWebSocket(chatId: string | null) {
       }
     });
 
-    const unsubTypingStop = wsClient.on('typing:stop', (data) => {
+    const unsubTypingStop = wsClient.on('typing:stop', (data: WSTypingStop) => {
       if (data.chatId === chatId) {
         setOtherTyping(false);
       }
