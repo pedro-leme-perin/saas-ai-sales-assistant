@@ -170,4 +170,11 @@ export function formatDate(date: string | Date): string {
     month: '2-digit',
     year: 'numeric',
   }).format(d);
+export function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 }
