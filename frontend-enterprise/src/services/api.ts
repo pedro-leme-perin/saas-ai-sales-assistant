@@ -121,12 +121,13 @@ export const callsService = {
       totalDuration += call.duration || 0;
     });
     
-    return {
-      total,
-      byStatus,
-      avgDuration: total > 0 ? Math.round(totalDuration / total) : 0,
-    };
-  },
+   return {
+     total,
+     byStatus,
+     byDirection: {},
+     totalDuration,
+     avgDuration: total > 0 ? Math.round(totalDuration / total) : 0,
+   };
 
   async create(data: {
     phoneNumber: string;
