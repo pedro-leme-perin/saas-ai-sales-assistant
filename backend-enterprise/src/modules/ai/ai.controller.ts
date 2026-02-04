@@ -1,3 +1,4 @@
+// Force rebuild - v2
 import { Controller, Post, Get, Body } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { Public } from '@/common/decorators/public.decorator';
