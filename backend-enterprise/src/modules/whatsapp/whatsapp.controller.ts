@@ -41,6 +41,9 @@ export class WhatsappController {
     // Buscar últimas mensagens do chat para contexto
     const messages = await this.whatsappService.getMessages(chatId, companyId);
     
+    // Buscar o chat para contexto
+    const chat = await this.whatsappService.getChat(chatId, companyId);
+
     // Pegar última mensagem do cliente
     const lastCustomerMessage = messages
       .filter((m: any) => m.direction === 'INCOMING')
@@ -66,7 +69,6 @@ export class WhatsappController {
       lastCustomerMessage.content,
       {
         conversationHistory: conversationHistory,
-        context: chat.context,
         customerSentiment: 'neutral',
       },
     );
