@@ -70,16 +70,18 @@ export class AiController {
       all: ['openai', 'claude', 'gemini', 'perplexity'],
     };
   }
-@Get('test')
-@Public()
-async testAI() {
-  try {
-    const result = await this.aiService.generateSuggestion(
-      'Customer is asking about pricing',
-      { sentiment: 'neutral' },
-    );
-    return { success: true, result };
-  } catch (error: any) {
-    return { success: false, error: error.message, stack: error.stack };
+
+  @Get('test')
+  @Public()
+  async testAI() {
+    try {
+      const result = await this.aiService.generateSuggestion(
+        'Customer is asking about pricing',
+        { sentiment: 'neutral' },
+      );
+      return { success: true, result };
+    } catch (error: any) {
+      return { success: false, error: error.message, stack: error.stack };
+    }
   }
 }
