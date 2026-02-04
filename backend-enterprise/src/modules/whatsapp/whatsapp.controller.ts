@@ -42,7 +42,6 @@ export class WhatsappController {
     const messages = await this.whatsappService.getMessages(chatId, companyId);
     
     // Buscar o chat para contexto
-    const chat = await this.whatsappService.getChat(chatId, companyId);
 
     // Pegar última mensagem do cliente
     const lastCustomerMessage = messages
