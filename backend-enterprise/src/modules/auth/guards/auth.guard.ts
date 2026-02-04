@@ -35,7 +35,7 @@ export class AuthGuard implements CanActivate {
       const user = await this.clerkStrategy.validate(request);
       request.user = user;
       return true;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Authentication error:', error.message);
       throw new UnauthorizedException('No authentication token provided');
     }
