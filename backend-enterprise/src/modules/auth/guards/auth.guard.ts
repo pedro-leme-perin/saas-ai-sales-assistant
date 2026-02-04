@@ -1,23 +1,22 @@
-// src/modules/auth/guards/auth.guard.ts
-
 import {
   Injectable,
+  CanActivate,
   ExecutionContext,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
-import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from '@/modules/auth/decorators/public.decorator';
-import { UserWithCompany } from '@/modules/users/users.service';
+import { ClerkStrategy } from '../strategies/clerk.strategy';
+import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
 
 @Injectable()
-export class AuthGuard extends PassportAuthGuard('clerk') {
+export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
 
-  constructor(private readonly reflector: Reflector) {
-    super();
-  }
+  constructor(
+    private readonly clerkStrategy: ClerkStrategy,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Verificar se a rota é pública
@@ -27,46 +26,18 @@ export class AuthGuard extends PassportAuthGuard('clerk') {
     ]);
 
     if (isPublic) {
-      this.logger.debug('Public route, skipping authentication');
       return true;
     }
 
-    // Executar autenticação Passport
-    const result = await super.canActivate(context);
-    
-    if (!result) {
-      return false;
-    }
-
-    // Injetar dados do usuário no request
     const request = context.switchToHttp().getRequest();
-    const user = request.user as UserWithCompany;
 
-    if (user) {
-      // Adicionar companyId para tenant isolation
-      request.companyId = user.companyId;
-      request.userId = user.id;
+    try {
+      const user = await this.clerkStrategy.validate(request);
+      request.user = user;
+      return true;
+    } catch (error) {
+      this.logger.error('Authentication error:', error.message);
+      throw new UnauthorizedException('No authentication token provided');
     }
-
-    return true;
-  }
-
-  handleRequest<TUser = UserWithCompany>(
-    err: any,
-    user: TUser,
-    info: any,
-    context: ExecutionContext,
-  ): TUser {
-    if (err) {
-      this.logger.error(`Authentication error: ${err.message}`);
-      throw err;
-    }
-
-    if (!user) {
-      this.logger.warn('No user returned from strategy');
-      throw new UnauthorizedException('Authentication required');
-    }
-
-    return user;
   }
 }

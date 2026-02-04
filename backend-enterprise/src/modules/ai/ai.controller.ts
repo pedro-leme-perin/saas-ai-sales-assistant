@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body } from '@nestjs/common';
 import { AiService } from './ai.service';
-import { AuthGuard } from '../auth/guards/auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import { AIProviderType } from '@/infrastructure/ai/ai-manager.service';
 
 @Controller('ai')
@@ -8,7 +8,6 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('suggestion')
-  @UseGuards(AuthGuard)
   async generateSuggestion(
     @Body()
     body: {
@@ -25,7 +24,6 @@ export class AiController {
   }
 
   @Post('suggestion/balanced')
-  @UseGuards(AuthGuard)
   async generateSuggestionBalanced(
     @Body() body: { transcript: string; context?: Record<string, any> },
   ) {
@@ -36,7 +34,6 @@ export class AiController {
   }
 
   @Post('analyze')
-  @UseGuards(AuthGuard)
   async analyzeConversation(
     @Body()
     body: {
@@ -53,6 +50,7 @@ export class AiController {
   }
 
   @Get('health')
+  @Public()
   async healthCheck() {
     const providersHealth = await this.aiService.healthCheck();
     const availableProviders = this.aiService.getAvailableProviders();
@@ -65,6 +63,7 @@ export class AiController {
   }
 
   @Get('providers')
+  @Public()
   async getProviders() {
     return {
       available: this.aiService.getAvailableProviders(),
