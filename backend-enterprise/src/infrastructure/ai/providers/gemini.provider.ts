@@ -24,7 +24,7 @@ export class GeminiProvider extends AIProvider {
 
     try {
       const model = this.client.getGenerativeModel({
-        model: this.config.model || 'gemini-pro',
+        model: this.config.model || 'gemini-1.5-flash',
       });
 
       const result = await model.generateContent({
@@ -68,7 +68,7 @@ export class GeminiProvider extends AIProvider {
   ): Promise<AIAnalysis> {
     try {
       const model = this.client.getGenerativeModel({
-        model: this.config.model || 'gemini-pro',
+        model: this.config.model || 'gemini-1.5-flash',
       });
 
       const result = await model.generateContent({
@@ -105,7 +105,7 @@ export class GeminiProvider extends AIProvider {
   async healthCheck(): Promise<boolean> {
     try {
       const model = this.client.getGenerativeModel({
-        model: this.config.model || 'gemini-pro',
+        model: this.config.model || 'gemini-1.5-flash',
       });
       await model.generateContent('test');
       return true;

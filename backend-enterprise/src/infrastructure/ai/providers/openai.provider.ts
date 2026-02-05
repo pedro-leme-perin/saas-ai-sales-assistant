@@ -26,7 +26,7 @@ export class OpenAIProvider extends AIProvider {
 
     try {
       const response = await this.client.chat.completions.create({
-        model: this.config.model || 'gpt-4-turbo-preview',
+        model: this.config.model || 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -59,7 +59,7 @@ export class OpenAIProvider extends AIProvider {
   ): Promise<AIAnalysis> {
     try {
       const response = await this.client.chat.completions.create({
-        model: this.config.model || 'gpt-4-turbo-preview',
+        model: this.config.model || 'gpt-4o',
         messages: [
           {
             role: 'system',
