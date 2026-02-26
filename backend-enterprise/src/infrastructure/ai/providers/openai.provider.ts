@@ -92,7 +92,7 @@ export class OpenAIProvider extends AIProvider {
     try {
       await this.client.models.list();
       return true;
-    } catch {
+    } catch (error: any) { console.error("OPENAI HEALTH ERROR:", error.message);
       return false;
     }
   }
