@@ -1,5 +1,4 @@
 'use client';
-
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState, useEffect } from 'react';
@@ -78,18 +77,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCompany(user.company);
         }
 
-        // Connect WebSocket
+        // Connect WebSocket with userId + companyId (backend joins rooms automatically)
         if (user && user.companyId) {
-          wsClient.connect(token || undefined);
-          wsClient.joinRoom(`user:${user.id}`);
-          wsClient.joinRoom(`company:${user.companyId}`);
+          wsClient.connect(user.id, user.companyId);
 
-          wsClient.on('notification', (data: any) => {
-            addNotification(data.notification);
+          // Subscribe to notifications
+          wsClient.onNotification((data: any) => {
+            addNotification(data.notification || data);
           });
 
-          wsClient.on('ai:suggestion', (data: any) => {
-            addSuggestion(data.suggestion);
+          // Subscribe to AI suggestions
+          wsClient.onAISuggestion((data: any) => {
+            addSuggestion(data.suggestion || data);
           });
         }
       } catch (error) {
