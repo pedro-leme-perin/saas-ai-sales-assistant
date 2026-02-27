@@ -45,6 +45,11 @@ model Company {
   // Settings (JSON for flexibility)
   settings         Json      @default("{}")
   
+  // WhatsApp Business API
+  whatsappPhoneNumberId  String?  @map("whatsapp_phone_number_id")
+  whatsappAccessToken    String?  @map("whatsapp_access_token")
+  whatsappVerifyToken    String?  @map("whatsapp_verify_token")
+
   // Status
   isActive         Boolean   @default(true) @map("is_active")
   deletedAt        DateTime? @map("deleted_at")
@@ -672,3 +677,5 @@ enum AuditAction {
   INVITE
   REVOKE
 }
+
+
