@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Param, Body, Req, Res, HttpCode } from '@nestjs/common';
+// src/modules/calls/calls.controller.ts
+import { Controller, Get, Post, Put, Param, Body, Res, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import * as twilio from 'twilio';
 
 @ApiTags('Calls')
@@ -12,6 +13,12 @@ export class CallsController {
   @Get(':companyId')
   async findAll(@Param('companyId') companyId: string) {
     return this.callsService.findAll(companyId);
+  }
+
+  @Get(':companyId/stats')
+  @ApiOperation({ summary: 'Get call statistics' })
+  async getStats(@Param('companyId') companyId: string) {
+    return this.callsService.getCallStats(companyId);
   }
 
   @Get(':companyId/:id')
@@ -63,16 +70,13 @@ export class CallsController {
     return this.callsService.endCall(id, companyId);
   }
 
-  @Get(':companyId/stats')
-  @ApiOperation({ summary: 'Get call statistics' })
-  async getStats(@Param('companyId') companyId: string) {
-    return this.callsService.getCallStats(companyId);
-  }
+  // =====================================================
+  // TWILIO WEBHOOKS
+  // =====================================================
 
-  // Twilio Webhooks (não autenticados - Twilio chama diretamente)
   @Post('webhook/voice/:callId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Twilio voice webhook - returns TwiML' })
+  @ApiOperation({ summary: 'Twilio voice webhook - returns TwiML with Media Streams' })
   async handleVoiceWebhook(
     @Param('callId') callId: string,
     @Res() res: Response,
@@ -80,18 +84,15 @@ export class CallsController {
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
 
-    // Mensagem inicial da chamada
-    response.say(
-      { voice: 'Polly.Camila', language: 'pt-BR' },
-      'Olá! Esta é uma chamada do sistema de vendas. Por favor, aguarde enquanto conectamos você.',
-    );
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
-    // Gravar a chamada para transcrição posterior
-    response.record({
-      transcribe: true,
-      transcribeCallback: `/api/calls/webhook/transcription/${callId}`,
-      maxLength: 3600, // 1 hora máximo
-      playBeep: false,
+    // Connect to Media Streams for real-time audio
+    // This streams raw audio to our WebSocket gateway
+    const connect = response.connect();
+    connect.stream({
+      url: `${wsUrl}/ws/media`,
+      track: 'inbound_track', // Only transcribe customer (inbound)
     });
 
     res.type('text/xml');
@@ -112,14 +113,15 @@ export class CallsController {
 
   @Post('webhook/transcription/:callId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Twilio transcription callback webhook' })
+  @ApiOperation({ summary: 'Fallback transcription webhook (post-call)' })
   async handleTranscriptionWebhook(
     @Param('callId') callId: string,
     @Body() body: { TranscriptionText?: string },
   ) {
     if (body.TranscriptionText) {
-      // Aqui você pode salvar a transcrição e gerar sugestões de IA
-      console.log(`Transcription for call ${callId}: ${body.TranscriptionText}`);
+      await this.callsService.update(callId, '', {
+        transcript: body.TranscriptionText,
+      });
     }
     return { success: true };
   }
