@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserButton } from '@clerk/nextjs';
+import { UserButton, useUser } from '@clerk/nextjs';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -40,6 +40,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const { user } = useUser();
   const { unreadCount } = useNotificationsStore();
 
   return (
@@ -128,7 +129,7 @@ export default function DashboardLayout({
             {!collapsed && (
               <div className="flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  Minha Conta
+                  {user?.firstName} {user?.lastName}
                 </p>
               </div>
             )}
@@ -178,3 +179,6 @@ export default function DashboardLayout({
     </div>
   );
 }
+
+
+

@@ -58,7 +58,8 @@ export const usersService = {
 
 export const companiesService = {
   async getCurrent(): Promise<Company> {
-    return apiClient.get('/companies/current');
+    const res = await apiClient.get<any>('/companies/current');
+    return res?.data ?? res;
   },
 
   async getStats(): Promise<CompanyStats> {
@@ -66,7 +67,8 @@ export const companiesService = {
   },
 
   async getUsage(): Promise<CompanyUsage> {
-    return apiClient.get('/companies/current/usage');
+    const res = await apiClient.get<any>('/companies/current/usage');
+    return res?.data ?? res;
   },
 
   async update(data: Partial<Company>): Promise<Company> {
@@ -360,4 +362,5 @@ export const notificationsService = {
     return apiClient.post('/notifications/read-all');
   },
 };
+
 
