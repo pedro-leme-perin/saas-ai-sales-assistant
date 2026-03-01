@@ -29,11 +29,7 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          if (typeof window !== 'undefined') {
-            window.location.href = '/sign-in';
-          }
-        }
+        
         return Promise.reject(this.handleError(error));
       }
     );
@@ -90,3 +86,4 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 export default apiClient;
+

@@ -217,7 +217,7 @@ export const whatsappService = {
     params?: { page?: number; limit?: number }
   ): Promise<{ data: WhatsAppMessage[]; meta: { total: number } }> {
     const companyId = apiClient.getCompanyId();
-    const messages = await apiClient.get<WhatsAppMessage[]>(`/whatsapp/messages/${companyId}/${chatId}`);
+    const messages = await apiClient.get<WhatsAppMessage[]>(`/whatsapp/chats/${companyId}/${chatId}/messages`);
     return { data: messages, meta: { total: messages.length } };
   },
 
@@ -360,3 +360,4 @@ export const notificationsService = {
     return apiClient.post('/notifications/read-all');
   },
 };
+
