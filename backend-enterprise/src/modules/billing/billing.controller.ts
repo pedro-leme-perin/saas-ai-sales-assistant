@@ -7,7 +7,7 @@
 // References: Clean Architecture Ch.22-23, Release It! Ch.4
 // =============================================
 
-import { Controller, Get, Post, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, HttpCode, HttpStatus, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { BillingService, PlanDetails } from './billing.service';
 import { CurrentUser, AuthenticatedUser, Roles, CompanyId } from '@common/decorators';
@@ -330,5 +330,14 @@ export class BillingController {
   })
   async getPortalUrl(@CompanyId() companyId: string) {
     return this.billingService.getPortalUrl(companyId);
+  }
+
+  @Post('webhook')
+  @HttpCode(HttpStatus.OK)
+  async handleWebhook(
+    @Body() payload: Buffer,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    return this.billingService.handleWebhook(payload, signature);
   }
 }
