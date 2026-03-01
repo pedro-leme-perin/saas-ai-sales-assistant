@@ -1,14 +1,14 @@
 // =====================================================
-// 💬 WHATSAPP SERVICE - Meta Business API Integration
+// 💬 WHATSAPP SERVICE - Twilio WhatsApp Integration
 // =====================================================
 // Handles incoming webhooks + outgoing messages via
-// WhatsApp Business Cloud API (Meta Graph API v18.0)
+// Twilio WhatsApp Sandbox / Business API
 //
 // Flow:
-// 1. Meta → POST /whatsapp/webhook → processIncomingMessage()
-// 2. processIncomingMessage() → save to DB → generateAISuggestion()
+// 1. Twilio → POST /whatsapp/webhook/twilio → processWebhook()
+// 2. processWebhook() → save to DB → generateAISuggestion()
 // 3. AI suggestion → WebSocket → vendedor vê em tempo real
-// 4. Vendedor envia resposta → sendMessage() → Meta API
+// 4. Vendedor envia resposta → sendMessage() → Twilio API
 //
 // Based on:
 // - System Design Interview Ch.12 (Chat System)
@@ -27,212 +27,140 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { MessageType, MessageDirection, MessageStatus } from '@prisma/client';
+import * as twilio from 'twilio';
 
 // =====================================================
-// META WEBHOOK PAYLOAD TYPES
+// TWILIO WEBHOOK PAYLOAD TYPES
 // =====================================================
+// Twilio sends form-encoded body (not JSON)
+// Fields: From, To, Body, MessageSid, NumMedia, etc.
 
-interface MetaWebhookEntry {
-  id: string;
-  changes: MetaWebhookChange[];
+export interface TwilioWebhookPayload {
+  MessageSid: string;
+  AccountSid: string;
+  From: string;         // e.g. "whatsapp:+5511999999999"
+  To: string;           // e.g. "whatsapp:+14155238886"
+  Body: string;
+  NumMedia?: string;
+  MediaUrl0?: string;
+  MediaContentType0?: string;
+  ProfileName?: string; // WhatsApp display name
+  WaId?: string;        // WhatsApp ID (phone without whatsapp: prefix)
+  SmsStatus?: string;
+  MessageStatus?: string;
 }
 
-interface MetaWebhookChange {
-  field: string;
-  value: MetaWebhookValue;
-}
-
-interface MetaWebhookValue {
-  messaging_product: string;
-  metadata: {
-    display_phone_number: string;
-    phone_number_id: string;
-  };
-  contacts?: MetaContact[];
-  messages?: MetaMessage[];
-  statuses?: MetaStatus[];
-}
-
-interface MetaContact {
-  profile: { name: string };
-  wa_id: string;
-}
-
-interface MetaMessage {
-  id: string;
-  from: string;
-  timestamp: string;
-  type: string;
-  text?: { body: string };
-  image?: { id: string; mime_type: string; caption?: string };
-  audio?: { id: string; mime_type: string };
-  video?: { id: string; mime_type: string };
-  document?: { id: string; filename: string; mime_type: string };
-}
-
-interface MetaStatus {
-  id: string;
-  status: 'sent' | 'delivered' | 'read' | 'failed';
-  timestamp: string;
-  recipient_id: string;
-}
-
-// =====================================================
-// SEND MESSAGE PAYLOAD TYPES
-// =====================================================
-
-interface SendTextPayload {
-  messaging_product: 'whatsapp';
-  recipient_type: 'individual';
-  to: string;
-  type: 'text';
-  text: { body: string; preview_url?: boolean };
-}
-
-interface MetaSendResponse {
-  messaging_product: string;
-  contacts: Array<{ input: string; wa_id: string }>;
-  messages: Array<{ id: string }>;
+export interface TwilioStatusPayload {
+  MessageSid: string;
+  MessageStatus: 'accepted' | 'queued' | 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'undelivered';
+  To: string;
+  From: string;
+  ErrorCode?: string;
 }
 
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
-  private readonly META_API_VERSION = 'v18.0';
-  private readonly META_API_BASE = 'https://graph.facebook.com';
+  private readonly twilioClient: twilio.Twilio;
+  private readonly sandboxNumber: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly aiService: AiService,
     private readonly notificationsGateway: NotificationsGateway,
-  ) {}
+  ) {
+    // Initialize Twilio client (Release It! - fail fast on missing config)
+    const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
+    const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
 
-  // =====================================================
-  // WEBHOOK VERIFICATION (GET)
-  // =====================================================
-  // Meta sends a GET to verify the webhook endpoint.
-  // We must echo back hub.challenge if verify_token matches.
-  verifyWebhook(
-    mode: string,
-    token: string,
-    challenge: string,
-  ): string {
-    const verifyToken = this.configService.get<string>('WHATSAPP_VERIFY_TOKEN');
-
-    if (mode === 'subscribe' && token === verifyToken) {
-      this.logger.log('✅ WhatsApp webhook verified');
-      return challenge;
+    if (!accountSid || !authToken) {
+      this.logger.warn('⚠️ Twilio credentials not configured - WhatsApp disabled');
+    } else {
+      this.twilioClient = twilio(accountSid, authToken);
+      this.logger.log('✅ Twilio WhatsApp client initialized');
     }
 
-    this.logger.warn('❌ WhatsApp webhook verification failed');
-    throw new BadRequestException('Webhook verification failed');
+    // Sandbox number or production number
+    this.sandboxNumber =
+      this.configService.get<string>('TWILIO_WHATSAPP_NUMBER') ||
+      'whatsapp:+14155238886'; // Default Twilio sandbox
   }
 
   // =====================================================
-  // PROCESS INCOMING WEBHOOK (POST)
+  // PROCESS INCOMING WEBHOOK (POST from Twilio)
   // =====================================================
-  // Entry point for all incoming Meta webhook events.
-  // Processes messages and status updates.
-  async processWebhook(body: any): Promise<void> {
-    // Validate it's from WhatsApp
-    if (body.object !== 'whatsapp_business_account') {
-      this.logger.warn('Received non-WhatsApp webhook event');
-      return;
-    }
-
-    const entries: MetaWebhookEntry[] = body.entry || [];
-
-    for (const entry of entries) {
-      for (const change of entry.changes) {
-        if (change.field !== 'messages') continue;
-
-        const value = change.value;
-
-        // Process incoming messages
-        if (value.messages?.length) {
-          for (const message of value.messages) {
-            const contact = value.contacts?.find(
-              (c) => c.wa_id === message.from,
-            );
-            await this.processIncomingMessage(message, contact, value.metadata.phone_number_id);
-          }
-        }
-
-        // Process status updates (sent, delivered, read)
-        if (value.statuses?.length) {
-          for (const status of value.statuses) {
-            await this.updateMessageStatus(status);
-          }
-        }
-      }
-    }
-  }
-
-  // =====================================================
-  // PROCESS INCOMING MESSAGE
-  // =====================================================
-  // 1. Find or create WhatsappChat for this customer
-  // 2. Save message to DB
-  // 3. Generate AI suggestion
-  // 4. Notify assigned agent via WebSocket
-  private async processIncomingMessage(
-    message: MetaMessage,
-    contact: MetaContact | undefined,
-    phoneNumberId: string,
-  ): Promise<void> {
-    this.logger.log(`📩 Incoming message from ${message.from}: ${message.type}`);
+  // Twilio sends form-encoded data, NestJS parses it automatically
+  // with urlencoded body parser (enabled in main.ts)
+  async processWebhook(payload: TwilioWebhookPayload): Promise<void> {
+    this.logger.log(`📩 Incoming WhatsApp from ${payload.From}: "${payload.Body}"`);
 
     try {
-      // Find company by phone_number_id
-      // (each company has their own WhatsApp Business number)
-      const company = await this.prisma.company.findFirst({
-        where: { whatsappPhoneNumberId: phoneNumberId },
-      });
+      // Extract phone number (remove "whatsapp:" prefix)
+      const customerPhone = this.extractPhone(payload.From);
+      const customerName = payload.ProfileName || null;
+      const content = payload.Body || '';
+      const hasMedia = parseInt(payload.NumMedia || '0') > 0;
+      const mediaUrl = payload.MediaUrl0 || null;
+
+      if (!content && !hasMedia) {
+        this.logger.warn('Empty message received, skipping');
+        return;
+      }
+
+      // Find company by sandbox/production WhatsApp number
+      // In sandbox mode: all messages go to same number, use default company
+      const toNumber = this.extractPhone(payload.To);
+      const company = await this.findCompanyByWhatsAppNumber(toNumber);
 
       if (!company) {
-        this.logger.warn(`No company found for phone_number_id: ${phoneNumberId}`);
+        this.logger.warn(`No company found for WhatsApp number: ${toNumber}`);
         return;
       }
 
-      // Extract message content
-      const content = this.extractMessageContent(message);
-      if (!content) {
-        this.logger.warn(`Could not extract content from message type: ${message.type}`);
-        return;
-      }
-
-      // Find or create chat for this customer
+      // Find or create chat
       const chat = await this.findOrCreateChat({
         companyId: company.id,
-        customerPhone: message.from,
-        customerName: contact?.profile?.name,
+        customerPhone,
+        customerName,
       });
 
-      // Save incoming message to DB
+      // Determine message content
+      const messageContent = hasMedia
+        ? mediaUrl
+          ? `[Mídia recebida: ${payload.MediaContentType0 || 'arquivo'}]`
+          : '[Mídia recebida]'
+        : content;
+
+      // Determine message type
+      const messageType = hasMedia
+        ? this.getMediaType(payload.MediaContentType0 || '')
+        : MessageType.TEXT;
+
+      // Save message to DB
       const savedMessage = await this.prisma.whatsappMessage.create({
         data: {
           chatId: chat.id,
-          waMessageId: message.id,
-          type: this.mapMessageType(message.type),
+          waMessageId: payload.MessageSid,
+          type: messageType,
           direction: MessageDirection.INCOMING,
           status: MessageStatus.DELIVERED,
-          content,
-          metadata: JSON.parse(JSON.stringify({ rawMessage: message })),
+          content: messageContent,
+          metadata: JSON.parse(JSON.stringify({ twilioPayload: payload })),
         },
       });
 
-      // Update chat: unread count + last message preview
+      // Update chat stats
       const updatedChat = await this.prisma.whatsappChat.update({
         where: { id: chat.id },
         data: {
           unreadCount: { increment: 1 },
           lastMessageAt: new Date(),
-          lastMessagePreview: content.substring(0, 100),
+          lastMessagePreview: messageContent.substring(0, 100),
         },
       });
 
-      // Notify assigned agent (or all company agents) via WebSocket
+      // Notify agent via WebSocket
       if (chat.userId) {
         this.notificationsGateway.sendWhatsAppMessage(chat.userId, {
           chatId: chat.id,
@@ -240,41 +168,62 @@ export class WhatsappService {
           unreadCount: updatedChat.unreadCount,
         });
       } else {
-        // No assigned agent: broadcast to company room
         this.notificationsGateway.broadcastToCompany(
           company.id,
           'whatsapp:new_message',
           {
             chatId: chat.id,
             message: savedMessage,
-            customerPhone: message.from,
-            customerName: contact?.profile?.name,
+            customerPhone,
+            customerName,
           },
         );
       }
 
-      // Generate AI suggestion asynchronously (don't block webhook response)
-      this.generateAndSendAISuggestion(chat, content, chat.userId).catch((err) =>
-        this.logger.error('AI suggestion failed', err),
-      );
+      // Generate AI suggestion async (non-blocking)
+      if (chat.userId && content) {
+        this.generateAndSendAISuggestion(chat, content, chat.userId).catch((err) =>
+          this.logger.error('AI suggestion failed', err),
+        );
+      }
     } catch (error) {
-      this.logger.error('Error processing incoming message', error);
+      this.logger.error('Error processing Twilio webhook', error);
     }
+  }
+
+  // =====================================================
+  // PROCESS STATUS CALLBACK
+  // =====================================================
+  async processStatusCallback(payload: TwilioStatusPayload): Promise<void> {
+    const statusMap: Record<string, MessageStatus> = {
+      sent: MessageStatus.SENT,
+      delivered: MessageStatus.DELIVERED,
+      read: MessageStatus.READ,
+      failed: MessageStatus.FAILED,
+      undelivered: MessageStatus.FAILED,
+    };
+
+    const newStatus = statusMap[payload.MessageStatus];
+    if (!newStatus) return;
+
+    await this.prisma.whatsappMessage
+      .updateMany({
+        where: { waMessageId: payload.MessageSid },
+        data: { status: newStatus },
+      })
+      .catch(() => {});
+
+    this.logger.log(`📊 Message ${payload.MessageSid} status: ${payload.MessageStatus}`);
   }
 
   // =====================================================
   // GENERATE & SEND AI SUGGESTION
   // =====================================================
-  // Generates an AI suggestion and sends it to the agent via WebSocket.
-  // Non-blocking: called with .catch() to not delay webhook response.
   private async generateAndSendAISuggestion(
     chat: any,
     incomingText: string,
-    userId: string | null,
+    userId: string,
   ): Promise<void> {
-    if (!userId) return; // No agent assigned, skip suggestion
-
-    // Get recent conversation history for context
     const recentMessages = await this.prisma.whatsappMessage.findMany({
       where: { chatId: chat.id },
       orderBy: { createdAt: 'desc' },
@@ -286,13 +235,11 @@ export class WhatsappService {
       .map((m) => `${m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor'}: ${m.content}`)
       .join('\n');
 
-    // Generate suggestion via AI service
     const suggestion = await this.aiService.generateSuggestion(incomingText, {
       conversationHistory,
       customerSentiment: 'neutral',
     });
 
-    // Save suggestion to DB for analytics
     const savedSuggestion = await this.prisma.aISuggestion.create({
       data: {
         chatId: chat.id,
@@ -304,7 +251,6 @@ export class WhatsappService {
       },
     });
 
-    // Send suggestion to agent in real-time via WebSocket
     this.notificationsGateway.sendAISuggestion(userId, {
       suggestionId: savedSuggestion.id,
       chatId: chat.id,
@@ -314,13 +260,12 @@ export class WhatsappService {
       context: 'whatsapp',
     });
 
-    this.logger.log(`🤖 AI suggestion sent to user ${userId} for chat ${chat.id}`);
+    this.logger.log(`🤖 AI suggestion sent to user ${userId}`);
   }
 
   // =====================================================
-  // SEND MESSAGE VIA META API
+  // SEND MESSAGE VIA TWILIO
   // =====================================================
-  // Sends a text message to a customer via WhatsApp Business API.
   async sendMessage(
     chatId: string,
     companyId: string,
@@ -332,29 +277,38 @@ export class WhatsappService {
     },
   ): Promise<any> {
     const chat = await this.findChat(chatId, companyId);
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-    });
 
-    if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessToken) {
-      throw new BadRequestException(
-        'WhatsApp not configured for this company. Set up WHATSAPP_PHONE_NUMBER_ID and access token.',
-      );
+    if (!this.twilioClient) {
+      throw new BadRequestException('Twilio not configured');
     }
 
-    // Send to Meta API
-    const waMessageId = await this.sendToMetaAPI(
-      company.whatsappPhoneNumberId,
-      company.whatsappAccessToken,
-      chat.customerPhone,
-      data.content,
-    );
+    // Send via Twilio
+    // (Release It! - Timeout pattern)
+    const timeoutMs = 10000;
+    const sendPromise = this.twilioClient.messages.create({
+      from: this.sandboxNumber,
+      to: `whatsapp:${chat.customerPhone}`,
+      body: data.content,
+    });
 
-    // Save outgoing message to DB
+    let twilioMessage: any;
+    try {
+      twilioMessage = await Promise.race([
+        sendPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Twilio timeout')), timeoutMs),
+        ),
+      ]);
+    } catch (error) {
+      this.logger.error('Failed to send Twilio message', error);
+      throw new BadRequestException('Failed to send message via WhatsApp');
+    }
+
+    // Save to DB
     const message = await this.prisma.whatsappMessage.create({
       data: {
         chatId: chat.id,
-        waMessageId,
+        waMessageId: twilioMessage.sid,
         type: MessageType.TEXT,
         direction: MessageDirection.OUTGOING,
         status: MessageStatus.SENT,
@@ -363,96 +317,47 @@ export class WhatsappService {
       },
     });
 
-    // Update chat last message
+    // Update chat
     await this.prisma.whatsappChat.update({
       where: { id: chat.id },
       data: {
         lastMessageAt: new Date(),
         lastMessagePreview: data.content.substring(0, 100),
-        unreadCount: 0, // Reset unread on reply
+        unreadCount: 0,
       },
     });
 
-    // Mark suggestion as used if provided
+    // Mark suggestion as used
     if (data.aiSuggestionUsed && data.suggestionId) {
-      await this.prisma.aISuggestion.update({
-        where: { id: data.suggestionId },
-        data: { wasUsed: true, usedAt: new Date() },
-      }).catch(() => {}); // Non-critical
+      await this.prisma.aISuggestion
+        .update({
+          where: { id: data.suggestionId },
+          data: { wasUsed: true, usedAt: new Date() },
+        })
+        .catch(() => {});
     }
 
-    this.logger.log(`📤 Message sent to ${chat.customerPhone}`);
+    this.logger.log(`📤 Message sent to ${chat.customerPhone} (${twilioMessage.sid})`);
     return message;
   }
 
   // =====================================================
-  // META API CALL
+  // FIND COMPANY BY WHATSAPP NUMBER
   // =====================================================
-  // Makes the actual HTTP request to Meta Graph API.
-  private async sendToMetaAPI(
-    phoneNumberId: string,
-    accessToken: string,
-    to: string,
-    text: string,
-  ): Promise<string> {
-    const url = `${this.META_API_BASE}/${this.META_API_VERSION}/${phoneNumberId}/messages`;
+  private async findCompanyByWhatsAppNumber(phoneNumber: string) {
+    // First try exact match with whatsappPhoneNumberId
+    const company = await this.prisma.company.findFirst({
+      where: { whatsappPhoneNumberId: phoneNumber },
+    });
 
-    const payload: SendTextPayload = {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to,
-      type: 'text',
-      text: { body: text, preview_url: false },
-    };
+    if (company) return company;
 
-    // Timeout to prevent hanging (Release It! - Timeouts)
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(`Meta API error ${response.status}: ${JSON.stringify(error)}`);
-      }
-
-      const result = await response.json() as MetaSendResponse;
-      return result.messages[0]?.id || '';
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  // =====================================================
-  // UPDATE MESSAGE STATUS
-  // =====================================================
-  // Updates message delivery/read status from Meta webhooks.
-  private async updateMessageStatus(status: MetaStatus): Promise<void> {
-    const statusMap: Record<string, MessageStatus> = {
-      sent: MessageStatus.SENT,
-      delivered: MessageStatus.DELIVERED,
-      read: MessageStatus.READ,
-      failed: MessageStatus.FAILED,
-    };
-
-    const newStatus = statusMap[status.status];
-    if (!newStatus) return;
-
-    await this.prisma.whatsappMessage
-      .updateMany({
-        where: { waMessageId: status.id },
-        data: { status: newStatus },
-      })
-      .catch(() => {}); // Non-critical if message not found
+    // Sandbox fallback: return first active company
+    // In production, each company has their own number
+    return this.prisma.company.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   // =====================================================
@@ -461,7 +366,7 @@ export class WhatsappService {
   private async findOrCreateChat(params: {
     companyId: string;
     customerPhone: string;
-    customerName?: string;
+    customerName?: string | null;
   }) {
     const existing = await this.prisma.whatsappChat.findFirst({
       where: {
@@ -470,7 +375,16 @@ export class WhatsappService {
       },
     });
 
-    if (existing) return existing;
+    if (existing) {
+      // Update name if we now have it
+      if (params.customerName && !existing.customerName) {
+        return this.prisma.whatsappChat.update({
+          where: { id: existing.id },
+          data: { customerName: params.customerName },
+        });
+      }
+      return existing;
+    }
 
     return this.prisma.whatsappChat.create({
       data: {
@@ -507,7 +421,7 @@ export class WhatsappService {
   }
 
   async getMessages(chatId: string, companyId: string) {
-    await this.findChat(chatId, companyId); // tenant isolation
+    await this.findChat(chatId, companyId);
     return this.prisma.whatsappMessage.findMany({
       where: { chatId },
       orderBy: { createdAt: 'asc' },
@@ -527,33 +441,15 @@ export class WhatsappService {
   // HELPERS
   // =====================================================
 
-  private extractMessageContent(message: MetaMessage): string | null {
-    switch (message.type) {
-      case 'text':
-        return message.text?.body || null;
-      case 'image':
-        return message.image?.caption || '[Imagem recebida]';
-      case 'audio':
-        return '[Áudio recebido]';
-      case 'video':
-        return message.video ? '[Vídeo recebido]' : null;
-      case 'document':
-        return `[Documento: ${message.document?.filename || 'arquivo'}]`;
-      default:
-        return `[${message.type} recebido]`;
-    }
+  // Remove "whatsapp:" prefix from Twilio phone format
+  private extractPhone(twilioPhone: string): string {
+    return twilioPhone.replace('whatsapp:', '');
   }
 
-  private mapMessageType(type: string): MessageType {
-    const map: Record<string, MessageType> = {
-      text: MessageType.TEXT,
-      image: MessageType.IMAGE,
-      audio: MessageType.AUDIO,
-      video: MessageType.VIDEO,
-      document: MessageType.DOCUMENT,
-    };
-    return map[type] || MessageType.TEXT;
+  private getMediaType(contentType: string): MessageType {
+    if (contentType.startsWith('image/')) return MessageType.IMAGE;
+    if (contentType.startsWith('audio/')) return MessageType.AUDIO;
+    if (contentType.startsWith('video/')) return MessageType.VIDEO;
+    return MessageType.DOCUMENT;
   }
 }
-
-

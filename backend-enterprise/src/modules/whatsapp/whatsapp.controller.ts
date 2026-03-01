@@ -1,18 +1,19 @@
 // =====================================================
-// 💬 WHATSAPP CONTROLLER
+// 💬 WHATSAPP CONTROLLER - Twilio Integration
 // =====================================================
-// Exposes REST endpoints for WhatsApp Business API:
+// Exposes REST endpoints for Twilio WhatsApp:
 //
-// GET  /whatsapp/webhook          → Meta webhook verification
-// POST /whatsapp/webhook          → Receive incoming messages
-// GET  /whatsapp/chats            → List chats (authenticated)
-// GET  /whatsapp/chats/:id        → Get single chat
-// GET  /whatsapp/chats/:id/messages → Get chat messages
-// POST /whatsapp/chats/:id/messages → Send message
-// GET  /whatsapp/chats/:id/suggestion → Get AI suggestion
-// PATCH /whatsapp/chats/:id/read  → Mark as read
+// POST /whatsapp/webhook/twilio       → Receive incoming messages (Twilio)
+// POST /whatsapp/webhook/twilio/status → Status callbacks (delivered, read)
+// GET  /whatsapp/chats/:companyId     → List chats
+// GET  /whatsapp/chats/:companyId/:id → Get single chat
+// GET  /whatsapp/chats/:companyId/:chatId/messages → Get messages
+// POST /whatsapp/chats/:companyId/:chatId/messages → Send message
+// GET  /whatsapp/chats/:companyId/:chatId/suggestion → AI suggestion
+// PATCH /whatsapp/chats/:companyId/:chatId/read → Mark as read
 //
-// Authentication: companyId from JWT (via @CurrentCompany decorator)
+// IMPORTANT: Twilio webhooks send form-encoded data (not JSON).
+// NestJS handles this automatically with urlencoded body parser.
 // =====================================================
 
 import {
@@ -22,14 +23,13 @@ import {
   Patch,
   Param,
   Body,
-  Query,
-  Res,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
-import { WhatsappService } from './whatsapp.service';
+import { WhatsappService, TwilioWebhookPayload, TwilioStatusPayload } from './whatsapp.service';
 import { AiService } from '../ai/ai.service';
 
 @ApiTags('WhatsApp')
@@ -41,38 +41,47 @@ export class WhatsappController {
   ) {}
 
   // =====================================================
-  // WEBHOOK VERIFICATION (GET)
+  // TWILIO INCOMING WEBHOOK
   // =====================================================
-  // Meta calls this URL to verify ownership.
-  // Must respond with hub.challenge as plain text.
-  @Get('webhook')
-  @ApiOperation({ summary: 'Meta webhook verification' })
-  verifyWebhook(
-    @Query('hub.mode') mode: string,
-    @Query('hub.verify_token') token: string,
-    @Query('hub.challenge') challenge: string,
+  // Twilio sends form-encoded POST when message arrives.
+  // Must respond with TwiML or empty 200 within 15 seconds.
+  // We respond with empty TwiML (no auto-reply).
+  @Post('webhook/twilio')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Receive incoming WhatsApp messages from Twilio' })
+  async receiveTwilioWebhook(
+    @Body() payload: TwilioWebhookPayload,
     @Res() res: Response,
   ) {
-    const result = this.whatsappService.verifyWebhook(mode, token, challenge);
-    // Must respond with plain text challenge (not JSON)
-    res.status(200).send(result);
+    // Process async — don't block Twilio response
+    this.whatsappService.processWebhook(payload).catch((err) =>
+      console.error('Twilio webhook processing error:', err),
+    );
+
+    // Respond with empty TwiML — no automatic reply
+    // (our AI suggestion goes via WebSocket to the agent)
+    res.setHeader('Content-Type', 'text/xml');
+    res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
 
   // =====================================================
-  // WEBHOOK INCOMING EVENTS (POST)
+  // TWILIO STATUS CALLBACK
   // =====================================================
-  // Meta posts all events here: messages, statuses, etc.
-  // Must respond 200 OK within 20 seconds (Meta requirement).
-  // All heavy processing is async (non-blocking).
-  @Post('webhook')
-  @HttpCode(HttpStatus.OK) // Must be 200 or Meta will retry
-  @ApiOperation({ summary: 'Receive WhatsApp events from Meta' })
-  async receiveWebhook(@Body() body: any) {
-    // Process async, don't await — respond 200 immediately
-    this.whatsappService.processWebhook(body).catch((err) =>
-      console.error('Webhook processing error:', err),
+  // Twilio calls this when message status changes:
+  // sent → delivered → read (or failed)
+  @Post('webhook/twilio/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Receive WhatsApp message status updates from Twilio' })
+  async receiveTwilioStatus(
+    @Body() payload: TwilioStatusPayload,
+    @Res() res: Response,
+  ) {
+    this.whatsappService.processStatusCallback(payload).catch((err) =>
+      console.error('Twilio status callback error:', err),
     );
-    return { status: 'ok' };
+
+    res.setHeader('Content-Type', 'text/xml');
+    res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
 
   // =====================================================
@@ -112,7 +121,7 @@ export class WhatsappController {
   // SEND MESSAGE
   // =====================================================
   @Post('chats/:companyId/:chatId/messages')
-  @ApiOperation({ summary: 'Send message to customer via WhatsApp' })
+  @ApiOperation({ summary: 'Send message to customer via WhatsApp (Twilio)' })
   async sendMessage(
     @Param('companyId') companyId: string,
     @Param('chatId') chatId: string,
