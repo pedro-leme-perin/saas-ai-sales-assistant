@@ -13,13 +13,18 @@ import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
 
-  // Paths públicos — fallback para quando o decorator não resolve no build
+  // Paths públicos — com e sem prefixo /api (NestJS pode omitir o prefixo no request.path)
   private readonly PUBLIC_PATHS = [
     '/api/whatsapp/webhook',
+    '/whatsapp/webhook',
     '/api/whatsapp/webhook/status',
+    '/whatsapp/webhook/status',
     '/api/billing/webhook',
+    '/billing/webhook',
     '/api/webhooks/clerk',
+    '/webhooks/clerk',
     '/health',
+    '/api/health',
   ];
 
   constructor(
