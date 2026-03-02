@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
-import { Public } from '@/common/decorators/public.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { WhatsappService, TwilioWebhookPayload, TwilioStatusPayload } from './whatsapp.service';
 import { AiService } from '../ai/ai.service';
 
