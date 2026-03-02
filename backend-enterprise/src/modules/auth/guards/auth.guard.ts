@@ -13,20 +13,6 @@ import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
 
-  // Paths públicos — com e sem prefixo /api (NestJS pode omitir o prefixo no request.path)
-  private readonly PUBLIC_PATHS = [
-    '/api/whatsapp/webhook',
-    '/whatsapp/webhook',
-    '/api/whatsapp/webhook/status',
-    '/whatsapp/webhook/status',
-    '/api/billing/webhook',
-    '/billing/webhook',
-    '/api/webhooks/clerk',
-    '/webhooks/clerk',
-    '/health',
-    '/api/health',
-  ];
-
   constructor(
     private readonly clerkStrategy: ClerkStrategy,
     private readonly reflector: Reflector,
@@ -34,23 +20,19 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-
-    // 1. Whitelist por path (fallback robusto)
     const path = request.path || request.url || '';
-    if (this.PUBLIC_PATHS.some((p) => path.startsWith(p))) {
+
+    // Whitelist: qualquer path contendo whatsapp/webhook
+    if (path.includes('whatsapp/webhook') || path.includes('billing/webhook') || path.includes('webhooks/clerk') || path === '/health') {
       return true;
     }
 
-    // 2. Decorator @Public()
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-    if (isPublic) {
-      return true;
-    }
+    if (isPublic) return true;
 
-    // 3. Autenticação Clerk
     try {
       const user = await this.clerkStrategy.validate(request);
       request.user = user;
