@@ -27,7 +27,7 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { MessageType, MessageDirection, MessageStatus } from '@prisma/client';
-import * as twilio from 'twilio';
+import twilio = require('twilio');
 
 // =====================================================
 // TWILIO WEBHOOK PAYLOAD TYPES
@@ -61,7 +61,7 @@ export interface TwilioStatusPayload {
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
-  private readonly twilioClient: twilio.Twilio;
+  private twilioClient!: twilio.Twilio;
   private readonly sandboxNumber: string;
 
   constructor(
@@ -453,3 +453,5 @@ export class WhatsappService {
     return MessageType.DOCUMENT;
   }
 }
+
+
