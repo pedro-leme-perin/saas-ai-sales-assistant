@@ -19,7 +19,6 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
   async validate(request: Request): Promise<UserWithCompany> {
     this.logger.debug('=== AUTHENTICATION FLOW START ===');
 
-    // 1. Extrair token do header
     const token = this.extractTokenFromHeader(request);
     if (!token) {
       this.logger.warn('No token found in request');
@@ -27,16 +26,15 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
     }
     this.logger.debug('Token extracted from header');
 
-    // 2. Verificar token com Clerk
     let payload: ClerkJwtPayload;
     try {
       this.logger.debug('Verifying token with Clerk...');
-      
+
       payload = await verifyToken(token, {
         secretKey: process.env.CLERK_SECRET_KEY!,
         authorizedParties: this.getAuthorizedParties(),
       }) as ClerkJwtPayload;
-      
+
       this.logger.debug('Token verified successfully');
       this.logger.debug(`Clerk ID from token: ${payload.sub}`);
     } catch (err) {
@@ -45,7 +43,6 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       throw new UnauthorizedException('Invalid authentication token');
     }
 
-    // 3. Validar payload
     if (!payload.sub) {
       this.logger.error('Token payload missing subject (sub)');
       throw new UnauthorizedException('Invalid token payload');
@@ -56,15 +53,13 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       throw new UnauthorizedException('Session is not active');
     }
 
-    // 4. Buscar usuário no banco local
     this.logger.debug('Searching database for user...');
     let user = await this.usersService.findByClerkId(payload.sub);
 
-    // 5. AUTO-PROVISIONING: Criar usuário se não existir
     if (!user) {
       this.logger.warn(`User not found for Clerk ID: ${payload.sub}`);
       this.logger.log('Initiating auto-provisioning...');
-      
+
       try {
         user = await this.usersService.createFromClerkPayload(payload);
         this.logger.log(`User auto-provisioned successfully: ${user.id}`);
@@ -78,13 +73,11 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       }
     }
 
-    // 6. Verificar se usuário está ativo
     if (!user.isActive) {
       this.logger.warn(`User is inactive: ${user.id}`);
       throw new UnauthorizedException('User account is inactive');
     }
 
-    // 7. Atualizar último acesso (fire and forget)
     this.usersService.updateLastAccess(user.id).catch((err) => {
       const message = err instanceof Error ? err.message : 'Unknown error';
       this.logger.warn(`Failed to update last access: ${message}`);
@@ -98,13 +91,13 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
 
   private extractTokenFromHeader(request: Request): string | null {
     const authHeader = request.headers.authorization;
-    
+
     if (!authHeader) {
       return null;
     }
 
     const [type, token] = authHeader.split(' ');
-    
+
     if (type !== 'Bearer' || !token) {
       return null;
     }
@@ -118,6 +111,7 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       process.env.NEXT_PUBLIC_APP_URL,
       'http://localhost:3000',
       'http://localhost:3001',
+      'https://saas-ai-sales-assistant-oc6b.vercel.app',
     ].filter(Boolean) as string[];
 
     return [...new Set(parties.map(p => p.replace(/\/$/, '')))];
