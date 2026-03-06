@@ -39,10 +39,12 @@ export default function CallsPage() {
     useActiveCallStore();
   const { currentSuggestion, isGenerating } = useAISuggestionsStore();
 
-  const { data: callDetail } = useQuery({
+  const { data: callDetailRaw } = useQuery({
     queryKey: ['call-detail', selectedCall?.id],
     queryFn: () => callsService.getById(selectedCall!.id),
     enabled: !!selectedCall,
+  }) as any;
+  const callDetail = callDetailRaw as any;
   });
 
   // Fetch calls

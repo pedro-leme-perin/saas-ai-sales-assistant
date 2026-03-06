@@ -30,7 +30,7 @@ export default function DashboardPage() {
     queryFn: () => companiesService.getUsage(),
   });
 
-  const { data: dashboard } = useQuery({
+  const { data: dashboardRaw } = useQuery({
     queryKey: ['analytics-dashboard'],
     queryFn: () => analyticsService.getDashboard(),
   });

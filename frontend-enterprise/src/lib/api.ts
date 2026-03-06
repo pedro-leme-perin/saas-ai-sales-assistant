@@ -17,7 +17,7 @@ api.interceptors.request.use(
         if (window.Clerk) {
           if (window.Clerk.session) {
             // skipCache: true → sempre busca token fresco, nunca usa cache expirado
-            const token = await window.Clerk.session.getToken({ skipCache: true });
+            const token = await window.Clerk.session.getToken();
             if (token) {
               config.headers.Authorization = `Bearer ${token}`;
             } else {
