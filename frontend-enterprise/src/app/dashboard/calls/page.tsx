@@ -66,7 +66,7 @@ export default function CallsPage() {
   // Start new call mutation
   const startCallMutation = useMutation({
     mutationFn: (phoneNumber: string) =>
-      callsService.initiateCall(phoneNumber),
+      callsService.create({ phoneNumber, direction: 'OUTBOUND' }),
     onSuccess: (call) => {
       setActiveCall(call.id);
       wsClient.joinCall(call.id);
