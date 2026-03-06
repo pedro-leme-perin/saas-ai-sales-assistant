@@ -35,6 +35,7 @@ export default function DashboardPage() {
     queryFn: () => analyticsService.getDashboard(),
   });
 
+  const dashboard = dashboardRaw as any;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 

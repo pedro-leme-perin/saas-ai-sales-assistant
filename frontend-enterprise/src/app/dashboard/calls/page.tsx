@@ -45,7 +45,6 @@ export default function CallsPage() {
     enabled: !!selectedCall,
   }) as any;
   const callDetail = callDetailRaw as any;
-  });
 
   // Fetch calls
   const { data: callsData, isLoading } = useQuery({
