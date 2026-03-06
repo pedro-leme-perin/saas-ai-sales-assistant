@@ -17,6 +17,8 @@ import {
   Pause,
   Mic,
   MicOff,
+  X,
+  MessageSquare,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,9 +34,16 @@ export default function CallsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [directionFilter, setDirectionFilter] = useState<string>('all');
 
+  const [selectedCall, setSelectedCall] = useState<Call | null>(null);
   const { activeCallId, isInCall, callDuration, transcript, setActiveCall, endCall } =
     useActiveCallStore();
   const { currentSuggestion, isGenerating } = useAISuggestionsStore();
+
+  const { data: callDetail } = useQuery({
+    queryKey: ['call-detail', selectedCall?.id],
+    queryFn: () => callsService.getById(selectedCall!.id),
+    enabled: !!selectedCall,
+  });
 
   // Fetch calls
   const { data: callsData, isLoading } = useQuery({
@@ -57,7 +66,7 @@ export default function CallsPage() {
   // Start new call mutation
   const startCallMutation = useMutation({
     mutationFn: (phoneNumber: string) =>
-      callsService.create({ phoneNumber, direction: 'OUTBOUND' }),
+      callsService.initiateCall(phoneNumber),
     onSuccess: (call) => {
       setActiveCall(call.id);
       wsClient.joinCall(call.id);
@@ -67,7 +76,7 @@ export default function CallsPage() {
 
   // End call mutation
   const endCallMutation = useMutation({
-    mutationFn: (callId: string) => callsService.complete(callId),
+    mutationFn: (callId: string) => callsService.endCall(callId),
     onSuccess: () => {
       if (activeCallId) {
         wsClient.leaveCall(activeCallId);
@@ -321,7 +330,8 @@ export default function CallsPage() {
                 return (
                   <div
                     key={call.id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => setSelectedCall(call)}
                   >
                     <div className="flex items-center gap-4">
                       <div
@@ -353,7 +363,7 @@ export default function CallsPage() {
                             : call.status}
                         </p>
                       </div>
-                      <Button variant="ghost" size="icon-sm">
+                      <Button variant="ghost" size="sm">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </div>
@@ -376,6 +386,69 @@ export default function CallsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Call Detail Modal */}
+      {selectedCall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setSelectedCall(null)}>
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Phone className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="font-semibold">{selectedCall.contactName || formatPhone(selectedCall.phoneNumber)}</h2>
+                  <p className="text-sm text-muted-foreground">{formatDateTime(selectedCall.createdAt)} · {formatDuration(selectedCall.duration)}</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedCall(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Transcript */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="font-medium">Transcrição</h3>
+                </div>
+                {callDetail?.transcript ? (
+                  <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-wrap">
+                    {callDetail.transcript}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Sem transcrição disponível.</p>
+                )}
+              </div>
+
+              {/* AI Suggestions */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h3 className="font-medium">Sugestões IA</h3>
+                </div>
+                {callDetail?.aiSuggestions?.length > 0 ? (
+                  <div className="space-y-2">
+                    {callDetail.aiSuggestions.map((s: any, i: number) => (
+                      <div key={i} className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                        <p className="text-sm">{s.content}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs text-muted-foreground">{Math.round((s.confidence || 0.8) * 100)}% confiança</span>
+                          {s.wasUsed && <span className="text-xs text-green-600">✓ Utilizada</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Sem sugestões registradas.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
