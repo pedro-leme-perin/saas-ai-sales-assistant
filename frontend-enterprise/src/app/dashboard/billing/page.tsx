@@ -1,4 +1,5 @@
 'use client';
+import { Suspense } from 'react';
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -32,7 +33,7 @@ const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
   uncollectible: { label: 'Incobrável', color: 'text-red-700 bg-red-100' },
 };
 
-export default function BillingPage() {
+function BillingPageContent() {
   const {
     subscription, plans, invoices, loading, error, currentPlan,
     startCheckout, openPortal, cancelSubscription, changePlan, reload,
@@ -311,4 +312,8 @@ export default function BillingPage() {
       </section>
     </div>
   );
+}
+
+export default function BillingPage() {
+  return <Suspense fallback={<div>Carregando...</div>}><BillingPageContent /></Suspense>;
 }
