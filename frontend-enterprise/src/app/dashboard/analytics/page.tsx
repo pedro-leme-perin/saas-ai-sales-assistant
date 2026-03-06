@@ -11,17 +11,17 @@ import { formatDuration } from '@/lib/utils';
 export default function AnalyticsPage() {
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['analytics-dashboard'],
-    queryFn: () => analyticsService.getDashboard(),
+    queryFn: () => analyticsService.getDashboard() as Promise<any>,
   });
 
   const { data: callsData } = useQuery({
     queryKey: ['analytics-calls'],
-    queryFn: () => analyticsService.getCalls(),
+    queryFn: () => analyticsService.getCalls() as Promise<any>,
   });
 
   const { data: waData } = useQuery({
     queryKey: ['analytics-whatsapp'],
-    queryFn: () => analyticsService.getWhatsApp(),
+    queryFn: () => analyticsService.getWhatsApp() as Promise<any>,
   });
 
   if (isLoading) {
