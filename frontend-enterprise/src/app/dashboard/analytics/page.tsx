@@ -24,6 +24,8 @@ export default function AnalyticsPage() {
     queryFn: () => analyticsService.getWhatsApp() as Promise<any>,
   });
 
+  const dashboard = dashboardRaw as any;
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Carregando...</div>;
   }
