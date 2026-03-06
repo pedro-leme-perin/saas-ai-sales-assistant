@@ -9,9 +9,9 @@ import { analyticsService } from '@/services/api';
 import { formatDuration } from '@/lib/utils';
 
 export default function AnalyticsPage() {
-  const { data: dashboard, isLoading } = useQuery({
+  const { data: dashboardRaw, isLoading } = useQuery({
     queryKey: ['analytics-dashboard'],
-    queryFn: () => analyticsService.getDashboard() as Promise<any>,
+    queryFn: () => analyticsService.getDashboard(),
   });
 
   const { data: callsData } = useQuery({
@@ -157,3 +157,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
