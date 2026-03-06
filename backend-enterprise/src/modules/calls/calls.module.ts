@@ -11,6 +11,6 @@ import { PrismaModule } from '../../infrastructure/database/prisma.module';
   imports: [AiModule, NotificationsModule, PrismaModule],
   controllers: [CallsController],
   providers: [CallsService, DeepgramService, MediaStreamsGateway],
-  exports: [CallsService, DeepgramService],
+  exports: [CallsService, DeepgramService, MediaStreamsGateway],
 })
 export class CallsModule {}

@@ -1,5 +1,7 @@
 // src/modules/calls/calls.controller.ts
-import { Controller, Get, Post, Put, Param, Body, Res, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, Res, HttpCode, Request, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
 import { Response } from 'express';
@@ -50,12 +52,13 @@ export class CallsController {
   @ApiOperation({ summary: 'Initiate outbound call via Twilio' })
   async initiateCall(
     @Param('companyId') companyId: string,
-    @Body() data: { userId: string; phoneNumber: string; webhookUrl?: string },
+    @Body() data: { phoneNumber: string },
+    @Request() req: any,
   ) {
-    const webhookUrl = data.webhookUrl || process.env.BACKEND_URL || 'http://localhost:3001';
+    const webhookUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
     return this.callsService.initiateCall(
       companyId,
-      data.userId,
+      req.user.id,
       data.phoneNumber,
       webhookUrl,
     );
@@ -74,6 +77,7 @@ export class CallsController {
   // TWILIO WEBHOOKS
   // =====================================================
 
+  @Public()
   @Post('webhook/voice/:callId')
   @HttpCode(200)
   @ApiOperation({ summary: 'Twilio voice webhook - returns TwiML with Media Streams' })
@@ -84,7 +88,7 @@ export class CallsController {
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
 
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
     // Connect to Media Streams for real-time audio
@@ -92,25 +96,55 @@ export class CallsController {
     const connect = response.connect();
     connect.stream({
       url: `${wsUrl}/ws/media`,
-      track: 'inbound_track', // Only transcribe customer (inbound)
+      track: 'both_tracks', // Only transcribe customer (inbound)
     });
 
     res.type('text/xml');
     res.send(response.toString());
   }
 
+  @Public()
+  @Post('webhook/voice')
+  @HttpCode(200)
+  async handleVoiceWebhookInbound(
+    @Body() body: { CallSid: string; From: string; To: string },
+    @Res() res: Response,
+  ) {
+    await this.callsService.findOrCreateByCallSid(body.CallSid, body.From);
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
+    const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    const connect = response.connect();
+    connect.stream({ url: `${wsUrl}/ws/media` });
+    res.type('text/xml');
+    res.send(response.toString());
+  }
+
+  @Public()
   @Post('webhook/status/:callId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Twilio status callback webhook' })
   async handleStatusWebhook(
     @Param('callId') callId: string,
-    @Body() body: { CallStatus: string; CallDuration?: string },
+    @Body() body: { CallStatus: string; CallDuration?: string; CallSid?: string },
   ) {
     const duration = body.CallDuration ? parseInt(body.CallDuration, 10) : undefined;
     await this.callsService.handleStatusWebhook(callId, body.CallStatus, duration);
     return { success: true };
   }
 
+  @Public()
+  @Post('webhook/status')
+  @HttpCode(200)
+  async handleStatusWebhookGlobal(
+    @Body() body: { CallStatus: string; CallDuration?: string; CallSid: string },
+  ) {
+    const duration = body.CallDuration ? parseInt(body.CallDuration, 10) : undefined;
+    await this.callsService.handleStatusWebhookBySid(body.CallSid, body.CallStatus, duration);
+    return { success: true };
+  }
+
+  @Public()
   @Post('webhook/transcription/:callId')
   @HttpCode(200)
   @ApiOperation({ summary: 'Fallback transcription webhook (post-call)' })
@@ -126,3 +160,6 @@ export class CallsController {
     return { success: true };
   }
 }
+
+
+

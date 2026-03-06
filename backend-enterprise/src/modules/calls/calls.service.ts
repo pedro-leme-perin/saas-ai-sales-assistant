@@ -37,6 +37,19 @@ export class CallsService {
   async findOne(id: string, companyId: string) {
     const call = await this.prisma.call.findFirst({
       where: { id, companyId },
+      include: {
+        aiSuggestions: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            content: true,
+            confidence: true,
+            type: true,
+            wasUsed: true,
+            createdAt: true,
+          },
+        },
+      },
     });
     if (!call) {
       throw new NotFoundException('Call not found');
@@ -137,6 +150,43 @@ export class CallsService {
       this.logger.error('Failed to end call:', error);
       throw error;
     }
+  }
+
+  async findOrCreateByCallSid(callSid: string, fromNumber: string): Promise<any> {
+    const existing = await this.prisma.call.findFirst({
+      where: { twilioCallSid: callSid },
+    });
+    if (existing) return existing;
+
+    // Find company by phone number or use first active company
+    const company = await this.prisma.company.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!company) throw new Error('No active company found');
+
+    const user = await this.prisma.user.findFirst({
+      where: { companyId: company.id },
+    });
+    if (!user) throw new Error('No user found for company');
+
+    return this.prisma.call.create({
+      data: {
+        companyId: company.id,
+        userId: user.id,
+        phoneNumber: fromNumber,
+        direction: 'INBOUND',
+        status: CallStatus.INITIATED,
+        duration: 0,
+        twilioCallSid: callSid,
+      },
+    });
+  }
+
+  async handleStatusWebhookBySid(callSid: string, status: string, duration?: number): Promise<void> {
+    const call = await this.prisma.call.findFirst({ where: { twilioCallSid: callSid } });
+    if (!call) return;
+    await this.handleStatusWebhook(call.id, status, duration);
   }
 
   async handleStatusWebhook(callId: string, status: string, duration?: number) {

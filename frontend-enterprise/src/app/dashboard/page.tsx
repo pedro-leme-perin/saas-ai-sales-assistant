@@ -3,20 +3,12 @@
 import { useUser } from '@clerk/nextjs';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Phone,
-  MessageSquare,
-  Sparkles,
-  TrendingUp,
-  TrendingDown,
-  PhoneMissed,
-  Clock,
-  Users,
-  ArrowRight,
-  Activity,
+  Phone, MessageSquare, Sparkles, TrendingUp, TrendingDown,
+  PhoneMissed, Clock, Users, ArrowRight, Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { callsService, companiesService } from '@/services/api';
+import { callsService, companiesService, analyticsService } from '@/services/api';
 import { formatDuration, formatDateTime, formatPhone, getCallStatusColor } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -38,9 +30,9 @@ export default function DashboardPage() {
     queryFn: () => companiesService.getUsage(),
   });
 
-  const { data: companyStats } = useQuery({
-    queryKey: ['company-stats'],
-    queryFn: () => companiesService.getStats(),
+  const { data: dashboard } = useQuery({
+    queryKey: ['analytics-dashboard'],
+    queryFn: () => analyticsService.getDashboard(),
   });
 
   const hour = new Date().getHours();
@@ -52,9 +44,7 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight">
           {greeting}, {user?.firstName || 'Usuário'} 👋
         </h1>
-        <p className="text-muted-foreground">
-          Aqui está o resumo da sua equipe de vendas hoje.
-        </p>
+        <p className="text-muted-foreground">Aqui está o resumo da sua equipe de vendas hoje.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -65,23 +55,37 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{callStats?.total || 0}</div>
-            <div className="flex items-center text-xs text-green-600 mt-1">
-              <TrendingUp className="h-3 w-3 mr-1" />+12% este mês
-            </div>
+            {(dashboard?.calls?.growth ?? 0) >= 0 ? (
+              <div className="flex items-center text-xs text-green-600 mt-1">
+                <TrendingUp className="h-3 w-3 mr-1" />+{dashboard?.calls?.growth ?? 0}% este mês
+              </div>
+            ) : (
+              <div className="flex items-center text-xs text-red-500 mt-1">
+                <TrendingDown className="h-3 w-3 mr-1" />{dashboard?.calls?.growth ?? 0}% este mês
+              </div>
+            )}
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Chats WhatsApp</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companyStats?.messages?.total || 0}</div>
-            <div className="flex items-center text-xs text-green-600 mt-1">
-              <TrendingUp className="h-3 w-3 mr-1" />+8% este mês
-            </div>
+            <div className="text-2xl font-bold">{dashboard?.chats?.total || 0}</div>
+            {(dashboard?.chats?.growth ?? 0) >= 0 ? (
+              <div className="flex items-center text-xs text-green-600 mt-1">
+                <TrendingUp className="h-3 w-3 mr-1" />+{dashboard?.chats?.growth ?? 0}% este mês
+              </div>
+            ) : (
+              <div className="flex items-center text-xs text-red-500 mt-1">
+                <TrendingDown className="h-3 w-3 mr-1" />{dashboard?.chats?.growth ?? 0}% este mês
+              </div>
+            )}
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Ligações Perdidas</CardTitle>
@@ -94,6 +98,7 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Duração Média</CardTitle>
@@ -120,11 +125,11 @@ export default function DashboardPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-background rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-primary">1,247</p>
+                <p className="text-2xl font-bold text-primary">{dashboard?.ai?.total || 0}</p>
                 <p className="text-xs text-muted-foreground">Sugestões geradas</p>
               </div>
               <div className="bg-background rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">78%</p>
+                <p className="text-2xl font-bold text-green-600">{dashboard?.ai?.adoptionRate || 0}%</p>
                 <p className="text-xs text-muted-foreground">Taxa de uso</p>
               </div>
             </div>
@@ -220,7 +225,7 @@ export default function DashboardPage() {
         <CardContent>
           {recentCalls?.data && recentCalls.data.length > 0 ? (
             <div className="space-y-2">
-              {recentCalls.data.map((call) => (
+              {recentCalls.data.map((call: any) => (
                 <div key={call.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">

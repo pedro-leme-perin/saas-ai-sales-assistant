@@ -1,18 +1,11 @@
-// src/modules/calls/media-streams.gateway.ts
-import {
-  WebSocketGateway,
-  WebSocketServer,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-} from '@nestjs/websockets';
-import { Server } from 'ws';
-import { WebSocket } from 'ws';
-import { Logger } from '@nestjs/common';
-import { DeepgramService } from '../../infrastructure/stt/deepgram.service';
-import { AiService } from '../ai/ai.service';
-import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { PrismaService } from '../../infrastructure/database/prisma.service';
-import { SuggestionType } from '@prisma/client';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import * as WebSocket from "ws";
+import { IncomingMessage } from "http";
+import { DeepgramService } from "../../infrastructure/stt/deepgram.service";
+import { AiService } from "../ai/ai.service";
+import { NotificationsGateway } from "../notifications/notifications.gateway";
+import { PrismaService } from "../../infrastructure/database/prisma.service";
+import { SuggestionType } from "@prisma/client";
 
 interface ActiveSession {
   deepgramConnection: any;
@@ -21,19 +14,11 @@ interface ActiveSession {
   fullTranscript: string[];
 }
 
-/**
- * WebSocket Gateway for Twilio Media Streams
- *
- * Flow:
- * Twilio → /ws/media (this gateway) → Deepgram (streaming STT) → OpenAI → Frontend
- */
-@WebSocketGateway({ path: '/ws/media' })
-export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer()
-  server!: Server;
-
+@Injectable()
+export class MediaStreamsGateway {
   private readonly logger = new Logger(MediaStreamsGateway.name);
   private activeSessions = new Map<string, ActiveSession>();
+  private wss: WebSocket.Server | null = null;
 
   constructor(
     private readonly deepgramService: DeepgramService,
@@ -42,32 +27,47 @@ export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDiscon
     private readonly prisma: PrismaService,
   ) {}
 
-  async handleConnection(client: WebSocket) {
-    this.logger.log('📞 Twilio Media Stream connected');
+  init(httpServer: any) {
+    this.wss = new WebSocket.Server({ noServer: true });
 
-    client.on('message', async (data: Buffer) => {
-      try {
-        const message = JSON.parse(data.toString());
-        await this.handleTwilioMessage(message);
-      } catch (error) {
-        this.logger.error('Error processing media stream message:', error);
+    httpServer.prependListener('upgrade', (request: any, socket: any, head: Buffer) => {
+      this.logger.log('WebSocket upgrade: ' + request.url);
+      if (request.url === '/ws/media') {
+        this.wss!.handleUpgrade(request, socket, head, (ws) => {
+          this.wss!.emit('connection', ws, request);
+        });
       }
     });
-  }
 
-  handleDisconnect(_client: WebSocket) {
-    this.logger.log('📞 Twilio Media Stream disconnected');
+    this.wss.on("connection", (client: WebSocket.WebSocket) => {
+      this.logger.log("📞 Twilio Media Stream connected");
+
+      client.on("message", async (data: Buffer) => {
+        try {
+          const message = JSON.parse(data.toString());
+          await this.handleTwilioMessage(message);
+        } catch (error) {
+          this.logger.error("Error processing media stream message:", error);
+        }
+      });
+
+      client.on("close", () => {
+        this.logger.log("📞 Twilio Media Stream disconnected");
+      });
+    });
+
+    this.logger.log("✅ MediaStreams WebSocket server initialized at /ws/media");
   }
 
   private async handleTwilioMessage(message: any) {
     switch (message.event) {
-      case 'start':
+      case "start":
         await this.handleStreamStart(message);
         break;
-      case 'media':
+      case "media":
         await this.handleMediaChunk(message);
         break;
-      case 'stop':
+      case "stop":
         await this.handleStreamStop(message);
         break;
     }
@@ -76,7 +76,6 @@ export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDiscon
   private async handleStreamStart(message: any) {
     const streamSid = message.streamSid;
     const callSid = message.start?.callSid;
-
     this.logger.log(`Stream started: ${streamSid} for call: ${callSid}`);
 
     const call = await this.prisma.call.findFirst({
@@ -91,7 +90,6 @@ export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDiscon
     const deepgramConnection = this.deepgramService.createLiveSession(
       async (result) => {
         if (!result.isFinal) return;
-
         const session = this.activeSessions.get(streamSid);
         if (!session) return;
 
@@ -100,14 +98,11 @@ export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDiscon
 
         try {
           const context = {
-            recentTranscript: session.fullTranscript.slice(-5).join(' '),
-            type: 'sales_call',
+            recentTranscript: session.fullTranscript.slice(-5).join(" "),
+            type: "sales_call",
           };
 
-          const suggestion = await this.aiService.generateSuggestion(
-            result.text,
-            context,
-          );
+          const suggestion = await this.aiService.generateSuggestion(result.text, context);
 
           if (suggestion?.text) {
             this.notificationsGateway.sendAISuggestion(session.userId, {
@@ -132,11 +127,11 @@ export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDiscon
             });
           }
         } catch (error) {
-          this.logger.error('Error generating AI suggestion:', error);
+          this.logger.error("Error generating AI suggestion:", error);
         }
       },
       (error) => {
-        this.logger.error('Deepgram error:', error);
+        this.logger.error("Deepgram error:", error);
       },
     );
 
@@ -152,8 +147,7 @@ export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDiscon
     const streamSid = message.streamSid;
     const session = this.activeSessions.get(streamSid);
     if (!session?.deepgramConnection) return;
-
-    const audioBuffer = Buffer.from(message.media.payload, 'base64');
+    const audioBuffer = Buffer.from(message.media.payload, "base64");
     session.deepgramConnection.send(audioBuffer);
   }
 
@@ -163,10 +157,9 @@ export class MediaStreamsGateway implements OnGatewayConnection, OnGatewayDiscon
     if (!session) return;
 
     this.logger.log(`Stream stopped: ${streamSid}`);
-
     try { session.deepgramConnection.finish(); } catch (_) {}
 
-    const fullTranscript = session.fullTranscript.join(' ');
+    const fullTranscript = session.fullTranscript.join(" ");
     if (fullTranscript) {
       await this.prisma.call.update({
         where: { id: session.callId },

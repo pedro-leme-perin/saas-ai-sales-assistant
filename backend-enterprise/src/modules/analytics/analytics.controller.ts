@@ -16,4 +16,9 @@ export class AnalyticsController {
   async getCallsAnalytics(@Param('companyId') companyId: string) {
     return this.analyticsService.getCallsAnalytics(companyId);
   }
+
+  @Get('whatsapp/:companyId')
+  async getWhatsAppAnalytics(@Param('companyId') companyId: string) {
+    return this.analyticsService.getWhatsAppAnalytics(companyId);
+  }
 }

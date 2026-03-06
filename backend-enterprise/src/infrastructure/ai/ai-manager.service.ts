@@ -205,7 +205,7 @@ export class AIManagerService {
 
   private getMockSuggestion(transcript: string): AISuggestion {
     return {
-      text: 'Continue listening actively and ask clarifying questions about their needs.',
+      text: 'Continue ouvindo ativamente e faça perguntas para entender melhor as necessidades do cliente.',
       confidence: 0.5,
       provider: 'mock',
       latencyMs: 0,

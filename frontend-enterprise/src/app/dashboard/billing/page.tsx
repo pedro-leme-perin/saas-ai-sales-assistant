@@ -1,350 +1,314 @@
 'use client';
 
-import { useQuery, useMutation } from '@tanstack/react-query';
-import {
-  CreditCard,
-  Check,
-  Receipt,
-  Download,
-  ExternalLink,
-  Sparkles,
-  Users,
-  Phone,
-  MessageSquare,
-  Crown,
-  Zap,
-  Building,
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { billingService, companiesService } from '@/services/api';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useBilling } from '@/hooks/useBilling';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plan } from '@/types';
+import {
+  CreditCard, CheckCircle, XCircle, AlertCircle,
+  FileText, Zap, Building2, Rocket, ExternalLink,
+  Loader2, RefreshCw, Users, Phone, MessageSquare,
+} from 'lucide-react';
 
-const planIcons: Record<Plan, React.ElementType> = {
-  STARTER: Zap,
-  PROFESSIONAL: Crown,
-  ENTERPRISE: Building,
+const PLAN_ICONS: Record<string, React.ReactNode> = {
+  STARTER:      <Zap className="w-6 h-6" />,
+  PROFESSIONAL: <Rocket className="w-6 h-6" />,
+  ENTERPRISE:   <Building2 className="w-6 h-6" />,
 };
 
-const planColors: Record<Plan, string> = {
-  STARTER: 'from-blue-500 to-cyan-500',
-  PROFESSIONAL: 'from-violet-500 to-purple-500',
-  ENTERPRISE: 'from-amber-500 to-orange-500',
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  ACTIVE:   { label: 'Ativo',      color: 'text-green-700 bg-green-100' },
+  active:   { label: 'Ativo',      color: 'text-green-700 bg-green-100' },
+  trialing: { label: 'Trial',      color: 'text-blue-700 bg-blue-100' },
+  canceled: { label: 'Cancelado',  color: 'text-red-700 bg-red-100' },
+  past_due: { label: 'Em atraso',  color: 'text-orange-700 bg-orange-100' },
+};
+
+const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
+  paid:          { label: 'Pago',       color: 'text-green-700 bg-green-100' },
+  PAID:          { label: 'Pago',       color: 'text-green-700 bg-green-100' },
+  open:          { label: 'Pendente',   color: 'text-yellow-700 bg-yellow-100' },
+  void:          { label: 'Cancelado',  color: 'text-gray-700 bg-gray-100' },
+  uncollectible: { label: 'Incobrável', color: 'text-red-700 bg-red-100' },
 };
 
 export default function BillingPage() {
-  const { data: subscription, isLoading: subLoading } = useQuery({
-    queryKey: ['subscription'],
-    queryFn: () => billingService.getSubscription(),
-  });
+  const {
+    subscription, plans, invoices, loading, error, currentPlan,
+    startCheckout, openPortal, cancelSubscription, changePlan, reload,
+  } = useBilling();
 
-  const { data: invoices } = useQuery({
-    queryKey: ['invoices'],
-    queryFn: () => billingService.getInvoices(),
-  });
+  const searchParams = useSearchParams();
+  const [banner, setBanner] = useState<'success' | 'canceled' | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const { data: plans } = useQuery({
-    queryKey: ['plans'],
-    queryFn: () => billingService.getPlans(),
-  });
+  useEffect(() => {
+    if (searchParams.get('success') === 'true')   setBanner('success');
+    if (searchParams.get('canceled') === 'true')  setBanner('canceled');
+  }, [searchParams]);
 
-  const { data: usage } = useQuery({
-    queryKey: ['company-usage'],
-    queryFn: () => companiesService.getUsage(),
-  });
+  const handleAction = async (key: string, fn: () => Promise<void>) => {
+    setActionLoading(key);
+    try { await fn(); }
+    catch (e: any) { alert(`Erro: ${e.message}`); }
+    finally { setActionLoading(null); }
+  };
 
-  const checkoutMutation = useMutation({
-    mutationFn: (plan: string) => billingService.createCheckout(plan),
-    onSuccess: (data) => {
-      window.location.href = data.url;
-    },
-  });
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+    </div>
+  );
 
-  const portalMutation = useMutation({
-    mutationFn: () => billingService.getPortalUrl(),
-    onSuccess: (data) => {
-      window.location.href = data.url;
-    },
-  });
+  if (error) return (
+    <div className="p-6">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+        <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-red-800">Erro ao carregar cobrança</p>
+          <p className="text-xs text-red-600 mt-1">{error}</p>
+        </div>
+        <button onClick={reload} className="ml-auto text-red-600 hover:text-red-800">
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
 
-  const cancelMutation = useMutation({
-    mutationFn: () => billingService.cancelSubscription(),
-  });
-
-  const currentPlan = usage?.plan || 'STARTER';
+  const activeSub = subscription?.subscription;
+  const company   = subscription?.company;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Faturamento</h1>
-          <p className="text-muted-foreground">Gerencie sua assinatura e pagamentos.</p>
+    <div className="p-6 max-w-5xl mx-auto space-y-8">
+
+      {/* Banners */}
+      {banner === 'success' && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <span className="text-sm font-medium text-green-800">
+            Assinatura ativada com sucesso!
+          </span>
+          <button onClick={() => setBanner(null)} className="ml-auto text-green-600 text-xl leading-none">×</button>
         </div>
-        {subscription && (
-          <Button variant="outline" onClick={() => portalMutation.mutate()}>
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Portal de Pagamentos
-          </Button>
-        )}
-      </div>
-
-      {/* Current Subscription */}
-      <Card
-        className={`bg-gradient-to-r ${planColors[currentPlan]} text-white overflow-hidden relative`}
-      >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <CardContent className="p-6 relative">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              {(() => {
-                const PlanIcon = planIcons[currentPlan];
-                return (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20">
-                    <PlanIcon className="h-8 w-8" />
-                  </div>
-                );
-              })()}
-              <div>
-                <p className="text-sm opacity-80">Plano Atual</p>
-                <h2 className="text-2xl font-bold">
-                  {currentPlan === 'STARTER'
-                    ? 'Starter'
-                    : currentPlan === 'PROFESSIONAL'
-                    ? 'Professional'
-                    : 'Enterprise'}
-                </h2>
-                {subscription && (
-                  <p className="text-sm opacity-80">
-                    Próxima cobrança em {formatDate(subscription.currentPeriodEnd)}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <p className="text-3xl font-bold">
-                {currentPlan === 'STARTER'
-                  ? 'R$ 149'
-                  : currentPlan === 'PROFESSIONAL'
-                  ? 'R$ 299'
-                  : 'R$ 499'}
-                <span className="text-lg font-normal opacity-80">/mês</span>
-              </p>
-              {subscription?.status === 'active' && (
-                <span className="flex items-center gap-1 text-sm bg-white/20 px-3 py-1 rounded-full">
-                  <Check className="h-4 w-4" />
-                  Ativo
-                </span>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Usage Stats */}
-      {usage && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-muted-foreground" />
-                  <span className="font-medium">Usuários</span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {usage.users.used} / {usage.users.limit}
-                </span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 transition-all"
-                  style={{ width: `${usage.users.percentage}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                  <span className="font-medium">Ligações/mês</span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {usage.calls.used} / {usage.calls.limit === -1 ? '∞' : usage.calls.limit}
-                </span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-500 transition-all"
-                  style={{ width: `${Math.min(usage.calls.percentage, 100)}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                  <span className="font-medium">Chats/mês</span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {usage.chats.used} / {usage.chats.limit === -1 ? '∞' : usage.chats.limit}
-                </span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-500 transition-all"
-                  style={{ width: `${Math.min(usage.chats.percentage, 100)}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
+      )}
+      {banner === 'canceled' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+          <span className="text-sm font-medium text-yellow-800">
+            Checkout cancelado. Nenhuma cobrança realizada.
+          </span>
+          <button onClick={() => setBanner(null)} className="ml-auto text-yellow-600 text-xl leading-none">×</button>
         </div>
       )}
 
-      {/* Plans Comparison */}
-      <div>
-        <h2 className="text-xl font-bold mb-4">Planos Disponíveis</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {plans?.map((plan) => {
-            const PlanIcon = planIcons[plan.plan];
-            const isCurrentPlan = plan.plan === currentPlan;
-            return (
-              <Card
-                key={plan.plan}
-                className={isCurrentPlan ? 'border-primary ring-2 ring-primary/20' : ''}
-              >
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r ${planColors[plan.plan]} text-white`}
-                    >
-                      <PlanIcon className="h-5 w-5" />
-                    </div>
-                    {isCurrentPlan && (
-                      <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
-                        Atual
+      {/* Assinatura atual */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Assinatura Atual</h2>
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                {PLAN_ICONS[currentPlan] || <CreditCard className="w-6 h-6" />}
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-lg capitalize">
+                  {currentPlan.charAt(0) + currentPlan.slice(1).toLowerCase()}
+                </p>
+                {activeSub ? (
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      STATUS_CONFIG[activeSub.status]?.color || 'text-gray-600 bg-gray-100'
+                    }`}>
+                      {STATUS_CONFIG[activeSub.status]?.label || activeSub.status}
+                    </span>
+                    {activeSub.currentPeriodEnd && (
+                      <span className="text-xs text-gray-500">
+                        Renova em {formatDate(activeSub.currentPeriodEnd)}
                       </span>
                     )}
                   </div>
-                  <CardTitle className="mt-4">{plan.name}</CardTitle>
-                  <CardDescription>
-                    <span className="text-2xl font-bold text-foreground">
-                      {formatCurrency(plan.price)}
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">Plano gratuito</p>
+                )}
+              </div>
+            </div>
+
+            {/* Limites */}
+            {company?.limits && (
+              <div className="flex gap-4 text-xs text-gray-500">
+                <div className="flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5" />
+                  {company.limits.users === 1000 ? '∞' : company.limits.users} usuários
+                </div>
+                <div className="flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5" />
+                  {company.limits.callsPerMonth === 10000 ? '∞' : company.limits.callsPerMonth} ligações
+                </div>
+                <div className="flex items-center gap-1">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  {company.limits.chatsPerMonth === 10000 ? '∞' : company.limits.chatsPerMonth} chats
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              {activeSub && (
+                <button
+                  onClick={() => handleAction('portal', openPortal)}
+                  disabled={!!actionLoading}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {actionLoading === 'portal' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                  Gerenciar
+                </button>
+              )}
+              {activeSub?.status === 'active' && (
+                <button
+                  onClick={() => {
+                    if (confirm('Cancelar assinatura? O acesso permanece até o fim do período.'))
+                      handleAction('cancel', cancelSubscription);
+                  }}
+                  disabled={!!actionLoading}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                >
+                  {actionLoading === 'cancel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Planos */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Planos Disponíveis</h2>
+        {plans.length === 0 ? (
+          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400 text-sm">
+            Planos não disponíveis.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {plans.map((plan) => {
+              const isCurrent  = plan.plan === currentPlan;
+              const isLoading  = actionLoading === plan.plan;
+              const hasStripe  = !!activeSub;
+
+              return (
+                <div
+                  key={plan.plan}
+                  className={`relative bg-white border rounded-xl p-6 flex flex-col gap-4 transition-shadow hover:shadow-md ${
+                    plan.isPopular ? 'border-indigo-400 ring-2 ring-indigo-400' : 'border-gray-200'
+                  }`}
+                >
+                  {plan.isPopular && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+                      Mais popular
                     </span>
-                    <span className="text-muted-foreground">/mês</span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 mb-6">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-green-500" />
-                        {feature}
+                  )}
+
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${plan.isPopular ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'}`}>
+                      {PLAN_ICONS[plan.plan] || <CreditCard className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{plan.name}</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-0.5">
+                        {formatCurrency(plan.price)}
+                        <span className="text-sm font-normal text-gray-500">/mês</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-1.5 flex-1">
+                    {plan.features.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        {f}
                       </li>
                     ))}
                   </ul>
-                  <Button
-                    className="w-full"
-                    variant={isCurrentPlan ? 'outline' : 'default'}
-                    disabled={isCurrentPlan || checkoutMutation.isPending}
-                    onClick={() => checkoutMutation.mutate(plan.plan)}
-                  >
-                    {isCurrentPlan ? 'Plano Atual' : 'Fazer Upgrade'}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Invoices */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Faturas</CardTitle>
-          <CardDescription>Últimas cobranças realizadas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {invoices && invoices.length > 0 ? (
-            <div className="space-y-2">
-              {invoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center justify-between p-4 rounded-lg border"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                      <Receipt className="h-5 w-5 text-muted-foreground" />
+                  {isCurrent ? (
+                    <div className="w-full py-2 text-center text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg">
+                      Plano atual
                     </div>
-                    <div>
-                      <p className="font-medium">{formatCurrency(invoice.amount / 100)}</p>
-                      <p className="text-sm text-muted-foreground">{formatDate(invoice.date)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        invoice.status === 'paid'
-                          ? 'bg-green-100 text-green-700'
-                          : invoice.status === 'pending'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-red-100 text-red-700'
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (hasStripe) {
+                          if (confirm(`Mudar para o plano ${plan.name}?`))
+                            handleAction(plan.plan, () => changePlan(plan.plan));
+                        } else {
+                          handleAction(plan.plan, () => startCheckout(plan.plan));
+                        }
+                      }}
+                      disabled={!!actionLoading}
+                      className={`w-full py-2.5 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-colors ${
+                        plan.isPopular
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                          : 'bg-gray-900 text-white hover:bg-gray-800'
                       }`}
                     >
-                      {invoice.status === 'paid'
-                        ? 'Pago'
-                        : invoice.status === 'pending'
-                        ? 'Pendente'
-                        : 'Falhou'}
-                    </span>
-                    {invoice.pdfUrl && (
-                      <Button variant="ghost" size="icon-sm" asChild>
-                        <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    )}
-                  </div>
+                      {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {hasStripe ? 'Mudar plano' : 'Fazer upgrade'}
+                    </button>
+                  )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Receipt className="h-12 w-12 text-muted-foreground/30 mb-4" />
-              <p className="text-sm text-muted-foreground">Nenhuma fatura encontrada</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-      {/* Cancel Subscription */}
-      {subscription && subscription.status === 'active' && (
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="text-red-600">Cancelar Assinatura</CardTitle>
-            <CardDescription>
-              Ao cancelar, você perderá acesso às funcionalidades premium no final do período atual.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (confirm('Tem certeza que deseja cancelar sua assinatura?')) {
-                  cancelMutation.mutate();
-                }
-              }}
-              disabled={cancelMutation.isPending}
-            >
-              Cancelar Assinatura
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Faturas */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Histórico de Faturas</h2>
+        {invoices.length === 0 ? (
+          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400 text-sm">
+            Nenhuma fatura encontrada.
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Data</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Valor</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">PDF</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {invoices.map((inv) => {
+                  const st = INVOICE_STATUS[inv.status] || { label: inv.status, color: 'text-gray-600 bg-gray-100' };
+                  return (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-600">{formatDate(inv.createdAt)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {formatCurrency((inv.amount || 0) / 100)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${st.color}`}>
+                          {st.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {inv.pdfUrl ? (
+                          <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800">
+                            <FileText className="w-4 h-4" /> Baixar
+                          </a>
+                        ) : <span className="text-gray-400">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

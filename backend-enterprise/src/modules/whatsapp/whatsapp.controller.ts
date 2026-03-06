@@ -125,10 +125,17 @@ export class WhatsappController {
       .map((m: any) => `${m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor'}: ${m.content}`)
       .join('\n');
 
-    return this.aiService.generateSuggestion(lastCustomerMessage.content, {
-      conversationHistory,
-      customerSentiment: 'neutral',
-    });
+    const aiResult = await this.aiService.generateSuggestion(lastCustomerMessage.content, {
+        conversationHistory,
+        customerSentiment: 'neutral',
+      });
+      return {
+        suggestion: aiResult.text,
+        confidence: aiResult.confidence,
+        type: 'general',
+        context: 'whatsapp',
+        provider: aiResult.provider,
+      };
   }
 
   @Patch('chats/:companyId/:chatId/read')

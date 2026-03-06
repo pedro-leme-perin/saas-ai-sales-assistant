@@ -32,20 +32,18 @@ import twilio = require('twilio');
 // =====================================================
 // TWILIO WEBHOOK PAYLOAD TYPES
 // =====================================================
-// Twilio sends form-encoded body (not JSON)
-// Fields: From, To, Body, MessageSid, NumMedia, etc.
 
 export interface TwilioWebhookPayload {
   MessageSid: string;
   AccountSid: string;
-  From: string;         // e.g. "whatsapp:+5511999999999"
-  To: string;           // e.g. "whatsapp:+14155238886"
+  From: string;
+  To: string;
   Body: string;
   NumMedia?: string;
   MediaUrl0?: string;
   MediaContentType0?: string;
-  ProfileName?: string; // WhatsApp display name
-  WaId?: string;        // WhatsApp ID (phone without whatsapp: prefix)
+  ProfileName?: string;
+  WaId?: string;
   SmsStatus?: string;
   MessageStatus?: string;
 }
@@ -70,7 +68,6 @@ export class WhatsappService {
     private readonly aiService: AiService,
     private readonly notificationsGateway: NotificationsGateway,
   ) {
-    // Initialize Twilio client (Release It! - fail fast on missing config)
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
 
@@ -81,22 +78,23 @@ export class WhatsappService {
       this.logger.log('✅ Twilio WhatsApp client initialized');
     }
 
-    // Sandbox number or production number
     this.sandboxNumber =
       this.configService.get<string>('TWILIO_WHATSAPP_NUMBER') ||
-      'whatsapp:+14155238886'; // Default Twilio sandbox
+      'whatsapp:+14155238886';
+
+    // Log config on startup for debugging
+    this.logger.log(`📱 Sandbox number configured: ${this.sandboxNumber}`);
+    this.logger.log(`🔑 AccountSid present: ${!!accountSid}`);
+    this.logger.log(`🔑 AuthToken present: ${!!authToken}`);
   }
 
   // =====================================================
   // PROCESS INCOMING WEBHOOK (POST from Twilio)
   // =====================================================
-  // Twilio sends form-encoded data, NestJS parses it automatically
-  // with urlencoded body parser (enabled in main.ts)
   async processWebhook(payload: TwilioWebhookPayload): Promise<void> {
     this.logger.log(`📩 Incoming WhatsApp from ${payload.From}: "${payload.Body}"`);
 
     try {
-      // Extract phone number (remove "whatsapp:" prefix)
       const customerPhone = this.extractPhone(payload.From);
       const customerName = payload.ProfileName || null;
       const content = payload.Body || '';
@@ -108,8 +106,6 @@ export class WhatsappService {
         return;
       }
 
-      // Find company by sandbox/production WhatsApp number
-      // In sandbox mode: all messages go to same number, use default company
       const toNumber = this.extractPhone(payload.To);
       const company = await this.findCompanyByWhatsAppNumber(toNumber);
 
@@ -118,26 +114,22 @@ export class WhatsappService {
         return;
       }
 
-      // Find or create chat
       const chat = await this.findOrCreateChat({
         companyId: company.id,
         customerPhone,
         customerName,
       });
 
-      // Determine message content
       const messageContent = hasMedia
         ? mediaUrl
           ? `[Mídia recebida: ${payload.MediaContentType0 || 'arquivo'}]`
           : '[Mídia recebida]'
         : content;
 
-      // Determine message type
       const messageType = hasMedia
         ? this.getMediaType(payload.MediaContentType0 || '')
         : MessageType.TEXT;
 
-      // Save message to DB
       const savedMessage = await this.prisma.whatsappMessage.create({
         data: {
           chatId: chat.id,
@@ -150,7 +142,6 @@ export class WhatsappService {
         },
       });
 
-      // Update chat stats
       const updatedChat = await this.prisma.whatsappChat.update({
         where: { id: chat.id },
         data: {
@@ -160,7 +151,6 @@ export class WhatsappService {
         },
       });
 
-      // Notify agent via WebSocket
       if (chat.userId) {
         this.notificationsGateway.sendWhatsAppMessage(chat.userId, {
           chatId: chat.id,
@@ -180,7 +170,6 @@ export class WhatsappService {
         );
       }
 
-      // Generate AI suggestion async (non-blocking)
       if (chat.userId && content) {
         this.generateAndSendAISuggestion(chat, content, chat.userId).catch((err) =>
           this.logger.error('AI suggestion failed', err),
@@ -282,26 +271,45 @@ export class WhatsappService {
       throw new BadRequestException('Twilio not configured');
     }
 
-    // Send via Twilio
-    // (Release It! - Timeout pattern)
-    const timeoutMs = 10000;
-    const sendPromise = this.twilioClient.messages.create({
-      from: this.sandboxNumber,
-      to: `whatsapp:${chat.customerPhone}`,
-      body: data.content,
-    });
+    // Log exactly what we're sending to Twilio (debug)
+    const fromNumber = this.sandboxNumber.startsWith('whatsapp:')
+      ? this.sandboxNumber
+      : `whatsapp:${this.sandboxNumber}`;
+
+    const toNumber = chat.customerPhone.startsWith('whatsapp:')
+      ? chat.customerPhone
+      : `whatsapp:${chat.customerPhone}`;
+
+    this.logger.log(`📤 Sending Twilio message:`);
+    this.logger.log(`   from: ${fromNumber}`);
+    this.logger.log(`   to:   ${toNumber}`);
+    this.logger.log(`   body: ${data.content}`);
 
     let twilioMessage: any;
     try {
       twilioMessage = await Promise.race([
-        sendPromise,
+        this.twilioClient.messages.create({
+          from: fromNumber,
+          to: toNumber,
+          body: data.content,
+        }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Twilio timeout')), timeoutMs),
+          setTimeout(() => reject(new Error('Twilio timeout after 10s')), 10000),
         ),
       ]);
-    } catch (error) {
-      this.logger.error('Failed to send Twilio message', error);
-      throw new BadRequestException('Failed to send message via WhatsApp');
+    } catch (error: any) {
+      // Log full Twilio error details
+      this.logger.error('❌ Twilio sendMessage failed:');
+      this.logger.error(`   message:  ${error?.message}`);
+      this.logger.error(`   code:     ${error?.code}`);
+      this.logger.error(`   status:   ${error?.status}`);
+      this.logger.error(`   moreInfo: ${error?.moreInfo}`);
+      this.logger.error(`   details:  ${JSON.stringify(error?.details)}`);
+      this.logger.error(`   full:     ${JSON.stringify(error)}`);
+
+      throw new BadRequestException(
+        `Failed to send message via WhatsApp: [${error?.code}] ${error?.message}`,
+      );
     }
 
     // Save to DB
@@ -337,7 +345,7 @@ export class WhatsappService {
         .catch(() => {});
     }
 
-    this.logger.log(`📤 Message sent to ${chat.customerPhone} (${twilioMessage.sid})`);
+    this.logger.log(`✅ Message sent to ${chat.customerPhone} (${twilioMessage.sid})`);
     return message;
   }
 
@@ -345,15 +353,12 @@ export class WhatsappService {
   // FIND COMPANY BY WHATSAPP NUMBER
   // =====================================================
   private async findCompanyByWhatsAppNumber(phoneNumber: string) {
-    // First try exact match with whatsappPhoneNumberId
     const company = await this.prisma.company.findFirst({
       where: { whatsappPhoneNumberId: phoneNumber },
     });
 
     if (company) return company;
 
-    // Sandbox fallback: return first active company
-    // In production, each company has their own number
     return this.prisma.company.findFirst({
       where: { isActive: true },
       orderBy: { createdAt: 'asc' },
@@ -376,7 +381,6 @@ export class WhatsappService {
     });
 
     if (existing) {
-      // Update name if we now have it
       if (params.customerName && !existing.customerName) {
         return this.prisma.whatsappChat.update({
           where: { id: existing.id },
@@ -441,7 +445,6 @@ export class WhatsappService {
   // HELPERS
   // =====================================================
 
-  // Remove "whatsapp:" prefix from Twilio phone format
   private extractPhone(twilioPhone: string): string {
     return twilioPhone.replace('whatsapp:', '');
   }
@@ -453,5 +456,3 @@ export class WhatsappService {
     return MessageType.DOCUMENT;
   }
 }
-
-

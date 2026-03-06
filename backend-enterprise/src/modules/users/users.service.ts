@@ -41,6 +41,24 @@ export class UsersService {
     });
   }
 
+    async findAllByCompany(companyId: string, limit = 50) {
+    return this.prisma.user.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatarUrl: true,
+        status: true,
+        phone: true,
+        createdAt: true,
+      },
+    });
+  }
+
   async findByIdOrThrow(id: string, companyId: string): Promise<UserWithCompany> {
     const user = await this.findById(id, companyId);
     if (!user) {

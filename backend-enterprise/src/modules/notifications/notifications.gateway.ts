@@ -206,6 +206,7 @@ export class NotificationsGateway
 
   // Send AI suggestion to specific user
   sendAISuggestion(userId: string, payload: any) {
+    this.logger.log('Emitting ai:suggestion to user:' + userId);
     this.server.to(`user:${userId}`).emit('ai:suggestion', payload);
   }
 

@@ -51,3 +51,6 @@ logs
 # Cache
 .cache
 .eslintcache
+
+.vercel
+.env*.local

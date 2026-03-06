@@ -33,7 +33,7 @@ export class PerplexityProvider extends AIProvider {
           {
             role: 'system',
             content:
-              'You are an expert sales coach analyzing calls in real-time. Provide ONE concise, actionable suggestion.',
+              'Você é um coach de vendas especialista analisando ligações em tempo real. Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.',
           },
           { role: 'user', content: prompt },
         ],
@@ -112,7 +112,7 @@ export class PerplexityProvider extends AIProvider {
       prompt += `Customer sentiment: ${context.sentiment}\n`;
     }
 
-    prompt += 'Provide ONE specific suggestion for the salesperson:';
+    prompt += 'Forneça UMA sugestão específica para o vendedor em português do Brasil:';
 
     return prompt;
   }

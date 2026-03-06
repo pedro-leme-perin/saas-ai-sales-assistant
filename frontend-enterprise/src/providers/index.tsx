@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/nextjs';
 import { Toaster } from 'sonner';
 import apiClient from '@/lib/api-client';
 import { wsClient } from '@/lib/websocket';
-import { useUserStore, useNotificationsStore, useAISuggestionsStore } from '@/stores';
+import { useUserStore, useNotificationsStore, useAISuggestionsStore, useActiveCallStore } from '@/stores';
 import { authService } from '@/services/api';
 
 function makeQueryClient() {
@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setCompany, setLoading, clear } = useUserStore();
   const { addNotification } = useNotificationsStore();
   const { addSuggestion } = useAISuggestionsStore();
+  const { addTranscriptEntry } = useActiveCallStore();
 
   useEffect(() => {
     async function syncAuth() {
@@ -76,6 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user.company) {
           setCompany(user.company);
         }
+        if (user.companyId) {
+          apiClient.setCompanyId(user.companyId);
+        }
 
         // Connect WebSocket with userId + companyId (backend joins rooms automatically)
         if (user && user.companyId) {
@@ -88,7 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Subscribe to AI suggestions
           wsClient.onAISuggestion((data: any) => {
-            addSuggestion(data.suggestion || data);
+            addSuggestion(data);
+            if (data.transcript) {
+              addTranscriptEntry({ text: data.transcript, speaker: 'customer' });
+            }
           });
         }
       } catch (error) {

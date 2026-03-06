@@ -34,7 +34,7 @@ export class GeminiProvider extends AIProvider {
             parts: [
               {
                 text:
-                  'You are an expert sales coach analyzing calls in real-time. Provide ONE concise, actionable suggestion.\n\n' +
+                  'Você é um coach de vendas especialista analisando ligações em tempo real. Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.\n\n' +
                   prompt,
               },
             ],
@@ -124,8 +124,9 @@ export class GeminiProvider extends AIProvider {
       prompt += `Customer sentiment: ${context.sentiment}\n`;
     }
 
-    prompt += 'Provide ONE specific suggestion for the salesperson:';
+    prompt += 'Forneça UMA sugestão específica para o vendedor em português do Brasil:';
 
     return prompt;
   }
 }
+

@@ -32,6 +32,7 @@ export const authService = {
 
 export const usersService = {
   async getAll(params?: { page?: number; limit?: number }): Promise<PaginatedResponse<User>> {
+    if (!apiClient.getCompanyId()) await authService.getMe();
     return apiClient.get('/users', params);
   },
 
@@ -141,6 +142,18 @@ export const callsService = {
     return apiClient.post(`/calls/${companyId}`, data);
   },
 
+  async initiateCall(phoneNumber: string): Promise<Call> {
+    const companyId = apiClient.getCompanyId();
+    return apiClient.post(`/calls/${companyId}/initiate`, {
+      userId: '',
+      phoneNumber,
+      webhookUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    });
+  },
+  async endCall(id: string): Promise<Call> {
+    const companyId = apiClient.getCompanyId();
+    return apiClient.post(`/calls/${companyId}/${id}/end`);
+  },
   async update(id: string, data: Partial<Call>): Promise<Call> {
     const companyId = apiClient.getCompanyId();
     return apiClient.put(`/calls/${companyId}/${id}`, data);
@@ -364,3 +377,27 @@ export const notificationsService = {
 };
 
 
+
+
+
+
+// =============================================
+// ANALYTICS SERVICE
+// =============================================
+export const analyticsService = {
+  async getDashboard() {
+    if (!apiClient.getCompanyId()) await authService.getMe();
+    const companyId = apiClient.getCompanyId();
+    return apiClient.get(`/analytics/dashboard/${companyId}`);
+  },
+  async getCalls() {
+    if (!apiClient.getCompanyId()) await authService.getMe();
+    const companyId = apiClient.getCompanyId();
+    return apiClient.get(`/analytics/calls/${companyId}`);
+  },
+  async getWhatsApp() {
+    if (!apiClient.getCompanyId()) await authService.getMe();
+    const companyId = apiClient.getCompanyId();
+    return apiClient.get(`/analytics/whatsapp/${companyId}`);
+  },
+};

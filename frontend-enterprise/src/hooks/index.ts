@@ -16,7 +16,7 @@ export function useWebSocket(userId: string | undefined, companyId: string | und
   useEffect(() => {
     if (!userId || !companyId) return;
 
-    wsClient.connect();
+    wsClient.connect(userId, companyId);
 
     const checkConnection = setInterval(() => {
       setIsConnected(wsClient.isConnected);
@@ -24,7 +24,7 @@ export function useWebSocket(userId: string | undefined, companyId: string | und
 
     // Subscribe to events
     const unsubSuggestion = wsClient.on('ai:suggestion', (data: WSAISuggestion) => {
-      addSuggestion(data.suggestion);
+      addSuggestion(data);
     });
 
     const unsubNotification = wsClient.on('notification', (data: WSNotification) => {
