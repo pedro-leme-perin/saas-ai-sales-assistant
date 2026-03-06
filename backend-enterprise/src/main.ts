@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { MediaStreamsGateway } from './modules/calls/media-streams.gateway';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true,
@@ -13,15 +14,17 @@ async function bootstrap() {
 
   // CORS Configuration
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      configService.get('FRONTEND_URL', 'http://localhost:3000'),
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  });
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://saas-ai-sales-assistant-oc6b.vercel.app',
+    configService.get('FRONTEND_URL', 'http://localhost:3000'),
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+});
+```
 
   // Global Validation Pipe
   app.useGlobalPipes(
@@ -87,6 +90,11 @@ async function bootstrap() {
   // Start server
   const port = configService.get('PORT', 3001);
   await app.listen(port);
+
+  // Init raw WebSocket for Twilio Media Streams
+  const httpServer = app.getHttpServer();
+  const mediaGateway = app.get(MediaStreamsGateway);
+  mediaGateway.init(httpServer);
 
   console.log('\n');
   console.log('╔════════════════════════════════════════════════════════╗');
