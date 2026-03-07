@@ -139,7 +139,7 @@ export const callsService = {
     direction?: string;
   }): Promise<Call> {
     const companyId = apiClient.getCompanyId();
-    return apiClient.post(`/calls/${companyId}`, data);
+    return apiClient.post(`/calls/${companyId}/initiate`, data);
   },
 
   async initiateCall(phoneNumber: string): Promise<Call> {
