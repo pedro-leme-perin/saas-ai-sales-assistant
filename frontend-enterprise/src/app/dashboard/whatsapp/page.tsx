@@ -21,11 +21,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { whatsappService, aiService } from '@/services/api';
 import { formatRelative, cn } from '@/lib/utils';
-import { useActiveChatStore, useAISuggestionsStore } from '@/stores';
+import { useActiveChatStore, useAISuggestionsStore, useUserStore } from '@/stores';
 import { wsClient } from '@/lib/websocket';
 import type { WhatsAppChat, WhatsAppMessage } from '@/types';
 
 export default function WhatsAppPage() {
+  const { isLoading: authLoading, user } = useUserStore();
   const queryClient = useQueryClient();
   const [selectedChat, setSelectedChat] = useState<WhatsAppChat | null>(null);
   const [message, setMessage] = useState('');

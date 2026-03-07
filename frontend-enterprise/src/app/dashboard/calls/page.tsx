@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { callsService } from '@/services/api';
 import { formatDuration, formatDateTime, formatPhone, getCallStatusColor } from '@/lib/utils';
 import { CallStatus, CallDirection, type Call } from '@/types';
-import { useActiveCallStore, useAISuggestionsStore } from '@/stores';
+import { useActiveCallStore, useAISuggestionsStore, useUserStore } from '@/stores';
 import { wsClient } from '@/lib/websocket';
 
 export default function CallsPage() {
@@ -37,6 +37,7 @@ export default function CallsPage() {
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
   const { activeCallId, isInCall, callDuration, transcript, setActiveCall, endCall } =
     useActiveCallStore();
+  const { isLoading: authLoading, user } = useUserStore();
   const { currentSuggestion, isGenerating } = useAISuggestionsStore();
 
   const { data: callDetailRaw } = useQuery({
@@ -49,6 +50,7 @@ export default function CallsPage() {
   // Fetch calls
   const { data: callsData, isLoading } = useQuery({
     queryKey: ['calls', { status: statusFilter, direction: directionFilter, search: searchQuery }],
+    enabled: !authLoading && !!user,
     queryFn: () =>
       callsService.getAll({
         status: statusFilter !== 'all' ? statusFilter : undefined,
