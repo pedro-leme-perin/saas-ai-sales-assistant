@@ -87,6 +87,13 @@ export default function CallsPage() {
     },
   });
 
+  const analyzeCallMutation = useMutation({
+    mutationFn: (callId: string) => callsService.analyzeCall(callId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['call-detail', selectedCall?.id] });
+    },
+  });
+
   const handleStartCall = () => {
     const phoneNumber = prompt('Digite o número de telefone:');
     if (phoneNumber) {
@@ -442,7 +449,28 @@ export default function CallsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Sem sugestões registradas.</p>
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <p className="text-sm text-muted-foreground italic">Sem sugestões registradas.</p>
+                    {callDetail?.transcript && (
+                      <button
+                        onClick={() => analyzeCallMutation.mutate(selectedCall!.id)}
+                        disabled={analyzeCallMutation.isPending}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {analyzeCallMutation.isPending ? (
+                          <>
+                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            Analisando...
+                          </>
+                        ) : (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                            Analisar com IA
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

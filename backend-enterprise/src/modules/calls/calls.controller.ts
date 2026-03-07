@@ -159,6 +159,15 @@ export class CallsController {
     }
     return { success: true };
   }
+  @Post(':companyId/:id/analyze')
+  @ApiOperation({ summary: 'Analyze call transcript with AI' })
+  async analyzeCall(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    return this.callsService.analyzeCall(id, companyId, req.user.id);
+  }
 }
 
 

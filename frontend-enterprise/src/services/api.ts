@@ -177,6 +177,10 @@ export const callsService = {
     return apiClient.get(`/calls/${companyId}/${id}/suggestions`);
   },
 
+  async analyzeCall(id: string): Promise<Call> {
+    const companyId = apiClient.getCompanyId();
+    return apiClient.post(`/calls/${companyId}/${id}/analyze`);
+  },
   async delete(id: string): Promise<void> {
     const companyId = apiClient.getCompanyId();
     return apiClient.delete(`/calls/${companyId}/${id}`);
@@ -401,3 +405,4 @@ export const analyticsService = {
     return apiClient.get(`/analytics/whatsapp/${companyId}`);
   },
 };
+

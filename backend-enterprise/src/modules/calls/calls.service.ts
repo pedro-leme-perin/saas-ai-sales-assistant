@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { AiService } from '../ai/ai.service';
 import { Twilio } from 'twilio';
-import { CallStatus } from '@prisma/client';
+import { CallStatus, SuggestionType } from '@prisma/client';
 
 @Injectable()
 export class CallsService {
@@ -13,6 +14,7 @@ export class CallsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly aiService: AiService,
   ) {
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
@@ -67,11 +69,73 @@ export class CallsService {
   }
 
   async update(id: string, companyId: string, data: any) {
-    await this.findOne(id, companyId);
+    if (companyId) {
+      await this.findOne(id, companyId);
+    }
     return this.prisma.call.update({
       where: { id },
       data,
     });
+  }
+
+  async analyzeCall(id: string, companyId: string, userId: string) {
+    const call = await this.findOne(id, companyId);
+
+    if (!call.transcript) {
+      throw new Error('Call has no transcript to analyze');
+    }
+
+    this.logger.log(`Analyzing call ${id} with AI...`);
+
+    // Delete existing suggestions for this call to avoid duplicates
+    await this.prisma.aISuggestion.deleteMany({
+      where: { callId: id },
+    });
+
+    // Split transcript into 3 chunks representing beginning, middle, end
+    const sentences = call.transcript
+      .split(/[.!?]+/)
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 20);
+
+    const third = Math.ceil(sentences.length / 3);
+    const chunks = [
+      sentences.slice(0, third).join('. '),
+      sentences.slice(third, third * 2).join('. '),
+      sentences.slice(third * 2).join('. '),
+    ].filter((c: string) => c.length > 20);
+
+    const suggestions = [];
+
+    for (const chunk of chunks) {
+      try {
+        const suggestion = await this.aiService.generateSuggestion(chunk, {
+          fullTranscript: call.transcript,
+          type: 'post_call_analysis',
+        });
+
+        if (suggestion?.text) {
+          const saved = await this.prisma.aISuggestion.create({
+            data: {
+              callId: id,
+              userId,
+              type: SuggestionType.GENERAL,
+              content: suggestion.text,
+              confidence: suggestion.confidence ?? 0.8,
+              triggerText: chunk.substring(0, 200),
+              model: suggestion.provider,
+              latencyMs: suggestion.latencyMs,
+            },
+          });
+          suggestions.push(saved);
+        }
+      } catch (error) {
+        this.logger.error(`Error generating suggestion for chunk: ${error}`);
+      }
+    }
+
+    this.logger.log(`Generated ${suggestions.length} suggestions for call ${id}`);
+    return this.findOne(id, companyId);
   }
 
   async initiateCall(
@@ -87,7 +151,6 @@ export class CallsService {
     this.logger.log(`Initiating call to ${phoneNumber}`);
 
     try {
-      // Criar registro da chamada no banco
       const call = await this.prisma.call.create({
         data: {
           companyId,
@@ -99,7 +162,6 @@ export class CallsService {
         },
       });
 
-      // Iniciar chamada via Twilio
       const twilioCall = await this.twilioClient.calls.create({
         to: phoneNumber,
         from: this.twilioPhoneNumber,
@@ -109,7 +171,6 @@ export class CallsService {
         statusCallbackMethod: 'POST',
       });
 
-      // Atualizar com SID do Twilio
       await this.prisma.call.update({
         where: { id: call.id },
         data: {
@@ -120,10 +181,7 @@ export class CallsService {
 
       this.logger.log(`Call initiated: ${twilioCall.sid}`);
 
-      return {
-        ...call,
-        twilioCallSid: twilioCall.sid,
-      };
+      return { ...call, twilioCallSid: twilioCall.sid };
     } catch (error) {
       this.logger.error('Failed to initiate call:', error);
       throw error;
@@ -158,7 +216,6 @@ export class CallsService {
     });
     if (existing) return existing;
 
-    // Find company by phone number or use first active company
     const company = await this.prisma.company.findFirst({
       where: { isActive: true },
       orderBy: { createdAt: 'asc' },
