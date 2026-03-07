@@ -112,6 +112,7 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       'http://localhost:3000',
       'http://localhost:3001',
       'https://saas-ai-sales-assistant-oc6b.vercel.app',
+      'https://saas-ai-sales-assistant.vercel.app',
     ].filter(Boolean) as string[];
 
     return [...new Set(parties.map(p => p.replace(/\/$/, '')))];
