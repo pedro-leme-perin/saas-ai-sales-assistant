@@ -18,6 +18,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'http://localhost:3001',
       'https://saas-ai-sales-assistant-oc6b.vercel.app',
+    'https://saas-ai-sales-assistant.vercel.app',
       configService.get('FRONTEND_URL', 'http://localhost:3000'),
     ],
     credentials: true,
