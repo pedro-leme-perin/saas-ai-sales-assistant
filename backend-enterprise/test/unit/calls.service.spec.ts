@@ -117,7 +117,7 @@ describe('CallsService', () => {
         ...createData,
       });
 
-      const result = await service.create('company-123', createData);
+      const result = await service.create('company-123', 'user-123', createData);
 
       expect(result).toBeDefined();
       expect(mockPrismaService.call.create).toHaveBeenCalledWith({

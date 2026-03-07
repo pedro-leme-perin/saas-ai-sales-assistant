@@ -59,11 +59,15 @@ export class CallsService {
     return call;
   }
 
-  async create(companyId: string, data: any) {
+  async create(companyId: string, userId: string, data: any) {
     return this.prisma.call.create({
       data: {
-        ...data,
-        companyId,
+        phoneNumber: data.phoneNumber,
+        direction: data.direction || 'OUTBOUND',
+        status: 'INITIATED',
+        duration: 0,
+        company: { connect: { id: companyId } },
+        user: { connect: { id: userId } },
       },
     });
   }

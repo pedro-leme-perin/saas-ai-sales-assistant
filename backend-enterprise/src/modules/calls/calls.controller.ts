@@ -35,8 +35,9 @@ export class CallsController {
   async create(
     @Param('companyId') companyId: string,
     @Body() data: any,
+    @Request() req: any,
   ) {
-    return this.callsService.create(companyId, data);
+    return this.callsService.create(companyId, req.user.id, data);
   }
 
   @Put(':companyId/:id')
