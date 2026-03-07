@@ -35,6 +35,8 @@ export default function CallsPage() {
   const [directionFilter, setDirectionFilter] = useState<string>('all');
 
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
+  const [newCallPhone, setNewCallPhone] = useState('');
+  const [showNewCallModal, setShowNewCallModal] = useState(false);
   const { activeCallId, isInCall, callDuration, transcript, setActiveCall, endCall } =
     useActiveCallStore();
   const { isLoading: authLoading, user } = useUserStore();
