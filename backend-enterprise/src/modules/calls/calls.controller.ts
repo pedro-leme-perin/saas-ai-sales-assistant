@@ -1,6 +1,4 @@
-// src/modules/calls/calls.controller.ts
-import { Controller, Get, Post, Put, Param, Body, Res, HttpCode, Request, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '../auth/guards/auth.guard';
+import { Controller, Get, Post, Put, Param, Body, Res, HttpCode, Request, Logger } from '@nestjs/common';
 import { Public } from '@/common/decorators/public.decorator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
@@ -10,6 +8,8 @@ import * as twilio from 'twilio';
 @ApiTags('Calls')
 @Controller('calls')
 export class CallsController {
+  private readonly logger = new Logger(CallsController.name);
+
   constructor(private readonly callsService: CallsService) {}
 
   @Get(':companyId')
@@ -92,16 +92,31 @@ export class CallsController {
     const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
-    // Connect to Media Streams for real-time audio
-    // This streams raw audio to our WebSocket gateway
+    this.logger.log(`Voice webhook called for call: ${callId}`);
+    this.logger.log(`Backend URL: ${backendUrl}`);
+    this.logger.log(`WebSocket URL: ${wsUrl}/ws/media`);
+
+    // Say something first so call stays alive even if stream fails
+    response.say(
+      { language: 'pt-BR', voice: 'Polly.Camila' },
+      'Conectando assistente de vendas.',
+    );
+
+    // Then connect Media Streams
     const connect = response.connect();
     connect.stream({
       url: `${wsUrl}/ws/media`,
-      track: 'both_tracks', // Only transcribe customer (inbound)
+      track: 'both_tracks',
     });
 
+    // Fallback: keep call alive with a long pause if stream disconnects
+    response.pause({ length: 3600 });
+
+    const twiml = response.toString();
+    this.logger.log(`TwiML generated: ${twiml}`);
+
     res.type('text/xml');
-    res.send(response.toString());
+    res.send(twiml);
   }
 
   @Public()
@@ -111,13 +126,23 @@ export class CallsController {
     @Body() body: { CallSid: string; From: string; To: string },
     @Res() res: Response,
   ) {
+    this.logger.log(`Inbound voice webhook: CallSid=${body.CallSid} From=${body.From}`);
     await this.callsService.findOrCreateByCallSid(body.CallSid, body.From);
+
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
     const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+
+    response.say(
+      { language: 'pt-BR', voice: 'Polly.Camila' },
+      'Conectando assistente de vendas.',
+    );
+
     const connect = response.connect();
     connect.stream({ url: `${wsUrl}/ws/media` });
+    response.pause({ length: 3600 });
+
     res.type('text/xml');
     res.send(response.toString());
   }
@@ -160,6 +185,7 @@ export class CallsController {
     }
     return { success: true };
   }
+
   @Post(':companyId/:id/analyze')
   @ApiOperation({ summary: 'Analyze call transcript with AI' })
   async analyzeCall(
@@ -170,6 +196,3 @@ export class CallsController {
     return this.callsService.analyzeCall(id, companyId, req.user.id);
   }
 }
-
-
-
