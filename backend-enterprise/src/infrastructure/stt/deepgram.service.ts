@@ -56,6 +56,7 @@ export class DeepgramService {
 
     connection.on(LiveTranscriptionEvents.Open, () => {
       this.logger.log('🎙️ Deepgram live session opened');
+      this.logger.log(`Deepgram connection type: ${typeof connection.send}, keys: ${Object.getOwnPropertyNames(Object.getPrototypeOf(connection)).join(', ')}`);
     });
 
     connection.on(LiveTranscriptionEvents.Transcript, (data: any) => {
@@ -105,3 +106,4 @@ export class DeepgramService {
     return result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
   }
 }
+

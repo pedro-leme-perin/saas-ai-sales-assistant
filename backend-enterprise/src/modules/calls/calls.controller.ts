@@ -81,7 +81,7 @@ export class CallsController {
   @Public()
   @Post('webhook/voice/:callId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Twilio voice webhook - keeps call alive' })
+  @ApiOperation({ summary: 'Twilio voice webhook with Media Streams for real-time' })
   async handleVoiceWebhook(
     @Param('callId') callId: string,
     @Res() res: Response,
@@ -91,15 +91,26 @@ export class CallsController {
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
 
-    // Greet then keep the line open
-    // Recording is handled at the API level (calls.create with record param)
+    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
+    const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+
+    this.logger.log(`WebSocket URL: ${wsUrl}/ws/media`);
+
+    // Greet
     response.say(
       { language: 'pt-BR', voice: 'Polly.Camila' },
-      'Assistente de vendas conectado. A ligacao esta sendo gravada.',
+      'Assistente de vendas conectado.',
     );
 
-    // Keep the call alive - Pause holds the TwiML session open
-    // The two parties are already connected by Twilio
+    // Fork audio to WebSocket for real-time transcription
+    // <Start><Stream> keeps the call alive while streaming audio
+    const start = response.start();
+    start.stream({
+      url: `${wsUrl}/ws/media`,
+      track: 'inbound_track',
+    });
+
+    // Keep call alive
     response.pause({ length: 3600 });
 
     const twiml = response.toString();
@@ -121,11 +132,16 @@ export class CallsController {
 
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
+    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
+    const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
     response.say(
       { language: 'pt-BR', voice: 'Polly.Camila' },
       'Assistente de vendas conectado.',
     );
+
+    const start = response.start();
+    start.stream({ url: `${wsUrl}/ws/media`, track: 'both_tracks' });
     response.pause({ length: 3600 });
 
     res.type('text/xml');
@@ -135,7 +151,6 @@ export class CallsController {
   @Public()
   @Post('webhook/recording/:callId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Twilio recording completed webhook' })
   async handleRecordingWebhook(
     @Param('callId') callId: string,
     @Body() body: {
@@ -145,8 +160,7 @@ export class CallsController {
       RecordingDuration?: string;
     },
   ) {
-    this.logger.log(`Recording webhook for call ${callId}: status=${body.RecordingStatus} url=${body.RecordingUrl}`);
-
+    this.logger.log(`Recording webhook for call ${callId}: status=${body.RecordingStatus}`);
     if (body.RecordingUrl && body.RecordingStatus === 'completed') {
       await this.callsService.handleRecordingCompleted(
         callId,
@@ -154,7 +168,6 @@ export class CallsController {
         parseInt(body.RecordingDuration || '0', 10),
       );
     }
-
     return { success: true };
   }
 
@@ -204,3 +217,6 @@ export class CallsController {
     return this.callsService.analyzeCall(id, companyId, req.user.id);
   }
 }
+
+
+

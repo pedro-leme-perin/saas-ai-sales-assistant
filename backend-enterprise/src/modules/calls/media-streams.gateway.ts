@@ -195,16 +195,30 @@ export class MediaStreamsGateway {
     }
   }
 
+  private mediaChunkCount = 0;
+
   private async handleMediaChunk(message: any) {
     const streamSid = message.streamSid;
     const session = this.activeSessions.get(streamSid);
-    if (!session?.deepgramConnection) return;
+    if (!session) return;
+
+    this.mediaChunkCount++;
+    if (this.mediaChunkCount % 100 === 1) {
+      this.logger.log(`Media chunk #${this.mediaChunkCount} received (track: ${message.media?.track}, payload size: ${message.media?.payload?.length || 0})`);
+    }
+
+    if (!session.deepgramConnection) {
+      if (this.mediaChunkCount % 100 === 1) {
+        this.logger.warn('No Deepgram connection - skipping audio');
+      }
+      return;
+    }
 
     try {
       const audioBuffer = Buffer.from(message.media.payload, "base64");
       session.deepgramConnection.send(audioBuffer);
     } catch (error) {
-      // Silently handle send errors
+      this.logger.error(`Error sending to Deepgram: ${error}`);
     }
   }
 
@@ -228,3 +242,4 @@ export class MediaStreamsGateway {
     this.activeSessions.delete(streamSid);
   }
 }
+
