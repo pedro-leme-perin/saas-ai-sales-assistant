@@ -81,47 +81,29 @@ export class CallsController {
   @Public()
   @Post('webhook/voice/:callId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Twilio voice webhook - TwiML for outbound calls' })
+  @ApiOperation({ summary: 'Twilio voice webhook - keeps call alive' })
   async handleVoiceWebhook(
     @Param('callId') callId: string,
     @Res() res: Response,
   ) {
-    const VoiceResponse = twilio.twiml.VoiceResponse;
-    const response = new VoiceResponse();
-    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
-
     this.logger.log(`Voice webhook called for call: ${callId}`);
 
-    // Greet
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+
+    // Greet then keep the line open
+    // Recording is handled at the API level (calls.create with record param)
     response.say(
       { language: 'pt-BR', voice: 'Polly.Camila' },
-      'Assistente de vendas conectado. A ligacao esta sendo gravada para analise.',
+      'Assistente de vendas conectado. A ligacao esta sendo gravada.',
     );
 
-    // Dial the vendor's phone into the call so both parties can talk
-    // The caller (customer) is already connected by Twilio
-    // We use <Dial> with record to capture the conversation
-    const dial = response.dial({
-      record: 'record-from-answer-dual',
-      recordingStatusCallback: `${backendUrl}/api/calls/webhook/recording/${callId}`,
-      recordingStatusCallbackMethod: 'POST',
-      timeout: 30,
-      action: `${backendUrl}/api/calls/webhook/dial-complete/${callId}`,
-      method: 'POST',
-    });
-
-    // Connect to the original caller's number
-    // For outbound calls, Twilio already connected to the destination
-    // We just need to keep the call alive
-    // Using <Pause> to keep the TwiML session active while Twilio handles the call
-    
-    // Actually for outbound calls initiated via API, the person already answered
-    // The TwiML just needs to tell Twilio what to do with the call
-    // A simple <Pause> keeps the line open
-    response.pause({ length: 3600 }); // Keep call alive for up to 1 hour
+    // Keep the call alive - Pause holds the TwiML session open
+    // The two parties are already connected by Twilio
+    response.pause({ length: 3600 });
 
     const twiml = response.toString();
-    this.logger.log(`TwiML generated for ${callId}: ${twiml}`);
+    this.logger.log(`TwiML: ${twiml}`);
 
     res.type('text/xml');
     res.send(twiml);
@@ -142,9 +124,8 @@ export class CallsController {
 
     response.say(
       { language: 'pt-BR', voice: 'Polly.Camila' },
-      'Assistente de vendas conectado. A ligacao esta sendo gravada.',
+      'Assistente de vendas conectado.',
     );
-
     response.pause({ length: 3600 });
 
     res.type('text/xml');
@@ -164,10 +145,9 @@ export class CallsController {
       RecordingDuration?: string;
     },
   ) {
-    this.logger.log(`Recording webhook for call ${callId}: status=${body.RecordingStatus}`);
+    this.logger.log(`Recording webhook for call ${callId}: status=${body.RecordingStatus} url=${body.RecordingUrl}`);
 
     if (body.RecordingUrl && body.RecordingStatus === 'completed') {
-      // Trigger post-call transcription
       await this.callsService.handleRecordingCompleted(
         callId,
         body.RecordingUrl,
@@ -176,22 +156,6 @@ export class CallsController {
     }
 
     return { success: true };
-  }
-
-  @Public()
-  @Post('webhook/dial-complete/:callId')
-  @HttpCode(200)
-  async handleDialComplete(
-    @Param('callId') callId: string,
-    @Body() body: any,
-    @Res() res: Response,
-  ) {
-    this.logger.log(`Dial completed for call ${callId}`);
-    const VoiceResponse = twilio.twiml.VoiceResponse;
-    const response = new VoiceResponse();
-    response.hangup();
-    res.type('text/xml');
-    res.send(response.toString());
   }
 
   @Public()
@@ -225,9 +189,7 @@ export class CallsController {
     @Body() body: { TranscriptionText?: string },
   ) {
     if (body.TranscriptionText) {
-      await this.callsService.update(callId, '', {
-        transcript: body.TranscriptionText,
-      });
+      await this.callsService.update(callId, '', { transcript: body.TranscriptionText });
     }
     return { success: true };
   }

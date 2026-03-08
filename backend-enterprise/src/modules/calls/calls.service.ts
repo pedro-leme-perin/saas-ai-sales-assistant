@@ -173,6 +173,9 @@ export class CallsService {
         statusCallback: `${webhookUrl}/api/calls/webhook/status/${call.id}`,
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
         statusCallbackMethod: 'POST',
+        record: true,
+        recordingStatusCallback: `${webhookUrl}/api/calls/webhook/recording/${call.id}`,
+        recordingStatusCallbackMethod: 'POST',
       });
 
       await this.prisma.call.update({
@@ -352,3 +355,4 @@ export class CallsService {
     }
   }
 }
+
