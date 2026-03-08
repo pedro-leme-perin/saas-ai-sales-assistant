@@ -18,7 +18,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'http://localhost:3001',
       'https://saas-ai-sales-assistant-oc6b.vercel.app',
-    'https://saas-ai-sales-assistant.vercel.app',
+      'https://saas-ai-sales-assistant.vercel.app',
       configService.get('FRONTEND_URL', 'http://localhost:3000'),
     ],
     credentials: true,
@@ -79,9 +79,33 @@ async function bootstrap() {
   const port = configService.get('PORT', 3001);
   await app.listen(port);
 
+  // === CRITICAL: Route WebSocket upgrades BEFORE Socket.io consumes them ===
   const httpServer = app.getHttpServer();
   const mediaGateway = app.get(MediaStreamsGateway);
-  mediaGateway.init(httpServer);
+  mediaGateway.initWss(); // Just create the WS server, don't attach to httpServer
+
+  // Save Socket.io's existing upgrade listeners
+  const existingListeners = httpServer.listeners('upgrade').slice();
+
+  // Remove ALL upgrade listeners (including Socket.io's)
+  httpServer.removeAllListeners('upgrade');
+
+  // Add our own router that decides who handles each upgrade
+  httpServer.on('upgrade', (request: any, socket: any, head: Buffer) => {
+    const url = request.url || '';
+    console.log(`[UpgradeRouter] WebSocket upgrade request: ${url}`);
+
+    if (url === '/ws/media' || url.startsWith('/ws/media?') || url.startsWith('/ws/media/')) {
+      console.log('[UpgradeRouter] Routing to MediaStreamsGateway');
+      mediaGateway.handleUpgrade(request, socket, head);
+    } else {
+      // Route to Socket.io (notifications gateway)
+      console.log('[UpgradeRouter] Routing to Socket.io');
+      for (const listener of existingListeners) {
+        listener.call(httpServer, request, socket, head);
+      }
+    }
+  });
 
   console.log(`Server running on http://localhost:${port}`);
   console.log(`API Docs: http://localhost:${port}/api/docs`);

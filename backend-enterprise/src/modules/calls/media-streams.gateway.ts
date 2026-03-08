@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import * as WebSocket from "ws";
+import { IncomingMessage } from "http";
+import { Socket } from "net";
 import { DeepgramService } from "../../infrastructure/stt/deepgram.service";
 import { AiService } from "../ai/ai.service";
 import { NotificationsGateway } from "../notifications/notifications.gateway";
@@ -26,25 +28,15 @@ export class MediaStreamsGateway {
     private readonly prisma: PrismaService,
   ) {}
 
-  init(httpServer: any) {
+  /**
+   * Create the WebSocket server in noServer mode.
+   * Upgrade routing is handled externally in main.ts.
+   */
+  initWss() {
     this.wss = new WebSocket.Server({ noServer: true });
 
-    httpServer.on('upgrade', (request: any, socket: any, head: Buffer) => {
-      const url = request.url || '';
-      this.logger.log(`WebSocket upgrade request: ${url}`);
-
-      // Match /ws/media with or without query params
-      if (url === '/ws/media' || url.startsWith('/ws/media?') || url.startsWith('/ws/media/')) {
-        this.logger.log('Handling Media Streams WebSocket upgrade');
-        this.wss!.handleUpgrade(request, socket, head, (ws) => {
-          this.wss!.emit('connection', ws, request);
-        });
-      }
-      // For other paths (like /socket.io/), do nothing - let other handlers process
-    });
-
     this.wss.on("connection", (client: WebSocket.WebSocket) => {
-      this.logger.log("Twilio Media Stream connected");
+      this.logger.log("Twilio Media Stream CONNECTED");
 
       client.on("message", async (data: Buffer) => {
         try {
@@ -56,15 +48,37 @@ export class MediaStreamsGateway {
       });
 
       client.on("close", (code: number, reason: Buffer) => {
-        this.logger.log(`Twilio Media Stream disconnected: code=${code} reason=${reason.toString()}`);
+        this.logger.log(`Twilio Media Stream DISCONNECTED: code=${code}`);
       });
 
       client.on("error", (error: Error) => {
-        this.logger.error("Twilio Media Stream error:", error);
+        this.logger.error("Twilio Media Stream ERROR:", error);
       });
     });
 
-    this.logger.log("MediaStreams WebSocket server initialized at /ws/media");
+    this.logger.log("MediaStreams WebSocket server initialized (noServer mode)");
+  }
+
+  /**
+   * Handle a WebSocket upgrade request routed from main.ts
+   */
+  handleUpgrade(request: IncomingMessage, socket: Socket, head: Buffer) {
+    if (!this.wss) {
+      this.logger.error("WSS not initialized!");
+      socket.destroy();
+      return;
+    }
+
+    this.logger.log("Handling WebSocket upgrade for /ws/media");
+    this.wss.handleUpgrade(request, socket, head, (ws) => {
+      this.logger.log("WebSocket upgrade completed successfully");
+      this.wss!.emit("connection", ws, request);
+    });
+  }
+
+  // Keep backward compat - old init() method
+  init(httpServer: any) {
+    this.initWss();
   }
 
   private async handleTwilioMessage(message: any) {
@@ -90,7 +104,6 @@ export class MediaStreamsGateway {
     const streamSid = message.streamSid;
     const callSid = message.start?.callSid;
     this.logger.log(`Stream started: streamSid=${streamSid} callSid=${callSid}`);
-    this.logger.log(`Stream start payload: ${JSON.stringify(message.start)}`);
 
     const call = await this.prisma.call.findFirst({
       where: { twilioCallSid: callSid },
@@ -104,7 +117,7 @@ export class MediaStreamsGateway {
     this.logger.log(`Found call: id=${call.id} userId=${call.userId}`);
 
     if (!this.deepgramService.isConfigured()) {
-      this.logger.warn('Deepgram not configured - skipping real-time transcription');
+      this.logger.warn("Deepgram not configured - skipping real-time transcription");
       this.activeSessions.set(streamSid, {
         deepgramConnection: null,
         callId: call.id,
@@ -170,7 +183,7 @@ export class MediaStreamsGateway {
         fullTranscript: [],
       });
 
-      this.logger.log(`Session created for stream: ${streamSid}`);
+      this.logger.log(`Deepgram session created for stream: ${streamSid}`);
     } catch (error) {
       this.logger.error("Error creating Deepgram session:", error);
       this.activeSessions.set(streamSid, {
@@ -191,7 +204,7 @@ export class MediaStreamsGateway {
       const audioBuffer = Buffer.from(message.media.payload, "base64");
       session.deepgramConnection.send(audioBuffer);
     } catch (error) {
-      // Silently handle send errors to avoid log spam
+      // Silently handle send errors
     }
   }
 
