@@ -4,7 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { Toaster } from 'sonner';
-import apiClient from '@/lib/api-client';
+import apiClient, { setClerkGetToken } from '@/lib/api-client';
 import { wsClient } from '@/lib/websocket';
 import { useUserStore, useNotificationsStore, useAISuggestionsStore, useActiveCallStore } from '@/stores';
 import { authService } from '@/services/api';
@@ -50,6 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { addSuggestion } = useAISuggestionsStore();
   const { addTranscriptEntry } = useActiveCallStore();
 
+  // Register getToken so every API request gets a fresh JWT
+  useEffect(() => {
+    setClerkGetToken(getToken);
+  }, [getToken]);
+
   useEffect(() => {
     async function syncAuth() {
       if (!isLoaded) return;
@@ -63,17 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setLoading(true);
 
-        // Get Clerk token
-        const token = await getToken();
-        if (token) {
-          apiClient.setAuthToken(token);
-        }
-
-        // Fetch user from backend (includes company info)
+        // Fetch user from backend (token is now fetched automatically per request)
         const user = await authService.getMe();
         setUser(user);
 
-        // Set company from user response
         if (user.company) {
           setCompany(user.company);
         }
@@ -81,16 +79,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           apiClient.setCompanyId(user.companyId);
         }
 
-        // Connect WebSocket with userId + companyId (backend joins rooms automatically)
+        // Connect WebSocket
         if (user && user.companyId) {
           wsClient.connect(user.id, user.companyId);
 
-          // Subscribe to notifications
           wsClient.onNotification((data: any) => {
             addNotification(data.notification || data);
           });
 
-          // Subscribe to AI suggestions
           wsClient.onAISuggestion((data: any) => {
             addSuggestion(data);
             if (data.transcript) {
