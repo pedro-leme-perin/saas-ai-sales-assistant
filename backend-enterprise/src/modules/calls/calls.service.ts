@@ -291,4 +291,64 @@ export class CallsService {
       successRate: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
   }
+  async handleRecordingCompleted(callId: string, recordingUrl: string, duration: number) {
+    this.logger.log(`Recording completed for call ${callId}: ${recordingUrl}`);
+
+    // Save recording URL
+    await this.prisma.call.update({
+      where: { id: callId },
+      data: {
+        recordingUrl: `${recordingUrl}.mp3`,
+        duration,
+      },
+    });
+
+    // Transcribe using Deepgram (post-call)
+    try {
+      const { DeepgramService } = await import('../../infrastructure/stt/deepgram.service');
+      // Use injected service if available, otherwise skip
+      this.logger.log(`Starting post-call transcription for ${callId}`);
+
+      const response = await fetch(`${recordingUrl}.mp3`, {
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(
+            `${this.configService.get('TWILIO_ACCOUNT_SID')}:${this.configService.get('TWILIO_AUTH_TOKEN')}`
+          ).toString('base64'),
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.error(`Failed to fetch recording: ${response.status}`);
+        return;
+      }
+
+      // Use Deepgram API directly for pre-recorded audio
+      const dgResponse = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${this.configService.get('DEEPGRAM_API_KEY')}`,
+          'Content-Type': 'audio/mpeg',
+        },
+        body: await response.arrayBuffer(),
+      });
+
+      if (!dgResponse.ok) {
+        this.logger.error(`Deepgram transcription failed: ${dgResponse.status}`);
+        return;
+      }
+
+      const dgResult: any = await dgResponse.json();
+      const transcript = dgResult?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+
+      if (transcript) {
+        await this.prisma.call.update({
+          where: { id: callId },
+          data: { transcript },
+        });
+        this.logger.log(`Transcript saved for call ${callId}: ${transcript.substring(0, 100)}...`);
+      }
+    } catch (error) {
+      this.logger.error(`Transcription error for call ${callId}:`, error);
+    }
+  }
 }
