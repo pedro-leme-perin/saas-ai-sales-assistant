@@ -41,8 +41,8 @@ export class GeminiProvider extends AIProvider {
           },
         ],
         generationConfig: {
-          maxOutputTokens: this.config.maxTokens || 150,
-          temperature: 0.7,
+          maxOutputTokens: this.config.maxTokens || 50,
+          temperature: 0.3,
         },
       });
 
@@ -129,4 +129,6 @@ export class GeminiProvider extends AIProvider {
     return prompt;
   }
 }
+
+
 

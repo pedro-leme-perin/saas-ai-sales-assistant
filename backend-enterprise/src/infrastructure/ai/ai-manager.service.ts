@@ -17,9 +17,9 @@ export class AIManagerService {
   private readonly logger = new Logger(AIManagerService.name);
   private providers: Map<AIProviderType, AIProvider> = new Map();
   private fallbackOrder: AIProviderType[] = [
+    'gemini',
     'openai',
     'claude',
-    'gemini',
     'perplexity',
   ];
   private currentProviderIndex = 0;
@@ -222,3 +222,4 @@ export class AIManagerService {
     };
   }
 }
+

@@ -1,7 +1,6 @@
-// src/infrastructure/stt/deepgram.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient, DeepgramClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import WebSocket = require('ws');
 
 export interface TranscriptionResult {
   text: string;
@@ -10,16 +9,21 @@ export interface TranscriptionResult {
   words?: Array<{ word: string; start: number; end: number }>;
 }
 
+export interface LiveSession {
+  send: (audio: Buffer) => void;
+  finish: () => void;
+  isReady: () => boolean;
+}
+
 @Injectable()
 export class DeepgramService {
   private readonly logger = new Logger(DeepgramService.name);
-  private readonly client: DeepgramClient | null = null;
+  private readonly apiKey: string | null = null;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('DEEPGRAM_API_KEY');
-
-    if (apiKey) {
-      this.client = createClient(apiKey);
+    const key = this.configService.get<string>('DEEPGRAM_API_KEY');
+    if (key) {
+      this.apiKey = key;
       this.logger.log('✅ Deepgram client initialized');
     } else {
       this.logger.warn('⚠️ Deepgram API key not configured');
@@ -27,83 +31,109 @@ export class DeepgramService {
   }
 
   isConfigured(): boolean {
-    return this.client !== null;
+    return this.apiKey !== null;
   }
 
-  /**
-   * Create a live transcription session for streaming audio
-   * Returns a connection that accepts raw audio chunks
-   */
   createLiveSession(
     onTranscript: (result: TranscriptionResult) => void,
-    onError?: (error: Error) => void,
-  ) {
-    if (!this.client) {
+    onError?: (error: any) => void,
+  ): LiveSession {
+    if (!this.apiKey) {
       throw new Error('Deepgram not configured');
     }
 
-    const connection = this.client.listen.live({
-      model: 'nova-2',
-      language: 'pt-BR',          // Portuguese Brazil
-      smart_format: true,
-      interim_results: true,       // Get partial results in real-time
-      utterance_end_ms: 1000,      // End of utterance detection
-      vad_events: true,            // Voice activity detection
-      encoding: 'mulaw',           // Twilio uses mulaw encoding
-      sample_rate: 8000,           // Twilio uses 8kHz
-      channels: 1,
+    let isOpen = false;
+    const audioBuffer: Buffer[] = [];
+
+    const url = 'wss://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&encoding=mulaw&sample_rate=8000&channels=1&punctuate=true&interim_results=true&endpointing=200';
+
+    const ws = new WebSocket(url, {
+      headers: { 'Authorization': `Token ${this.apiKey}` },
     });
 
-    connection.on(LiveTranscriptionEvents.Open, () => {
-      this.logger.log('🎙️ Deepgram live session opened');
-      this.logger.log(`Deepgram connection type: ${typeof connection.send}, keys: ${Object.getOwnPropertyNames(Object.getPrototypeOf(connection)).join(', ')}`);
+    ws.on('open', () => {
+      this.logger.log('🎙️ Deepgram live session OPENED (raw ws)');
+      isOpen = true;
+
+      if (audioBuffer.length > 0) {
+        this.logger.log(`Flushing ${audioBuffer.length} buffered audio chunks`);
+        for (const chunk of audioBuffer) {
+          try { ws.send(chunk); } catch (_) {}
+        }
+        audioBuffer.length = 0;
+      }
     });
 
-    connection.on(LiveTranscriptionEvents.Transcript, (data: any) => {
-      const transcript = data.channel?.alternatives?.[0];
-      if (!transcript?.transcript) return;
+    ws.on('message', (data: WebSocket.Data) => {
+      try {
+        const msg = JSON.parse(data.toString());
 
-      onTranscript({
-        text: transcript.transcript,
-        isFinal: data.is_final || false,
-        confidence: transcript.confidence || 0,
-        words: transcript.words,
-      });
+        if (msg.type === 'Results') {
+          const alt = msg.channel?.alternatives?.[0];
+          if (!alt?.transcript) return;
+
+          onTranscript({
+            text: alt.transcript,
+            isFinal: msg.is_final || false,
+            confidence: alt.confidence || 0,
+            words: alt.words,
+          });
+        }
+      } catch (_) {}
     });
 
-    connection.on(LiveTranscriptionEvents.Error, (error: any) => {
-      this.logger.error('Deepgram error:', error);
+    ws.on('error', (error: Error) => {
+      this.logger.error('Deepgram WS error:', error.message);
+      isOpen = false;
       onError?.(error);
     });
 
-    connection.on(LiveTranscriptionEvents.Close, () => {
-      this.logger.log('🎙️ Deepgram live session closed');
+    ws.on('close', (code: number, reason: Buffer) => {
+      this.logger.log(`🎙️ Deepgram live session closed: code=${code}`);
+      isOpen = false;
     });
 
-    return connection;
+    return {
+      send: (audio: Buffer) => {
+        if (isOpen && ws.readyState === WebSocket.OPEN) {
+          try { ws.send(audio); } catch (_) {}
+        } else if (audioBuffer.length < 200) {
+          audioBuffer.push(audio);
+        }
+      },
+      finish: () => {
+        try {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.close();
+          }
+        } catch (_) {}
+      },
+      isReady: () => isOpen,
+    };
   }
 
-  /**
-   * Transcribe a recording URL (post-call)
-   */
   async transcribeUrl(url: string): Promise<string> {
-    if (!this.client) {
+    if (!this.apiKey) {
       throw new Error('Deepgram not configured');
     }
 
-    const { result, error } = await this.client.listen.prerecorded.transcribeUrl(
-      { url },
-      {
-        model: 'nova-2',
-        language: 'pt-BR',
-        smart_format: true,
-        punctuate: true,
+    const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${this.apiKey}`,
+        'Content-Type': 'application/json',
       },
-    );
+      body: JSON.stringify({ url }),
+    });
 
-    if (error) throw error;
+    if (!response.ok) {
+      throw new Error(`Deepgram error: ${response.status}`);
+    }
 
+    const result: any = await response.json();
     return result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
   }
 }
+
+
 
