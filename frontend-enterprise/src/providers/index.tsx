@@ -1,12 +1,16 @@
 'use client';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { Toaster } from 'sonner';
 import apiClient, { setClerkGetToken } from '@/lib/api-client';
 import { wsClient } from '@/lib/websocket';
-import { useUserStore, useNotificationsStore, useAISuggestionsStore, useActiveCallStore } from '@/stores';
+import {
+  useUserStore, useNotificationsStore,
+  useAISuggestionsStore, useActiveCallStore, useUIStore,
+} from '@/stores';
 import { authService } from '@/services/api';
 
 function makeQueryClient() {
@@ -32,17 +36,60 @@ function getQueryClient() {
   }
 }
 
+// =============================================
+// THEME PROVIDER — aplica classe .dark no <html>
+// =============================================
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const { theme } = useUIStore();
+
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+    } else {
+      // system: respeita preferência do OS
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+      const applySystem = () => {
+        if (mediaQuery.matches) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+      };
+
+      applySystem();
+      mediaQuery.addEventListener('change', applySystem);
+      return () => mediaQuery.removeEventListener('change', applySystem);
+    }
+  }, [theme]);
+
+  return <>{children}</>;
+}
+
+// =============================================
+// PROVIDERS
+// =============================================
 export function Providers({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
+
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ThemeProvider>
+        {children}
+      </ThemeProvider>
       <Toaster position="top-right" richColors closeButton />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }
 
+// =============================================
+// AUTH PROVIDER
+// =============================================
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { setUser, setCompany, setLoading, clear } = useUserStore();
@@ -68,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setLoading(true);
 
-        // Fetch user from backend (token is now fetched automatically per request)
         const user = await authService.getMe();
         setUser(user);
 
