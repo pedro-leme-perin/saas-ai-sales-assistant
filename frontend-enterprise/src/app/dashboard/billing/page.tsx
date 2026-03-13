@@ -1,6 +1,5 @@
 'use client';
 import { Suspense } from 'react';
-
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useBilling } from '@/hooks/useBilling';
@@ -8,8 +7,11 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   CreditCard, CheckCircle, XCircle, AlertCircle,
   FileText, Zap, Building2, Rocket, ExternalLink,
-  Loader2, RefreshCw, Users, Phone, MessageSquare,
+  Loader2, RefreshCw, Users, Phone, MessageSquare, X,
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
   STARTER:      <Zap className="w-6 h-6" />,
@@ -18,20 +20,54 @@ const PLAN_ICONS: Record<string, React.ReactNode> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  ACTIVE:   { label: 'Ativo',      color: 'text-green-700 bg-green-100' },
-  active:   { label: 'Ativo',      color: 'text-green-700 bg-green-100' },
-  trialing: { label: 'Trial',      color: 'text-blue-700 bg-blue-100' },
-  canceled: { label: 'Cancelado',  color: 'text-red-700 bg-red-100' },
-  past_due: { label: 'Em atraso',  color: 'text-orange-700 bg-orange-100' },
+  ACTIVE:   { label: 'Ativo',     color: 'text-green-700 bg-green-100 border-green-200' },
+  active:   { label: 'Ativo',     color: 'text-green-700 bg-green-100 border-green-200' },
+  trialing: { label: 'Trial',     color: 'text-blue-700 bg-blue-100 border-blue-200' },
+  canceled: { label: 'Cancelado', color: 'text-red-700 bg-red-100 border-red-200' },
+  past_due: { label: 'Em atraso', color: 'text-orange-700 bg-orange-100 border-orange-200' },
 };
 
 const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
   paid:          { label: 'Pago',       color: 'text-green-700 bg-green-100' },
   PAID:          { label: 'Pago',       color: 'text-green-700 bg-green-100' },
   open:          { label: 'Pendente',   color: 'text-yellow-700 bg-yellow-100' },
-  void:          { label: 'Cancelado',  color: 'text-gray-700 bg-gray-100' },
+  void:          { label: 'Cancelado',  color: 'text-muted-foreground bg-muted' },
   uncollectible: { label: 'Incobrável', color: 'text-red-700 bg-red-100' },
 };
+
+function BillingSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto space-y-8">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4 animate-pulse">
+            <div className="h-12 w-12 rounded-lg bg-muted" />
+            <div className="space-y-2 flex-1">
+              <div className="h-5 w-32 bg-muted rounded" />
+              <div className="h-3 w-48 bg-muted rounded" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-6 animate-pulse space-y-4">
+              <div className="h-6 w-24 bg-muted rounded" />
+              <div className="h-8 w-20 bg-muted rounded" />
+              <div className="space-y-2">
+                {[...Array(4)].map((_, j) => (
+                  <div key={j} className="h-4 w-full bg-muted rounded" />
+                ))}
+              </div>
+              <div className="h-10 w-full bg-muted rounded" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function BillingPageContent() {
   const {
@@ -42,220 +78,231 @@ function BillingPageContent() {
   const searchParams = useSearchParams();
   const [banner, setBanner] = useState<'success' | 'canceled' | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('success') === 'true')   setBanner('success');
-    if (searchParams.get('canceled') === 'true')  setBanner('canceled');
+    if (searchParams.get('success') === 'true') setBanner('success');
+    if (searchParams.get('canceled') === 'true') setBanner('canceled');
   }, [searchParams]);
 
   const handleAction = async (key: string, fn: () => Promise<void>) => {
     setActionLoading(key);
     try { await fn(); }
-    catch (e: any) { alert(`Erro: ${e.message}`); }
+    catch (e: any) { toast.error(`Erro: ${e.message}`); }
     finally { setActionLoading(null); }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-    </div>
-  );
+  if (loading) return <BillingSkeleton />;
 
   if (error) return (
-    <div className="p-6">
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-        <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-red-800">Erro ao carregar cobrança</p>
-          <p className="text-xs text-red-600 mt-1">{error}</p>
-        </div>
-        <button onClick={reload} className="ml-auto text-red-600 hover:text-red-800">
-          <RefreshCw className="w-4 h-4" />
-        </button>
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <Card className="border-red-200 bg-red-50/50">
+        <CardContent className="p-6 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-800">Erro ao carregar cobrança</p>
+            <p className="text-xs text-red-600 mt-1">{error}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={reload}>
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 
   const activeSub = subscription?.subscription;
-  const company   = subscription?.company;
+  const company = subscription?.company;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Faturamento</h1>
+        <p className="text-muted-foreground">Gerencie sua assinatura e pagamentos.</p>
+      </div>
 
       {/* Banners */}
       {banner === 'success' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-          <span className="text-sm font-medium text-green-800">
-            Assinatura ativada com sucesso!
-          </span>
-          <button onClick={() => setBanner(null)} className="ml-auto text-green-600 text-xl leading-none">×</button>
-        </div>
+        <Card className="border-green-200 bg-green-50/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <span className="text-sm font-medium text-green-800 flex-1">Assinatura ativada com sucesso!</span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setBanner(null)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
       )}
       {banner === 'canceled' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-          <span className="text-sm font-medium text-yellow-800">
-            Checkout cancelado. Nenhuma cobrança realizada.
-          </span>
-          <button onClick={() => setBanner(null)} className="ml-auto text-yellow-600 text-xl leading-none">×</button>
-        </div>
+        <Card className="border-yellow-200 bg-yellow-50/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+            <span className="text-sm font-medium text-yellow-800 flex-1">Checkout cancelado. Nenhuma cobrança realizada.</span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setBanner(null)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Assinatura atual */}
+      {/* Assinatura Atual */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Assinatura Atual</h2>
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                {PLAN_ICONS[currentPlan] || <CreditCard className="w-6 h-6" />}
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-lg capitalize">
-                  {currentPlan.charAt(0) + currentPlan.slice(1).toLowerCase()}
-                </p>
-                {activeSub ? (
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      STATUS_CONFIG[activeSub.status]?.color || 'text-gray-600 bg-gray-100'
-                    }`}>
-                      {STATUS_CONFIG[activeSub.status]?.label || activeSub.status}
-                    </span>
-                    {activeSub.currentPeriodEnd && (
-                      <span className="text-xs text-gray-500">
-                        Renova em {formatDate(activeSub.currentPeriodEnd)}
+        <h2 className="text-lg font-semibold mb-4">Assinatura Atual</h2>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 text-primary rounded-lg">
+                  {PLAN_ICONS[currentPlan] || <CreditCard className="w-6 h-6" />}
+                </div>
+                <div>
+                  <p className="font-semibold text-lg capitalize">
+                    {currentPlan.charAt(0) + currentPlan.slice(1).toLowerCase()}
+                  </p>
+                  {activeSub ? (
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                        STATUS_CONFIG[activeSub.status]?.color || 'text-muted-foreground bg-muted'
+                      }`}>
+                        {STATUS_CONFIG[activeSub.status]?.label || activeSub.status}
                       </span>
-                    )}
+                      {activeSub.currentPeriodEnd && (
+                        <span className="text-xs text-muted-foreground">
+                          Renova em {formatDate(activeSub.currentPeriodEnd)}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">Plano gratuito</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Limites */}
+              {company?.limits && (
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5" />
+                    {company.limits.users === 1000 ? '∞' : company.limits.users} usuários
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-500 mt-1">Plano gratuito</p>
+                  <div className="flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    {company.limits.callsPerMonth === 10000 ? '∞' : company.limits.callsPerMonth} ligações
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    {company.limits.chatsPerMonth === 10000 ? '∞' : company.limits.chatsPerMonth} chats
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                {activeSub && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAction('portal', openPortal)}
+                    disabled={!!actionLoading}
+                    className="gap-2"
+                  >
+                    {actionLoading === 'portal' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                    Gerenciar
+                  </Button>
+                )}
+                {activeSub?.status === 'active' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCancelConfirm(true)}
+                    disabled={!!actionLoading}
+                    className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    {actionLoading === 'cancel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                    Cancelar
+                  </Button>
                 )}
               </div>
             </div>
-
-            {/* Limites */}
-            {company?.limits && (
-              <div className="flex gap-4 text-xs text-gray-500">
-                <div className="flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5" />
-                  {company.limits.users === 1000 ? '∞' : company.limits.users} usuários
-                </div>
-                <div className="flex items-center gap-1">
-                  <Phone className="w-3.5 h-3.5" />
-                  {company.limits.callsPerMonth === 10000 ? '∞' : company.limits.callsPerMonth} ligações
-                </div>
-                <div className="flex items-center gap-1">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  {company.limits.chatsPerMonth === 10000 ? '∞' : company.limits.chatsPerMonth} chats
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              {activeSub && (
-                <button
-                  onClick={() => handleAction('portal', openPortal)}
-                  disabled={!!actionLoading}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                >
-                  {actionLoading === 'portal' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-                  Gerenciar
-                </button>
-              )}
-              {activeSub?.status === 'active' && (
-                <button
-                  onClick={() => {
-                    if (confirm('Cancelar assinatura? O acesso permanece até o fim do período.'))
-                      handleAction('cancel', cancelSubscription);
-                  }}
-                  disabled={!!actionLoading}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50"
-                >
-                  {actionLoading === 'cancel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                  Cancelar
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Planos */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Planos Disponíveis</h2>
+        <h2 className="text-lg font-semibold mb-4">Planos Disponíveis</h2>
         {plans.length === 0 ? (
-          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400 text-sm">
-            Planos não disponíveis.
-          </div>
+          <Card className="border-dashed">
+            <CardContent className="p-8 text-center text-muted-foreground text-sm">
+              Planos não disponíveis.
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {plans.map((plan) => {
-              const isCurrent  = plan.plan === currentPlan;
-              const isLoading  = actionLoading === plan.plan;
-              const hasStripe  = !!activeSub;
+              const isCurrent = plan.plan === currentPlan;
+              const isLoading = actionLoading === plan.plan;
+              const hasStripe = !!activeSub;
 
               return (
-                <div
+                <Card
                   key={plan.plan}
-                  className={`relative bg-white border rounded-xl p-6 flex flex-col gap-4 transition-shadow hover:shadow-md ${
-                    plan.isPopular ? 'border-indigo-400 ring-2 ring-indigo-400' : 'border-gray-200'
+                  className={`relative flex flex-col transition-shadow hover:shadow-md ${
+                    plan.isPopular ? 'border-primary ring-2 ring-primary' : ''
                   }`}
                 >
                   {plan.isPopular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
                       Mais popular
                     </span>
                   )}
 
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${plan.isPopular ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'}`}>
-                      {PLAN_ICONS[plan.plan] || <CreditCard className="w-5 h-5" />}
+                  <CardContent className="p-6 flex flex-col gap-4 flex-1">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg ${plan.isPopular ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                        {PLAN_ICONS[plan.plan] || <CreditCard className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <p className="font-semibold">{plan.name}</p>
+                        <p className="text-2xl font-bold mt-0.5">
+                          {formatCurrency(plan.price)}
+                          <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{plan.name}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-0.5">
-                        {formatCurrency(plan.price)}
-                        <span className="text-sm font-normal text-gray-500">/mês</span>
-                      </p>
-                    </div>
-                  </div>
 
-                  <ul className="space-y-1.5 flex-1">
-                    {plan.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                    <ul className="space-y-1.5 flex-1">
+                      {plan.features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
 
-                  {isCurrent ? (
-                    <div className="w-full py-2 text-center text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg">
-                      Plano atual
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (hasStripe) {
-                          if (confirm(`Mudar para o plano ${plan.name}?`))
+                    {isCurrent ? (
+                      <div className="w-full py-2.5 text-center text-sm font-medium text-primary bg-primary/10 rounded-lg">
+                        Plano atual
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          if (hasStripe) {
                             handleAction(plan.plan, () => changePlan(plan.plan));
-                        } else {
-                          handleAction(plan.plan, () => startCheckout(plan.plan));
-                        }
-                      }}
-                      disabled={!!actionLoading}
-                      className={`w-full py-2.5 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-colors ${
-                        plan.isPopular
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                          : 'bg-gray-900 text-white hover:bg-gray-800'
-                      }`}
-                    >
-                      {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      {hasStripe ? 'Mudar plano' : 'Fazer upgrade'}
-                    </button>
-                  )}
-                </div>
+                          } else {
+                            handleAction(plan.plan, () => startCheckout(plan.plan));
+                          }
+                        }}
+                        disabled={!!actionLoading}
+                        variant={plan.isPopular ? 'default' : 'outline'}
+                        className="w-full gap-2"
+                      >
+                        {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {hasStripe ? 'Mudar plano' : 'Fazer upgrade'}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -264,56 +311,107 @@ function BillingPageContent() {
 
       {/* Faturas */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Histórico de Faturas</h2>
+        <h2 className="text-lg font-semibold mb-4">Histórico de Faturas</h2>
         {invoices.length === 0 ? (
-          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400 text-sm">
-            Nenhuma fatura encontrada.
-          </div>
+          <Card className="border-dashed">
+            <CardContent className="p-8 text-center text-muted-foreground text-sm">
+              Nenhuma fatura encontrada.
+            </CardContent>
+          </Card>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Data</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Valor</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">PDF</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {invoices.map((inv) => {
-                  const st = INVOICE_STATUS[inv.status] || { label: inv.status, color: 'text-gray-600 bg-gray-100' };
-                  return (
-                    <tr key={inv.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-600">{formatDate(inv.createdAt)}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {formatCurrency((inv.amount || 0) / 100)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${st.color}`}>
-                          {st.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {inv.pdfUrl ? (
-                          <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800">
-                            <FileText className="w-4 h-4" /> Baixar
-                          </a>
-                        ) : <span className="text-gray-400">—</span>}
-                      </td>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Data</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Valor</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">PDF</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y">
+                    {invoices.map((inv) => {
+                      const st = INVOICE_STATUS[inv.status] || { label: inv.status, color: 'text-muted-foreground bg-muted' };
+                      return (
+                        <tr key={inv.id} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.createdAt)}</td>
+                          <td className="px-4 py-3 font-medium tabular-nums">{formatCurrency((inv.amount || 0) / 100)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${st.color}`}>
+                              {st.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {inv.pdfUrl ? (
+                              <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-primary hover:underline text-xs">
+                                <FileText className="w-3.5 h-3.5" /> Baixar
+                              </a>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </section>
+
+      {/* =============================================
+          MODAL: Confirmar Cancelamento
+          ============================================= */}
+      {showCancelConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowCancelConfirm(false)}
+        >
+          <div
+            className="bg-background rounded-xl shadow-2xl w-full max-w-sm m-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 text-center space-y-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mx-auto">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Cancelar assinatura</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  O acesso ao plano atual permanece até o fim do período de cobrança.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setShowCancelConfirm(false)}>
+                  Voltar
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowCancelConfirm(false);
+                    handleAction('cancel', cancelSubscription);
+                  }}
+                  disabled={!!actionLoading}
+                >
+                  Confirmar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function BillingPage() {
-  return <Suspense fallback={<div>Carregando...</div>}><BillingPageContent /></Suspense>;
+  return (
+    <Suspense fallback={<BillingSkeleton />}>
+      <BillingPageContent />
+    </Suspense>
+  );
 }
