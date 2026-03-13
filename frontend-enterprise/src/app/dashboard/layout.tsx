@@ -5,22 +5,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserButton, useUser } from '@clerk/nextjs';
 import { cn } from '@/lib/utils';
+import { formatRelative } from '@/lib/utils';
 import {
-  LayoutDashboard,
-  Phone,
-  MessageSquare,
-  BarChart3,
-  Users,
-  CreditCard,
-  Settings,
-  Menu,
-  X,
-  Sparkles,
-  Bell,
-  ChevronLeft,
+  LayoutDashboard, Phone, MessageSquare, BarChart3,
+  Users, CreditCard, Settings, Menu, X, Sparkles,
+  Bell, ChevronLeft, Moon, Sun, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNotificationsStore } from '@/stores';
+import { Separator } from '@/components/ui/index';
+import { useNotificationsStore, useUIStore } from '@/stores';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -40,15 +33,25 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const { user } = useUser();
-  const { unreadCount } = useNotificationsStore();
+  const { unreadCount, notifications, markAsRead, markAllAsRead } = useNotificationsStore();
+  const { theme, setTheme } = useUIStore();
+
+  const recentNotifications = notifications.slice(0, 5);
+
+  const toggleTheme = () => {
+    if (theme === 'dark') setTheme('light');
+    else if (theme === 'light') setTheme('dark');
+    else setTheme('dark');
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -73,16 +76,16 @@ export default function DashboardLayout({
           </Link>
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="hidden lg:flex text-sidebar-foreground hover:bg-sidebar-accent"
+            size="icon"
+            className="hidden lg:flex text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8"
             onClick={() => setCollapsed(!collapsed)}
           >
             <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />
           </Button>
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="lg:hidden text-sidebar-foreground"
+            size="icon"
+            className="lg:hidden text-sidebar-foreground h-8 w-8"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-4 w-4" />
@@ -90,16 +93,19 @@ export default function DashboardLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-2">
+        <nav className="flex-1 overflow-y-auto p-2 scrollbar-thin">
           <ul className="space-y-1">
             {navigation.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              const isActive = item.href === '/dashboard'
+                ? pathname === '/dashboard'
+                : pathname.startsWith(item.href);
               return (
                 <li key={item.name}>
                   <Link
                     href={item.href}
+                    onClick={() => setSidebarOpen(false)}
                     className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                       isActive
                         ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -116,20 +122,21 @@ export default function DashboardLayout({
         </nav>
 
         {/* User section */}
-        <div className="border-t border-sidebar-border p-4">
+        <div className="border-t border-sidebar-border p-3">
           <div className={cn('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
             <UserButton
               afterSignOutUrl="/"
               appearance={{
-                elements: {
-                  avatarBox: 'h-8 w-8',
-                },
+                elements: { avatarBox: 'h-8 w-8' },
               }}
             />
             {!collapsed && (
               <div className="flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">
                   {user?.firstName} {user?.lastName}
+                </p>
+                <p className="text-xs text-sidebar-foreground/60 truncate">
+                  {user?.primaryEmailAddress?.emailAddress}
                 </p>
               </div>
             )}
@@ -138,12 +145,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main content */}
-      <div
-        className={cn(
-          'flex flex-col transition-all duration-300',
-          collapsed ? 'lg:pl-16' : 'lg:pl-64'
-        )}
-      >
+      <div className={cn('flex flex-col transition-all duration-300', collapsed ? 'lg:pl-16' : 'lg:pl-64')}>
         {/* Top header */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
           <Button
@@ -155,17 +157,89 @@ export default function DashboardLayout({
             <Menu className="h-5 w-5" />
           </Button>
 
-          <div className="flex-1" />
+          {/* Breadcrumb / Page title */}
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground hidden sm:block">
+              {navigation.find((n) =>
+                n.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(n.href)
+              )?.name || 'Dashboard'}
+            </p>
+          </div>
 
-          {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
+          {/* Theme Toggle */}
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9">
+            {theme === 'dark' ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
             )}
           </Button>
+
+          {/* Notifications */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative h-9 w-9"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+
+            {/* Notification Panel */}
+            {showNotifications && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                <div className="absolute right-0 top-full mt-2 z-50 w-80 rounded-xl border bg-popover shadow-lg animate-slide-in-bottom">
+                  <div className="flex items-center justify-between p-4 pb-2">
+                    <h3 className="font-semibold text-sm">Notificações</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Marcar todas como lidas
+                      </button>
+                    )}
+                  </div>
+                  <Separator />
+                  {recentNotifications.length > 0 ? (
+                    <div className="max-h-80 overflow-auto p-2 space-y-1">
+                      {recentNotifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={cn(
+                            'flex items-start gap-3 rounded-lg p-2.5 transition-colors cursor-pointer hover:bg-muted',
+                            !notification.isRead && 'bg-primary/5'
+                          )}
+                          onClick={() => markAsRead(notification.id)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{notification.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{formatRelative(notification.createdAt)}</p>
+                          </div>
+                          {!notification.isRead && (
+                            <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center">
+                      <Bell className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Nenhuma notificação</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* User button (mobile) */}
           <div className="lg:hidden">
@@ -179,6 +253,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-
-
-
