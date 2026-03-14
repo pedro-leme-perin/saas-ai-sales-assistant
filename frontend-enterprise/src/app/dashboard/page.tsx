@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { callsService, companiesService, analyticsService } from '@/services/api';
 import { formatDuration, formatDateTime, formatPhone, getCallStatusColor } from '@/lib/utils';
 import Link from 'next/link';
+import { useTranslation } from '@/i18n/use-translation';
 
 function KPISkeleton() {
   return (
@@ -73,6 +74,7 @@ function RecentCallsSkeleton() {
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const { t } = useTranslation();
 
   const { data: callStats, isLoading: statsLoading } = useQuery({
     queryKey: ['call-stats'],
@@ -96,16 +98,22 @@ export default function DashboardPage() {
 
   const dashboard = dashboardRaw as any;
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const greeting = hour < 12 ? t('greeting.morning') : hour < 18 ? t('greeting.afternoon') : t('greeting.evening');
   const isLoading = statsLoading || dashLoading;
+
+  const getStatusLabel = (status: string) => {
+    if (status === 'COMPLETED') return t('dashboard.statusCompleted');
+    if (status === 'MISSED') return t('dashboard.statusMissed');
+    return t('dashboard.statusInProgress');
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          {greeting}, {user?.firstName || 'Usuário'}
+          {greeting}, {user?.firstName || t('common.user')}
         </h1>
-        <p className="text-muted-foreground">Aqui está o resumo da sua equipe de vendas hoje.</p>
+        <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* KPIs */}
@@ -115,18 +123,18 @@ export default function DashboardPage() {
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <Card className="hover:shadow-sm transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Ligações</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t('dashboard.totalCalls')}</CardTitle>
               <Phone className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{callStats?.total || 0}</div>
               {(dashboard?.calls?.growth ?? 0) >= 0 ? (
                 <div className="flex items-center text-xs text-green-600 mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" />+{dashboard?.calls?.growth ?? 0}% este mês
+                  <TrendingUp className="h-3 w-3 mr-1" />+{dashboard?.calls?.growth ?? 0}% {t('dashboard.thisMonth')}
                 </div>
               ) : (
                 <div className="flex items-center text-xs text-red-500 mt-1">
-                  <TrendingDown className="h-3 w-3 mr-1" />{dashboard?.calls?.growth ?? 0}% este mês
+                  <TrendingDown className="h-3 w-3 mr-1" />{dashboard?.calls?.growth ?? 0}% {t('dashboard.thisMonth')}
                 </div>
               )}
             </CardContent>
@@ -134,18 +142,18 @@ export default function DashboardPage() {
 
           <Card className="hover:shadow-sm transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Chats WhatsApp</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t('dashboard.whatsappChats')}</CardTitle>
               <MessageSquare className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{dashboard?.chats?.total || 0}</div>
               {(dashboard?.chats?.growth ?? 0) >= 0 ? (
                 <div className="flex items-center text-xs text-green-600 mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" />+{dashboard?.chats?.growth ?? 0}% este mês
+                  <TrendingUp className="h-3 w-3 mr-1" />+{dashboard?.chats?.growth ?? 0}% {t('dashboard.thisMonth')}
                 </div>
               ) : (
                 <div className="flex items-center text-xs text-red-500 mt-1">
-                  <TrendingDown className="h-3 w-3 mr-1" />{dashboard?.chats?.growth ?? 0}% este mês
+                  <TrendingDown className="h-3 w-3 mr-1" />{dashboard?.chats?.growth ?? 0}% {t('dashboard.thisMonth')}
                 </div>
               )}
             </CardContent>
@@ -153,26 +161,26 @@ export default function DashboardPage() {
 
           <Card className="hover:shadow-sm transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ligações Perdidas</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t('dashboard.missedCalls')}</CardTitle>
               <PhoneMissed className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{callStats?.byStatus?.MISSED || 0}</div>
               <div className="flex items-center text-xs text-muted-foreground mt-1">
-                <Activity className="h-3 w-3 mr-1" />Requer atenção
+                <Activity className="h-3 w-3 mr-1" />{t('dashboard.requiresAttention')}
               </div>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-sm transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Duração Média</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t('dashboard.avgDuration')}</CardTitle>
               <Clock className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatDuration(callStats?.avgDuration || 0)}</div>
               <div className="flex items-center text-xs text-muted-foreground mt-1">
-                <Activity className="h-3 w-3 mr-1" />Por ligação
+                <Activity className="h-3 w-3 mr-1" />{t('dashboard.perCall')}
               </div>
             </CardContent>
           </Card>
@@ -189,24 +197,24 @@ export default function DashboardPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                <CardTitle>Assistente IA</CardTitle>
+                <CardTitle>{t('dashboard.aiAssistant')}</CardTitle>
               </div>
-              <CardDescription>Performance do assistente em tempo real</CardDescription>
+              <CardDescription>{t('dashboard.aiPerformance')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-background rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-primary">{dashboard?.ai?.total || 0}</p>
-                  <p className="text-xs text-muted-foreground">Sugestões geradas</p>
+                  <p className="text-xs text-muted-foreground">{t('dashboard.suggestionsGenerated')}</p>
                 </div>
                 <div className="bg-background rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-green-600">{dashboard?.ai?.adoptionRate || 0}%</p>
-                  <p className="text-xs text-muted-foreground">Taxa de uso</p>
+                  <p className="text-xs text-muted-foreground">{t('dashboard.adoptionRate')}</p>
                 </div>
               </div>
               <Link href="/dashboard/analytics">
                 <Button variant="outline" className="w-full" size="sm">
-                  Ver Analytics<ArrowRight className="ml-2 h-4 w-4" />
+                  {t('dashboard.viewAnalytics')}<ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
@@ -215,18 +223,18 @@ export default function DashboardPage() {
           {/* Usage Card */}
           <Card className="hover:shadow-sm transition-shadow">
             <CardHeader>
-              <CardTitle>Uso do Plano</CardTitle>
-              <CardDescription>Plano {usage?.plan || 'Starter'}</CardDescription>
+              <CardTitle>{t('dashboard.planUsage')}</CardTitle>
+              <CardDescription>{t('dashboard.plan')} {usage?.plan || 'Starter'}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { label: 'Usuários', icon: Users, used: usage?.users?.used, limit: usage?.users?.limit, pct: usage?.users?.percentage, color: 'bg-primary' },
-                { label: 'Ligações', icon: Phone, used: usage?.calls?.used, limit: usage?.calls?.limit, pct: usage?.calls?.percentage, color: 'bg-blue-500' },
-                { label: 'Chats', icon: MessageSquare, used: usage?.chats?.used, limit: usage?.chats?.limit, pct: usage?.chats?.percentage, color: 'bg-green-500' },
+                { labelKey: 'dashboard.users', icon: Users, used: usage?.users?.used, limit: usage?.users?.limit, pct: usage?.users?.percentage, color: 'bg-primary' },
+                { labelKey: 'nav.calls', icon: Phone, used: usage?.calls?.used, limit: usage?.calls?.limit, pct: usage?.calls?.percentage, color: 'bg-blue-500' },
+                { labelKey: 'whatsapp.conversations', icon: MessageSquare, used: usage?.chats?.used, limit: usage?.chats?.limit, pct: usage?.chats?.percentage, color: 'bg-green-500' },
               ].map((item) => (
-                <div key={item.label}>
+                <div key={item.labelKey}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="flex items-center gap-1"><item.icon className="h-3 w-3" /> {item.label}</span>
+                    <span className="flex items-center gap-1"><item.icon className="h-3 w-3" /> {t(item.labelKey)}</span>
                     <span className="text-muted-foreground tabular-nums">{item.used || 0} / {item.limit || 0}</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -236,7 +244,7 @@ export default function DashboardPage() {
               ))}
               <Link href="/dashboard/billing">
                 <Button variant="outline" className="w-full" size="sm">
-                  Gerenciar Plano<ArrowRight className="ml-2 h-4 w-4" />
+                  {t('dashboard.managePlan')}<ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
@@ -245,19 +253,19 @@ export default function DashboardPage() {
           {/* Quick Actions */}
           <Card className="hover:shadow-sm transition-shadow">
             <CardHeader>
-              <CardTitle>Acesso Rápido</CardTitle>
-              <CardDescription>Atalhos para as principais funcionalidades</CardDescription>
+              <CardTitle>{t('dashboard.quickAccess')}</CardTitle>
+              <CardDescription>{t('dashboard.quickAccessDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {[
-                { href: '/dashboard/calls', label: 'Nova Ligação com IA', icon: Phone, color: 'text-blue-500' },
-                { href: '/dashboard/whatsapp', label: 'Abrir WhatsApp', icon: MessageSquare, color: 'text-green-500' },
-                { href: '/dashboard/analytics', label: 'Ver Relatórios', icon: TrendingUp, color: 'text-purple-500' },
-                { href: '/dashboard/team', label: 'Gerenciar Equipe', icon: Users, color: 'text-orange-500' },
+                { href: '/dashboard/calls', labelKey: 'dashboard.newCallWithAI', icon: Phone, color: 'text-blue-500' },
+                { href: '/dashboard/whatsapp', labelKey: 'dashboard.openWhatsApp', icon: MessageSquare, color: 'text-green-500' },
+                { href: '/dashboard/analytics', labelKey: 'dashboard.viewReports', icon: TrendingUp, color: 'text-purple-500' },
+                { href: '/dashboard/team', labelKey: 'dashboard.manageTeam', icon: Users, color: 'text-orange-500' },
               ].map((item) => (
                 <Link key={item.href} href={item.href}>
                   <Button variant="outline" className="w-full justify-start" size="sm">
-                    <item.icon className={`mr-2 h-4 w-4 ${item.color}`} />{item.label}
+                    <item.icon className={`mr-2 h-4 w-4 ${item.color}`} />{t(item.labelKey)}
                   </Button>
                 </Link>
               ))}
@@ -270,11 +278,11 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Ligações Recentes</CardTitle>
-            <CardDescription>Últimas 5 ligações da sua equipe</CardDescription>
+            <CardTitle>{t('dashboard.recentCalls')}</CardTitle>
+            <CardDescription>{t('dashboard.recentCallsDesc')}</CardDescription>
           </div>
           <Link href="/dashboard/calls">
-            <Button variant="outline" size="sm">Ver todas<ArrowRight className="ml-2 h-4 w-4" /></Button>
+            <Button variant="outline" size="sm">{t('common.viewAll')}<ArrowRight className="ml-2 h-4 w-4" /></Button>
           </Link>
         </CardHeader>
         <CardContent>
@@ -296,7 +304,7 @@ export default function DashboardPage() {
                   <div className="text-right">
                     <p className="text-sm font-mono tabular-nums">{formatDuration(call.duration)}</p>
                     <p className={`text-xs ${getCallStatusColor(call.status)}`}>
-                      {call.status === 'COMPLETED' ? 'Concluída' : call.status === 'MISSED' ? 'Perdida' : 'Em andamento'}
+                      {getStatusLabel(call.status)}
                     </p>
                   </div>
                 </div>
@@ -305,9 +313,9 @@ export default function DashboardPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Phone className="h-12 w-12 text-muted-foreground/20 mb-3" />
-              <p className="text-sm text-muted-foreground">Nenhuma ligação ainda.</p>
+              <p className="text-sm text-muted-foreground">{t('dashboard.noCallsYet')}</p>
               <Link href="/dashboard/calls" className="mt-3">
-                <Button size="sm">Fazer primeira ligação</Button>
+                <Button size="sm">{t('dashboard.makeFirstCall')}</Button>
               </Link>
             </div>
           )}

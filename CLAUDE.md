@@ -62,12 +62,21 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - i18n base (dicionários pt-BR + en, hook useTranslation, seletor em Settings)
 - Testes E2E Playwright (landing, auth, dashboard, calls, mobile)
 
-### Pendente / Próximos passos:
+### Sessao 2 (14/03/2026):
 
-- Migrar textos hardcoded para usar hook `useTranslation()` (i18n efetivo)
-- GitHub Actions CI/CD (build + lint + Playwright)
-- Sentry no frontend (error tracking)
-- Testes unitários (Vitest) para lógica de domínio
+- i18n efetivo: 5 paginas + layout migradas para `useTranslation()`, dicionarios expandidos (~150 chaves)
+- GitHub Actions CI/CD: `.github/workflows/ci.yml` (frontend + backend jobs)
+- Sentry: configs client/server/edge, `global-error.tsx`, `instrumentation.ts`, next.config wrapper
+- Testes unitarios: `calls.service.spec.ts` corrigido e expandido (~20 test cases)
+
+### Pendente / Proximos passos:
+
+- Rodar `npm install @sentry/nextjs` localmente
+- Configurar `NEXT_PUBLIC_SENTRY_DSN` no Vercel e `SENTRY_ORG`/`SENTRY_PROJECT`
+- Configurar secrets no GitHub para CI
+- Confirmar E2E tests passam 100%
+- Cobertura de testes > 80% (adicionar testes para whatsapp, ai, users)
+- Landing page i18n (app/page.tsx ainda hardcoded)
 
 ---
 

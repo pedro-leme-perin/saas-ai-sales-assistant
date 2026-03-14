@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { NotFoundException } from '@nestjs/common';
 import { CallsService } from '../../src/modules/calls/calls.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
+import { AiService } from '../../src/modules/ai/ai.service';
 
 describe('CallsService', () => {
   let service: CallsService;
-  let prismaService: PrismaService;
 
   const mockCall = {
     id: 'call-123',
@@ -16,6 +16,9 @@ describe('CallsService', () => {
     direction: 'OUTBOUND',
     status: 'COMPLETED',
     duration: 120,
+    transcript: null,
+    twilioCallSid: null,
+    recordingUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -27,29 +30,33 @@ describe('CallsService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    aISuggestion: {
+      deleteMany: jest.fn(),
+      create: jest.fn(),
+    },
+    company: {
+      findFirst: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+    },
+  };
+
+  const mockAiService = {
+    generateSuggestion: jest.fn(),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CallsService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn(() => null),
-          },
-        },
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ConfigService, useValue: { get: jest.fn(() => null) } },
+        { provide: AiService, useValue: mockAiService },
       ],
     }).compile();
 
     service = module.get<CallsService>(CallsService);
-    prismaService = module.get<PrismaService>(PrismaService);
-
-    // Reset mocks
     jest.clearAllMocks();
   });
 
@@ -57,14 +64,16 @@ describe('CallsService', () => {
     expect(service).toBeDefined();
   });
 
+  // ──────────────────────────────────────────────
+  // findAll
+  // ──────────────────────────────────────────────
   describe('findAll', () => {
-    it('should return array of calls for company', async () => {
-      const calls = [mockCall];
-      mockPrismaService.call.findMany.mockResolvedValue(calls);
+    it('should return calls for company', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([mockCall]);
 
       const result = await service.findAll('company-123');
 
-      expect(result).toEqual(calls);
+      expect(result).toEqual([mockCall]);
       expect(mockPrismaService.call.findMany).toHaveBeenCalledWith({
         where: { companyId: 'company-123' },
         orderBy: { createdAt: 'desc' },
@@ -72,105 +81,115 @@ describe('CallsService', () => {
       });
     });
 
-    it('should return empty array when no calls exist', async () => {
+    it('should return empty array when no calls', async () => {
       mockPrismaService.call.findMany.mockResolvedValue([]);
-
       const result = await service.findAll('company-123');
-
       expect(result).toEqual([]);
     });
   });
 
+  // ──────────────────────────────────────────────
+  // findOne
+  // ──────────────────────────────────────────────
   describe('findOne', () => {
-    it('should return a call by id and companyId', async () => {
+    it('should return call by id and companyId', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(mockCall);
 
       const result = await service.findOne('call-123', 'company-123');
 
       expect(result).toEqual(mockCall);
-      expect(mockPrismaService.call.findFirst).toHaveBeenCalledWith({
-        where: { id: 'call-123', companyId: 'company-123' },
-      });
+      expect(mockPrismaService.call.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'call-123', companyId: 'company-123' },
+        }),
+      );
     });
 
-    it('should throw NotFoundException when call not found', async () => {
+    it('should throw NotFoundException when not found', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.findOne('invalid-id', 'company-123'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('invalid', 'company-123')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
+  // ──────────────────────────────────────────────
+  // create
+  // ──────────────────────────────────────────────
   describe('create', () => {
-    it('should create a new call', async () => {
-      const createData = {
-        userId: 'user-123',
-        phoneNumber: '+5511999999999',
-        direction: 'OUTBOUND',
-        status: 'INITIATED',
-        duration: 0,
-      };
+    it('should create a call with correct data', async () => {
+      const input = { phoneNumber: '+5511999999999', direction: 'OUTBOUND' };
+      mockPrismaService.call.create.mockResolvedValue({ ...mockCall, status: 'INITIATED' });
 
-      mockPrismaService.call.create.mockResolvedValue({
-        ...mockCall,
-        ...createData,
-      });
-
-      const result = await service.create('company-123', 'user-123', createData);
+      const result = await service.create('company-123', 'user-123', input);
 
       expect(result).toBeDefined();
       expect(mockPrismaService.call.create).toHaveBeenCalledWith({
-        data: {
-          ...createData,
-          companyId: 'company-123',
-        },
+        data: expect.objectContaining({
+          phoneNumber: '+5511999999999',
+          direction: 'OUTBOUND',
+          status: 'INITIATED',
+          duration: 0,
+        }),
+      });
+    });
+
+    it('should default direction to OUTBOUND', async () => {
+      mockPrismaService.call.create.mockResolvedValue(mockCall);
+
+      await service.create('company-123', 'user-123', { phoneNumber: '+55119' });
+
+      expect(mockPrismaService.call.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          direction: 'OUTBOUND',
+        }),
       });
     });
   });
 
+  // ──────────────────────────────────────────────
+  // update
+  // ──────────────────────────────────────────────
   describe('update', () => {
     it('should update an existing call', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(mockCall);
-      mockPrismaService.call.update.mockResolvedValue({
-        ...mockCall,
-        duration: 200,
-      });
+      mockPrismaService.call.update.mockResolvedValue({ ...mockCall, duration: 200 });
 
-      const result = await service.update('call-123', 'company-123', {
-        duration: 200,
-      });
+      const result = await service.update('call-123', 'company-123', { duration: 200 });
 
       expect(result.duration).toBe(200);
     });
 
-    it('should throw NotFoundException when updating non-existent call', async () => {
+    it('should throw when call not found', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.update('invalid-id', 'company-123', { duration: 200 }),
+        service.update('invalid', 'company-123', { duration: 200 }),
       ).rejects.toThrow(NotFoundException);
     });
   });
 
+  // ──────────────────────────────────────────────
+  // getCallStats
+  // ──────────────────────────────────────────────
   describe('getCallStats', () => {
-    it('should return correct statistics', async () => {
-      const calls = [
+    it('should compute correct stats', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([
         { ...mockCall, status: 'COMPLETED', duration: 100 },
-        { ...mockCall, id: 'call-2', status: 'COMPLETED', duration: 200 },
-        { ...mockCall, id: 'call-3', status: 'FAILED', duration: 0 },
-      ];
-      mockPrismaService.call.findMany.mockResolvedValue(calls);
+        { ...mockCall, id: 'c2', status: 'COMPLETED', duration: 200 },
+        { ...mockCall, id: 'c3', status: 'FAILED', duration: 0 },
+      ]);
 
       const result = await service.getCallStats('company-123');
 
       expect(result.total).toBe(3);
       expect(result.completed).toBe(2);
-      expect(result.avgDuration).toBe(100); // (100+200+0)/3 = 100
-      expect(result.successRate).toBe(67); // 2/3 = 66.67% ~ 67%
+      expect(result.avgDuration).toBe(100);
+      expect(result.successRate).toBe(67);
     });
 
-    it('should handle empty calls', async () => {
+    it('should handle zero calls', async () => {
       mockPrismaService.call.findMany.mockResolvedValue([]);
 
       const result = await service.getCallStats('company-123');
@@ -179,6 +198,116 @@ describe('CallsService', () => {
       expect(result.completed).toBe(0);
       expect(result.avgDuration).toBe(0);
       expect(result.successRate).toBe(0);
+    });
+
+    it('should handle single completed call', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([
+        { ...mockCall, status: 'COMPLETED', duration: 300 },
+      ]);
+
+      const result = await service.getCallStats('company-123');
+
+      expect(result.total).toBe(1);
+      expect(result.completed).toBe(1);
+      expect(result.avgDuration).toBe(300);
+      expect(result.successRate).toBe(100);
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // handleStatusWebhook
+  // ──────────────────────────────────────────────
+  describe('handleStatusWebhook', () => {
+    it('should map twilio status to internal status', async () => {
+      mockPrismaService.call.update.mockResolvedValue(mockCall);
+
+      await service.handleStatusWebhook('call-123', 'completed', 120);
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'call-123' },
+        data: expect.objectContaining({
+          status: 'COMPLETED',
+          duration: 120,
+        }),
+      });
+    });
+
+    it('should handle in-progress status', async () => {
+      mockPrismaService.call.update.mockResolvedValue(mockCall);
+
+      await service.handleStatusWebhook('call-123', 'in-progress');
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'call-123' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    });
+
+    it('should default to INITIATED for unknown status', async () => {
+      mockPrismaService.call.update.mockResolvedValue(mockCall);
+
+      await service.handleStatusWebhook('call-123', 'unknown-status');
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'call-123' },
+        data: { status: 'INITIATED' },
+      });
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // analyzeCall
+  // ──────────────────────────────────────────────
+  describe('analyzeCall', () => {
+    it('should throw when call has no transcript', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue({ ...mockCall, transcript: null });
+
+      await expect(
+        service.analyzeCall('call-123', 'company-123', 'user-123'),
+      ).rejects.toThrow('Call has no transcript to analyze');
+    });
+
+    it('should generate suggestions from transcript chunks', async () => {
+      const longTranscript = Array(10)
+        .fill('This is a sentence that is long enough to pass the filter.')
+        .join(' ');
+
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        transcript: longTranscript,
+        aiSuggestions: [],
+      });
+      mockPrismaService.aISuggestion.deleteMany.mockResolvedValue({ count: 0 });
+      mockAiService.generateSuggestion.mockResolvedValue({
+        text: 'AI suggestion text',
+        confidence: 0.85,
+        provider: 'openai',
+        latencyMs: 200,
+      });
+      mockPrismaService.aISuggestion.create.mockResolvedValue({ id: 'sug-1' });
+
+      await service.analyzeCall('call-123', 'company-123', 'user-123');
+
+      expect(mockPrismaService.aISuggestion.deleteMany).toHaveBeenCalledWith({
+        where: { callId: 'call-123' },
+      });
+      expect(mockAiService.generateSuggestion).toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // endCall
+  // ──────────────────────────────────────────────
+  describe('endCall', () => {
+    it('should throw when Twilio not configured', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA123',
+      });
+
+      await expect(
+        service.endCall('call-123', 'company-123'),
+      ).rejects.toThrow('Cannot end call - Twilio not configured or no SID');
     });
   });
 });

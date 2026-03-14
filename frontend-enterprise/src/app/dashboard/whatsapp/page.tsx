@@ -15,13 +15,14 @@ import { useActiveChatStore, useAISuggestionsStore, useUserStore } from '@/store
 import { wsClient } from '@/lib/websocket';
 import { toast } from 'sonner';
 import type { WhatsAppChat, WhatsAppMessage } from '@/types';
+import { useTranslation } from '@/i18n/use-translation';
 
-const SUGGESTION_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  objection: { label: 'Objeção', color: 'bg-amber-100 text-amber-700' },
-  closing:   { label: 'Fechamento', color: 'bg-green-100 text-green-700' },
-  question:  { label: 'Pergunta', color: 'bg-blue-100 text-blue-700' },
-  greeting:  { label: 'Saudação', color: 'bg-purple-100 text-purple-700' },
-  general:   { label: 'Geral', color: 'bg-slate-100 text-slate-700' },
+const SUGGESTION_TYPE_COLORS: Record<string, string> = {
+  objection: 'bg-amber-100 text-amber-700',
+  closing:   'bg-green-100 text-green-700',
+  question:  'bg-blue-100 text-blue-700',
+  greeting:  'bg-purple-100 text-purple-700',
+  general:   'bg-slate-100 text-slate-700',
 };
 
 function ChatListSkeleton() {
@@ -55,6 +56,7 @@ function MessagesSkeleton() {
 export default function WhatsAppPage() {
   const { isLoading: authLoading, user } = useUserStore();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [selectedChat, setSelectedChat] = useState<WhatsAppChat | null>(null);
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,7 +90,7 @@ export default function WhatsAppPage() {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-chats'] });
     },
     onError: (error: any) => {
-      toast.error('Erro ao enviar mensagem', { description: error.message });
+      toast.error(t('whatsapp.errorSendMessage'), { description: error.message });
     },
   });
 
@@ -101,7 +103,7 @@ export default function WhatsAppPage() {
     },
     onError: () => {
       setGenerating(false);
-      toast.error('Erro ao gerar sugestão');
+      toast.error(t('whatsapp.errorGenerateSuggestion'));
     },
   });
 
@@ -120,7 +122,6 @@ export default function WhatsAppPage() {
       const unsubTyping = wsClient.on('typing:start', (data: any) => {
         if (data.chatId === selectedChat.id) {
           setOtherUserTyping(true);
-          // Auto-clear typing after 5s
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setOtherUserTyping(false), 5000);
         }
@@ -161,14 +162,14 @@ export default function WhatsAppPage() {
       aiSuggestionUsed: true,
     });
     setCurrentSuggestion(null);
-    toast.success('Sugestão enviada!');
+    toast.success(t('whatsapp.suggestionSent'));
   };
 
   const handleCopySuggestion = () => {
     if (!currentSuggestion) return;
     navigator.clipboard.writeText(currentSuggestion.suggestion);
     setCopiedSuggestion(true);
-    toast.success('Sugestão copiada!');
+    toast.success(t('whatsapp.suggestionCopied'));
     setTimeout(() => setCopiedSuggestion(false), 2000);
   };
 
@@ -183,12 +184,12 @@ export default function WhatsAppPage() {
       {/* Chat List */}
       <Card className={cn('w-full md:w-80 flex-shrink-0 flex flex-col', selectedChat && 'hidden md:flex')}>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Conversas</CardTitle>
+          <CardTitle className="text-lg">{t('whatsapp.conversations')}</CardTitle>
           <div className="relative mt-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Buscar conversa..."
+              placeholder={t('whatsapp.searchChat')}
               className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg bg-background"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -224,7 +225,7 @@ export default function WhatsAppPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      {chat.lastMessagePreview || 'Sem mensagens'}
+                      {chat.lastMessagePreview || t('whatsapp.noMessagesPreview')}
                     </p>
                   </div>
                 </button>
@@ -233,7 +234,7 @@ export default function WhatsAppPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground/20 mb-4" />
-              <p className="text-sm text-muted-foreground">Nenhuma conversa encontrada</p>
+              <p className="text-sm text-muted-foreground">{t('whatsapp.noConversations')}</p>
             </div>
           )}
         </CardContent>
@@ -260,15 +261,15 @@ export default function WhatsAppPage() {
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
                     </span>
-                    Digitando
+                    {t('whatsapp.typing')}
                   </span>
                 ) : (
                   selectedChat.status
                 )}
               </p>
             </div>
-            <Button variant="ghost" size="icon" aria-label="Ligar"><Phone className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" aria-label="Mais opções"><MoreVertical className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" aria-label={t('whatsapp.callLabel')}><Phone className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" aria-label={t('whatsapp.moreOptions')}><MoreVertical className="h-5 w-5" /></Button>
           </div>
 
           {/* Messages */}
@@ -307,7 +308,7 @@ export default function WhatsAppPage() {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <MessageSquare className="h-12 w-12 text-muted-foreground/20 mb-4" />
-                <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda. Inicie a conversa!</p>
+                <p className="text-sm text-muted-foreground">{t('whatsapp.noMessages')}</p>
               </div>
             )}
           </div>
@@ -319,12 +320,12 @@ export default function WhatsAppPage() {
                 <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-medium text-primary">Sugestão da IA</p>
+                    <p className="text-sm font-medium text-primary">{t('ai.suggestion')}</p>
                     {currentSuggestion.type && (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                        SUGGESTION_TYPE_LABELS[currentSuggestion.type]?.color || 'bg-muted'
+                        SUGGESTION_TYPE_COLORS[currentSuggestion.type] || 'bg-muted'
                       }`}>
-                        {SUGGESTION_TYPE_LABELS[currentSuggestion.type]?.label || currentSuggestion.type}
+                        {t(`ai.tags.${currentSuggestion.type}`) || currentSuggestion.type}
                       </span>
                     )}
                   </div>
@@ -334,8 +335,8 @@ export default function WhatsAppPage() {
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleCopySuggestion}>
                     {copiedSuggestion ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                   </Button>
-                  <Button size="sm" onClick={handleUseSuggestion}>Enviar</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setCurrentSuggestion(null)}>✕</Button>
+                  <Button size="sm" onClick={handleUseSuggestion}>{t('ai.send')}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setCurrentSuggestion(null)}>&#x2715;</Button>
                 </div>
               </div>
             </div>
@@ -344,11 +345,11 @@ export default function WhatsAppPage() {
           {/* Input */}
           <div className="p-4 border-t">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" aria-label="Emojis" className="shrink-0"><Smile className="h-5 w-5" /></Button>
-              <Button variant="ghost" size="icon" aria-label="Anexar arquivo" className="shrink-0"><Paperclip className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" aria-label={t('whatsapp.emojisLabel')} className="shrink-0"><Smile className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" aria-label={t('whatsapp.attachFile')} className="shrink-0"><Paperclip className="h-5 w-5" /></Button>
               <input
                 type="text"
-                placeholder="Digite uma mensagem..."
+                placeholder={t('whatsapp.typeMessage')}
                 className="flex-1 px-4 py-2 border rounded-full bg-background text-sm"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -357,7 +358,7 @@ export default function WhatsAppPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label="Pedir sugestão da IA"
+                aria-label={t('whatsapp.askAI')}
                 className="shrink-0"
                 onClick={handleGetSuggestion}
                 disabled={getSuggestionMutation.isPending}
@@ -366,7 +367,7 @@ export default function WhatsAppPage() {
               </Button>
               <Button
                 size="icon"
-                aria-label="Enviar mensagem"
+                aria-label={t('whatsapp.sendMessage')}
                 className="shrink-0"
                 onClick={handleSend}
                 disabled={!message.trim() || sendMessageMutation.isPending}
@@ -380,8 +381,8 @@ export default function WhatsAppPage() {
         <Card className="hidden md:flex flex-1 items-center justify-center">
           <div className="text-center">
             <MessageSquare className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Selecione uma conversa</h3>
-            <p className="text-sm text-muted-foreground">Escolha um chat da lista para começar</p>
+            <h3 className="text-lg font-medium mb-2">{t('whatsapp.selectChat')}</h3>
+            <p className="text-sm text-muted-foreground">{t('whatsapp.selectChatHint')}</p>
           </div>
         </Card>
       )}

@@ -15,15 +15,16 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/index';
 import { PageTransition } from '@/components/ui/page-transition';
 import { useNotificationsStore, useUIStore } from '@/stores';
+import { useTranslation } from '@/i18n/use-translation';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Ligações', href: '/dashboard/calls', icon: Phone },
-  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageSquare },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Equipe', href: '/dashboard/team', icon: Users },
-  { name: 'Faturamento', href: '/dashboard/billing', icon: CreditCard },
-  { name: 'Configurações', href: '/dashboard/settings', icon: Settings },
+const navigationKeys = [
+  { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { key: 'nav.calls', href: '/dashboard/calls', icon: Phone },
+  { key: 'nav.whatsapp', href: '/dashboard/whatsapp', icon: MessageSquare },
+  { key: 'nav.analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { key: 'nav.team', href: '/dashboard/team', icon: Users },
+  { key: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
+  { key: 'nav.settings', href: '/dashboard/settings', icon: Settings },
 ];
 
 export default function DashboardLayout({
@@ -38,6 +39,7 @@ export default function DashboardLayout({
   const { user } = useUser();
   const { unreadCount, notifications, markAsRead, markAllAsRead } = useNotificationsStore();
   const { theme, setTheme } = useUIStore();
+  const { t } = useTranslation();
 
   const recentNotifications = notifications.slice(0, 5);
 
@@ -54,7 +56,7 @@ export default function DashboardLayout({
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-medium"
       >
-        Ir para o conteúdo principal
+        {t('accessibility.skipToContent')}
       </a>
 
       {/* Mobile sidebar backdrop */}
@@ -67,7 +69,7 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <aside
-        aria-label="Menu lateral"
+        aria-label={t('accessibility.sidebar')}
         role="navigation"
         className={cn(
           'fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300',
@@ -88,7 +90,7 @@ export default function DashboardLayout({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            aria-label={collapsed ? t('accessibility.expandMenu') : t('accessibility.collapseMenu')}
             className="hidden lg:flex text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8"
             onClick={() => setCollapsed(!collapsed)}
           >
@@ -97,7 +99,7 @@ export default function DashboardLayout({
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Fechar menu"
+            aria-label={t('accessibility.closeMenu')}
             className="lg:hidden text-sidebar-foreground h-8 w-8"
             onClick={() => setSidebarOpen(false)}
           >
@@ -108,12 +110,13 @@ export default function DashboardLayout({
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-2 scrollbar-thin">
           <ul className="space-y-1">
-            {navigation.map((item) => {
+            {navigationKeys.map((item) => {
+              const name = t(item.key);
               const isActive = item.href === '/dashboard'
                 ? pathname === '/dashboard'
                 : pathname.startsWith(item.href);
               return (
-                <li key={item.name}>
+                <li key={item.key}>
                   <Link
                     href={item.href}
                     onClick={() => setSidebarOpen(false)}
@@ -123,11 +126,11 @@ export default function DashboardLayout({
                         ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     )}
-                    aria-label={collapsed ? item.name : undefined}
-                    title={collapsed ? item.name : undefined}
+                    aria-label={collapsed ? name : undefined}
+                    title={collapsed ? name : undefined}
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {!collapsed && <span>{item.name}</span>}
+                    {!collapsed && <span>{name}</span>}
                   </Link>
                 </li>
               );
@@ -165,7 +168,7 @@ export default function DashboardLayout({
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Abrir menu"
+            aria-label={t('accessibility.openMenu')}
             className="lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
@@ -175,14 +178,18 @@ export default function DashboardLayout({
           {/* Breadcrumb / Page title */}
           <div className="flex-1">
             <p className="text-sm text-muted-foreground hidden sm:block">
-              {navigation.find((n) =>
+              {navigationKeys.find((n) =>
                 n.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(n.href)
-              )?.name || 'Dashboard'}
+              )
+                ? t(navigationKeys.find((n) =>
+                    n.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(n.href)
+                  )!.key)
+                : t('nav.dashboard')}
             </p>
           </div>
 
           {/* Theme Toggle */}
-          <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'} className="h-9 w-9">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label={theme === 'dark' ? t('theme.light') : t('theme.dark')} className="h-9 w-9">
             {theme === 'dark' ? (
               <Sun className="h-4 w-4" />
             ) : (
@@ -195,7 +202,7 @@ export default function DashboardLayout({
             <Button
               variant="ghost"
               size="icon"
-              aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ''}`}
+              aria-label={unreadCount > 0 ? t('accessibility.notificationsCount', { count: unreadCount }) : t('notifications.title')}
               aria-expanded={showNotifications}
               className="relative h-9 w-9"
               onClick={() => setShowNotifications(!showNotifications)}
@@ -214,13 +221,13 @@ export default function DashboardLayout({
                 <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
                 <div className="absolute right-0 top-full mt-2 z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-80 rounded-xl border bg-popover shadow-lg animate-slide-in-bottom">
                   <div className="flex items-center justify-between p-4 pb-2">
-                    <h3 className="font-semibold text-sm">Notificações</h3>
+                    <h3 className="font-semibold text-sm">{t('notifications.title')}</h3>
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
                         className="text-xs text-primary hover:underline"
                       >
-                        Marcar todas como lidas
+                        {t('notifications.markAllRead')}
                       </button>
                     )}
                   </div>
@@ -250,7 +257,7 @@ export default function DashboardLayout({
                   ) : (
                     <div className="p-6 text-center">
                       <Bell className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Nenhuma notificação</p>
+                      <p className="text-sm text-muted-foreground">{t('notifications.noNotifications')}</p>
                     </div>
                   )}
                 </div>

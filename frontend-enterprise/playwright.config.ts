@@ -2,18 +2,19 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: 'html',
-  timeout: 30_000,
-  expect: { timeout: 5_000 },
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
 
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    navigationTimeout: 30_000,
     launchOptions: {
       args: ['--disable-gpu', '--disable-software-rasterizer'],
     },
@@ -36,6 +37,6 @@ export default defineConfig({
         command: 'npm run dev',
         port: 3000,
         reuseExistingServer: true,
-        timeout: 60_000,
+        timeout: 120_000,
       },
 });

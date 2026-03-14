@@ -1,0 +1,91 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "SalesAI" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: SalesAI
+        - generic [ref=e10]:
+          - button "Entrar" [ref=e11] [cursor=pointer]
+          - link "Começar grátis" [ref=e12] [cursor=pointer]:
+            - /url: /sign-up
+            - button "Começar grátis" [ref=e13]
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - img [ref=e17]
+        - text: Assistente de vendas potencializado por IA
+      - heading "Feche mais vendas com inteligência artificial" [level=1] [ref=e19]
+      - paragraph [ref=e20]: Sugestões em tempo real durante ligações e WhatsApp. Sua equipe vende mais com menos esforço.
+      - generic [ref=e21]:
+        - link "Começar grátis" [ref=e22] [cursor=pointer]:
+          - /url: /sign-up
+          - button "Começar grátis" [ref=e23]:
+            - text: Começar grátis
+            - img [ref=e24]
+        - button "Já tenho conta" [ref=e26] [cursor=pointer]
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - paragraph [ref=e31]: 3x
+        - paragraph [ref=e32]: mais produtividade
+      - generic [ref=e33]:
+        - paragraph [ref=e34]: 40%
+        - paragraph [ref=e35]: mais conversões
+      - generic [ref=e36]:
+        - paragraph [ref=e37]: <2s
+        - paragraph [ref=e38]: tempo de resposta IA
+      - generic [ref=e39]:
+        - paragraph [ref=e40]: 99.9%
+        - paragraph [ref=e41]: uptime garantido
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - heading "Tudo que sua equipe precisa" [level=2] [ref=e45]
+        - paragraph [ref=e46]: Ferramentas inteligentes para potencializar cada interação de vendas.
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - img [ref=e50]
+          - heading "Ligações com IA" [level=3] [ref=e52]
+          - paragraph [ref=e53]: Transcrição em tempo real e sugestões inteligentes durante suas chamadas de vendas.
+        - generic [ref=e54]:
+          - img [ref=e56]
+          - heading "WhatsApp Business" [level=3] [ref=e58]
+          - paragraph [ref=e59]: Análise de conversas e respostas sugeridas para fechar mais negócios.
+        - generic [ref=e60]:
+          - img [ref=e62]
+          - heading "IA Generativa" [level=3] [ref=e64]
+          - paragraph [ref=e65]: Sugestões contextuais baseadas no histórico da conversa e perfil do cliente.
+        - generic [ref=e66]:
+          - img [ref=e68]
+          - heading "Analytics Avançado" [level=3] [ref=e70]
+          - paragraph [ref=e71]: Métricas de performance, taxa de conversão e insights da equipe.
+    - generic [ref=e73]:
+      - img [ref=e74]
+      - heading "Enterprise-grade desde o primeiro dia" [level=2] [ref=e76]
+      - generic [ref=e77]:
+        - generic [ref=e78]:
+          - img [ref=e79]
+          - generic [ref=e82]: Criptografia end-to-end
+        - generic [ref=e83]:
+          - img [ref=e84]
+          - generic [ref=e87]: LGPD compliant
+        - generic [ref=e88]:
+          - img [ref=e89]
+          - generic [ref=e92]: SOC 2 Type II
+    - generic [ref=e94]:
+      - heading "Pronto para vender mais?" [level=2] [ref=e95]
+      - paragraph [ref=e96]: Comece gratuitamente. Sem cartão de crédito.
+      - link "Criar conta grátis" [ref=e97] [cursor=pointer]:
+        - /url: /sign-up
+        - button "Criar conta grátis" [ref=e98]:
+          - text: Criar conta grátis
+          - img [ref=e99]
+    - generic [ref=e102]:
+      - generic [ref=e103]:
+        - img [ref=e105]
+        - generic [ref=e107]: SalesAI
+      - paragraph [ref=e108]: © 2026 SalesAI. Todos os direitos reservados.
+  - region "Notifications alt+T"
+```

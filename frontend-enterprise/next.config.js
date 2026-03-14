@@ -1,3 +1,5 @@
+// @ts-check
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -12,6 +14,7 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
   experimental: {
+    instrumentationHook: true,
     optimizePackageImports: [
       'lucide-react',
       'recharts',
@@ -53,4 +56,22 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Wrap with Sentry only if @sentry/nextjs is installed
+let config = nextConfig;
+try {
+  const { withSentryConfig } = require('@sentry/nextjs');
+  config = withSentryConfig(nextConfig, {
+    // Sentry webpack plugin options
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    silent: !process.env.CI,
+    widenClientFileUpload: true,
+    hideSourceMaps: true,
+    disableLogger: true,
+    tunnelRoute: '/monitoring',
+  });
+} catch {
+  // @sentry/nextjs not installed — skip wrapping
+}
+
+module.exports = config;

@@ -17,21 +17,21 @@ import { CallStatus, CallDirection, type Call } from '@/types';
 import { useActiveCallStore, useAISuggestionsStore, useUserStore } from '@/stores';
 import { wsClient } from '@/lib/websocket';
 import { toast } from 'sonner';
+import { useTranslation } from '@/i18n/use-translation';
 
-// Tradução das tags de sugestão IA
-const SUGGESTION_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  objection: { label: 'Objeção', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  closing: { label: 'Fechamento', color: 'bg-green-100 text-green-700 border-green-200' },
-  question: { label: 'Pergunta', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  greeting: { label: 'Saudação', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  general: { label: 'Geral', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+const SUGGESTION_TYPE_COLORS: Record<string, string> = {
+  objection: 'bg-amber-100 text-amber-700 border-amber-200',
+  closing: 'bg-green-100 text-green-700 border-green-200',
+  question: 'bg-blue-100 text-blue-700 border-blue-200',
+  greeting: 'bg-purple-100 text-purple-700 border-purple-200',
+  general: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
-function getSuggestionTypeInfo(type: string) {
-  return SUGGESTION_TYPE_LABELS[type] || SUGGESTION_TYPE_LABELS.general;
+function getSuggestionColor(type: string) {
+  return SUGGESTION_TYPE_COLORS[type] || SUGGESTION_TYPE_COLORS.general;
 }
 
-// Barra de confiança visual
+// Barra de confianca visual
 function ConfidenceBar({ value }: { value: number }) {
   const percentage = Math.round(value * 100);
   const color =
@@ -54,6 +54,7 @@ function ConfidenceBar({ value }: { value: number }) {
 
 export default function CallsPage() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [directionFilter, setDirectionFilter] = useState<string>('all');
@@ -71,16 +72,13 @@ export default function CallsPage() {
   const { isLoading: authLoading, user } = useUserStore();
   const { currentSuggestion, isGenerating } = useAISuggestionsStore();
 
-  // =============================================
-  // TIMER — incrementa a cada segundo durante ligação ativa
-  // =============================================
+  // Timer
   useEffect(() => {
     if (isInCall) {
       timerRef.current = setInterval(() => {
         setDuration(useActiveCallStore.getState().callDuration + 1);
       }, 1000);
     }
-
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -108,9 +106,7 @@ export default function CallsPage() {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [showNewCallModal, selectedCall]);
 
-  // =============================================
-  // QUERIES
-  // =============================================
+  // Queries
   const { data: callDetailRaw } = useQuery({
     queryKey: ['call-detail', selectedCall?.id],
     queryFn: () => callsService.getById(selectedCall!.id),
@@ -135,9 +131,7 @@ export default function CallsPage() {
     queryFn: () => callsService.getStats(),
   });
 
-  // =============================================
-  // MUTATIONS
-  // =============================================
+  // Mutations
   const startCallMutation = useMutation({
     mutationFn: (phoneNumber: string) =>
       callsService.create({ phoneNumber, direction: 'OUTBOUND' }),
@@ -147,13 +141,13 @@ export default function CallsPage() {
       queryClient.invalidateQueries({ queryKey: ['calls'] });
       setShowNewCallModal(false);
       setNewCallPhone('');
-      toast.success('Ligação iniciada', {
-        description: `Discando para ${formatPhone(call.phoneNumber)}...`,
+      toast.success(t('calls.callStarted'), {
+        description: t('calls.dialingTo', { phone: formatPhone(call.phoneNumber) }),
       });
     },
     onError: (error: any) => {
-      toast.error('Erro ao iniciar ligação', {
-        description: error.message || 'Tente novamente.',
+      toast.error(t('calls.errorStartCall'), {
+        description: error.message || t('calls.tryAgain'),
       });
     },
   });
@@ -165,8 +159,8 @@ export default function CallsPage() {
       const duration = callDuration;
       endCall();
       queryClient.invalidateQueries({ queryKey: ['calls'] });
-      toast.info('Ligação encerrada', {
-        description: `Duração: ${formatDuration(duration)}`,
+      toast.info(t('calls.callEnded'), {
+        description: t('calls.duration', { duration: formatDuration(duration) }),
       });
     },
   });
@@ -175,13 +169,11 @@ export default function CallsPage() {
     mutationFn: (callId: string) => callsService.analyzeCall(callId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['call-detail', selectedCall?.id] });
-      toast.success('Análise concluída!');
+      toast.success(t('calls.analysisComplete'));
     },
   });
 
-  // =============================================
-  // HANDLERS
-  // =============================================
+  // Handlers
   const handleStartCall = () => {
     if (!newCallPhone.trim()) return;
     startCallMutation.mutate(newCallPhone.trim());
@@ -195,9 +187,9 @@ export default function CallsPage() {
     if (!currentSuggestion?.suggestion) return;
     navigator.clipboard.writeText(currentSuggestion.suggestion);
     setCopiedSuggestion(true);
-    toast.success('Sugestão copiada!');
+    toast.success(t('calls.suggestionCopied'));
     setTimeout(() => setCopiedSuggestion(false), 2000);
-  }, [currentSuggestion]);
+  }, [currentSuggestion, t]);
 
   const getCallIcon = (call: Call) => {
     if (call.status === 'MISSED') return PhoneMissed;
@@ -211,25 +203,28 @@ export default function CallsPage() {
       : 'text-green-500 bg-green-50';
   };
 
+  const getStatusLabel = (status: string) => {
+    if (status === 'COMPLETED') return t('calls.statusCompleted');
+    if (status === 'MISSED') return t('calls.statusMissed');
+    if (status === 'IN_PROGRESS') return t('calls.statusInProgress');
+    return status;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ligações</h1>
-          <p className="text-muted-foreground">
-            Gerencie suas chamadas e receba sugestões de IA em tempo real.
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('calls.title')}</h1>
+          <p className="text-muted-foreground">{t('calls.subtitle')}</p>
         </div>
         <Button onClick={() => setShowNewCallModal(true)} disabled={isInCall}>
           <Plus className="mr-2 h-4 w-4" />
-          Nova Ligação
+          {t('calls.newCall')}
         </Button>
       </div>
 
-      {/* =============================================
-          PAINEL DE LIGAÇÃO ATIVA
-          ============================================= */}
+      {/* Active Call Panel */}
       {isInCall && (
         <Card className="border-primary/50 bg-gradient-to-r from-primary/5 to-primary/10 shadow-lg">
           <CardContent className="p-6">
@@ -247,7 +242,7 @@ export default function CallsPage() {
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Ligação em Andamento</h3>
+                    <h3 className="text-lg font-semibold">{t('calls.callInProgress')}</h3>
                     <div className="flex items-center gap-2 text-sm">
                       <Timer className="h-4 w-4 text-primary" />
                       <span className="font-mono text-lg font-bold text-primary tabular-nums">
@@ -260,7 +255,7 @@ export default function CallsPage() {
                 {/* Transcript */}
                 <div className="bg-background/80 backdrop-blur rounded-lg p-4 max-h-48 overflow-y-auto mb-4 border">
                   <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
-                    Transcrição ao vivo
+                    {t('calls.liveTranscript')}
                   </p>
                   {transcript.length > 0 ? (
                     <div className="space-y-2">
@@ -271,7 +266,7 @@ export default function CallsPage() {
                               entry.speaker === 'customer' ? 'text-blue-600' : 'text-green-600'
                             }`}
                           >
-                            {entry.speaker === 'customer' ? 'Cliente' : 'Você'}
+                            {entry.speaker === 'customer' ? t('common.customer') : t('common.you')}
                           </span>
                           <p className="text-sm leading-relaxed">{entry.text}</p>
                         </div>
@@ -284,20 +279,20 @@ export default function CallsPage() {
                         <div className="h-2 w-2 rounded-full bg-primary/40 animate-bounce [animation-delay:-0.15s]" />
                         <div className="h-2 w-2 rounded-full bg-primary/40 animate-bounce" />
                       </div>
-                      Aguardando transcrição...
+                      {t('calls.waitingTranscript')}
                     </div>
                   )}
                 </div>
 
                 {/* Controls */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" aria-label="Silenciar microfone" className="gap-2">
+                  <Button variant="outline" size="sm" aria-label={t('calls.muteLabel')} className="gap-2">
                     <Mic className="h-4 w-4" />
-                    <span className="hidden sm:inline">Mudo</span>
+                    <span className="hidden sm:inline">{t('calls.mute')}</span>
                   </Button>
-                  <Button variant="destructive" onClick={handleEndCall} aria-label="Encerrar ligação" className="gap-2">
+                  <Button variant="destructive" onClick={handleEndCall} aria-label={t('calls.endCallLabel')} className="gap-2">
                     <Phone className="h-4 w-4 rotate-[135deg]" />
-                    Encerrar
+                    {t('calls.endCall')}
                   </Button>
                 </div>
               </div>
@@ -306,29 +301,27 @@ export default function CallsPage() {
               <div className="lg:w-80 bg-background/80 backdrop-blur rounded-lg p-4 border">
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="h-5 w-5 text-primary" />
-                  <h4 className="font-semibold">Sugestão da IA</h4>
+                  <h4 className="font-semibold">{t('ai.suggestion')}</h4>
                 </div>
 
                 {isGenerating ? (
                   <div className="flex items-center gap-3 text-sm text-muted-foreground py-4">
                     <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
-                    Analisando conversa...
+                    {t('ai.generating')}
                   </div>
                 ) : currentSuggestion ? (
                   <div className="space-y-3">
                     <p className="text-sm leading-relaxed">{currentSuggestion.suggestion}</p>
 
-                    {/* Tag traduzida */}
+                    {/* Tag */}
                     <div className="flex items-center justify-between">
-                      <span className={`text-xs px-2 py-0.5 rounded-full border ${getSuggestionTypeInfo(currentSuggestion.type).color}`}>
-                        {getSuggestionTypeInfo(currentSuggestion.type).label}
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${getSuggestionColor(currentSuggestion.type)}`}>
+                        {t(`ai.tags.${currentSuggestion.type}`) || currentSuggestion.type}
                       </span>
                     </div>
 
-                    {/* Barra de confiança */}
                     <ConfidenceBar value={currentSuggestion.confidence} />
 
-                    {/* Botão copiar */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -336,18 +329,16 @@ export default function CallsPage() {
                       onClick={handleCopySuggestion}
                     >
                       {copiedSuggestion ? (
-                        <><Check className="h-3.5 w-3.5 text-green-500" /> Copiada!</>
+                        <><Check className="h-3.5 w-3.5 text-green-500" /> {t('ai.copied')}</>
                       ) : (
-                        <><Copy className="h-3.5 w-3.5" /> Copiar sugestão</>
+                        <><Copy className="h-3.5 w-3.5" /> {t('ai.copySuggestion')}</>
                       )}
                     </Button>
                   </div>
                 ) : (
                   <div className="py-4 text-center">
                     <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Continue a conversa para receber sugestões.
-                    </p>
+                    <p className="text-sm text-muted-foreground">{t('ai.continueForSuggestions')}</p>
                   </div>
                 )}
               </div>
@@ -362,7 +353,7 @@ export default function CallsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="text-sm text-muted-foreground">{t('calls.total')}</p>
                 <p className="text-2xl font-bold">{stats?.total || 0}</p>
               </div>
               <Phone className="h-8 w-8 text-muted-foreground/30" />
@@ -373,7 +364,7 @@ export default function CallsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Concluídas</p>
+                <p className="text-sm text-muted-foreground">{t('calls.completed')}</p>
                 <p className="text-2xl font-bold text-green-600">{stats?.byStatus?.COMPLETED || 0}</p>
               </div>
               <PhoneOutgoing className="h-8 w-8 text-green-500/30" />
@@ -384,7 +375,7 @@ export default function CallsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Perdidas</p>
+                <p className="text-sm text-muted-foreground">{t('calls.missed')}</p>
                 <p className="text-2xl font-bold text-red-600">{stats?.byStatus?.MISSED || 0}</p>
               </div>
               <PhoneMissed className="h-8 w-8 text-red-500/30" />
@@ -395,7 +386,7 @@ export default function CallsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Duração Média</p>
+                <p className="text-sm text-muted-foreground">{t('calls.avgDuration')}</p>
                 <p className="text-2xl font-bold">{formatDuration(stats?.avgDuration || 0)}</p>
               </div>
               <Clock className="h-8 w-8 text-muted-foreground/30" />
@@ -410,7 +401,7 @@ export default function CallsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Buscar por nome ou telefone..."
+            placeholder={t('calls.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -421,27 +412,27 @@ export default function CallsPage() {
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
-          <option value="all">Todos os status</option>
-          <option value="COMPLETED">Concluídas</option>
-          <option value="MISSED">Perdidas</option>
-          <option value="IN_PROGRESS">Em andamento</option>
+          <option value="all">{t('calls.allStatuses')}</option>
+          <option value="COMPLETED">{t('calls.completed')}</option>
+          <option value="MISSED">{t('calls.missed')}</option>
+          <option value="IN_PROGRESS">{t('calls.inProgress')}</option>
         </select>
         <select
           className="px-4 py-2 border rounded-lg bg-background text-sm"
           value={directionFilter}
           onChange={(e) => setDirectionFilter(e.target.value)}
         >
-          <option value="all">Todas as direções</option>
-          <option value="INBOUND">Recebidas</option>
-          <option value="OUTBOUND">Realizadas</option>
+          <option value="all">{t('calls.allDirections')}</option>
+          <option value="INBOUND">{t('calls.inbound')}</option>
+          <option value="OUTBOUND">{t('calls.outbound')}</option>
         </select>
       </div>
 
       {/* Calls List */}
       <Card>
         <CardHeader>
-          <CardTitle>Histórico de Ligações</CardTitle>
-          <CardDescription>{callsData?.meta?.total || 0} ligações encontradas</CardDescription>
+          <CardTitle>{t('calls.callHistory')}</CardTitle>
+          <CardDescription>{callsData?.meta?.total || 0} {t('calls.callsFound')}</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -483,10 +474,7 @@ export default function CallsPage() {
                       <div className="text-right">
                         <p className="text-sm font-mono">{formatDuration(call.duration)}</p>
                         <p className={`text-xs ${getCallStatusColor(call.status)}`}>
-                          {call.status === 'COMPLETED' ? 'Concluída'
-                            : call.status === 'MISSED' ? 'Perdida'
-                            : call.status === 'IN_PROGRESS' ? 'Em andamento'
-                            : call.status}
+                          {getStatusLabel(call.status)}
                         </p>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -498,22 +486,18 @@ export default function CallsPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Phone className="h-16 w-16 text-muted-foreground/20 mb-4" />
-              <h3 className="text-lg font-medium mb-2">Nenhuma ligação encontrada</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Comece fazendo sua primeira ligação com assistência de IA.
-              </p>
+              <h3 className="text-lg font-medium mb-2">{t('calls.noCalls')}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{t('calls.noCallsHint')}</p>
               <Button onClick={() => setShowNewCallModal(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Nova Ligação
+                {t('calls.newCall')}
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* =============================================
-          MODAL: Nova Ligação
-          ============================================= */}
+      {/* Modal: Nova Ligacao */}
       {showNewCallModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -522,7 +506,7 @@ export default function CallsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Nova Ligação"
+            aria-label={t('calls.newCall')}
             className="bg-background rounded-xl shadow-2xl w-full max-w-md m-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -531,7 +515,7 @@ export default function CallsPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                   <Phone className="h-5 w-5 text-primary" />
                 </div>
-                <h2 className="text-lg font-semibold">Nova Ligação</h2>
+                <h2 className="text-lg font-semibold">{t('calls.newCall')}</h2>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setShowNewCallModal(false)}>
                 <X className="h-4 w-4" />
@@ -540,19 +524,17 @@ export default function CallsPage() {
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Número de telefone</label>
+                <label className="text-sm font-medium mb-1.5 block">{t('calls.phoneNumber')}</label>
                 <input
                   ref={phoneInputRef}
                   type="tel"
-                  placeholder="+55 (11) 99999-9999"
+                  placeholder={t('calls.phonePlaceholder')}
                   className="w-full px-4 py-3 border rounded-lg bg-background text-lg font-mono"
                   value={newCallPhone}
                   onChange={(e) => setNewCallPhone(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleStartCall()}
                 />
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  Digite com código do país (+55 para Brasil)
-                </p>
+                <p className="text-xs text-muted-foreground mt-1.5">{t('calls.phoneHint')}</p>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -561,7 +543,7 @@ export default function CallsPage() {
                   className="flex-1"
                   onClick={() => setShowNewCallModal(false)}
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   className="flex-1 gap-2"
@@ -571,12 +553,12 @@ export default function CallsPage() {
                   {startCallMutation.isPending ? (
                     <>
                       <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      Discando...
+                      {t('calls.dialing')}
                     </>
                   ) : (
                     <>
                       <Phone className="h-4 w-4" />
-                      Ligar
+                      {t('calls.dial')}
                     </>
                   )}
                 </Button>
@@ -586,9 +568,7 @@ export default function CallsPage() {
         </div>
       )}
 
-      {/* =============================================
-          MODAL: Detalhe da Ligação
-          ============================================= */}
+      {/* Modal: Detalhe da Ligacao */}
       {selectedCall && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -597,7 +577,7 @@ export default function CallsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Detalhes da ligação"
+            aria-label={t('calls.callDetails')}
             className="bg-background rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -623,14 +603,14 @@ export default function CallsPage() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-medium">Transcrição</h3>
+                  <h3 className="font-medium">{t('calls.transcript')}</h3>
                 </div>
                 {callDetail?.transcript ? (
                   <div className="bg-muted/50 rounded-lg p-4 text-sm leading-relaxed whitespace-pre-wrap border">
                     {callDetail.transcript}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Sem transcrição disponível.</p>
+                  <p className="text-sm text-muted-foreground italic">{t('calls.noTranscript')}</p>
                 )}
               </div>
 
@@ -638,7 +618,7 @@ export default function CallsPage() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <h3 className="font-medium">Sugestões IA</h3>
+                  <h3 className="font-medium">{t('calls.aiSuggestions')}</h3>
                 </div>
                 {callDetail?.aiSuggestions?.length > 0 ? (
                   <div className="space-y-2">
@@ -648,7 +628,7 @@ export default function CallsPage() {
                         <ConfidenceBar value={s.confidence || 0.8} />
                         {s.wasUsed && (
                           <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                            <Check className="h-3 w-3" /> Utilizada
+                            <Check className="h-3 w-3" /> {t('common.used')}
                           </span>
                         )}
                       </div>
@@ -656,7 +636,7 @@ export default function CallsPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3 py-4">
-                    <p className="text-sm text-muted-foreground italic">Sem sugestões registradas.</p>
+                    <p className="text-sm text-muted-foreground italic">{t('ai.noSuggestions')}</p>
                     {callDetail?.transcript && (
                       <Button
                         onClick={() => analyzeCallMutation.mutate(selectedCall!.id)}
@@ -667,12 +647,12 @@ export default function CallsPage() {
                         {analyzeCallMutation.isPending ? (
                           <>
                             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                            Analisando...
+                            {t('calls.analyzing')}
                           </>
                         ) : (
                           <>
                             <Sparkles className="h-4 w-4" />
-                            Analisar com IA
+                            {t('calls.analyzeWithAI')}
                           </>
                         )}
                       </Button>

@@ -2,6 +2,7 @@
   "common": {
     "loading": "Loading...",
     "save": "Save",
+    "saveChanges": "Save Changes",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
@@ -12,7 +13,15 @@
     "next": "Next",
     "close": "Close",
     "error": "Error",
-    "success": "Success"
+    "success": "Success",
+    "configure": "Configure",
+    "regenerate": "Regenerate",
+    "viewAll": "View all",
+    "viewSessions": "View Sessions",
+    "user": "User",
+    "you": "You",
+    "customer": "Customer",
+    "used": "Used"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -28,6 +37,43 @@
     "signUp": "Sign up",
     "signOut": "Sign out"
   },
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening"
+  },
+  "dashboard": {
+    "subtitle": "Here's your sales team summary for today.",
+    "totalCalls": "Total Calls",
+    "whatsappChats": "WhatsApp Chats",
+    "missedCalls": "Missed Calls",
+    "avgDuration": "Avg Duration",
+    "thisMonth": "this month",
+    "requiresAttention": "Requires attention",
+    "perCall": "Per call",
+    "aiAssistant": "AI Assistant",
+    "aiPerformance": "Real-time assistant performance",
+    "suggestionsGenerated": "Suggestions generated",
+    "adoptionRate": "Adoption rate",
+    "viewAnalytics": "View Analytics",
+    "planUsage": "Plan Usage",
+    "plan": "Plan",
+    "users": "Users",
+    "managePlan": "Manage Plan",
+    "quickAccess": "Quick Access",
+    "quickAccessDesc": "Shortcuts to main features",
+    "newCallWithAI": "New AI Call",
+    "openWhatsApp": "Open WhatsApp",
+    "viewReports": "View Reports",
+    "manageTeam": "Manage Team",
+    "recentCalls": "Recent Calls",
+    "recentCallsDesc": "Last 5 calls from your team",
+    "noCallsYet": "No calls yet.",
+    "makeFirstCall": "Make first call",
+    "statusCompleted": "Completed",
+    "statusMissed": "Missed",
+    "statusInProgress": "In progress"
+  },
   "calls": {
     "title": "Calls",
     "subtitle": "Manage your calls and get real-time AI suggestions.",
@@ -39,6 +85,7 @@
     "mute": "Mute",
     "phoneNumber": "Phone number",
     "phoneHint": "Enter with country code (+1 for US)",
+    "phonePlaceholder": "+1 (555) 000-0000",
     "dial": "Call",
     "dialing": "Dialing...",
     "callHistory": "Call History",
@@ -57,7 +104,23 @@
     "transcript": "Transcript",
     "noTranscript": "No transcript available.",
     "analyzeWithAI": "Analyze with AI",
-    "analyzing": "Analyzing..."
+    "analyzing": "Analyzing...",
+    "searchPlaceholder": "Search by name or phone...",
+    "statusCompleted": "Completed",
+    "statusMissed": "Missed",
+    "statusInProgress": "In progress",
+    "aiSuggestions": "AI Suggestions",
+    "callStarted": "Call started",
+    "dialingTo": "Dialing {{phone}}...",
+    "errorStartCall": "Error starting call",
+    "tryAgain": "Try again.",
+    "callEnded": "Call ended",
+    "duration": "Duration: {{duration}}",
+    "analysisComplete": "Analysis complete!",
+    "suggestionCopied": "Suggestion copied!",
+    "callDetails": "Call details",
+    "muteLabel": "Mute microphone",
+    "endCallLabel": "End call"
   },
   "whatsapp": {
     "conversations": "Conversations",
@@ -67,7 +130,18 @@
     "selectChat": "Select a conversation",
     "selectChatHint": "Choose a chat from the list to begin",
     "typeMessage": "Type a message...",
-    "typing": "Typing"
+    "typing": "Typing",
+    "noMessagesPreview": "No messages",
+    "errorSendMessage": "Error sending message",
+    "errorGenerateSuggestion": "Error generating suggestion",
+    "suggestionSent": "Suggestion sent!",
+    "suggestionCopied": "Suggestion copied!",
+    "callLabel": "Call",
+    "moreOptions": "More options",
+    "emojisLabel": "Emojis",
+    "attachFile": "Attach file",
+    "askAI": "Ask AI for suggestion",
+    "sendMessage": "Send message"
   },
   "ai": {
     "suggestion": "AI Suggestion",
@@ -85,6 +159,84 @@
       "general": "General"
     }
   },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your preferences and account settings.",
+    "tabs": {
+      "profile": "Profile",
+      "company": "Company",
+      "notifications": "Notifications",
+      "security": "Security",
+      "appearance": "Appearance"
+    },
+    "profile": {
+      "title": "Profile Information",
+      "subtitle": "Update your personal information.",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "emailHint": "To change your email, access Clerk settings."
+    },
+    "company": {
+      "title": "Company Information",
+      "subtitle": "Configure your company details.",
+      "name": "Company Name",
+      "slug": "Slug",
+      "website": "Website",
+      "websitePlaceholder": "https://example.com",
+      "industry": "Industry",
+      "industryPlaceholder": "Select...",
+      "industries": {
+        "technology": "Technology",
+        "retail": "Retail",
+        "services": "Services",
+        "healthcare": "Healthcare",
+        "finance": "Finance",
+        "education": "Education",
+        "other": "Other"
+      }
+    },
+    "notifications": {
+      "title": "Notification Preferences",
+      "subtitle": "Configure how you want to be notified.",
+      "missedCalls": "Missed calls",
+      "missedCallsDesc": "Receive email when you miss a call",
+      "newMessages": "New messages",
+      "newMessagesDesc": "Receive email for new WhatsApp messages",
+      "aiSuggestions": "AI Suggestions",
+      "aiSuggestionsDesc": "Push notifications for real-time suggestions",
+      "weeklyReports": "Weekly reports",
+      "weeklyReportsDesc": "Receive weekly summary by email",
+      "billingUpdates": "Billing updates",
+      "billingUpdatesDesc": "Notifications about charges and payments"
+    },
+    "security": {
+      "authentication": "Authentication",
+      "authSubtitle": "Configure your account security options.",
+      "twoFactor": "Two-Factor Authentication",
+      "twoFactorDesc": "Add an extra layer of security",
+      "activeSessions": "Active Sessions",
+      "activeSessionsDesc": "Manage connected devices",
+      "apiKeys": "API Keys",
+      "apiKeysDesc": "Manage API keys for external integrations.",
+      "createdAt": "Created on {{date}}"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "subtitle": "Customize the application appearance.",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System",
+      "language": "Language",
+      "timezone": "Timezone",
+      "timezones": {
+        "saoPaulo": "Brasilia (GMT-3)",
+        "newYork": "New York (GMT-5)",
+        "london": "London (GMT+0)"
+      }
+    }
+  },
   "notifications": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",
@@ -99,7 +251,9 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "expandMenu": "Expand menu",
-    "collapseMenu": "Collapse menu"
+    "collapseMenu": "Collapse menu",
+    "sidebar": "Sidebar",
+    "notificationsCount": "Notifications ({{count}} unread)"
   },
   "errors": {
     "noConnection": "No connection",
