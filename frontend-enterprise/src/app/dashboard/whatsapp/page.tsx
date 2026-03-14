@@ -179,7 +179,7 @@ export default function WhatsAppPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-4">
+    <div className="h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)] flex gap-4">
       {/* Chat List */}
       <Card className={cn('w-full md:w-80 flex-shrink-0 flex flex-col', selectedChat && 'hidden md:flex')}>
         <CardHeader className="pb-3">

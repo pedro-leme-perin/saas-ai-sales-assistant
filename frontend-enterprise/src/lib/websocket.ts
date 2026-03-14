@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { toast } from 'sonner';
 
 class WebSocketClient {
   private socket: Socket | null = null;
@@ -20,14 +21,44 @@ class WebSocketClient {
 
     this.socket.on('connect', () => {
       console.log('✅ WebSocket connected');
+      // Dismiss any previous disconnection toast
+      toast.dismiss('ws-disconnected');
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('❌ WebSocket disconnected:', reason);
+      if (reason !== 'io client disconnect') {
+        toast.warning('Conexão perdida', {
+          description: 'Reconectando automaticamente...',
+          id: 'ws-disconnected',
+          duration: Infinity,
+        });
+      }
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('WebSocket error:', error.message);
+      toast.error('Erro de conexão em tempo real', {
+        description: 'Sugestões de IA podem estar indisponíveis.',
+        id: 'ws-error',
+        duration: 5000,
+      });
+    });
+
+    this.socket.io.on('reconnect', (attempt) => {
+      console.log(`✅ WebSocket reconnected after ${attempt} attempts`);
+      toast.success('Conexão restaurada', {
+        id: 'ws-reconnected',
+        duration: 3000,
+      });
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      toast.error('Falha na reconexão', {
+        description: 'Recarregue a página para tentar novamente.',
+        id: 'ws-reconnect-failed',
+        duration: Infinity,
+      });
     });
 
     // Re-register existing listeners on reconnect

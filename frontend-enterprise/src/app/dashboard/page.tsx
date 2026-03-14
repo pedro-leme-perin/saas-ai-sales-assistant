@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 function KPISkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
       {[...Array(4)].map((_, i) => (
         <Card key={i}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -102,7 +102,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
           {greeting}, {user?.firstName || 'Usuário'}
         </h1>
         <p className="text-muted-foreground">Aqui está o resumo da sua equipe de vendas hoje.</p>
@@ -112,7 +112,7 @@ export default function DashboardPage() {
       {isLoading ? (
         <KPISkeleton />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <Card className="hover:shadow-sm transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total de Ligações</CardTitle>

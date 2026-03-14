@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { toast } from 'sonner';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -43,7 +44,28 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        return Promise.reject(this.handleError(error));
+        const parsedError = this.handleError(error);
+        const status = error.response?.status;
+
+        // Toast global para erros de rede e servidor (não duplicar em 401 — Clerk trata)
+        if (!error.response) {
+          toast.error('Sem conexão', {
+            description: 'Servidor não respondeu. Verifique sua internet.',
+            id: 'api-network-error',
+          });
+        } else if (status && status >= 500) {
+          toast.error('Erro no servidor', {
+            description: 'Tente novamente em alguns instantes.',
+            id: 'api-server-error',
+          });
+        } else if (status === 429) {
+          toast.warning('Muitas requisições', {
+            description: 'Aguarde um momento antes de tentar novamente.',
+            id: 'api-rate-limit',
+          });
+        }
+
+        return Promise.reject(parsedError);
       }
     );
   }

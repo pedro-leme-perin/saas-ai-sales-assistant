@@ -1,8 +1,19 @@
 import { ClerkProvider } from '@clerk/nextjs';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers, AuthProvider } from '@/providers';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+  ],
+};
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -52,9 +63,9 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="pt-BR" suppressHydrationWarning>
         <head>
+          <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
           <link rel="icon" href="/favicon.ico" sizes="any" />
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-          <meta name="theme-color" content="#09090b" />
         </head>
         <body className={inter.className}>
           <Providers>

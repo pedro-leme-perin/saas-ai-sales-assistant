@@ -204,7 +204,7 @@ export default function CallsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ligações</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ligações</h1>
           <p className="text-muted-foreground">
             Gerencie suas chamadas e receba sugestões de IA em tempo real.
           </p>
@@ -345,7 +345,7 @@ export default function CallsPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">

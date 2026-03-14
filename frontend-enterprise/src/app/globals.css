@@ -81,9 +81,15 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    padding-bottom: env(safe-area-inset-bottom);
+    overflow-x: hidden;
   }
 }
 

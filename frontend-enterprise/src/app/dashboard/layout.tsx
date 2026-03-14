@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/index';
+import { PageTransition } from '@/components/ui/page-transition';
 import { useNotificationsStore, useUIStore } from '@/stores';
 
 const navigation = [
@@ -195,7 +196,7 @@ export default function DashboardLayout({
             {showNotifications && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                <div className="absolute right-0 top-full mt-2 z-50 w-80 rounded-xl border bg-popover shadow-lg animate-slide-in-bottom">
+                <div className="absolute right-0 top-full mt-2 z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-80 rounded-xl border bg-popover shadow-lg animate-slide-in-bottom">
                   <div className="flex items-center justify-between p-4 pb-2">
                     <h3 className="font-semibold text-sm">Notificações</h3>
                     {unreadCount > 0 && (
@@ -248,7 +249,9 @@ export default function DashboardLayout({
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-3 sm:p-4 lg:p-6">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
     </div>
   );
