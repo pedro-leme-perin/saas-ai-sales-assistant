@@ -1,0 +1,114 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "search": "Buscar",
+    "noResults": "Nenhum resultado encontrado",
+    "confirm": "Confirmar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "close": "Fechar",
+    "error": "Erro",
+    "success": "Sucesso"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "calls": "Ligações",
+    "whatsapp": "WhatsApp",
+    "analytics": "Analytics",
+    "team": "Equipe",
+    "billing": "Faturamento",
+    "settings": "Configurações"
+  },
+  "auth": {
+    "signIn": "Entrar",
+    "signUp": "Criar conta",
+    "signOut": "Sair"
+  },
+  "calls": {
+    "title": "Ligações",
+    "subtitle": "Gerencie suas chamadas e receba sugestões de IA em tempo real.",
+    "newCall": "Nova Ligação",
+    "callInProgress": "Ligação em Andamento",
+    "liveTranscript": "Transcrição ao vivo",
+    "waitingTranscript": "Aguardando transcrição...",
+    "endCall": "Encerrar",
+    "mute": "Mudo",
+    "phoneNumber": "Número de telefone",
+    "phoneHint": "Digite com código do país (+55 para Brasil)",
+    "dial": "Ligar",
+    "dialing": "Discando...",
+    "callHistory": "Histórico de Ligações",
+    "callsFound": "ligações encontradas",
+    "noCalls": "Nenhuma ligação encontrada",
+    "noCallsHint": "Comece fazendo sua primeira ligação com assistência de IA.",
+    "total": "Total",
+    "completed": "Concluídas",
+    "missed": "Perdidas",
+    "avgDuration": "Duração Média",
+    "allStatuses": "Todos os status",
+    "inProgress": "Em andamento",
+    "allDirections": "Todas as direções",
+    "inbound": "Recebidas",
+    "outbound": "Realizadas",
+    "transcript": "Transcrição",
+    "noTranscript": "Sem transcrição disponível.",
+    "analyzeWithAI": "Analisar com IA",
+    "analyzing": "Analisando..."
+  },
+  "whatsapp": {
+    "conversations": "Conversas",
+    "searchChat": "Buscar conversa...",
+    "noConversations": "Nenhuma conversa encontrada",
+    "noMessages": "Nenhuma mensagem ainda. Inicie a conversa!",
+    "selectChat": "Selecione uma conversa",
+    "selectChatHint": "Escolha um chat da lista para começar",
+    "typeMessage": "Digite uma mensagem...",
+    "typing": "Digitando"
+  },
+  "ai": {
+    "suggestion": "Sugestão da IA",
+    "generating": "Analisando conversa...",
+    "continueForSuggestions": "Continue a conversa para receber sugestões.",
+    "copySuggestion": "Copiar sugestão",
+    "copied": "Copiada!",
+    "noSuggestions": "Sem sugestões registradas.",
+    "send": "Enviar",
+    "tags": {
+      "objection": "Objeção",
+      "closing": "Fechamento",
+      "question": "Pergunta",
+      "greeting": "Saudação",
+      "general": "Geral"
+    }
+  },
+  "notifications": {
+    "title": "Notificações",
+    "markAllRead": "Marcar todas como lidas",
+    "noNotifications": "Nenhuma notificação"
+  },
+  "theme": {
+    "light": "Mudar para tema claro",
+    "dark": "Mudar para tema escuro"
+  },
+  "accessibility": {
+    "skipToContent": "Ir para o conteúdo principal",
+    "openMenu": "Abrir menu",
+    "closeMenu": "Fechar menu",
+    "expandMenu": "Expandir menu",
+    "collapseMenu": "Recolher menu"
+  },
+  "errors": {
+    "noConnection": "Sem conexão",
+    "serverError": "Erro no servidor",
+    "rateLimited": "Muitas requisições",
+    "connectionLost": "Conexão perdida",
+    "reconnecting": "Reconectando automaticamente...",
+    "connectionRestored": "Conexão restaurada",
+    "reconnectFailed": "Falha na reconexão",
+    "reloadPage": "Recarregue a página para tentar novamente."
+  }
+}

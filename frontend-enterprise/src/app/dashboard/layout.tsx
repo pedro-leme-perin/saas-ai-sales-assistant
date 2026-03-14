@@ -49,6 +49,14 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Skip to content */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-medium"
+      >
+        Ir para o conteúdo principal
+      </a>
+
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -59,6 +67,8 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <aside
+        aria-label="Menu lateral"
+        role="navigation"
         className={cn(
           'fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300',
           collapsed ? 'w-16' : 'w-64',
@@ -78,6 +88,7 @@ export default function DashboardLayout({
           <Button
             variant="ghost"
             size="icon"
+            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
             className="hidden lg:flex text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8"
             onClick={() => setCollapsed(!collapsed)}
           >
@@ -86,6 +97,7 @@ export default function DashboardLayout({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Fechar menu"
             className="lg:hidden text-sidebar-foreground h-8 w-8"
             onClick={() => setSidebarOpen(false)}
           >
@@ -111,6 +123,7 @@ export default function DashboardLayout({
                         ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     )}
+                    aria-label={collapsed ? item.name : undefined}
                     title={collapsed ? item.name : undefined}
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -152,6 +165,7 @@ export default function DashboardLayout({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Abrir menu"
             className="lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
@@ -168,7 +182,7 @@ export default function DashboardLayout({
           </div>
 
           {/* Theme Toggle */}
-          <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'} className="h-9 w-9">
             {theme === 'dark' ? (
               <Sun className="h-4 w-4" />
             ) : (
@@ -181,6 +195,8 @@ export default function DashboardLayout({
             <Button
               variant="ghost"
               size="icon"
+              aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ''}`}
+              aria-expanded={showNotifications}
               className="relative h-9 w-9"
               onClick={() => setShowNotifications(!showNotifications)}
             >
@@ -249,7 +265,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-3 sm:p-4 lg:p-6">
+        <main id="main-content" className="flex-1 p-3 sm:p-4 lg:p-6">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

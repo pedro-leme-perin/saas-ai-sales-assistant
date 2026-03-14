@@ -96,6 +96,18 @@ export default function CallsPage() {
     }
   }, [showNewCallModal]);
 
+  // Escape fecha modais
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showNewCallModal) setShowNewCallModal(false);
+        else if (selectedCall) setSelectedCall(null);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showNewCallModal, selectedCall]);
+
   // =============================================
   // QUERIES
   // =============================================
@@ -279,11 +291,11 @@ export default function CallsPage() {
 
                 {/* Controls */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" aria-label="Silenciar microfone" className="gap-2">
                     <Mic className="h-4 w-4" />
                     <span className="hidden sm:inline">Mudo</span>
                   </Button>
-                  <Button variant="destructive" onClick={handleEndCall} className="gap-2">
+                  <Button variant="destructive" onClick={handleEndCall} aria-label="Encerrar ligação" className="gap-2">
                     <Phone className="h-4 w-4 rotate-[135deg]" />
                     Encerrar
                   </Button>
@@ -508,6 +520,9 @@ export default function CallsPage() {
           onClick={() => setShowNewCallModal(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nova Ligação"
             className="bg-background rounded-xl shadow-2xl w-full max-w-md m-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -580,6 +595,9 @@ export default function CallsPage() {
           onClick={() => setSelectedCall(null)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Detalhes da ligação"
             className="bg-background rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >

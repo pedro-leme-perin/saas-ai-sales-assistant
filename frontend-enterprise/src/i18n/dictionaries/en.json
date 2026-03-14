@@ -1,0 +1,114 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "noResults": "No results found",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "error": "Error",
+    "success": "Success"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "calls": "Calls",
+    "whatsapp": "WhatsApp",
+    "analytics": "Analytics",
+    "team": "Team",
+    "billing": "Billing",
+    "settings": "Settings"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signOut": "Sign out"
+  },
+  "calls": {
+    "title": "Calls",
+    "subtitle": "Manage your calls and get real-time AI suggestions.",
+    "newCall": "New Call",
+    "callInProgress": "Call in Progress",
+    "liveTranscript": "Live transcript",
+    "waitingTranscript": "Waiting for transcript...",
+    "endCall": "End Call",
+    "mute": "Mute",
+    "phoneNumber": "Phone number",
+    "phoneHint": "Enter with country code (+1 for US)",
+    "dial": "Call",
+    "dialing": "Dialing...",
+    "callHistory": "Call History",
+    "callsFound": "calls found",
+    "noCalls": "No calls found",
+    "noCallsHint": "Start by making your first AI-assisted call.",
+    "total": "Total",
+    "completed": "Completed",
+    "missed": "Missed",
+    "avgDuration": "Avg Duration",
+    "allStatuses": "All statuses",
+    "inProgress": "In progress",
+    "allDirections": "All directions",
+    "inbound": "Inbound",
+    "outbound": "Outbound",
+    "transcript": "Transcript",
+    "noTranscript": "No transcript available.",
+    "analyzeWithAI": "Analyze with AI",
+    "analyzing": "Analyzing..."
+  },
+  "whatsapp": {
+    "conversations": "Conversations",
+    "searchChat": "Search conversation...",
+    "noConversations": "No conversations found",
+    "noMessages": "No messages yet. Start the conversation!",
+    "selectChat": "Select a conversation",
+    "selectChatHint": "Choose a chat from the list to begin",
+    "typeMessage": "Type a message...",
+    "typing": "Typing"
+  },
+  "ai": {
+    "suggestion": "AI Suggestion",
+    "generating": "Analyzing conversation...",
+    "continueForSuggestions": "Continue the conversation to receive suggestions.",
+    "copySuggestion": "Copy suggestion",
+    "copied": "Copied!",
+    "noSuggestions": "No suggestions recorded.",
+    "send": "Send",
+    "tags": {
+      "objection": "Objection",
+      "closing": "Closing",
+      "question": "Question",
+      "greeting": "Greeting",
+      "general": "General"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "noNotifications": "No notifications"
+  },
+  "theme": {
+    "light": "Switch to light mode",
+    "dark": "Switch to dark mode"
+  },
+  "accessibility": {
+    "skipToContent": "Skip to main content",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu"
+  },
+  "errors": {
+    "noConnection": "No connection",
+    "serverError": "Server error",
+    "rateLimited": "Too many requests",
+    "connectionLost": "Connection lost",
+    "reconnecting": "Reconnecting automatically...",
+    "connectionRestored": "Connection restored",
+    "reconnectFailed": "Reconnection failed",
+    "reloadPage": "Reload the page to try again."
+  }
+}

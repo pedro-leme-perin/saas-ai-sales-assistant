@@ -267,8 +267,8 @@ export default function WhatsAppPage() {
                 )}
               </p>
             </div>
-            <Button variant="ghost" size="icon"><Phone className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Ligar"><Phone className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Mais opções"><MoreVertical className="h-5 w-5" /></Button>
           </div>
 
           {/* Messages */}
@@ -344,8 +344,8 @@ export default function WhatsAppPage() {
           {/* Input */}
           <div className="p-4 border-t">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="shrink-0"><Smile className="h-5 w-5" /></Button>
-              <Button variant="ghost" size="icon" className="shrink-0"><Paperclip className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" aria-label="Emojis" className="shrink-0"><Smile className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" aria-label="Anexar arquivo" className="shrink-0"><Paperclip className="h-5 w-5" /></Button>
               <input
                 type="text"
                 placeholder="Digite uma mensagem..."
@@ -357,6 +357,7 @@ export default function WhatsAppPage() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Pedir sugestão da IA"
                 className="shrink-0"
                 onClick={handleGetSuggestion}
                 disabled={getSuggestionMutation.isPending}
@@ -365,6 +366,7 @@ export default function WhatsAppPage() {
               </Button>
               <Button
                 size="icon"
+                aria-label="Enviar mensagem"
                 className="shrink-0"
                 onClick={handleSend}
                 disabled={!message.trim() || sendMessageMutation.isPending}

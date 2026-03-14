@@ -28,7 +28,7 @@ export default function SettingsPage() {
   const { user } = useUser();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>('profile');
-  const { theme, setTheme } = useUIStore();
+  const { theme, setTheme, locale, setLocale } = useUIStore();
 
   const { data: company } = useQuery({
     queryKey: ['company'],
@@ -350,10 +350,13 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="text-sm font-medium mb-3 block">Idioma</label>
-                  <select className="w-full px-4 py-2 border rounded-lg bg-background">
+                  <select
+                    className="w-full px-4 py-2 border rounded-lg bg-background"
+                    value={locale}
+                    onChange={(e) => setLocale(e.target.value as 'pt-BR' | 'en')}
+                  >
                     <option value="pt-BR">Português (Brasil)</option>
-                    <option value="en-US">English (US)</option>
-                    <option value="es">Español</option>
+                    <option value="en">English</option>
                   </select>
                 </div>
 

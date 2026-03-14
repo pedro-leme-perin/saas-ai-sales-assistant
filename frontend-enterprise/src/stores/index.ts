@@ -160,9 +160,11 @@ export const useActiveChatStore = create<ActiveChatState>((set) => ({
 interface UIState {
   sidebarCollapsed: boolean;
   theme: 'light' | 'dark' | 'system';
+  locale: 'pt-BR' | 'en';
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setLocale: (locale: 'pt-BR' | 'en') => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -170,9 +172,11 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       sidebarCollapsed: false,
       theme: 'system',
+      locale: 'pt-BR',
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       setTheme: (theme) => set({ theme }),
+      setLocale: (locale) => set({ locale }),
     }),
     {
       name: 'ui-storage',
