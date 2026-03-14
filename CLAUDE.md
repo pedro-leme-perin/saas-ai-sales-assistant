@@ -19,22 +19,55 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
+> Última atualização: 14/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
-| Fase atual | Fase 1 — Planejamento & Arquitetura | |
-| Último commit | — | |
-| Backend (NestJS) | Não iniciado | |
-| Frontend (Next.js) | Não iniciado | |
-| Banco de dados (Prisma) | Não iniciado | Schema definido neste doc |
-| Auth (Clerk) | Não iniciado | |
-| Twilio (Voz) | Não iniciado | |
-| WhatsApp Business API | Não iniciado | |
-| Deepgram (STT) | Não iniciado | |
-| OpenAI / Claude (LLM) | Não iniciado | |
-| Stripe (Pagamentos) | Não iniciado | |
-| CI/CD | Não iniciado | GitHub Actions |
-| Deploy | Não iniciado | Vercel (frontend) + Railway (backend) |
+| Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
+| Último commit | `5b02b68` (14/03/2026) | PWA, a11y, perf, i18n, E2E |
+| Backend (NestJS) | ✅ Em produção | Railway — todos os módulos core funcionando |
+| Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub webhook |
+| Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) com schema aplicado |
+| Auth (Clerk) | ✅ Funcionando | Login, registro, middleware, guards |
+| Twilio (Voz) | ✅ Funcionando | Media Streams + transcrição em tempo real |
+| WhatsApp Business API | ✅ Funcionando | Webhooks + IA integrada |
+| Deepgram (STT) | ✅ Funcionando | Streaming ~200ms latência |
+| OpenAI / Claude (LLM) | ✅ Funcionando | gpt-4o-mini para sugestões em tempo real |
+| Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks, billing page |
+| CI/CD | Parcial | GitHub webhook → Vercel auto-deploy. GitHub Actions pendente |
+| Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
+
+### Polimento concluído (13-14/03/2026):
+
+- Timer de ligação funcional (incrementa a cada segundo)
+- Modais próprios (sem prompt/confirm/alert nativos)
+- Tags de sugestão IA traduzidas PT-BR
+- Skeleton loading em todas as páginas
+- Dark mode funcional (toggle no header)
+- Notification panel no header
+- Landing page profissional (hero, features, stats, CTA)
+- SEO meta tags + Open Graph
+- 404 customizada com catch-all `[...slug]`
+- Error boundaries (global + dashboard)
+- Sidebar consolidada (removidos duplicados)
+- Billing compatível com dark mode
+- Toasts (sonner) em todas as ações
+- Responsividade mobile (breakpoints, dvh, safe-area, viewport)
+- Favicon SVG + ICO + Apple Touch Icon
+- Page transitions (framer-motion AnimatePresence)
+- Toasts globais para erros WebSocket/API (reconnect, 500, 429, offline)
+- PWA manifest + ícones (192, 512, maskable)
+- Acessibilidade (skip-to-content, aria-labels, Escape em modais, role="dialog")
+- Performance (security headers, cache immutable, image avif/webp, tree-shaking radix)
+- i18n base (dicionários pt-BR + en, hook useTranslation, seletor em Settings)
+- Testes E2E Playwright (landing, auth, dashboard, calls, mobile)
+
+### Pendente / Próximos passos:
+
+- Migrar textos hardcoded para usar hook `useTranslation()` (i18n efetivo)
+- GitHub Actions CI/CD (build + lint + Playwright)
+- Sentry no frontend (error tracking)
+- Testes unitários (Vitest) para lógica de domínio
 
 ---
 
