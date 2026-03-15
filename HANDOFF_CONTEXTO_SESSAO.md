@@ -1,14 +1,12 @@
 # HANDOFF — Contexto Completo da Sessão
-**Data:** 14/03/2026
+**Data:** 15/03/2026 (sessão 3)
 **Para usar:** Cole este documento no início de uma nova conversa no Cowork
 
 ---
 
 ## INSTRUÇÃO PARA O PRÓXIMO CHAT
 
-Quando abrir um novo chat, cole o seguinte:
-
-> "Leia o arquivo `HANDOFF_CONTEXTO_SESSAO.md` e o `CLAUDE.md` na pasta do projeto montado (`PROJETO SAAS IA OFICIAL`), e me ajude a continuar de onde paramos."
+> "Leia o arquivo `HANDOFF_CONTEXTO_SESSAO.md` e o `CLAUDE.md` na pasta do projeto, e me ajude a continuar de onde paramos."
 
 ---
 
@@ -23,192 +21,139 @@ SaaS enterprise de assistência de vendas com IA. Dois canais:
 - Frontend: Next.js 15 + TypeScript → Vercel
 - DB: PostgreSQL (Neon) via Prisma
 - Cache/PubSub: Redis (Upstash)
-- Auth: Clerk
-- Pagamentos: Stripe
-- STT: Deepgram (~200ms latência)
-- LLM: OpenAI gpt-4o-mini
-- Telefonia: Twilio Media Streams
-- Observabilidade: Sentry + Axiom + OpenTelemetry
+- Auth: Clerk | Pagamentos: Stripe | STT: Deepgram | LLM: OpenAI gpt-4o-mini | Telefonia: Twilio
 
-**Pasta local:** `C:\Users\pedro\OneDrive\Área de Trabalho\PROJETO SAAS IA OFICIAL`
-
-**Subpastas:**
-- `frontend-enterprise/` → Next.js app
-- `backend-enterprise/` → NestJS app
-- `.github/workflows/` → CI/CD
+**Pasta local:** `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL`
 
 ---
 
-## 2. ESTADO ATUAL (14/03/2026 — fim da sessão)
+## 2. ESTADO ATUAL (15/03/2026 — sessão 3)
 
-### Concluído nesta sessão
-
-#### i18n (internacionalização)
-- Dicionários em `frontend-enterprise/src/i18n/dictionaries/pt-BR.json` e `en.json` com ~150 chaves
-- Hook `useTranslation()` em `frontend-enterprise/src/hooks/useTranslation.ts`
-- 5 páginas migradas: `dashboard/layout.tsx`, `dashboard/page.tsx`, `dashboard/calls/page.tsx`, `dashboard/whatsapp/page.tsx`, `dashboard/settings/page.tsx`
-- **Pendente ainda:** `app/page.tsx` (landing page) ainda hardcoded em PT-BR
-
-#### GitHub Actions CI/CD
-- Arquivo: `.github/workflows/ci.yml`
-- 2 jobs: `frontend` (lint + typecheck + build + E2E playwright) e `backend` (lint + typecheck + build + unit tests)
-- Concurrency group para cancelar runs duplicados
-- **Pendente:** configurar secrets no GitHub (ver seção 4)
-
-#### Sentry (frontend)
-- `frontend-enterprise/sentry.client.config.ts` — init client-side com replay
-- `frontend-enterprise/sentry.server.config.ts` — init server-side
-- `frontend-enterprise/sentry.edge.config.ts` — init edge runtime
-- `frontend-enterprise/src/instrumentation.ts` — carrega config baseado em NEXT_RUNTIME
-- `frontend-enterprise/src/app/global-error.tsx` — captura exceções globais
-- `frontend-enterprise/next.config.js` — wrapper `withSentryConfig` condicional
-- `@sentry/nextjs` instalado localmente (já rodou `npm install @sentry/nextjs`)
-- **Pendente:** configurar `NEXT_PUBLIC_SENTRY_DSN` no Vercel (ver seção 4)
-
-#### Testes unitários backend
-- `calls.service.spec.ts` → 20 testes passando
-- `ai.service.spec.ts` → reescrito com mocks corretos (AIManagerService mockado — sem chamadas reais à API)
-- `whatsapp.service.spec.ts` → reescrito com mocks para ConfigService, AiService, NotificationsGateway
-
-### Estado dos testes ANTES do próximo commit
-Os arquivos `ai.service.spec.ts` e `whatsapp.service.spec.ts` foram corrigidos mas precisam ser re-executados. Rode antes de commitar:
-
-```powershell
-cd "C:\Users\pedro\OneDrive\Área de Trabalho\PROJETO SAAS IA OFICIAL\backend-enterprise"
-npm test -- --testPathPattern=test/unit
+### Commits recentes
+```
+2a33b7d feat: landing i18n, Sentry 15.5 compat, users.service tests, .gitattributes LF
+045e1e3 feat: i18n dashboard, CI/CD pipeline, Sentry setup, unit tests
+5b02b68 feat: PWA manifest, acessibilidade, performance headers, i18n base, testes E2E Playwright
 ```
 
-Resultado esperado: **3 suites passando, 0 falhas**.
+### Concluído nesta sessão 3
+
+#### Stripe webhooks — invoice handlers
+- `billing.service.ts` — adicionados `handleInvoicePaid()` e `handleInvoicePaymentFailed()` com upsert de Invoice e marcação PAST_DUE
+- `billing.service.ts` switch/case atualizado para rotear `invoice.paid` e `invoice.payment_failed`
+- `presentation/webhooks/stripe.webhook.ts` — esvaziado (era código morto, nunca registrado no app.module)
+- Webhook real: `POST /billing/webhook` via `BillingController` → `BillingService`
+
+#### Testes unitários
+- `users.service.spec.ts` — corrigido timeout (jest.setTimeout, afterEach global.fetch restore)
+- `billing.service.spec.ts` — CRIADO (~30 test cases): getPlans, getSubscription, getInvoices, createCheckoutSession, changePlan, cancelSubscription, getPortalUrl, handleWebhook, handleSubscriptionCreated/Updated/Deleted, handleInvoicePaid, handleInvoicePaymentFailed
+- **5 suites, ~88 testes totais** (ai, calls, whatsapp, users, billing)
+
+#### Landing page i18n
+- Verificado: 100% migrado para `useTranslation()` — zero strings hardcoded
+- Dicionários PT-BR e EN com todas as chaves `landing.*`
+
+#### Documentação
+- `SETUP_SECRETS.md` — guia completo de configuração de secrets (GitHub Actions, Vercel, Railway, Sentry, Stripe)
+
+### Mudanças NÃO commitadas (pendente)
+
+```powershell
+cd "C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL"
+
+# Rodar testes
+cd backend-enterprise
+npm test -- --testPathPattern=test/unit --forceExit
+cd ..
+
+# Staging
+git add backend-enterprise/test/unit/billing.service.spec.ts
+git add backend-enterprise/src/modules/billing/billing.service.ts
+git add backend-enterprise/src/presentation/webhooks/stripe.webhook.ts
+git add SETUP_SECRETS.md
+git add HANDOFF_CONTEXTO_SESSAO.md
+
+# Commit
+git commit -m "feat: invoice webhook handlers, billing tests, setup secrets doc"
+git push
+```
+
+Resultado esperado: **5 suites, ~88 testes, 0 falhas**.
 
 ---
 
 ## 3. PRÓXIMOS PASSOS (por prioridade)
 
-### 3.1 Imediato — verificar testes e commitar
+### 3.1 Commitar e rodar testes
+Ver comandos acima.
 
-```powershell
-cd "C:\Users\pedro\OneDrive\Área de Trabalho\PROJETO SAAS IA OFICIAL\backend-enterprise"
-npm test -- --testPathPattern=test/unit
+### 3.2 Configurar secrets (produção)
+Ver `SETUP_SECRETS.md` para guia completo. Prioridade:
+1. `NEXT_PUBLIC_SENTRY_DSN` no Vercel
+2. `SENTRY_ORG` + `SENTRY_PROJECT` + `SENTRY_AUTH_TOKEN` no Vercel
+3. Secrets no GitHub Actions (CLERK keys)
+4. Stripe webhook endpoint no Stripe Dashboard
 
-cd ..
-git add -A
-git commit -m "feat: i18n dashboard, CI/CD pipeline, Sentry setup, unit tests"
-git push
-```
-
-### 3.2 Configurar variáveis de ambiente
-
-No Vercel (frontend):
-```
-NEXT_PUBLIC_SENTRY_DSN=<seu DSN do sentry.io/settings/projects>
-```
-
-No GitHub (Settings → Secrets → Actions):
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-```
-
-### 3.3 Warnings do Next.js para corrigir (não são bloqueantes)
-- Remover `instrumentationHook: true` de `next.config.js` (já é default no Next 15.5)
-- Renomear `sentry.client.config.ts` → `instrumentation-client.ts` (Turbopack compat)
-- Adicionar hook `onRequestError` em `instrumentation.ts`
-
-### 3.4 Cobertura de testes > 80%
-- Faltam testes para: `users.service`
+### 3.3 Cobertura de testes > 80%
+- Faltam: controllers (billing, calls, whatsapp, users), integration tests
 - Rodar: `npm test -- --coverage --testPathPattern=test/unit`
 
-### 3.5 Landing page i18n
-- `frontend-enterprise/src/app/page.tsx` ainda tem strings hardcoded em PT-BR
-- Migrar para `useTranslation()` igual às outras páginas
+### 3.4 Rebuild frontend
+```powershell
+cd frontend-enterprise && npm run build
+```
+Confirmar 0 warnings Sentry (fixes Next.js 15.5 já aplicados).
 
 ---
 
 ## 4. AVISOS IMPORTANTES
 
+### StripeWebhookController é código morto
+O arquivo `presentation/webhooks/stripe.webhook.ts` foi esvaziado. Nunca foi registrado no `app.module.ts`. O webhook real é `POST /billing/webhook`.
+
 ### Twilio no WhatsApp service
-`WhatsappService.sendMessage()` checa `this.twilioClient` antes de enviar. Se `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` não estiverem no ConfigService, lança `BadRequestException('Twilio not configured')`. Esse é o comportamento esperado em testes unitários. Os testes de unit testam justamente esse guard. O happy path é coberto em testes de integração.
+`sendMessage()` lança `BadRequestException('Twilio not configured')` sem credenciais. Esperado em testes unitários.
 
 ### AIManagerService — nunca instanciar em testes
-Ele inicializa providers OpenAI/Claude/Gemini no construtor e faz chamadas HTTP reais. Sempre mockar com:
-```typescript
-{ provide: AIManagerService, useValue: { generateSuggestion: jest.fn(), ... } }
-```
+Inicializa providers reais no construtor. Sempre mockar.
 
-### Sentry DSN obrigatório em produção
-Sem `NEXT_PUBLIC_SENTRY_DSN` no Vercel, o Sentry fica silencioso (não quebra o build).
-
-### Caminho correto no Windows
-```
-C:\Users\pedro\OneDrive\Área de Trabalho\PROJETO SAAS IA OFICIAL
-```
-Tem acento em "Área" — isso causa erro de path se digitado errado.
+### Jest timeout neste VM
+O Cowork VM não tem recursos para rodar ts-jest + Prisma Client. Testes devem ser rodados localmente no Windows.
 
 ---
 
-## 5. ARQUIVOS MODIFICADOS NESTA SESSÃO
+## 5. ARQUIVOS MODIFICADOS (sessão 3)
 
 ```
-frontend-enterprise/
-  src/i18n/dictionaries/pt-BR.json          ← expandido ~150 chaves
-  src/i18n/dictionaries/en.json             ← expandido ~150 chaves
-  src/app/dashboard/layout.tsx              ← migrado para useTranslation()
-  src/app/dashboard/page.tsx                ← migrado para useTranslation()
-  src/app/dashboard/calls/page.tsx          ← migrado para useTranslation()
-  src/app/dashboard/whatsapp/page.tsx       ← migrado para useTranslation()
-  src/app/dashboard/settings/page.tsx       ← migrado para useTranslation()
-  sentry.client.config.ts                   ← CRIADO
-  sentry.server.config.ts                   ← CRIADO
-  sentry.edge.config.ts                     ← CRIADO
-  src/instrumentation.ts                    ← CRIADO
-  src/app/global-error.tsx                  ← CRIADO
-  next.config.js                            ← withSentryConfig wrapper adicionado
-  .env.local                                ← NEXT_PUBLIC_SENTRY_DSN= adicionado
-
 backend-enterprise/
-  test/unit/calls.service.spec.ts           ← expandido, AiService mock adicionado
-  test/unit/ai.service.spec.ts              ← REESCRITO com mocks corretos
-  test/unit/whatsapp.service.spec.ts        ← REESCRITO com todos os mocks
+  src/modules/billing/billing.service.ts      ← +handleInvoicePaid, +handleInvoicePaymentFailed, switch atualizado
+  src/presentation/webhooks/stripe.webhook.ts ← ESVAZIADO (código morto removido)
+  test/unit/billing.service.spec.ts           ← CRIADO (~30 test cases)
+  test/unit/users.service.spec.ts             ← CORRIGIDO (jest.setTimeout, afterEach fetch restore)
 
-.github/
-  workflows/ci.yml                          ← CRIADO
-
-CLAUDE.md                                   ← atualizado
-HANDOFF_CONTEXTO_SESSAO.md                  ← este arquivo
+SETUP_SECRETS.md                              ← CRIADO (guia de configuração)
+HANDOFF_CONTEXTO_SESSAO.md                    ← ATUALIZADO
 ```
 
 ---
 
-## 6. REFERÊNCIA RÁPIDA DE COMANDOS
+## 6. NÚMEROS DO PROJETO
 
-```powershell
-# Navegar para o projeto
-cd "C:\Users\pedro\OneDrive\Área de Trabalho\PROJETO SAAS IA OFICIAL"
-
-# Frontend — dev
-cd frontend-enterprise && npm run dev        # http://localhost:3000
-
-# Frontend — build
-npm run build
-
-# Backend — dev
-cd backend-enterprise && npm run start:dev   # http://localhost:3001
-
-# Backend — testes
-npm test -- --testPathPattern=test/unit
-npm test -- --coverage
-
-# Git
-git status
-git add -A
-git commit -m "mensagem"
-git push
-```
+| Métrica | Valor |
+|---|---|
+| Arquivos TS/TSX | 152 |
+| Linhas de código | ~16.400 |
+| Modelos Prisma | 12 |
+| Módulos backend | 9 |
+| Páginas frontend | 10+ |
+| Suites de teste | 5 |
+| Testes totais | ~88 |
+| Commits | 2a33b7d (HEAD) |
 
 ---
 
-## 7. FASE ATUAL DO PROJETO
+## 7. FASE ATUAL
 
 **Fase 3 — Polimento e Produção**
 
-O produto está em produção (Vercel + Railway). Features core funcionando. Esta sessão focou em qualidade de engenharia: i18n, CI/CD, observabilidade (Sentry) e cobertura de testes. Próximo passo natural: aumentar cobertura para > 80% e corrigir os warnings do Next.js 15.5.
+Produto em produção (Vercel + Railway). Features core funcionando. Sessões 14-15/03 focaram em qualidade: i18n, CI/CD, Sentry, testes, Stripe webhooks completos. Próximo: configurar secrets, cobertura > 80%, e confirmar pipeline CI verde.

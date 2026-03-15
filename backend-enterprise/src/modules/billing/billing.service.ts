@@ -280,6 +280,12 @@ export class BillingService {
       case 'customer.subscription.deleted':
         await this.handleSubscriptionDeleted(event.data.object as any);
         break;
+      case 'invoice.paid':
+        await this.handleInvoicePaid(event.data.object as any);
+        break;
+      case 'invoice.payment_failed':
+        await this.handleInvoicePaymentFailed(event.data.object as any);
+        break;
       case 'checkout.session.completed':
         await this.handleCheckoutCompleted(event.data.object as any);
         break;
@@ -355,6 +361,94 @@ export class BillingService {
       this.logger.log(`❌ Subscription deleted: ${subscription.id}`);
     } catch (error) {
       this.logger.error('Failed to handle subscription.deleted webhook:', error);
+    }
+  }
+
+  async handleInvoicePaid(stripeInvoice: any) {
+    try {
+      const companyId = stripeInvoice.metadata?.companyId || stripeInvoice.subscription_details?.metadata?.companyId;
+      if (!companyId) {
+        this.logger.warn('⚠️  No companyId in invoice metadata');
+        return;
+      }
+
+      await this.prisma.invoice.upsert({
+        where: { stripeInvoiceId: stripeInvoice.id },
+        create: {
+          companyId,
+          stripeInvoiceId: stripeInvoice.id,
+          stripeCustomerId: stripeInvoice.customer,
+          status: 'PAID',
+          currency: stripeInvoice.currency || 'brl',
+          amount: stripeInvoice.amount_due || 0,
+          amountPaid: stripeInvoice.amount_paid || 0,
+          hostedInvoiceUrl: stripeInvoice.hosted_invoice_url || null,
+          pdfUrl: stripeInvoice.invoice_pdf || null,
+          periodStart: stripeInvoice.period_start ? new Date(stripeInvoice.period_start * 1000) : null,
+          periodEnd: stripeInvoice.period_end ? new Date(stripeInvoice.period_end * 1000) : null,
+          paidAt: new Date(),
+        },
+        update: {
+          status: 'PAID',
+          amountPaid: stripeInvoice.amount_paid || 0,
+          paidAt: new Date(),
+          hostedInvoiceUrl: stripeInvoice.hosted_invoice_url || null,
+          pdfUrl: stripeInvoice.invoice_pdf || null,
+        },
+      });
+
+      this.logger.log(`✅ Invoice paid: ${stripeInvoice.id} for company ${companyId}`);
+    } catch (error) {
+      this.logger.error('Failed to handle invoice.paid webhook:', error);
+    }
+  }
+
+  async handleInvoicePaymentFailed(stripeInvoice: any) {
+    try {
+      const companyId = stripeInvoice.metadata?.companyId || stripeInvoice.subscription_details?.metadata?.companyId;
+      if (!companyId) {
+        this.logger.warn('⚠️  No companyId in failed invoice metadata');
+        return;
+      }
+
+      await this.prisma.invoice.upsert({
+        where: { stripeInvoiceId: stripeInvoice.id },
+        create: {
+          companyId,
+          stripeInvoiceId: stripeInvoice.id,
+          stripeCustomerId: stripeInvoice.customer,
+          status: 'OPEN',
+          currency: stripeInvoice.currency || 'brl',
+          amount: stripeInvoice.amount_due || 0,
+          amountPaid: 0,
+          hostedInvoiceUrl: stripeInvoice.hosted_invoice_url || null,
+          pdfUrl: stripeInvoice.invoice_pdf || null,
+          periodStart: stripeInvoice.period_start ? new Date(stripeInvoice.period_start * 1000) : null,
+          periodEnd: stripeInvoice.period_end ? new Date(stripeInvoice.period_end * 1000) : null,
+        },
+        update: {
+          status: 'OPEN',
+          amountPaid: 0,
+        },
+      });
+
+      // Mark subscription as past_due if payment fails
+      if (stripeInvoice.subscription) {
+        const subscription = await this.prisma.subscription.findFirst({
+          where: { companyId, stripeSubscriptionId: stripeInvoice.subscription },
+        });
+        if (subscription) {
+          await this.prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { status: SubscriptionStatus.PAST_DUE },
+          });
+          this.logger.warn(`⚠️  Subscription ${subscription.id} marked PAST_DUE due to payment failure`);
+        }
+      }
+
+      this.logger.warn(`⚠️  Invoice payment failed: ${stripeInvoice.id} for company ${companyId}`);
+    } catch (error) {
+      this.logger.error('Failed to handle invoice.payment_failed webhook:', error);
     }
   }
 
