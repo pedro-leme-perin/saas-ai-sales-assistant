@@ -1,45 +1,55 @@
+'use client';
+
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import {
   Phone, MessageSquare, Sparkles, ArrowRight,
   BarChart3, Shield, Zap, CheckCircle,
 } from 'lucide-react';
-
-const features = [
-  {
-    icon: Phone,
-    title: 'Ligações com IA',
-    description: 'Transcrição em tempo real e sugestões inteligentes durante suas chamadas de vendas.',
-    color: 'text-blue-500 bg-blue-500/10',
-  },
-  {
-    icon: MessageSquare,
-    title: 'WhatsApp Business',
-    description: 'Análise de conversas e respostas sugeridas para fechar mais negócios.',
-    color: 'text-green-500 bg-green-500/10',
-  },
-  {
-    icon: Sparkles,
-    title: 'IA Generativa',
-    description: 'Sugestões contextuais baseadas no histórico da conversa e perfil do cliente.',
-    color: 'text-purple-500 bg-purple-500/10',
-  },
-  {
-    icon: BarChart3,
-    title: 'Analytics Avançado',
-    description: 'Métricas de performance, taxa de conversão e insights da equipe.',
-    color: 'text-orange-500 bg-orange-500/10',
-  },
-];
-
-const stats = [
-  { value: '3x', label: 'mais produtividade' },
-  { value: '40%', label: 'mais conversões' },
-  { value: '<2s', label: 'tempo de resposta IA' },
-  { value: '99.9%', label: 'uptime garantido' },
-];
+import { useTranslation } from '@/i18n/use-translation';
 
 export default function Home() {
+  const { t } = useTranslation();
+
+  const features = [
+    {
+      icon: Phone,
+      title: t('landing.feature1Title'),
+      description: t('landing.feature1Desc'),
+      color: 'text-blue-500 bg-blue-500/10',
+    },
+    {
+      icon: MessageSquare,
+      title: t('landing.feature2Title'),
+      description: t('landing.feature2Desc'),
+      color: 'text-green-500 bg-green-500/10',
+    },
+    {
+      icon: Sparkles,
+      title: t('landing.feature3Title'),
+      description: t('landing.feature3Desc'),
+      color: 'text-purple-500 bg-purple-500/10',
+    },
+    {
+      icon: BarChart3,
+      title: t('landing.feature4Title'),
+      description: t('landing.feature4Desc'),
+      color: 'text-orange-500 bg-orange-500/10',
+    },
+  ];
+
+  const stats = [
+    { value: t('landing.stat1Value'), label: t('landing.stat1Label') },
+    { value: t('landing.stat2Value'), label: t('landing.stat2Label') },
+    { value: t('landing.stat3Value'), label: t('landing.stat3Label') },
+    { value: t('landing.stat4Value'), label: t('landing.stat4Label') },
+  ];
+
+  const trustBadges = [
+    t('landing.trustBadge1'),
+    t('landing.trustBadge2'),
+    t('landing.trustBadge3'),
+  ];
   return (
     <main className="min-h-screen bg-background">
       {/* Nav */}
@@ -55,12 +65,12 @@ export default function Home() {
             <SignedOut>
               <SignInButton mode="modal">
                 <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  Entrar
+                  {t('auth.signIn')}
                 </button>
               </SignInButton>
               <Link href="/sign-up">
                 <button className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-                  Começar grátis
+                  {t('landing.ctaStart')}
                 </button>
               </Link>
             </SignedOut>
@@ -80,35 +90,34 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border bg-muted/50 text-sm text-muted-foreground mb-6">
             <Zap className="h-3.5 w-3.5 text-primary" />
-            Assistente de vendas potencializado por IA
+            {t('landing.badge')}
           </div>
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 leading-tight">
-            Feche mais vendas com{' '}
+            {t('landing.heroTitle')}{' '}
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              inteligência artificial
+              {t('landing.heroTitleHighlight')}
             </span>
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed">
-            Sugestões em tempo real durante ligações e WhatsApp. 
-            Sua equipe vende mais com menos esforço.
+            {t('landing.heroDescription')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <SignedOut>
               <Link href="/sign-up">
                 <button className="bg-primary text-primary-foreground px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-primary/90 transition-all hover:shadow-lg flex items-center gap-2 justify-center w-full sm:w-auto">
-                  Começar grátis <ArrowRight className="h-5 w-5" />
+                  {t('landing.ctaStart')} <ArrowRight className="h-5 w-5" />
                 </button>
               </Link>
               <SignInButton mode="modal">
                 <button className="px-8 py-3.5 rounded-xl text-base font-semibold border hover:bg-muted transition-colors w-full sm:w-auto">
-                  Já tenho conta
+                  {t('landing.ctaLogin')}
                 </button>
               </SignInButton>
             </SignedOut>
             <SignedIn>
               <Link href="/dashboard">
                 <button className="bg-primary text-primary-foreground px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-primary/90 transition-all hover:shadow-lg flex items-center gap-2 justify-center">
-                  Ir para Dashboard <ArrowRight className="h-5 w-5" />
+                  {t('landing.ctaDashboard')} <ArrowRight className="h-5 w-5" />
                 </button>
               </Link>
             </SignedIn>
@@ -135,10 +144,10 @@ export default function Home() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tight mb-4">
-              Tudo que sua equipe precisa
+              {t('landing.featuresTitle')}
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Ferramentas inteligentes para potencializar cada interação de vendas.
+              {t('landing.featuresSubtitle')}
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
@@ -164,9 +173,9 @@ export default function Home() {
       <section className="py-16 px-4 bg-muted/30 border-t">
         <div className="max-w-3xl mx-auto text-center">
           <Shield className="h-8 w-8 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-4">Enterprise-grade desde o primeiro dia</h2>
+          <h2 className="text-2xl font-bold mb-4">{t('landing.trustTitle')}</h2>
           <div className="grid sm:grid-cols-3 gap-4 mt-8">
-            {['Criptografia end-to-end', 'LGPD compliant', 'SOC 2 Type II'].map((item) => (
+            {trustBadges.map((item) => (
               <div key={item} className="flex items-center gap-2 justify-center text-sm">
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <span>{item}</span>
@@ -179,21 +188,21 @@ export default function Home() {
       {/* CTA */}
       <section className="py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">Pronto para vender mais?</h2>
+          <h2 className="text-3xl font-bold mb-4">{t('landing.ctaTitle')}</h2>
           <p className="text-muted-foreground mb-8">
-            Comece gratuitamente. Sem cartão de crédito.
+            {t('landing.ctaSubtitle')}
           </p>
           <SignedOut>
             <Link href="/sign-up">
               <button className="bg-primary text-primary-foreground px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-primary/90 transition-all hover:shadow-lg inline-flex items-center gap-2">
-                Criar conta grátis <ArrowRight className="h-5 w-5" />
+                {t('landing.ctaButton')} <ArrowRight className="h-5 w-5" />
               </button>
             </Link>
           </SignedOut>
           <SignedIn>
             <Link href="/dashboard">
               <button className="bg-primary text-primary-foreground px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-primary/90 transition-all hover:shadow-lg inline-flex items-center gap-2">
-                Ir para Dashboard <ArrowRight className="h-5 w-5" />
+                {t('landing.ctaDashboard')} <ArrowRight className="h-5 w-5" />
               </button>
             </Link>
           </SignedIn>
@@ -210,7 +219,7 @@ export default function Home() {
             <span className="text-sm font-semibold">SalesAI</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} SalesAI. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} SalesAI. {t('landing.footerRights')}
           </p>
         </div>
       </footer>

@@ -14,7 +14,6 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
   experimental: {
-    instrumentationHook: true,
     optimizePackageImports: [
       'lucide-react',
       'recharts',
