@@ -101,8 +101,33 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Unit tests
-        run: npm test -- --passWithNoTests
+      - name: Unit tests with coverage
+        run: npm test -- --coverage --testPathPattern=test/unit --forceExit --passWithNoTests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test
           NODE_ENV: test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend-enterprise/coverage/
+          retention-days: 14
+
+  # ──────────────────────────────────────────────
+  # Status check gate (required for branch protection)
+  # ──────────────────────────────────────────────
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [frontend, backend]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.frontend.result }}" == "failure" || "${{ needs.backend.result }}" == "failure" ]]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "All checks passed"

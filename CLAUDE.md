@@ -19,22 +19,24 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 14/03/2026
+> Última atualização: 15/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `5b02b68` (14/03/2026) | PWA, a11y, perf, i18n, E2E |
-| Backend (NestJS) | ✅ Em produção | Railway — todos os módulos core funcionando |
-| Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub webhook |
-| Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) com schema aplicado |
+| Último commit | `fdd0b16` (15/03/2026) | Invoice webhooks, billing tests, setup secrets |
+| Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
+| Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
+| Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
 | Auth (Clerk) | ✅ Funcionando | Login, registro, middleware, guards |
 | Twilio (Voz) | ✅ Funcionando | Media Streams + transcrição em tempo real |
 | WhatsApp Business API | ✅ Funcionando | Webhooks + IA integrada |
 | Deepgram (STT) | ✅ Funcionando | Streaming ~200ms latência |
 | OpenAI / Claude (LLM) | ✅ Funcionando | gpt-4o-mini para sugestões em tempo real |
-| Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks, billing page |
-| CI/CD | Parcial | GitHub webhook → Vercel auto-deploy. GitHub Actions pendente |
+| Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
+| Sentry | ⚙️ Código pronto | server/edge/client configs completos — falta DSN no Vercel |
+| CI/CD | ⚙️ Código pronto | ci.yml com coverage + ci-gate — falta secrets no GitHub |
+| Testes | ✅ 12 suites | 5 service + 7 controller specs (~150+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
 
 ### Polimento concluído (13-14/03/2026):
@@ -69,14 +71,28 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - Sentry: configs client/server/edge, `global-error.tsx`, `instrumentation.ts`, next.config wrapper
 - Testes unitarios: `calls.service.spec.ts` corrigido e expandido (~20 test cases)
 
+### Sessao 3 (15/03/2026):
+
+- Invoice webhook handlers (handleInvoicePaid + handleInvoicePaymentFailed)
+- billing.service.spec.ts (~30 test cases)
+- users.service.spec.ts fix (timeout + fetch leak)
+- Landing page i18n 100% confirmado
+- SETUP_SECRETS.md guia completo
+- Sentry server/edge configs melhorados (ignoreErrors, beforeSend, PII strip)
+- @sentry/nextjs atualizado para ^9.24.0 (compat Next.js 15.5)
+- 7 controller test files (billing, calls, whatsapp, users, analytics, auth, companies)
+- CI workflow melhorado (coverage, ci-gate job, artefatos)
+- Script setup-secrets.sh (configuração interativa via gh CLI)
+
 ### Pendente / Proximos passos:
 
-- Rodar `npm install @sentry/nextjs` localmente
-- Configurar `NEXT_PUBLIC_SENTRY_DSN` no Vercel e `SENTRY_ORG`/`SENTRY_PROJECT`
-- Configurar secrets no GitHub para CI
+- Rodar `npm install` localmente para atualizar @sentry/nextjs
+- Configurar `NEXT_PUBLIC_SENTRY_DSN` no Vercel (ou rodar `scripts/setup-secrets.sh`)
+- Configurar secrets no GitHub para CI (ou rodar `scripts/setup-secrets.sh`)
+- Registrar Stripe webhook endpoint no Dashboard
+- Rodar `npm test` localmente para validar os 12 test suites
 - Confirmar E2E tests passam 100%
-- Cobertura de testes > 80% (adicionar testes para whatsapp, ai, users)
-- Landing page i18n (app/page.tsx ainda hardcoded)
+- Integration tests com banco real (test DB)
 
 ---
 
