@@ -16,6 +16,15 @@ import { getOptionsToken, getStorageToken } from '@nestjs/throttler';
 import { Reflector } from '@nestjs/core';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { AuthUser } from '../../modules/auth/interfaces/auth-user.interface';
+import { Plan } from '@prisma/client';
+
+/**
+ * Extended user type as returned by ClerkStrategy (UserWithCompany)
+ * The AuthGuard populates request.user with the full user + company relation
+ */
+interface AuthUserWithCompany extends AuthUser {
+  company?: { plan: Plan };
+}
 
 /**
  * Company-aware Rate Limiter using Redis Sliding Window
@@ -62,7 +71,7 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const user = request.user as AuthUser | undefined;
+    const user = request.user as AuthUserWithCompany | undefined;
 
     // No authenticated user → fallback to IP-based ThrottlerGuard
     if (!user?.companyId) {
@@ -77,7 +86,8 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
       return true;
     }
 
-    const plan: string = request.company?.plan || 'STARTER';
+    // Plan comes from user.company (populated by ClerkStrategy → UserWithCompany)
+    const plan: string = user.company?.plan || 'STARTER';
     const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.STARTER;
     const maxRequests = limits[tier as keyof PlanLimits] || limits.default;
 
