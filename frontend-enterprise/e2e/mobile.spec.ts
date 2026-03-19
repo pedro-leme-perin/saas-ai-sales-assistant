@@ -1,8 +1,8 @@
 import { test, expect, devices } from '@playwright/test';
 
-test.describe('Mobile Responsiveness', () => {
-  test.use({ ...devices['Pixel 5'] });
+test.use({ ...devices['Pixel 5'] });
 
+test.describe('Mobile Responsiveness', () => {
   test('should show hamburger menu on mobile', async ({ page }) => {
     // Skip auth — just check landing page is responsive
     await page.goto('/');
@@ -29,7 +29,6 @@ test.describe('Mobile Responsiveness', () => {
 });
 
 test.describe('Mobile Dashboard (authenticated)', () => {
-  test.use({ ...devices['Pixel 5'] });
   test.skip(!process.env.PLAYWRIGHT_CLERK_TOKEN, 'Requires PLAYWRIGHT_CLERK_TOKEN');
 
   test.beforeEach(async ({ page }) => {
@@ -45,7 +44,7 @@ test.describe('Mobile Dashboard (authenticated)', () => {
     // Sidebar should not be visible (translated off-screen)
     const sidebar = page.locator('aside');
     const transform = await sidebar.evaluate(
-      (el) => window.getComputedStyle(el).transform
+      (el) => window.getComputedStyle(el).transform,
     );
     // Should have a negative translateX (hidden)
     expect(transform).not.toBe('none');
