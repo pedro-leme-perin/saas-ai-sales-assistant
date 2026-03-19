@@ -26,9 +26,9 @@ import configuration from './config/configuration';
     // ThrottlerModule still needed for decorator metadata + IP-based fallback
     // Actual per-company limits enforced by CompanyThrottlerGuard via Redis
     ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60000, limit: 100 },    // IP-based fallback
-      { name: 'strict', ttl: 60000, limit: 20 },       // IP-based fallback for AI
-      { name: 'auth', ttl: 60000, limit: 10 },          // IP-based fallback for auth
+      { name: 'default', ttl: 60000, limit: 100 },
+      { name: 'strict', ttl: 60000, limit: 20 },
+      { name: 'auth', ttl: 60000, limit: 10 },
     ]),
     PrismaModule,
     CacheModule,
@@ -51,5 +51,3 @@ import configuration from './config/configuration';
   ],
 })
 export class AppModule {}
-
-

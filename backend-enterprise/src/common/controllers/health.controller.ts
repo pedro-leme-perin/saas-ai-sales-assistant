@@ -36,8 +36,8 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Returns health status of all services',
   })
   async check(): Promise<HealthCheckResponse> {
@@ -63,11 +63,9 @@ export class HealthController {
       const testValue = Date.now().toString();
       await this.cache.set(testKey, testValue, 5);
       const retrieved = await this.cache.get(testKey);
-      
       if (retrieved !== testValue) {
         throw new Error('Cache value mismatch');
       }
-      
       await this.cache.del(testKey);
     } catch (error) {
       services.cache = {

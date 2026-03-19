@@ -21,7 +21,7 @@ interface ErrorResponse {
   statusCode: number;
   message: string;
   error: string;
-  details?: any;
+  details?: unknown;
   timestamp: string;
   path: string;
   requestId?: string;
@@ -55,10 +55,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
 
       let message = exception.message;
-      let details: any;
+      let details: unknown;
 
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-        const response = exceptionResponse as Record<string, any>;
+        const response = exceptionResponse as Record<string, unknown>;
         message = response.message || message;
         details = response.errors || response.details;
       }

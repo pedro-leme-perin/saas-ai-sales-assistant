@@ -36,22 +36,18 @@ export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);
 // =============================================
 // @CompanyId() - Get company ID from request
 // =============================================
-export const CompanyId = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): string => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.user?.companyId;
-  },
-);
+export const CompanyId = createParamDecorator((_data: unknown, ctx: ExecutionContext): string => {
+  const request = ctx.switchToHttp().getRequest();
+  return request.user?.companyId;
+});
 
 // =============================================
 // @UserId() - Get user ID from request
 // =============================================
-export const UserId = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): string => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.user?.id;
-  },
-);
+export const UserId = createParamDecorator((_data: unknown, ctx: ExecutionContext): string => {
+  const request = ctx.switchToHttp().getRequest();
+  return request.user?.id;
+});
 
 // =============================================
 // @ApiPaginatedResponse() - Swagger pagination

@@ -12,7 +12,7 @@ import {
   ThrottlerModuleOptions,
   ThrottlerStorage,
 } from '@nestjs/throttler';
-import { getOptionsToken, getStorageToken } from '@nestjs/throttler';
+import { getOptionsToken } from '@nestjs/throttler';
 import { Reflector } from '@nestjs/core';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { AuthUser } from '../../modules/auth/interfaces/auth-user.interface';

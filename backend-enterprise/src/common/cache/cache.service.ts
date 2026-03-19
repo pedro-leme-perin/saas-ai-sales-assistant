@@ -2,15 +2,14 @@
 
 @Injectable()
 export class CacheService {
-  private cache = new Map<string, any>();
+  private cache = new Map<string, unknown>();
 
-  async get(key: string): Promise<any | null> {
+  async get(key: string): Promise<unknown | null> {
     return this.cache.get(key) || null;
   }
 
-  async set(key: string, value: any, ttl?: number): Promise<void> {
+  async set(key: string, value: unknown, ttl?: number): Promise<void> {
     this.cache.set(key, value);
-    
     if (ttl) {
       setTimeout(() => {
         this.cache.delete(key);
