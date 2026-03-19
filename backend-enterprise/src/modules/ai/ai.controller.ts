@@ -21,21 +21,14 @@ export class AiController {
       provider?: AIProviderType;
     },
   ) {
-    return this.aiService.generateSuggestion(
-      body.transcript,
-      body.context,
-      body.provider,
-    );
+    return this.aiService.generateSuggestion(body.transcript, body.context, body.provider);
   }
 
   @Post('suggestion/balanced')
   async generateSuggestionBalanced(
     @Body() body: { transcript: string; context?: Record<string, any> },
   ) {
-    return this.aiService.generateSuggestionBalanced(
-      body.transcript,
-      body.context,
-    );
+    return this.aiService.generateSuggestionBalanced(body.transcript, body.context);
   }
 
   @Post('analyze')
@@ -47,11 +40,7 @@ export class AiController {
       provider?: AIProviderType;
     },
   ) {
-    return this.aiService.analyzeConversation(
-      body.transcript,
-      body.context,
-      body.provider,
-    );
+    return this.aiService.analyzeConversation(body.transcript, body.context, body.provider);
   }
 
   @Get('health')
@@ -80,10 +69,9 @@ export class AiController {
   @Public()
   async testAI() {
     try {
-      const result = await this.aiService.generateSuggestion(
-        'Customer is asking about pricing',
-        { sentiment: 'neutral' },
-      );
+      const result = await this.aiService.generateSuggestion('Customer is asking about pricing', {
+        sentiment: 'neutral',
+      });
       return { success: true, result };
     } catch (error: any) {
       return { success: false, error: error.message, stack: error.stack };

@@ -51,9 +51,7 @@ describe('CallsController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CallsController],
-      providers: [
-        { provide: CallsService, useValue: callsService },
-      ],
+      providers: [{ provide: CallsService, useValue: callsService }],
     }).compile();
 
     controller = module.get<CallsController>(CallsController);
@@ -174,7 +172,11 @@ describe('CallsController', () => {
       };
       const result = await controller.handleRecordingWebhook('call-123', body);
       expect(result).toEqual({ success: true });
-      expect(callsService.handleRecordingCompleted).toHaveBeenCalledWith('call-123', body.RecordingUrl, 120);
+      expect(callsService.handleRecordingCompleted).toHaveBeenCalledWith(
+        'call-123',
+        body.RecordingUrl,
+        120,
+      );
     });
 
     it('should ignore non-completed recordings', async () => {
@@ -196,7 +198,11 @@ describe('CallsController', () => {
     it('should handle missing duration', async () => {
       const body = { CallStatus: 'ringing' };
       await controller.handleStatusWebhook('call-123', body);
-      expect(callsService.handleStatusWebhook).toHaveBeenCalledWith('call-123', 'ringing', undefined);
+      expect(callsService.handleStatusWebhook).toHaveBeenCalledWith(
+        'call-123',
+        'ringing',
+        undefined,
+      );
     });
   });
 
@@ -214,7 +220,9 @@ describe('CallsController', () => {
       const body = { TranscriptionText: 'Hello world' };
       const result = await controller.handleTranscriptionWebhook('call-123', body);
       expect(result).toEqual({ success: true });
-      expect(callsService.update).toHaveBeenCalledWith('call-123', '', { transcript: 'Hello world' });
+      expect(callsService.update).toHaveBeenCalledWith('call-123', '', {
+        transcript: 'Hello world',
+      });
     });
 
     it('should skip update when no text', async () => {

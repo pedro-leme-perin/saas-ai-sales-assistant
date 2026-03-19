@@ -29,13 +29,10 @@ export class WhatsappController {
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Receive incoming WhatsApp messages from Twilio' })
-  async receiveTwilioWebhook(
-    @Body() payload: TwilioWebhookPayload,
-    @Res() res: Response,
-  ) {
-    this.whatsappService.processWebhook(payload).catch((err) =>
-      console.error('Twilio webhook processing error:', err),
-    );
+  async receiveTwilioWebhook(@Body() payload: TwilioWebhookPayload, @Res() res: Response) {
+    this.whatsappService
+      .processWebhook(payload)
+      .catch((err) => console.error('Twilio webhook processing error:', err));
     res.setHeader('Content-Type', 'text/xml');
     res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
@@ -45,13 +42,10 @@ export class WhatsappController {
   @Post('webhook/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Receive WhatsApp message status updates from Twilio' })
-  async receiveTwilioStatus(
-    @Body() payload: TwilioStatusPayload,
-    @Res() res: Response,
-  ) {
-    this.whatsappService.processStatusCallback(payload).catch((err) =>
-      console.error('Twilio status callback error:', err),
-    );
+  async receiveTwilioStatus(@Body() payload: TwilioStatusPayload, @Res() res: Response) {
+    this.whatsappService
+      .processStatusCallback(payload)
+      .catch((err) => console.error('Twilio status callback error:', err));
     res.setHeader('Content-Type', 'text/xml');
     res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
@@ -71,19 +65,13 @@ export class WhatsappController {
 
   @Get('chats/:companyId/:id')
   @ApiOperation({ summary: 'Get chat details' })
-  async findChat(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-  ) {
+  async findChat(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.whatsappService.findChat(id, companyId);
   }
 
   @Get('chats/:companyId/:chatId/messages')
   @ApiOperation({ summary: 'Get chat messages' })
-  async getMessages(
-    @Param('companyId') companyId: string,
-    @Param('chatId') chatId: string,
-  ) {
+  async getMessages(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     return this.whatsappService.getMessages(chatId, companyId);
   }
 
@@ -105,14 +93,9 @@ export class WhatsappController {
 
   @Get('chats/:companyId/:chatId/suggestion')
   @ApiOperation({ summary: 'Get AI suggestion for current chat context' })
-  async getSuggestion(
-    @Param('companyId') companyId: string,
-    @Param('chatId') chatId: string,
-  ) {
+  async getSuggestion(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     const messages = await this.whatsappService.getMessages(chatId, companyId);
-    const lastCustomerMessage = messages
-      .filter((m: any) => m.direction === 'INCOMING')
-      .pop();
+    const lastCustomerMessage = messages.filter((m: any) => m.direction === 'INCOMING').pop();
 
     if (!lastCustomerMessage) {
       return {
@@ -129,24 +112,21 @@ export class WhatsappController {
       .join('\n');
 
     const aiResult = await this.aiService.generateSuggestion(lastCustomerMessage.content, {
-        conversationHistory,
-        customerSentiment: 'neutral',
-      });
-      return {
-        suggestion: aiResult.text,
-        confidence: aiResult.confidence,
-        type: 'general',
-        context: 'whatsapp',
-        provider: aiResult.provider,
-      };
+      conversationHistory,
+      customerSentiment: 'neutral',
+    });
+    return {
+      suggestion: aiResult.text,
+      confidence: aiResult.confidence,
+      type: 'general',
+      context: 'whatsapp',
+      provider: aiResult.provider,
+    };
   }
 
   @Patch('chats/:companyId/:chatId/read')
   @ApiOperation({ summary: 'Mark chat messages as read' })
-  async markAsRead(
-    @Param('companyId') companyId: string,
-    @Param('chatId') chatId: string,
-  ) {
+  async markAsRead(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     return this.whatsappService.markAsRead(chatId, companyId);
   }
 }

@@ -8,7 +8,7 @@ import { UserWithCompany } from '@/modules/users/users.service';
 // Rate limit auth endpoints (System Design Interview - Cap. 4)
 // Prevent brute force / session enumeration
 @Throttle({ auth: { ttl: 60000, limit: 30 } })
-@Controller('auth')  // ← CORRIGIDO: removido 'api/'
+@Controller('auth') // ← CORRIGIDO: removido 'api/'
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
@@ -19,7 +19,7 @@ export class AuthController {
   @Get('me')
   async getMe(@CurrentUser() user: UserWithCompany) {
     this.logger.debug(`Getting user profile: ${user.id}`);
-    
+
     return {
       id: user.id,
       email: user.email,
@@ -28,7 +28,7 @@ export class AuthController {
       avatarUrl: user.avatarUrl,
       phone: user.phone,
       status: user.status,
-      companyId: user.companyId,  // ← ADICIONADO: necessário para o frontend
+      companyId: user.companyId, // ← ADICIONADO: necessário para o frontend
       company: {
         id: user.company.id,
         name: user.company.name,

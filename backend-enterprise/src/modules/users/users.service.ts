@@ -3,10 +3,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { User, Company, UserRole, Plan, UserStatus, Prisma } from '@prisma/client';
-import { 
-  ClerkJwtPayload, 
+import {
+  ClerkJwtPayload,
   ClerkUserData,
-  CreateUserFromClerkDto 
+  CreateUserFromClerkDto,
 } from '../auth/interfaces/clerk.interfaces';
 
 // Tipo com company incluída
@@ -24,7 +24,7 @@ export class UsersService {
 
   async findByClerkId(clerkId: string): Promise<UserWithCompany | null> {
     this.logger.debug(`Finding user by clerkId: ${clerkId}`);
-    
+
     return this.prisma.user.findUnique({
       where: { clerkId },
       include: { company: true },
@@ -33,7 +33,7 @@ export class UsersService {
 
   async findById(id: string, companyId: string): Promise<UserWithCompany | null> {
     return this.prisma.user.findFirst({
-      where: { 
+      where: {
         id,
         companyId,
       },
@@ -41,7 +41,7 @@ export class UsersService {
     });
   }
 
-    async findAllByCompany(companyId: string, limit = 50) {
+  async findAllByCompany(companyId: string, limit = 50) {
     return this.prisma.user.findMany({
       where: { companyId },
       orderBy: { createdAt: 'asc' },
@@ -72,7 +72,7 @@ export class UsersService {
     if (companyId) {
       where.companyId = companyId;
     }
-    
+
     return this.prisma.user.findFirst({
       where,
       include: { company: true },
@@ -95,7 +95,7 @@ export class UsersService {
 
     // Tentar buscar dados completos do Clerk
     let userData: CreateUserFromClerkDto;
-    
+
     try {
       userData = await this.fetchClerkUserData(payload.sub);
     } catch (err) {
@@ -113,14 +113,14 @@ export class UsersService {
 
   private async fetchClerkUserData(clerkId: string): Promise<CreateUserFromClerkDto> {
     const clerkSecretKey = process.env.CLERK_SECRET_KEY;
-    
+
     if (!clerkSecretKey) {
       throw new Error('CLERK_SECRET_KEY not configured');
     }
 
     const response = await fetch(`https://api.clerk.com/v1/users/${clerkId}`, {
       headers: {
-        'Authorization': `Bearer ${clerkSecretKey}`,
+        Authorization: `Bearer ${clerkSecretKey}`,
         'Content-Type': 'application/json',
       },
     });
@@ -131,7 +131,7 @@ export class UsersService {
 
     const json = await response.json();
     const clerkUser = json as ClerkUserData;
-    
+
     return {
       clerkId: clerkUser.id,
       email: clerkUser.email_addresses?.[0]?.email_address ?? '',
@@ -150,7 +150,7 @@ export class UsersService {
       const existingUsersCount = await tx.user.count({
         where: { companyId: company.id },
       });
-      
+
       const role: UserRole = existingUsersCount === 0 ? 'ADMIN' : 'VENDOR';
 
       // 3. Criar usuário
@@ -170,17 +170,14 @@ export class UsersService {
       });
 
       this.logger.log(`User created: ${user.id} (${user.email}) in company ${company.name}`);
-      
+
       return user;
     });
   }
 
-  private async getOrCreateCompany(
-    tx: Prisma.TransactionClient,
-    email: string,
-  ): Promise<Company> {
+  private async getOrCreateCompany(tx: Prisma.TransactionClient, email: string): Promise<Company> {
     const domain = this.extractDomain(email);
-    
+
     // Tentar encontrar company pelo domínio
     if (domain && !this.isGenericEmailDomain(domain)) {
       const existingCompany = await tx.company.findFirst({
@@ -200,9 +197,10 @@ export class UsersService {
     }
 
     // Criar nova company
-    const companyName = domain && !this.isGenericEmailDomain(domain)
-      ? this.domainToCompanyName(domain)
-      : `Company ${Date.now()}`;
+    const companyName =
+      domain && !this.isGenericEmailDomain(domain)
+        ? this.domainToCompanyName(domain)
+        : `Company ${Date.now()}`;
 
     const company = await tx.company.create({
       data: {
@@ -212,7 +210,7 @@ export class UsersService {
     });
 
     this.logger.log(`Created new company: ${company.id} (${company.name})`);
-    
+
     return company;
   }
 
@@ -310,10 +308,25 @@ export class UsersService {
 
   private isGenericEmailDomain(domain: string): boolean {
     const genericDomains = [
-      'gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com',
-      'live.com', 'yahoo.com', 'yahoo.com.br', 'icloud.com', 'me.com',
-      'protonmail.com', 'proton.me', 'aol.com', 'mail.com', 'zoho.com',
-      'uol.com.br', 'bol.com.br', 'terra.com.br', 'ig.com.br', 'globo.com',
+      'gmail.com',
+      'googlemail.com',
+      'outlook.com',
+      'hotmail.com',
+      'live.com',
+      'yahoo.com',
+      'yahoo.com.br',
+      'icloud.com',
+      'me.com',
+      'protonmail.com',
+      'proton.me',
+      'aol.com',
+      'mail.com',
+      'zoho.com',
+      'uol.com.br',
+      'bol.com.br',
+      'terra.com.br',
+      'ig.com.br',
+      'globo.com',
       'pending.local',
     ];
     return genericDomains.includes(domain.toLowerCase());
@@ -323,9 +336,9 @@ export class UsersService {
     const name = domain
       .replace(/\.(com|net|org|io|co|app|dev|br|us|uk|de|fr|es|it|pt)(\.[a-z]{2})?$/i, '')
       .split('.')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
-    
+
     return name || domain;
   }
 }

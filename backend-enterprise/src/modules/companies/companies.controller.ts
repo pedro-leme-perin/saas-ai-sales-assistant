@@ -1,22 +1,8 @@
 // =====================================================
 // 🏢 COMPANIES CONTROLLER - COMPLETE AND FIXED
 // =====================================================
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -50,17 +36,23 @@ export class CompaniesController {
       users: {
         used: company.users?.length || 0,
         limit: company.maxUsers || 0,
-        percentage: company.maxUsers ? Math.round(((company.users?.length || 0) / company.maxUsers) * 100) : 0,
+        percentage: company.maxUsers
+          ? Math.round(((company.users?.length || 0) / company.maxUsers) * 100)
+          : 0,
       },
       calls: {
         used: company._count?.calls || 0,
         limit: company.maxCallsPerMonth || 0,
-        percentage: company.maxCallsPerMonth ? Math.round(((company._count?.calls || 0) / company.maxCallsPerMonth) * 100) : 0,
+        percentage: company.maxCallsPerMonth
+          ? Math.round(((company._count?.calls || 0) / company.maxCallsPerMonth) * 100)
+          : 0,
       },
       chats: {
         used: company._count?.whatsappChats || 0,
         limit: company.maxChatsPerMonth || 0,
-        percentage: company.maxChatsPerMonth ? Math.round(((company._count?.whatsappChats || 0) / company.maxChatsPerMonth) * 100) : 0,
+        percentage: company.maxChatsPerMonth
+          ? Math.round(((company._count?.whatsappChats || 0) / company.maxChatsPerMonth) * 100)
+          : 0,
       },
     };
     return { success: true, data: usage };
@@ -99,5 +91,3 @@ export class CompaniesController {
     return { success: true, data: stats };
   }
 }
-
-

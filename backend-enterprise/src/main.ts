@@ -21,10 +21,12 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // ── Security headers (Release It! - Defense in Depth) ──
-  app.use(helmet({
-    contentSecurityPolicy: false, // Next.js handles CSP
-    crossOriginEmbedderPolicy: false,
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Next.js handles CSP
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   // ── Response compression (HPBN - Performance) ──
   app.use(compression());

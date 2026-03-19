@@ -55,7 +55,13 @@ describe('NotificationsController', () => {
 
   describe('create', () => {
     it('should create a notification with user context', async () => {
-      const createDto = { title: 'New Notification', message: 'Test message', userId: 'u1', companyId: 'c1', type: 'CALL_STARTED' as any };
+      const createDto = {
+        title: 'New Notification',
+        message: 'Test message',
+        userId: 'u1',
+        companyId: 'c1',
+        type: 'CALL_STARTED' as any,
+      };
       (service.create as jest.Mock).mockResolvedValue(mockNotification);
 
       const result = await controller.create(createDto, mockRequest as any);
@@ -119,9 +125,7 @@ describe('NotificationsController', () => {
       };
       const pagination = { skip: 0, take: 10 };
 
-      await expect(
-        controller.findAll(pagination, invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.findAll(pagination, invalidRequest as any)).rejects.toThrow();
       expect(service.findAll).not.toHaveBeenCalled();
     });
 
@@ -131,9 +135,7 @@ describe('NotificationsController', () => {
       };
       const pagination = { skip: 0, take: 10 };
 
-      await expect(
-        controller.findAll(pagination, invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.findAll(pagination, invalidRequest as any)).rejects.toThrow();
       expect(service.findAll).not.toHaveBeenCalled();
     });
 
@@ -170,9 +172,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(
-        controller.getUnreadCount(invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.getUnreadCount(invalidRequest as any)).rejects.toThrow();
       expect(service.getUnreadCount).not.toHaveBeenCalled();
     });
 
@@ -181,9 +181,7 @@ describe('NotificationsController', () => {
         user: { userId: 'test-user-id' },
       };
 
-      await expect(
-        controller.getUnreadCount(invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.getUnreadCount(invalidRequest as any)).rejects.toThrow();
       expect(service.getUnreadCount).not.toHaveBeenCalled();
     });
   });
@@ -209,9 +207,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(
-        controller.markAsRead('notif-1', invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.markAsRead('notif-1', invalidRequest as any)).rejects.toThrow();
       expect(service.markAsRead).not.toHaveBeenCalled();
     });
 
@@ -220,9 +216,7 @@ describe('NotificationsController', () => {
         user: { userId: 'test-user-id' },
       };
 
-      await expect(
-        controller.markAsRead('notif-1', invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.markAsRead('notif-1', invalidRequest as any)).rejects.toThrow();
       expect(service.markAsRead).not.toHaveBeenCalled();
     });
   });
@@ -245,9 +239,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(
-        controller.markAllAsRead(invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.markAllAsRead(invalidRequest as any)).rejects.toThrow();
       expect(service.markAllAsRead).not.toHaveBeenCalled();
     });
 
@@ -256,9 +248,7 @@ describe('NotificationsController', () => {
         user: { userId: 'test-user-id' },
       };
 
-      await expect(
-        controller.markAllAsRead(invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.markAllAsRead(invalidRequest as any)).rejects.toThrow();
       expect(service.markAllAsRead).not.toHaveBeenCalled();
     });
   });
@@ -283,9 +273,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(
-        controller.delete('notif-1', invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.delete('notif-1', invalidRequest as any)).rejects.toThrow();
       expect(service.delete).not.toHaveBeenCalled();
     });
 
@@ -294,9 +282,7 @@ describe('NotificationsController', () => {
         user: { userId: 'test-user-id' },
       };
 
-      await expect(
-        controller.delete('notif-1', invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.delete('notif-1', invalidRequest as any)).rejects.toThrow();
       expect(service.delete).not.toHaveBeenCalled();
     });
   });
@@ -319,9 +305,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(
-        controller.deleteAllRead(invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.deleteAllRead(invalidRequest as any)).rejects.toThrow();
       expect(service.deleteAllRead).not.toHaveBeenCalled();
     });
 
@@ -330,9 +314,7 @@ describe('NotificationsController', () => {
         user: { userId: 'test-user-id' },
       };
 
-      await expect(
-        controller.deleteAllRead(invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.deleteAllRead(invalidRequest as any)).rejects.toThrow();
       expect(service.deleteAllRead).not.toHaveBeenCalled();
     });
   });
@@ -357,9 +339,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(
-        controller.findById('notif-1', invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.findById('notif-1', invalidRequest as any)).rejects.toThrow();
       expect(service.findById).not.toHaveBeenCalled();
     });
 
@@ -368,9 +348,7 @@ describe('NotificationsController', () => {
         user: { userId: 'test-user-id' },
       };
 
-      await expect(
-        controller.findById('notif-1', invalidRequest as any),
-      ).rejects.toThrow();
+      await expect(controller.findById('notif-1', invalidRequest as any)).rejects.toThrow();
       expect(service.findById).not.toHaveBeenCalled();
     });
   });

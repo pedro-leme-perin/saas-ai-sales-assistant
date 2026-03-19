@@ -59,7 +59,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const response = exceptionResponse as Record<string, unknown>;
-        message = response.message || message;
+        message = (response.message as string) || message;
         details = response.errors || response.details;
       }
 
@@ -97,9 +97,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return {
       success: false,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: process.env.NODE_ENV === 'production' 
-        ? 'Internal server error' 
-        : error.message || 'Unknown error',
+      message:
+        process.env.NODE_ENV === 'production'
+          ? 'Internal server error'
+          : error.message || 'Unknown error',
       error: 'Internal Server Error',
       timestamp,
       path,

@@ -108,9 +108,7 @@ describe('CallsService', () => {
     it('should throw NotFoundException when not found', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('invalid', 'company-123')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('invalid', 'company-123')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -164,9 +162,9 @@ describe('CallsService', () => {
     it('should throw when call not found', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.update('invalid', 'company-123', { duration: 200 }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('invalid', 'company-123', { duration: 200 })).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -262,9 +260,9 @@ describe('CallsService', () => {
     it('should throw when call has no transcript', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue({ ...mockCall, transcript: null });
 
-      await expect(
-        service.analyzeCall('call-123', 'company-123', 'user-123'),
-      ).rejects.toThrow('Call has no transcript to analyze');
+      await expect(service.analyzeCall('call-123', 'company-123', 'user-123')).rejects.toThrow(
+        'Call has no transcript to analyze',
+      );
     });
 
     it('should generate suggestions from transcript chunks', async () => {
@@ -305,9 +303,9 @@ describe('CallsService', () => {
         twilioCallSid: 'CA123',
       });
 
-      await expect(
-        service.endCall('call-123', 'company-123'),
-      ).rejects.toThrow('Cannot end call - Twilio not configured or no SID');
+      await expect(service.endCall('call-123', 'company-123')).rejects.toThrow(
+        'Cannot end call - Twilio not configured or no SID',
+      );
     });
   });
 });

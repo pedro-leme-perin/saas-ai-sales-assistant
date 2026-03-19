@@ -34,9 +34,8 @@ export function maskPhone(phone: string): string {
 export function maskEmail(email: string): string {
   const [name, domain] = email.split('@');
   if (!domain) return email;
-  const maskedName = name.length > 2
-    ? name[0] + '*'.repeat(name.length - 2) + name[name.length - 1]
-    : name;
+  const maskedName =
+    name.length > 2 ? name[0] + '*'.repeat(name.length - 2) + name[name.length - 1] : name;
   return `${maskedName}@${domain}`;
 }
 

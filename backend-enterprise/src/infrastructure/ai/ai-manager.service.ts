@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  AIProvider,
-  AISuggestion,
-  AIAnalysis,
-} from './providers/ai-provider.interface';
+import { AIProvider, AISuggestion, AIAnalysis } from './providers/ai-provider.interface';
 import { OpenAIProvider } from './providers/openai.provider';
 import { ClaudeProvider } from './providers/claude.provider';
 import { GeminiProvider } from './providers/gemini.provider';
@@ -19,12 +15,7 @@ export class AIManagerService {
   private providers: Map<AIProviderType, AIProvider> = new Map();
   // Circuit breaker per provider (Release It! - one breaker per integration point)
   private breakers: Map<AIProviderType, CircuitBreaker> = new Map();
-  private fallbackOrder: AIProviderType[] = [
-    'gemini',
-    'openai',
-    'claude',
-    'perplexity',
-  ];
+  private fallbackOrder: AIProviderType[] = ['gemini', 'openai', 'claude', 'perplexity'];
   private currentProviderIndex = 0;
 
   constructor(private configService: ConfigService) {
@@ -35,30 +26,21 @@ export class AIManagerService {
     // OpenAI
     const openaiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (openaiKey) {
-      this.providers.set(
-        'openai',
-        new OpenAIProvider({ apiKey: openaiKey, timeout: 10000 }),
-      );
+      this.providers.set('openai', new OpenAIProvider({ apiKey: openaiKey, timeout: 10000 }));
       this.logger.log('✅ OpenAI provider initialized');
     }
 
     // Claude
     const claudeKey = this.configService.get<string>('CLAUDE_API_KEY');
     if (claudeKey) {
-      this.providers.set(
-        'claude',
-        new ClaudeProvider({ apiKey: claudeKey, timeout: 10000 }),
-      );
+      this.providers.set('claude', new ClaudeProvider({ apiKey: claudeKey, timeout: 10000 }));
       this.logger.log('✅ Claude provider initialized');
     }
 
     // Gemini
     const geminiKey = this.configService.get<string>('GEMINI_API_KEY');
     if (geminiKey) {
-      this.providers.set(
-        'gemini',
-        new GeminiProvider({ apiKey: geminiKey, timeout: 10000 }),
-      );
+      this.providers.set('gemini', new GeminiProvider({ apiKey: geminiKey, timeout: 10000 }));
       this.logger.log('✅ Gemini provider initialized');
     }
 
@@ -78,10 +60,10 @@ export class AIManagerService {
         name,
         new CircuitBreaker({
           name: `AI:${name}`,
-          failureThreshold: 3,      // 3 failures → open
-          resetTimeoutMs: 30000,     // 30s before half-open
-          failureWindowMs: 60000,    // count failures within 60s
-          callTimeoutMs: 15000,      // 15s timeout per call (LLM SLO: 2000ms p95, but allow headroom)
+          failureThreshold: 3, // 3 failures → open
+          resetTimeoutMs: 30000, // 30s before half-open
+          failureWindowMs: 60000, // count failures within 60s
+          callTimeoutMs: 15000, // 15s timeout per call (LLM SLO: 2000ms p95, but allow headroom)
         }),
       );
     }
@@ -104,12 +86,12 @@ export class AIManagerService {
       const breaker = this.breakers.get(preferredProvider);
       try {
         return await (breaker
-          ? breaker.execute(() => this.providers.get(preferredProvider)!.generateSuggestion(transcript, context))
+          ? breaker.execute(() =>
+              this.providers.get(preferredProvider)!.generateSuggestion(transcript, context),
+            )
           : this.providers.get(preferredProvider)!.generateSuggestion(transcript, context));
       } catch (error: any) {
-        this.logger.error(
-          `${preferredProvider} failed, trying fallback: ${error.message}`,
-        );
+        this.logger.error(`${preferredProvider} failed, trying fallback: ${error.message}`);
       }
     }
 
@@ -146,12 +128,12 @@ export class AIManagerService {
       const breaker = this.breakers.get(preferredProvider);
       try {
         return await (breaker
-          ? breaker.execute(() => this.providers.get(preferredProvider)!.analyzeConversation(transcript, context))
+          ? breaker.execute(() =>
+              this.providers.get(preferredProvider)!.analyzeConversation(transcript, context),
+            )
           : this.providers.get(preferredProvider)!.analyzeConversation(transcript, context));
       } catch (error: any) {
-        this.logger.error(
-          `${preferredProvider} analysis failed: ${error.message}`,
-        );
+        this.logger.error(`${preferredProvider} analysis failed: ${error.message}`);
       }
     }
 
@@ -166,9 +148,7 @@ export class AIManagerService {
           ? breaker.execute(() => provider.analyzeConversation(transcript, context))
           : provider.analyzeConversation(transcript, context));
       } catch (error: any) {
-        this.logger.error(
-          `${providerType} analysis failed: ${error.message}`,
-        );
+        this.logger.error(`${providerType} analysis failed: ${error.message}`);
         continue;
       }
     }
@@ -190,14 +170,11 @@ export class AIManagerService {
     }
 
     // Round-robin
-    const provider =
-      availableProviders[this.currentProviderIndex % availableProviders.length];
+    const provider = availableProviders[this.currentProviderIndex % availableProviders.length];
     this.currentProviderIndex++;
 
     try {
-      return await this.providers
-        .get(provider)!
-        .generateSuggestion(transcript, context);
+      return await this.providers.get(provider)!.generateSuggestion(transcript, context);
     } catch (error: any) {
       this.logger.error(`Load balanced provider ${provider} failed`);
       return this.generateSuggestion(transcript, context);
@@ -256,4 +233,3 @@ export class AIManagerService {
     };
   }
 }
-

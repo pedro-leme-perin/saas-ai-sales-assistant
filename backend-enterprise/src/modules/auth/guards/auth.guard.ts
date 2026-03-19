@@ -23,7 +23,12 @@ export class AuthGuard implements CanActivate {
     const path = request.path || request.url || '';
 
     // Whitelist: qualquer path contendo whatsapp/webhook
-    if (path.includes('whatsapp/webhook') || path.includes('billing/webhook') || path.includes('webhooks/clerk') || path === '/health') {
+    if (
+      path.includes('whatsapp/webhook') ||
+      path.includes('billing/webhook') ||
+      path.includes('webhooks/clerk') ||
+      path === '/health'
+    ) {
       return true;
     }
 

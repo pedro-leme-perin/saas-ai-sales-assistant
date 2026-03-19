@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Param, Body, Res, HttpCode, Request, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Param,
+  Body,
+  Res,
+  HttpCode,
+  Request,
+  Logger,
+} from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '@/common/decorators/public.decorator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
@@ -25,28 +36,17 @@ export class CallsController {
   }
 
   @Get(':companyId/:id')
-  async findOne(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-  ) {
+  async findOne(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.callsService.findOne(id, companyId);
   }
 
   @Post(':companyId')
-  async create(
-    @Param('companyId') companyId: string,
-    @Body() data: any,
-    @Request() req: any,
-  ) {
+  async create(@Param('companyId') companyId: string, @Body() data: any, @Request() req: any) {
     return this.callsService.create(companyId, req.user.id, data);
   }
 
   @Put(':companyId/:id')
-  async update(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-    @Body() data: any,
-  ) {
+  async update(@Param('companyId') companyId: string, @Param('id') id: string, @Body() data: any) {
     return this.callsService.update(id, companyId, data);
   }
 
@@ -58,20 +58,12 @@ export class CallsController {
     @Request() req: any,
   ) {
     const webhookUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
-    return this.callsService.initiateCall(
-      companyId,
-      req.user.id,
-      data.phoneNumber,
-      webhookUrl,
-    );
+    return this.callsService.initiateCall(companyId, req.user.id, data.phoneNumber, webhookUrl);
   }
 
   @Post(':companyId/:id/end')
   @ApiOperation({ summary: 'End an active call' })
-  async endCall(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-  ) {
+  async endCall(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.callsService.endCall(id, companyId);
   }
 
@@ -84,10 +76,7 @@ export class CallsController {
   @Post('webhook/voice/:callId')
   @HttpCode(200)
   @ApiOperation({ summary: 'Twilio voice webhook with Media Streams for real-time' })
-  async handleVoiceWebhook(
-    @Param('callId') callId: string,
-    @Res() res: Response,
-  ) {
+  async handleVoiceWebhook(@Param('callId') callId: string, @Res() res: Response) {
     this.logger.log(`Voice webhook called for call: ${callId}`);
 
     const VoiceResponse = twilio.twiml.VoiceResponse;
@@ -99,10 +88,7 @@ export class CallsController {
     this.logger.log(`WebSocket URL: ${wsUrl}/ws/media`);
 
     // Greet
-    response.say(
-      { language: 'pt-BR', voice: 'Polly.Camila' },
-      'Assistente de vendas conectado.',
-    );
+    response.say({ language: 'pt-BR', voice: 'Polly.Camila' }, 'Assistente de vendas conectado.');
 
     // Fork audio to WebSocket for real-time transcription
     // <Start><Stream> keeps the call alive while streaming audio
@@ -138,10 +124,7 @@ export class CallsController {
     const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
-    response.say(
-      { language: 'pt-BR', voice: 'Polly.Camila' },
-      'Assistente de vendas conectado.',
-    );
+    response.say({ language: 'pt-BR', voice: 'Polly.Camila' }, 'Assistente de vendas conectado.');
 
     const start = response.start();
     start.stream({ url: `${wsUrl}/ws/media`, track: 'both_tracks' });
@@ -157,7 +140,8 @@ export class CallsController {
   @HttpCode(200)
   async handleRecordingWebhook(
     @Param('callId') callId: string,
-    @Body() body: {
+    @Body()
+    body: {
       RecordingSid?: string;
       RecordingUrl?: string;
       RecordingStatus?: string;
@@ -224,6 +208,3 @@ export class CallsController {
     return this.callsService.analyzeCall(id, companyId, req.user.id);
   }
 }
-
-
-

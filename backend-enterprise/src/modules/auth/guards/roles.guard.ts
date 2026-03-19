@@ -27,15 +27,15 @@ import { AuthUser } from '../interfaces/auth-user.interface';
 
 /**
  * Role-Based Access Control Guard
- * 
+ *
  * MUST be used after AuthGuard to ensure user is authenticated.
  * Works together with @Roles() decorator to restrict access.
- * 
+ *
  * Authorization logic:
  * - If no @Roles() decorator → allow access (no restriction)
  * - If @Roles(ADMIN) → only ADMIN can access
  * - If @Roles(ADMIN, MANAGER) → ADMIN OR MANAGER can access (OR logic)
- * 
+ *
  * @example Single role
  * ```typescript
  * @Roles(UserRole.ADMIN)
@@ -45,7 +45,7 @@ import { AuthUser } from '../interfaces/auth-user.interface';
  *   // Only ADMIN can access
  * }
  * ```
- * 
+ *
  * @example Multiple roles (OR logic)
  * ```typescript
  * @Roles(UserRole.ADMIN, UserRole.MANAGER)
@@ -64,17 +64,17 @@ export class RolesGuard implements CanActivate {
 
   /**
    * Validate user has required role(s)
-   * 
+   *
    * @param context - Execution context with route metadata
    * @returns true if user has at least one required role
    * @throws ForbiddenException if user lacks required role
    */
   canActivate(context: ExecutionContext): boolean {
     // ✅ Extract required roles from @Roles() decorator
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     // ✅ If no @Roles() decorator, allow access
     // (Route has no role restrictions)
@@ -107,9 +107,7 @@ export class RolesGuard implements CanActivate {
     }
 
     // ✅ Log successful authorization
-    this.logger.debug(
-      `Access granted: User ${user.email} (${user.role}) has required role`,
-    );
+    this.logger.debug(`Access granted: User ${user.email} (${user.role}) has required role`);
 
     return true;
   }
@@ -117,7 +115,7 @@ export class RolesGuard implements CanActivate {
 
 /**
  * Role hierarchy helper
- * 
+ *
  * Some systems need role hierarchy where ADMIN > MANAGER > VENDOR.
  * If you need this, uncomment and use this function:
  */

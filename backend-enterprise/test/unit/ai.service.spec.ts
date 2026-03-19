@@ -53,10 +53,9 @@ describe('AiService', () => {
       };
       mockAIManagerService.generateSuggestion.mockResolvedValue(mockResponse);
 
-      const result = await service.generateSuggestion(
-        'Customer is asking about pricing',
-        { sentiment: 'neutral' },
-      );
+      const result = await service.generateSuggestion('Customer is asking about pricing', {
+        sentiment: 'neutral',
+      });
 
       expect(result).toBeDefined();
       expect(result.text).toBe(mockResponse.text);
@@ -66,13 +65,9 @@ describe('AiService', () => {
     });
 
     it('should handle error from AIManager gracefully', async () => {
-      mockAIManagerService.generateSuggestion.mockRejectedValue(
-        new Error('All providers failed'),
-      );
+      mockAIManagerService.generateSuggestion.mockRejectedValue(new Error('All providers failed'));
 
-      await expect(
-        service.generateSuggestion('test', {}),
-      ).rejects.toThrow('All providers failed');
+      await expect(service.generateSuggestion('test', {})).rejects.toThrow('All providers failed');
     });
   });
 
@@ -97,13 +92,9 @@ describe('AiService', () => {
     });
 
     it('should handle analysis failure', async () => {
-      mockAIManagerService.analyzeConversation.mockRejectedValue(
-        new Error('Analysis failed'),
-      );
+      mockAIManagerService.analyzeConversation.mockRejectedValue(new Error('Analysis failed'));
 
-      await expect(
-        service.analyzeConversation('test', {}),
-      ).rejects.toThrow('Analysis failed');
+      await expect(service.analyzeConversation('test', {})).rejects.toThrow('Analysis failed');
     });
   });
 

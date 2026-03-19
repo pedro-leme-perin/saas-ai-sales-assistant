@@ -4,15 +4,15 @@ import { ConfigService } from '@nestjs/config';
 
 /**
  * Cache Service usando Upstash REST API
- * 
+ *
  * Release It! (Nygard): "Design for failure - external services can fail"
- * 
+ *
  * Features:
  * - Circuit breaker pattern
  * - Graceful degradation
  * - Health checks
  * - Rate limiting (sliding window)
- * 
+ *
  * @see https://upstash.com/docs/redis/features/restapi
  */
 @Injectable()
@@ -73,7 +73,7 @@ export class CacheService implements OnModuleDestroy {
 
   /**
    * Execute Redis command via REST API
-   * 
+   *
    * Circuit Breaker Pattern (Release It!)
    */
   private async execute<T = unknown>(command: string[]): Promise<T | null> {
@@ -102,7 +102,7 @@ export class CacheService implements OnModuleDestroy {
         throw new Error(`Redis error: ${response.status}`);
       }
 
-      const data = await response.json() as { result: T };
+      const data = (await response.json()) as { result: T };
 
       // Reset failure count on success
       this.failureCount = 0;
@@ -130,7 +130,7 @@ export class CacheService implements OnModuleDestroy {
 
   /**
    * Get value from cache
-   * 
+   *
    * @param key Cache key
    * @returns Value or null if not found/error
    */
@@ -140,7 +140,7 @@ export class CacheService implements OnModuleDestroy {
 
   /**
    * Get and parse JSON value from cache
-   * 
+   *
    * @param key Cache key
    * @returns Parsed value or null
    */
@@ -157,14 +157,14 @@ export class CacheService implements OnModuleDestroy {
 
   /**
    * Set value in cache
-   * 
+   *
    * @param key Cache key
    * @param value Value to store (string or object)
    * @param ttlSeconds TTL in seconds (optional)
    */
   async set(key: string, value: string | object, ttlSeconds?: number): Promise<boolean> {
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-    
+
     const command = ttlSeconds
       ? ['SETEX', key, ttlSeconds.toString(), stringValue]
       : ['SET', key, stringValue];
@@ -175,7 +175,7 @@ export class CacheService implements OnModuleDestroy {
 
   /**
    * Delete key from cache
-   * 
+   *
    * @param key Cache key to delete
    */
   async delete(key: string): Promise<boolean> {
@@ -204,9 +204,9 @@ export class CacheService implements OnModuleDestroy {
 
   /**
    * Check rate limit using sliding window algorithm
-   * 
+   *
    * System Design Interview (Cap 4): "Redis sorted sets for sliding window"
-   * 
+   *
    * @param key Rate limit key (e.g., "rate:user:123")
    * @param maxRequests Maximum requests allowed
    * @param windowSeconds Window size in seconds
@@ -226,7 +226,7 @@ export class CacheService implements OnModuleDestroy {
       await this.execute(['ZREMRANGEBYSCORE', key, '0', windowStart.toString()]);
 
       // 2. Count current requests
-      const count = await this.execute<number>(['ZCARD', key]) || 0;
+      const count = (await this.execute<number>(['ZCARD', key])) || 0;
 
       if (count >= maxRequests) {
         return { allowed: false, remaining: 0 };
@@ -256,16 +256,8 @@ export class CacheService implements OnModuleDestroy {
   /**
    * Store session data
    */
-  async setSession(
-    sessionId: string,
-    data: object,
-    ttlSeconds: number = 3600,
-  ): Promise<boolean> {
-    return await this.set(
-      this.sessionKey(sessionId),
-      data,
-      ttlSeconds,
-    );
+  async setSession(sessionId: string, data: object, ttlSeconds: number = 3600): Promise<boolean> {
+    return await this.set(this.sessionKey(sessionId), data, ttlSeconds);
   }
 
   /**
@@ -288,7 +280,7 @@ export class CacheService implements OnModuleDestroy {
 
   /**
    * Health check for monitoring
-   * 
+   *
    * Site Reliability Engineering: "Health checks são essenciais"
    */
   async healthCheck(): Promise<{

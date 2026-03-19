@@ -76,7 +76,14 @@ export class BillingService {
         plan: Plan.STARTER,
         price: 149,
         currency: 'BRL',
-        features: ['Ate 5 usuarios', '100 ligacoes/mes', '200 chats WhatsApp/mes', 'Sugestoes de IA basicas', 'Relatorios basicos', 'Suporte por email'],
+        features: [
+          'Ate 5 usuarios',
+          '100 ligacoes/mes',
+          '200 chats WhatsApp/mes',
+          'Sugestoes de IA basicas',
+          'Relatorios basicos',
+          'Suporte por email',
+        ],
         limits: { users: 5, callsPerMonth: 100, chatsPerMonth: 200 },
       },
       {
@@ -84,7 +91,15 @@ export class BillingService {
         plan: Plan.PROFESSIONAL,
         price: 349,
         currency: 'BRL',
-        features: ['Ate 20 usuarios', '500 ligacoes/mes', '500 chats WhatsApp/mes', 'Sugestoes de IA avancadas', 'Relatorios completos', 'Integracoes com CRM', 'Suporte prioritario'],
+        features: [
+          'Ate 20 usuarios',
+          '500 ligacoes/mes',
+          '500 chats WhatsApp/mes',
+          'Sugestoes de IA avancadas',
+          'Relatorios completos',
+          'Integracoes com CRM',
+          'Suporte prioritario',
+        ],
         limits: { users: 20, callsPerMonth: 500, chatsPerMonth: 500 },
       },
       {
@@ -92,7 +107,16 @@ export class BillingService {
         plan: Plan.ENTERPRISE,
         price: 749,
         currency: 'BRL',
-        features: ['Usuarios ilimitados', 'Ligacoes ilimitadas', 'Chats WhatsApp ilimitados', 'IA personalizada', 'API completa', 'White-label', 'Gerente de conta dedicado', 'Suporte 24/7'],
+        features: [
+          'Usuarios ilimitados',
+          'Ligacoes ilimitadas',
+          'Chats WhatsApp ilimitados',
+          'IA personalizada',
+          'API completa',
+          'White-label',
+          'Gerente de conta dedicado',
+          'Suporte 24/7',
+        ],
         limits: { users: 1000, callsPerMonth: 10000, chatsPerMonth: 10000 },
       },
     ];
@@ -102,7 +126,10 @@ export class BillingService {
     try {
       const [subscription, company] = await Promise.all([
         this.prisma.subscription.findFirst({
-          where: { companyId, status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] } },
+          where: {
+            companyId,
+            status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+          },
           include: { company: { select: { id: true, name: true, plan: true } } },
         }),
         this.prisma.company.findUnique({
@@ -121,7 +148,11 @@ export class BillingService {
         plan: currentPlan,
         company: {
           plan: company.plan,
-          limits: { users: company.maxUsers, callsPerMonth: company.maxCallsPerMonth, chatsPerMonth: company.maxChatsPerMonth },
+          limits: {
+            users: company.maxUsers,
+            callsPerMonth: company.maxCallsPerMonth,
+            chatsPerMonth: company.maxChatsPerMonth,
+          },
         },
       };
     } catch (error) {
@@ -162,7 +193,10 @@ export class BillingService {
               metadata: { companyId },
             });
             stripeCustomerId = customer.id;
-            await this.prisma.company.update({ where: { id: companyId }, data: { stripeCustomerId } });
+            await this.prisma.company.update({
+              where: { id: companyId },
+              data: { stripeCustomerId },
+            });
           }
 
           const session = await this.stripe!.checkout.sessions.create({
@@ -182,7 +216,10 @@ export class BillingService {
       }
 
       this.logger.warn('⚠️  Stripe not configured, returning mock checkout URL');
-      return { url: `http://localhost:3000/faturamento?mock=true&plan=${plan}`, message: 'Development mode - Stripe not configured' };
+      return {
+        url: `http://localhost:3000/faturamento?mock=true&plan=${plan}`,
+        message: 'Development mode - Stripe not configured',
+      };
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) throw error;
       this.logger.error(`Unexpected error creating checkout for company ${companyId}:`, error);
@@ -205,10 +242,24 @@ export class BillingService {
       await this.prisma.$transaction(async (tx) => {
         await tx.company.update({
           where: { id: companyId },
-          data: { plan: newPlan, maxUsers: planDetails.limits.users, maxCallsPerMonth: planDetails.limits.callsPerMonth, maxChatsPerMonth: planDetails.limits.chatsPerMonth },
+          data: {
+            plan: newPlan,
+            maxUsers: planDetails.limits.users,
+            maxCallsPerMonth: planDetails.limits.callsPerMonth,
+            maxChatsPerMonth: planDetails.limits.chatsPerMonth,
+          },
         });
         await tx.auditLog.create({
-          data: { companyId, userId: user.id, action: AuditAction.UPDATE, resource: 'subscription', resourceId: companyId, description: `Plan changed from ${oldPlan} to ${newPlan}`, oldValues: { plan: oldPlan } as any, newValues: { plan: newPlan } as any },
+          data: {
+            companyId,
+            userId: user.id,
+            action: AuditAction.UPDATE,
+            resource: 'subscription',
+            resourceId: companyId,
+            description: `Plan changed from ${oldPlan} to ${newPlan}`,
+            oldValues: { plan: oldPlan } as any,
+            newValues: { plan: newPlan } as any,
+          },
         });
       });
 
@@ -229,14 +280,29 @@ export class BillingService {
       if (!subscription) throw new NotFoundException('No active subscription found');
 
       await this.prisma.$transaction(async (tx) => {
-        await tx.subscription.update({ where: { id: subscription.id }, data: { cancelAtPeriodEnd: true, canceledAt: new Date() } });
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: { cancelAtPeriodEnd: true, canceledAt: new Date() },
+        });
         await tx.auditLog.create({
-          data: { companyId, userId: user.id, action: AuditAction.UPDATE, resource: 'subscription', resourceId: subscription.id, description: 'Subscription cancelled' },
+          data: {
+            companyId,
+            userId: user.id,
+            action: AuditAction.UPDATE,
+            resource: 'subscription',
+            resourceId: subscription.id,
+            description: 'Subscription cancelled',
+          },
         });
       });
 
       this.logger.log(`❌ Subscription cancelled for company ${companyId}`);
-      return { success: true, message: 'Subscription will be cancelled at the end of the billing period', cancelAtPeriodEnd: true, currentPeriodEnd: subscription.currentPeriodEnd };
+      return {
+        success: true,
+        message: 'Subscription will be cancelled at the end of the billing period',
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.logger.error(`Failed to cancel subscription for company ${companyId}:`, error);
@@ -310,10 +376,18 @@ export class BillingService {
   async handleSubscriptionCreated(stripeSub: StripeSubscription) {
     try {
       const companyId = stripeSub.metadata?.companyId;
-      if (!companyId) { this.logger.warn('⚠️  No companyId in subscription metadata'); return; }
+      if (!companyId) {
+        this.logger.warn('⚠️  No companyId in subscription metadata');
+        return;
+      }
 
-      const existing = await this.prisma.subscription.findUnique({ where: { stripeSubscriptionId: stripeSub.id } });
-      if (existing) { this.logger.warn(`Subscription ${stripeSub.id} already exists, skipping`); return; }
+      const existing = await this.prisma.subscription.findUnique({
+        where: { stripeSubscriptionId: stripeSub.id },
+      });
+      if (existing) {
+        this.logger.warn(`Subscription ${stripeSub.id} already exists, skipping`);
+        return;
+      }
 
       const plan = this.mapStripePriceToPlan(stripeSub.items.data[0]?.price.id);
       const planDetails = this.getPlans().find((p) => p.plan === plan);
@@ -321,8 +395,12 @@ export class BillingService {
       await this.prisma.$transaction(async (tx) => {
         await tx.subscription.create({
           data: {
-            companyId, stripeSubscriptionId: stripeSub.id, stripePriceId: stripeSub.items.data[0]?.price.id,
-            stripeCustomerId: stripeSub.customer, plan, status: this.mapStripeStatus(stripeSub.status),
+            companyId,
+            stripeSubscriptionId: stripeSub.id,
+            stripePriceId: stripeSub.items.data[0]?.price.id,
+            stripeCustomerId: stripeSub.customer,
+            plan,
+            status: this.mapStripeStatus(stripeSub.status),
             currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
             currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
           },
@@ -330,7 +408,13 @@ export class BillingService {
         if (planDetails) {
           await tx.company.update({
             where: { id: companyId },
-            data: { plan, stripeCustomerId: stripeSub.customer, maxUsers: planDetails.limits.users, maxCallsPerMonth: planDetails.limits.callsPerMonth, maxChatsPerMonth: planDetails.limits.chatsPerMonth },
+            data: {
+              plan,
+              stripeCustomerId: stripeSub.customer,
+              maxUsers: planDetails.limits.users,
+              maxCallsPerMonth: planDetails.limits.callsPerMonth,
+              maxChatsPerMonth: planDetails.limits.chatsPerMonth,
+            },
           });
         }
       });
@@ -343,8 +427,13 @@ export class BillingService {
 
   async handleSubscriptionUpdated(stripeSub: StripeSubscription) {
     try {
-      const subscription = await this.prisma.subscription.findUnique({ where: { stripeSubscriptionId: stripeSub.id } });
-      if (!subscription) { this.logger.warn(`⚠️  Subscription not found: ${stripeSub.id}`); return; }
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { stripeSubscriptionId: stripeSub.id },
+      });
+      if (!subscription) {
+        this.logger.warn(`⚠️  Subscription not found: ${stripeSub.id}`);
+        return;
+      }
 
       await this.prisma.subscription.update({
         where: { id: subscription.id },
@@ -364,12 +453,20 @@ export class BillingService {
 
   async handleSubscriptionDeleted(stripeSub: StripeSubscription) {
     try {
-      const subscription = await this.prisma.subscription.findUnique({ where: { stripeSubscriptionId: stripeSub.id } });
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { stripeSubscriptionId: stripeSub.id },
+      });
       if (!subscription) return;
 
       await this.prisma.$transaction(async (tx) => {
-        await tx.subscription.update({ where: { id: subscription.id }, data: { status: SubscriptionStatus.CANCELED, canceledAt: new Date() } });
-        await tx.company.update({ where: { id: subscription.companyId }, data: { plan: Plan.STARTER, maxUsers: 5, maxCallsPerMonth: 100, maxChatsPerMonth: 200 } });
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: { status: SubscriptionStatus.CANCELED, canceledAt: new Date() },
+        });
+        await tx.company.update({
+          where: { id: subscription.companyId },
+          data: { plan: Plan.STARTER, maxUsers: 5, maxCallsPerMonth: 100, maxChatsPerMonth: 200 },
+        });
       });
       this.logger.log(`❌ Subscription deleted: ${subscription.id}`);
     } catch (error) {
@@ -379,7 +476,9 @@ export class BillingService {
 
   async handleInvoicePaid(stripeInvoice: any) {
     try {
-      const companyId = stripeInvoice.metadata?.companyId || stripeInvoice.subscription_details?.metadata?.companyId;
+      const companyId =
+        stripeInvoice.metadata?.companyId ||
+        stripeInvoice.subscription_details?.metadata?.companyId;
       if (!companyId) {
         this.logger.warn('⚠️  No companyId in invoice metadata');
         return;
@@ -397,7 +496,9 @@ export class BillingService {
           amountPaid: stripeInvoice.amount_paid || 0,
           hostedInvoiceUrl: stripeInvoice.hosted_invoice_url || null,
           pdfUrl: stripeInvoice.invoice_pdf || null,
-          periodStart: stripeInvoice.period_start ? new Date(stripeInvoice.period_start * 1000) : null,
+          periodStart: stripeInvoice.period_start
+            ? new Date(stripeInvoice.period_start * 1000)
+            : null,
           periodEnd: stripeInvoice.period_end ? new Date(stripeInvoice.period_end * 1000) : null,
           paidAt: new Date(),
         },
@@ -418,7 +519,9 @@ export class BillingService {
 
   async handleInvoicePaymentFailed(stripeInvoice: any) {
     try {
-      const companyId = stripeInvoice.metadata?.companyId || stripeInvoice.subscription_details?.metadata?.companyId;
+      const companyId =
+        stripeInvoice.metadata?.companyId ||
+        stripeInvoice.subscription_details?.metadata?.companyId;
       if (!companyId) {
         this.logger.warn('⚠️  No companyId in failed invoice metadata');
         return;
@@ -436,7 +539,9 @@ export class BillingService {
           amountPaid: 0,
           hostedInvoiceUrl: stripeInvoice.hosted_invoice_url || null,
           pdfUrl: stripeInvoice.invoice_pdf || null,
-          periodStart: stripeInvoice.period_start ? new Date(stripeInvoice.period_start * 1000) : null,
+          periodStart: stripeInvoice.period_start
+            ? new Date(stripeInvoice.period_start * 1000)
+            : null,
           periodEnd: stripeInvoice.period_end ? new Date(stripeInvoice.period_end * 1000) : null,
         },
         update: {
@@ -455,7 +560,9 @@ export class BillingService {
             where: { id: subscription.id },
             data: { status: SubscriptionStatus.PAST_DUE },
           });
-          this.logger.warn(`⚠️  Subscription ${subscription.id} marked PAST_DUE due to payment failure`);
+          this.logger.warn(
+            `⚠️  Subscription ${subscription.id} marked PAST_DUE due to payment failure`,
+          );
         }
       }
 
@@ -485,9 +592,12 @@ export class BillingService {
 
   private mapStripeStatus(stripeStatus: string): SubscriptionStatus {
     const mapping: Record<string, SubscriptionStatus> = {
-      active: SubscriptionStatus.ACTIVE, past_due: SubscriptionStatus.PAST_DUE,
-      canceled: SubscriptionStatus.CANCELED, unpaid: SubscriptionStatus.UNPAID,
-      trialing: SubscriptionStatus.TRIALING, incomplete: SubscriptionStatus.INCOMPLETE,
+      active: SubscriptionStatus.ACTIVE,
+      past_due: SubscriptionStatus.PAST_DUE,
+      canceled: SubscriptionStatus.CANCELED,
+      unpaid: SubscriptionStatus.UNPAID,
+      trialing: SubscriptionStatus.TRIALING,
+      incomplete: SubscriptionStatus.INCOMPLETE,
     };
     return mapping[stripeStatus] || SubscriptionStatus.INCOMPLETE;
   }

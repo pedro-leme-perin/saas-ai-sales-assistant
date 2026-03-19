@@ -30,10 +30,10 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
     try {
       this.logger.debug('Verifying token with Clerk...');
 
-      payload = await verifyToken(token, {
+      payload = (await verifyToken(token, {
         secretKey: process.env.CLERK_SECRET_KEY!,
         authorizedParties: this.getAuthorizedParties(),
-      }) as ClerkJwtPayload;
+      })) as ClerkJwtPayload;
 
       this.logger.debug('Token verified successfully');
       this.logger.debug(`Clerk ID from token: ${payload.sub}`);
@@ -67,9 +67,7 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
         const message = err instanceof Error ? err.message : 'Unknown error';
         const stack = err instanceof Error ? err.stack : undefined;
         this.logger.error(`Auto-provisioning failed: ${message}`, stack);
-        throw new UnauthorizedException(
-          'User provisioning failed. Please contact support.',
-        );
+        throw new UnauthorizedException('User provisioning failed. Please contact support.');
       }
     }
 
@@ -115,6 +113,6 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       'https://saas-ai-sales-assistant.vercel.app',
     ].filter(Boolean) as string[];
 
-    return [...new Set(parties.map(p => p.replace(/\/$/, '')))];
+    return [...new Set(parties.map((p) => p.replace(/\/$/, '')))];
   }
 }

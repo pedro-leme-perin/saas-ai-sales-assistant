@@ -16,10 +16,7 @@ export class UsersController {
    * Busca usuário por ID (com tenant isolation)
    */
   @Get()
-  async findAll(
-    @CompanyId() companyId: string,
-    @Query('limit') limit?: string,
-  ) {
+  async findAll(@CompanyId() companyId: string, @Query('limit') limit?: string) {
     const users = await this.usersService.findAllByCompany(companyId, parseInt(limit || '50'));
     return {
       data: users,
@@ -28,14 +25,11 @@ export class UsersController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CompanyId() companyId: string,
-  ) {
+  async findOne(@Param('id') id: string, @CompanyId() companyId: string) {
     this.logger.debug(`Finding user ${id} for company ${companyId}`);
-    
+
     const user = await this.usersService.findByIdOrThrow(id, companyId);
-    
+
     return {
       id: user.id,
       email: user.email,

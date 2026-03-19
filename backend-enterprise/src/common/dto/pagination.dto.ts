@@ -64,7 +64,7 @@ export function createPaginatedResult<T>(
   limit: number,
 ): PaginatedResult<T> {
   const totalPages = Math.ceil(total / limit);
-  
+
   return {
     data,
     meta: {

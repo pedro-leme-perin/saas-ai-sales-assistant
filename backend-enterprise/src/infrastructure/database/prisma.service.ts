@@ -42,7 +42,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         // Test query
         const userCount = await this.user.count();
         this.logger.log(`📊 Total users in database: ${userCount}`);
-        
+
         return;
       } catch (error) {
         retries--;

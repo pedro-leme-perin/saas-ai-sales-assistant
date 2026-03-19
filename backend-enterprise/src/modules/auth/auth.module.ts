@@ -18,14 +18,8 @@ import { ClerkWebhookController } from './webhooks/clerk-webhook.controller';
 import { UsersModule } from '@/modules/users/users.module';
 
 @Module({
-  imports: [
-    PassportModule.register({ defaultStrategy: 'clerk' }),
-    UsersModule,
-  ],
-  controllers: [
-    AuthController,
-    ClerkWebhookController,
-  ],
+  imports: [PassportModule.register({ defaultStrategy: 'clerk' }), UsersModule],
+  controllers: [AuthController, ClerkWebhookController],
   providers: [
     ClerkStrategy,
     // Registrar AuthGuard globalmente

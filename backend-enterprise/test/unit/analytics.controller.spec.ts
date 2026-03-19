@@ -32,7 +32,7 @@ describe('AnalyticsController', () => {
     ],
     sentimentTrend: [
       { date: '2026-03-10', avgSentiment: 0.72 },
-      { date: '2026-03-11', avgSentiment: 0.80 },
+      { date: '2026-03-11', avgSentiment: 0.8 },
     ],
   };
 
@@ -55,9 +55,7 @@ describe('AnalyticsController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
-      providers: [
-        { provide: AnalyticsService, useValue: analyticsService },
-      ],
+      providers: [{ provide: AnalyticsService, useValue: analyticsService }],
     }).compile();
 
     controller = module.get<AnalyticsController>(AnalyticsController);

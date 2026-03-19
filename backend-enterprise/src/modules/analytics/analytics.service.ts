@@ -12,30 +12,44 @@ export class AnalyticsService {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     const [
-      totalCalls, callsThisMonth, callsLastMonth,
-      totalChats, chatsThisMonth, chatsLastMonth,
+      totalCalls,
+      callsThisMonth,
+      callsLastMonth,
+      totalChats,
+      chatsThisMonth,
+      chatsLastMonth,
       totalUsers,
-      totalSuggestions, suggestionsUsed,
+      totalSuggestions,
+      suggestionsUsed,
       avgDurationResult,
     ] = await Promise.all([
       this.prisma.call.count({ where: { companyId } }),
       this.prisma.call.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
-      this.prisma.call.count({ where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
+      this.prisma.call.count({
+        where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+      }),
       this.prisma.whatsappChat.count({ where: { companyId } }),
       this.prisma.whatsappChat.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
-      this.prisma.whatsappChat.count({ where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
+      this.prisma.whatsappChat.count({
+        where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+      }),
       this.prisma.user.count({ where: { companyId } }),
       this.prisma.aISuggestion.count({ where: { call: { companyId } } }),
       this.prisma.aISuggestion.count({ where: { call: { companyId }, wasUsed: true } }),
-      this.prisma.call.aggregate({ where: { companyId, status: 'COMPLETED' }, _avg: { duration: true } }),
+      this.prisma.call.aggregate({
+        where: { companyId, status: 'COMPLETED' },
+        _avg: { duration: true },
+      }),
     ]);
 
-    const callsGrowth = callsLastMonth > 0
-      ? Math.round(((callsThisMonth - callsLastMonth) / callsLastMonth) * 100)
-      : 0;
-    const chatsGrowth = chatsLastMonth > 0
-      ? Math.round(((chatsThisMonth - chatsLastMonth) / chatsLastMonth) * 100)
-      : 0;
+    const callsGrowth =
+      callsLastMonth > 0
+        ? Math.round(((callsThisMonth - callsLastMonth) / callsLastMonth) * 100)
+        : 0;
+    const chatsGrowth =
+      chatsLastMonth > 0
+        ? Math.round(((chatsThisMonth - chatsLastMonth) / chatsLastMonth) * 100)
+        : 0;
 
     return {
       calls: {
@@ -53,7 +67,8 @@ export class AnalyticsService {
       ai: {
         total: totalSuggestions,
         used: suggestionsUsed,
-        adoptionRate: totalSuggestions > 0 ? Math.round((suggestionsUsed / totalSuggestions) * 100) : 0,
+        adoptionRate:
+          totalSuggestions > 0 ? Math.round((suggestionsUsed / totalSuggestions) * 100) : 0,
       },
     };
   }
@@ -74,14 +89,15 @@ export class AnalyticsService {
       byDay[date].calls++;
     }
 
-    const completed = calls.filter(c => c.status === 'COMPLETED').length;
+    const completed = calls.filter((c) => c.status === 'COMPLETED').length;
     const total = calls.length;
 
     return {
       total,
       completed,
       successRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-      avgDuration: total > 0 ? Math.round(calls.reduce((s, c) => s + (c.duration || 0), 0) / total) : 0,
+      avgDuration:
+        total > 0 ? Math.round(calls.reduce((s, c) => s + (c.duration || 0), 0) / total) : 0,
       byDay: Object.values(byDay),
     };
   }
@@ -177,10 +193,7 @@ export class AnalyticsService {
     const suggestions = await this.prisma.aISuggestion.findMany({
       where: {
         createdAt: { gte: thirtyDaysAgo },
-        OR: [
-          { call: { companyId } },
-          { chat: { companyId } },
-        ],
+        OR: [{ call: { companyId } }, { chat: { companyId } }],
       },
       select: {
         wasUsed: true,
@@ -197,10 +210,10 @@ export class AnalyticsService {
       return { total: 0, adoptionRate: 0, avgLatency: 0, byProvider: {}, byType: {} };
     }
 
-    const used = suggestions.filter(s => s.wasUsed).length;
-    const helpful = suggestions.filter(s => s.feedback === 'HELPFUL').length;
-    const withFeedback = suggestions.filter(s => s.feedback !== null).length;
-    const latencies = suggestions.filter(s => s.latencyMs != null).map(s => s.latencyMs!);
+    const used = suggestions.filter((s) => s.wasUsed).length;
+    const helpful = suggestions.filter((s) => s.feedback === 'HELPFUL').length;
+    const withFeedback = suggestions.filter((s) => s.feedback !== null).length;
+    const latencies = suggestions.filter((s) => s.latencyMs != null).map((s) => s.latencyMs!);
 
     // By provider
     const byProvider: Record<string, { count: number; used: number }> = {};
@@ -222,11 +235,15 @@ export class AnalyticsService {
       used,
       adoptionRate: Math.round((used / suggestions.length) * 100),
       helpfulRate: withFeedback > 0 ? Math.round((helpful / withFeedback) * 100) : 0,
-      avgLatency: latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0,
+      avgLatency:
+        latencies.length > 0
+          ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+          : 0,
       p95Latency: latencies.length > 0 ? this.percentile(latencies, 95) : 0,
-      avgConfidence: Math.round(
-        (suggestions.reduce((sum, s) => sum + (s.confidence || 0), 0) / suggestions.length) * 100,
-      ) / 100,
+      avgConfidence:
+        Math.round(
+          (suggestions.reduce((sum, s) => sum + (s.confidence || 0), 0) / suggestions.length) * 100,
+        ) / 100,
       byProvider,
       byType,
     };

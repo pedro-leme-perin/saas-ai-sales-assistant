@@ -1,12 +1,12 @@
-import { Injectable, Logger } from "@nestjs/common";
-import * as WebSocket from "ws";
-import { IncomingMessage } from "http";
-import { Socket } from "net";
-import { DeepgramService, LiveSession } from "../../infrastructure/stt/deepgram.service";
-import { AiService } from "../ai/ai.service";
-import { NotificationsGateway } from "../notifications/notifications.gateway";
-import { PrismaService } from "../../infrastructure/database/prisma.service";
-import { SuggestionType } from "@prisma/client";
+import { Injectable, Logger } from '@nestjs/common';
+import * as WebSocket from 'ws';
+import { IncomingMessage } from 'http';
+import { Socket } from 'net';
+import { DeepgramService, LiveSession } from '../../infrastructure/stt/deepgram.service';
+import { AiService } from '../ai/ai.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { SuggestionType } from '@prisma/client';
 
 interface ActiveSession {
   deepgramSession: LiveSession | null;
@@ -32,41 +32,41 @@ export class MediaStreamsGateway {
   initWss() {
     this.wss = new WebSocket.Server({ noServer: true });
 
-    this.wss.on("connection", (client: WebSocket.WebSocket) => {
-      this.logger.log("Twilio Media Stream CONNECTED");
+    this.wss.on('connection', (client: WebSocket.WebSocket) => {
+      this.logger.log('Twilio Media Stream CONNECTED');
 
-      client.on("message", async (data: Buffer) => {
+      client.on('message', async (data: Buffer) => {
         try {
           const message = JSON.parse(data.toString());
           await this.handleTwilioMessage(message);
         } catch (error) {
-          this.logger.error("Error processing media stream message:", error);
+          this.logger.error('Error processing media stream message:', error);
         }
       });
 
-      client.on("close", (code: number) => {
+      client.on('close', (code: number) => {
         this.logger.log(`Twilio Media Stream DISCONNECTED: code=${code}`);
       });
 
-      client.on("error", (error: Error) => {
-        this.logger.error("Twilio Media Stream ERROR:", error);
+      client.on('error', (error: Error) => {
+        this.logger.error('Twilio Media Stream ERROR:', error);
       });
     });
 
-    this.logger.log("MediaStreams WebSocket server initialized (noServer mode)");
+    this.logger.log('MediaStreams WebSocket server initialized (noServer mode)');
   }
 
   handleUpgrade(request: IncomingMessage, socket: Socket, head: Buffer) {
     if (!this.wss) {
-      this.logger.error("WSS not initialized!");
+      this.logger.error('WSS not initialized!');
       socket.destroy();
       return;
     }
 
-    this.logger.log("Handling WebSocket upgrade for /ws/media");
+    this.logger.log('Handling WebSocket upgrade for /ws/media');
     this.wss.handleUpgrade(request, socket, head, (ws) => {
-      this.logger.log("WebSocket upgrade completed successfully");
-      this.wss!.emit("connection", ws, request);
+      this.logger.log('WebSocket upgrade completed successfully');
+      this.wss!.emit('connection', ws, request);
     });
   }
 
@@ -76,16 +76,16 @@ export class MediaStreamsGateway {
 
   private async handleTwilioMessage(message: any) {
     switch (message.event) {
-      case "connected":
-        this.logger.log("Twilio stream connected event received");
+      case 'connected':
+        this.logger.log('Twilio stream connected event received');
         break;
-      case "start":
+      case 'start':
         await this.handleStreamStart(message);
         break;
-      case "media":
+      case 'media':
         this.handleMediaChunk(message);
         break;
-      case "stop":
+      case 'stop':
         await this.handleStreamStop(message);
         break;
       default:
@@ -111,7 +111,7 @@ export class MediaStreamsGateway {
     this.logger.log(`Found call: id=${call.id} userId=${call.userId}`);
 
     if (!this.deepgramService.isConfigured()) {
-      this.logger.warn("Deepgram not configured - skipping real-time transcription");
+      this.logger.warn('Deepgram not configured - skipping real-time transcription');
       this.activeSessions.set(streamSid, {
         deepgramSession: null,
         callId: call.id,
@@ -142,12 +142,12 @@ export class MediaStreamsGateway {
           this.logger.log(`Transcript (final): "${result.text}"`);
 
           // AI suggestion in parallel
-          this.generateAndSendSuggestion(session, result.text).catch(
-            (err) => this.logger.error("AI suggestion error:", err),
+          this.generateAndSendSuggestion(session, result.text).catch((err) =>
+            this.logger.error('AI suggestion error:', err),
           );
         },
         (error) => {
-          this.logger.error("Deepgram error:", error);
+          this.logger.error('Deepgram error:', error);
         },
       );
 
@@ -160,7 +160,7 @@ export class MediaStreamsGateway {
 
       this.logger.log(`Deepgram session created for stream: ${streamSid}`);
     } catch (error) {
-      this.logger.error("Error creating Deepgram session:", error);
+      this.logger.error('Error creating Deepgram session:', error);
       this.activeSessions.set(streamSid, {
         deepgramSession: null,
         callId: call.id,
@@ -175,8 +175,8 @@ export class MediaStreamsGateway {
     if (text.split(' ').length < 3) return;
 
     const context = {
-      recentTranscript: session.fullTranscript.slice(-3).join(" "),
-      type: "sales_call",
+      recentTranscript: session.fullTranscript.slice(-3).join(' '),
+      type: 'sales_call',
     };
 
     const suggestion = await this.aiService.generateSuggestion(text, context, 'gemini');
@@ -190,18 +190,20 @@ export class MediaStreamsGateway {
         timestamp: new Date(),
       });
 
-      this.prisma.aISuggestion.create({
-        data: {
-          callId: session.callId,
-          userId: session.userId,
-          type: SuggestionType.GENERAL,
-          content: suggestion.text,
-          confidence: suggestion.confidence ?? 0.8,
-          triggerText: text.substring(0, 200),
-          model: suggestion.provider,
-          latencyMs: suggestion.latencyMs,
-        },
-      }).catch((err) => this.logger.error("Save suggestion error:", err));
+      this.prisma.aISuggestion
+        .create({
+          data: {
+            callId: session.callId,
+            userId: session.userId,
+            type: SuggestionType.GENERAL,
+            content: suggestion.text,
+            confidence: suggestion.confidence ?? 0.8,
+            triggerText: text.substring(0, 200),
+            model: suggestion.provider,
+            latencyMs: suggestion.latencyMs,
+          },
+        })
+        .catch((err) => this.logger.error('Save suggestion error:', err));
     }
   }
 
@@ -212,10 +214,12 @@ export class MediaStreamsGateway {
 
     this.mediaChunkCount++;
     if (this.mediaChunkCount % 100 === 1) {
-      this.logger.log(`Media chunk #${this.mediaChunkCount} (ready: ${session.deepgramSession.isReady()})`);
+      this.logger.log(
+        `Media chunk #${this.mediaChunkCount} (ready: ${session.deepgramSession.isReady()})`,
+      );
     }
 
-    const audioBuffer = Buffer.from(message.media.payload, "base64");
+    const audioBuffer = Buffer.from(message.media.payload, 'base64');
     session.deepgramSession.send(audioBuffer);
   }
 
@@ -227,7 +231,7 @@ export class MediaStreamsGateway {
     this.logger.log(`Stream stopped: ${streamSid}`);
     session.deepgramSession?.finish();
 
-    const fullTranscript = session.fullTranscript.join(" ");
+    const fullTranscript = session.fullTranscript.join(' ');
     if (fullTranscript) {
       await this.prisma.call.update({
         where: { id: session.callId },
@@ -239,7 +243,3 @@ export class MediaStreamsGateway {
     this.activeSessions.delete(streamSid);
   }
 }
-
-
-
-

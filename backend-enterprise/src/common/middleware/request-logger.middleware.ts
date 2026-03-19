@@ -20,9 +20,7 @@ export class RequestLoggerMiddleware implements NestMiddleware {
 
       const logLevel = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'log';
 
-      this.logger[logLevel](
-        `${method} ${originalUrl} ${statusCode} - ${duration}ms`,
-      );
+      this.logger[logLevel](`${method} ${originalUrl} ${statusCode} - ${duration}ms`);
     });
 
     next();

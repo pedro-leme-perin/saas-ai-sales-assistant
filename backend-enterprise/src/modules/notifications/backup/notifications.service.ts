@@ -13,7 +13,7 @@ export class NotificationsService {
 
   async findAll(userId: string, companyId: string, pagination: PaginationDto) {
     const where = { userId, companyId };
-    
+
     const [notifications, total] = await Promise.all([
       this.prisma.notification.findMany({
         where,

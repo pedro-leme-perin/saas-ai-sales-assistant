@@ -195,7 +195,12 @@ describe('BillingService', () => {
   // createCheckoutSession
   // =============================================
   describe('createCheckoutSession', () => {
-    const mockUser = { id: 'user-123', email: 'john@acme.com', companyId: 'company-123', role: 'ADMIN' };
+    const mockUser = {
+      id: 'user-123',
+      email: 'john@acme.com',
+      companyId: 'company-123',
+      role: 'ADMIN',
+    };
 
     it('should throw NotFoundException when company not found', async () => {
       mockPrismaService.company.findUnique.mockResolvedValue(null);
@@ -208,7 +213,11 @@ describe('BillingService', () => {
     it('should return mock URL in dev mode (Stripe not configured)', async () => {
       mockPrismaService.company.findUnique.mockResolvedValue(mockCompany);
 
-      const result = await service.createCheckoutSession('PROFESSIONAL' as any, 'company-123', mockUser as any);
+      const result = await service.createCheckoutSession(
+        'PROFESSIONAL' as any,
+        'company-123',
+        mockUser as any,
+      );
 
       expect(result.url).toContain('mock=true');
       expect(result.url).toContain('plan=PROFESSIONAL');
@@ -219,7 +228,12 @@ describe('BillingService', () => {
   // changePlan
   // =============================================
   describe('changePlan', () => {
-    const mockUser = { id: 'user-123', email: 'john@acme.com', companyId: 'company-123', role: 'ADMIN' };
+    const mockUser = {
+      id: 'user-123',
+      email: 'john@acme.com',
+      companyId: 'company-123',
+      role: 'ADMIN',
+    };
 
     it('should throw NotFoundException when company not found', async () => {
       mockPrismaService.company.findUnique.mockResolvedValue(null);
@@ -247,7 +261,11 @@ describe('BillingService', () => {
         return cb(tx);
       });
 
-      const result = await service.changePlan('PROFESSIONAL' as any, 'company-123', mockUser as any);
+      const result = await service.changePlan(
+        'PROFESSIONAL' as any,
+        'company-123',
+        mockUser as any,
+      );
 
       expect(result.success).toBe(true);
       expect(result.plan?.plan).toBe('PROFESSIONAL');
@@ -259,14 +277,19 @@ describe('BillingService', () => {
   // cancelSubscription
   // =============================================
   describe('cancelSubscription', () => {
-    const mockUser = { id: 'user-123', email: 'john@acme.com', companyId: 'company-123', role: 'OWNER' };
+    const mockUser = {
+      id: 'user-123',
+      email: 'john@acme.com',
+      companyId: 'company-123',
+      role: 'OWNER',
+    };
 
     it('should throw NotFoundException when no active subscription', async () => {
       mockPrismaService.subscription.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.cancelSubscription('company-123', mockUser as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.cancelSubscription('company-123', mockUser as any)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should cancel subscription and create audit log', async () => {
@@ -298,7 +321,10 @@ describe('BillingService', () => {
     });
 
     it('should throw BadRequestException when no stripeCustomerId', async () => {
-      mockPrismaService.company.findUnique.mockResolvedValue({ ...mockCompany, stripeCustomerId: null });
+      mockPrismaService.company.findUnique.mockResolvedValue({
+        ...mockCompany,
+        stripeCustomerId: null,
+      });
 
       await expect(service.getPortalUrl('company-123')).rejects.toThrow(BadRequestException);
     });

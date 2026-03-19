@@ -531,10 +531,11 @@ describe('CircuitBreaker', () => {
   describe('Concurrent calls', () => {
     it('should handle multiple concurrent calls in CLOSED state', async () => {
       const cb = new CircuitBreaker({ name: 'TestService' });
-      const fn = jest.fn((delay: number) =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve(`result-${delay}`), delay);
-        }),
+      const fn = jest.fn(
+        (delay: number) =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(`result-${delay}`), delay);
+          }),
       );
 
       const promises = [
@@ -560,11 +561,7 @@ describe('CircuitBreaker', () => {
       await expect(cb.execute(fn)).rejects.toThrow('Test error');
 
       // Concurrent calls should all fail fast
-      const promises = [
-        cb.execute(jest.fn()),
-        cb.execute(jest.fn()),
-        cb.execute(jest.fn()),
-      ];
+      const promises = [cb.execute(jest.fn()), cb.execute(jest.fn()), cb.execute(jest.fn())];
 
       await Promise.allSettled(promises);
       const results = await Promise.allSettled(promises);

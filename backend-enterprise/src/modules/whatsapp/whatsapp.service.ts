@@ -16,12 +16,7 @@
 // - Clean Architecture (Dependency Rule, Use Cases)
 // =====================================================
 
-import {
-  Injectable,
-  NotFoundException,
-  Logger,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
@@ -51,7 +46,15 @@ export interface TwilioWebhookPayload {
 
 export interface TwilioStatusPayload {
   MessageSid: string;
-  MessageStatus: 'accepted' | 'queued' | 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'undelivered';
+  MessageStatus:
+    | 'accepted'
+    | 'queued'
+    | 'sending'
+    | 'sent'
+    | 'delivered'
+    | 'read'
+    | 'failed'
+    | 'undelivered';
   To: string;
   From: string;
   ErrorCode?: string;
@@ -81,8 +84,7 @@ export class WhatsappService {
     }
 
     this.sandboxNumber =
-      this.configService.get<string>('TWILIO_WHATSAPP_NUMBER') ||
-      'whatsapp:+14155238886';
+      this.configService.get<string>('TWILIO_WHATSAPP_NUMBER') || 'whatsapp:+14155238886';
 
     // Circuit breaker for Twilio API (Release It! - Integration Points)
     this.twilioBreaker = new CircuitBreaker({
@@ -168,16 +170,12 @@ export class WhatsappService {
           unreadCount: updatedChat.unreadCount,
         });
       } else {
-        this.notificationsGateway.broadcastToCompany(
-          company.id,
-          'whatsapp:new_message',
-          {
-            chatId: chat.id,
-            message: savedMessage,
-            customerPhone,
-            customerName,
-          },
-        );
+        this.notificationsGateway.broadcastToCompany(company.id, 'whatsapp:new_message', {
+          chatId: chat.id,
+          message: savedMessage,
+          customerPhone,
+          customerName,
+        });
       }
 
       if (chat.userId && content) {

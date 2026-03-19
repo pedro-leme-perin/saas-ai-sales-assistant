@@ -57,7 +57,7 @@ export class NotificationsGateway
   server!: Server;
 
   private readonly logger = new Logger(NotificationsGateway.name);
-  
+
   // ✅ Track connected users per userId (for disconnect cleanup)
   private connectedUsers = new Map<string, Set<string>>();
 
@@ -100,13 +100,11 @@ export class NotificationsGateway
 
       // ✅ Join user-specific room (for targeted messages)
       await client.join(`user:${userId}`);
-      
+
       // ✅ Join company-wide room (for broadcasts)
       await client.join(`company:${companyId}`);
 
-      this.logger.log(
-        `✅ Client connected: ${client.id} (User: ${userId}, Company: ${companyId})`,
-      );
+      this.logger.log(`✅ Client connected: ${client.id} (User: ${userId}, Company: ${companyId})`);
     } catch (error) {
       this.logger.error('Error handling connection:', error);
       client.disconnect();
@@ -125,7 +123,7 @@ export class NotificationsGateway
       const userSockets = this.connectedUsers.get(userId);
       if (userSockets) {
         userSockets.delete(client.id);
-        
+
         // ✅ Remove user entry if no more sockets
         if (userSockets.size === 0) {
           this.connectedUsers.delete(userId);

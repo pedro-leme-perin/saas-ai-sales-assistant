@@ -3,31 +3,31 @@
 export interface ClerkJwtPayload {
   /** Authorized party - URL do cliente */
   azp: string;
-  
+
   /** Expiration time */
   exp: number;
-  
+
   /** First-party verification data */
   fva?: [number, number];
-  
+
   /** Issued at */
   iat: number;
-  
+
   /** Issuer - URL do Clerk */
   iss: string;
-  
+
   /** Not before */
   nbf: number;
-  
+
   /** Session ID */
   sid: string;
-  
+
   /** Status - 'active' | 'ended' */
   sts: string;
-  
+
   /** Subject - Clerk User ID (user_xxxxx) */
   sub: string;
-  
+
   /** Version */
   v: number;
 }
@@ -38,10 +38,7 @@ export interface ClerkWebhookEvent {
   type: ClerkWebhookEventType;
 }
 
-export type ClerkWebhookEventType = 
-  | 'user.created'
-  | 'user.updated'
-  | 'user.deleted';
+export type ClerkWebhookEventType = 'user.created' | 'user.updated' | 'user.deleted';
 
 export interface ClerkUserData {
   id: string;

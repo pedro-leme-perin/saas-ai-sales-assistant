@@ -1,10 +1,5 @@
 import OpenAI from 'openai';
-import {
-  AIProvider,
-  AISuggestion,
-  AIAnalysis,
-  AIProviderConfig,
-} from './ai-provider.interface';
+import { AIProvider, AISuggestion, AIAnalysis, AIProviderConfig } from './ai-provider.interface';
 
 export class PerplexityProvider extends AIProvider {
   private client: OpenAI;
@@ -73,9 +68,7 @@ export class PerplexityProvider extends AIProvider {
         max_tokens: 300,
       });
 
-      const analysis = JSON.parse(
-        response.choices[0].message.content || '{}',
-      );
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
 
       return {
         sentiment: analysis.sentiment || 'neutral',
@@ -102,10 +95,7 @@ export class PerplexityProvider extends AIProvider {
     }
   }
 
-  private buildSuggestionPrompt(
-    transcript: string,
-    context?: Record<string, any>,
-  ): string {
+  private buildSuggestionPrompt(transcript: string, context?: Record<string, any>): string {
     let prompt = `Customer said: "${transcript}"\n\n`;
 
     if (context?.sentiment) {

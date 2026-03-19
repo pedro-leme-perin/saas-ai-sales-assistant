@@ -109,15 +109,14 @@ export class CompaniesService {
     // Check if company exists
     await this.findOne(id);
 
-    const [totalCalls, totalChats, totalUsers, activeCalls] =
-      await Promise.all([
-        this.prisma.call.count({ where: { companyId: id } }),
-        this.prisma.whatsappChat.count({ where: { companyId: id } }),
-        this.prisma.user.count({ where: { companyId: id } }),
-        this.prisma.call.count({
-          where: { companyId: id, status: 'IN_PROGRESS' },
-        }),
-      ]);
+    const [totalCalls, totalChats, totalUsers, activeCalls] = await Promise.all([
+      this.prisma.call.count({ where: { companyId: id } }),
+      this.prisma.whatsappChat.count({ where: { companyId: id } }),
+      this.prisma.user.count({ where: { companyId: id } }),
+      this.prisma.call.count({
+        where: { companyId: id, status: 'IN_PROGRESS' },
+      }),
+    ]);
 
     return {
       totalCalls,

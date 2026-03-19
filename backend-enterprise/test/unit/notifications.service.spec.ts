@@ -388,9 +388,9 @@ describe('NotificationsService', () => {
     });
 
     it('should throw error when companyId is missing in markAsRead', async () => {
-      await expect(
-        service.markAsRead(mockNotificationId, mockUserId, ''),
-      ).rejects.toThrow('companyId is required for tenant isolation');
+      await expect(service.markAsRead(mockNotificationId, mockUserId, '')).rejects.toThrow(
+        'companyId is required for tenant isolation',
+      );
 
       expect(mockPrismaService.notification.findFirst).not.toHaveBeenCalled();
     });
@@ -511,9 +511,9 @@ describe('NotificationsService', () => {
     });
 
     it('should throw error when companyId is missing in delete', async () => {
-      await expect(
-        service.delete(mockNotificationId, mockUserId, ''),
-      ).rejects.toThrow('companyId is required for tenant isolation');
+      await expect(service.delete(mockNotificationId, mockUserId, '')).rejects.toThrow(
+        'companyId is required for tenant isolation',
+      );
 
       expect(mockPrismaService.notification.findFirst).not.toHaveBeenCalled();
     });
@@ -622,15 +622,15 @@ describe('NotificationsService', () => {
     it('should throw NotFoundException when notification not found', async () => {
       (mockPrismaService.notification.findFirst as jest.Mock).mockResolvedValue(null);
 
-      await expect(
-        service.findById(mockNotificationId, mockUserId, mockCompanyId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findById(mockNotificationId, mockUserId, mockCompanyId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw error when companyId is missing in findById', async () => {
-      await expect(
-        service.findById(mockNotificationId, mockUserId, ''),
-      ).rejects.toThrow('companyId is required for tenant isolation');
+      await expect(service.findById(mockNotificationId, mockUserId, '')).rejects.toThrow(
+        'companyId is required for tenant isolation',
+      );
 
       expect(mockPrismaService.notification.findFirst).not.toHaveBeenCalled();
     });

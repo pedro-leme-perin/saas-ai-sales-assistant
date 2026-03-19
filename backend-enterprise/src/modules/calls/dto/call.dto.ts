@@ -1,4 +1,14 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsArray, IsObject, Min, Max, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsInt,
+  IsArray,
+  IsObject,
+  Min,
+  Max,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CallStatus, CallDirection, SentimentLabel } from '@prisma/client';
 

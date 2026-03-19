@@ -7,11 +7,7 @@ import {
   Inject,
   Logger,
 } from '@nestjs/common';
-import {
-  ThrottlerGuard,
-  ThrottlerModuleOptions,
-  ThrottlerStorage,
-} from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModuleOptions, ThrottlerStorage } from '@nestjs/throttler';
 import { getOptionsToken } from '@nestjs/throttler';
 import { Reflector } from '@nestjs/core';
 import { CacheService } from '../../infrastructure/cache/cache.service';
@@ -93,11 +89,7 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
 
     const key = `rate:company:${user.companyId}:${tier}`;
 
-    const result = await this.cacheService.checkRateLimit(
-      key,
-      maxRequests,
-      DEFAULT_WINDOW_SECONDS,
-    );
+    const result = await this.cacheService.checkRateLimit(key, maxRequests, DEFAULT_WINDOW_SECONDS);
 
     if (!result.allowed) {
       this.guardLogger.warn(
@@ -131,16 +123,17 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
    */
   private resolveTier(context: ExecutionContext): string {
     // Check @SkipThrottle()
-    const skipThrottle = this.reflector.getAllAndOverride<boolean>(
-      'THROTTLER:SKIP',
-      [context.getHandler(), context.getClass()],
-    );
+    const skipThrottle = this.reflector.getAllAndOverride<boolean>('THROTTLER:SKIP', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (skipThrottle) return 'skip';
 
     // Check @Throttle({ strict: ... }) or @Throttle({ auth: ... })
-    const throttleConfig = this.reflector.getAllAndOverride<
-      Record<string, unknown>
-    >('THROTTLER:LIMIT', [context.getHandler(), context.getClass()]);
+    const throttleConfig = this.reflector.getAllAndOverride<Record<string, unknown>>(
+      'THROTTLER:LIMIT',
+      [context.getHandler(), context.getClass()],
+    );
 
     if (throttleConfig) {
       if ('strict' in throttleConfig) return 'strict';

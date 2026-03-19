@@ -42,9 +42,7 @@ describe('CompaniesController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CompaniesController],
-      providers: [
-        { provide: CompaniesService, useValue: companiesService },
-      ],
+      providers: [{ provide: CompaniesService, useValue: companiesService }],
     })
       .overrideGuard(require('../../src/modules/auth/guards/auth.guard').AuthGuard)
       .useValue({ canActivate: () => true })

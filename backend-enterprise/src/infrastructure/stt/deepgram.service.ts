@@ -55,10 +55,11 @@ export class DeepgramService {
     let isOpen = false;
     const audioBuffer: Buffer[] = [];
 
-    const url = 'wss://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&encoding=mulaw&sample_rate=8000&channels=1&punctuate=true&interim_results=true&endpointing=200';
+    const url =
+      'wss://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&encoding=mulaw&sample_rate=8000&channels=1&punctuate=true&interim_results=true&endpointing=200';
 
     const ws = new WebSocket(url, {
-      headers: { 'Authorization': `Token ${this.apiKey}` },
+      headers: { Authorization: `Token ${this.apiKey}` },
     });
 
     ws.on('open', () => {
@@ -68,7 +69,9 @@ export class DeepgramService {
       if (audioBuffer.length > 0) {
         this.logger.log(`Flushing ${audioBuffer.length} buffered audio chunks`);
         for (const chunk of audioBuffer) {
-          try { ws.send(chunk); } catch (_) {}
+          try {
+            ws.send(chunk);
+          } catch (_) {}
         }
         audioBuffer.length = 0;
       }
@@ -106,7 +109,9 @@ export class DeepgramService {
     return {
       send: (audio: Buffer) => {
         if (isOpen && ws.readyState === WebSocket.OPEN) {
-          try { ws.send(audio); } catch (_) {}
+          try {
+            ws.send(audio);
+          } catch (_) {}
         } else if (audioBuffer.length < 200) {
           audioBuffer.push(audio);
         }
@@ -128,14 +133,17 @@ export class DeepgramService {
     }
 
     return this.breaker.execute(async () => {
-      const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${this.apiKey}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        'https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
         },
-        body: JSON.stringify({ url }),
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`Deepgram error: ${response.status}`);
@@ -151,6 +159,3 @@ export class DeepgramService {
     return this.breaker.getHealthInfo();
   }
 }
-
-
-

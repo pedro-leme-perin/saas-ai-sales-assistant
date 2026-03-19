@@ -37,9 +37,6 @@ describe('Health Check (e2e)', () => {
   });
 
   it('/health should return valid JSON', () => {
-    return request(app.getHttpServer())
-      .get('/health')
-      .expect('Content-Type', /json/)
-      .expect(200);
+    return request(app.getHttpServer()).get('/health').expect('Content-Type', /json/).expect(200);
   });
 });

@@ -105,12 +105,8 @@ describe('AuthService', () => {
 
       (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.getCurrentUser(userId)).rejects.toThrow(
-        NotFoundException,
-      );
-      await expect(service.getCurrentUser(userId)).rejects.toThrow(
-        'User not found',
-      );
+      await expect(service.getCurrentUser(userId)).rejects.toThrow(NotFoundException);
+      await expect(service.getCurrentUser(userId)).rejects.toThrow('User not found');
 
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
         where: { id: userId },
@@ -168,9 +164,7 @@ describe('AuthService', () => {
         avatarUrl: 'https://example.com/old-avatar.jpg',
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        existingUser,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(existingUser);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...existingUser,
         email: 'updated@example.com',
@@ -192,9 +186,7 @@ describe('AuthService', () => {
           avatarUrl: 'https://example.com/new-avatar.jpg',
         },
       });
-      expect(mockCacheService.delete).toHaveBeenCalledWith(
-        `user:clerk:${clerkId}`,
-      );
+      expect(mockCacheService.delete).toHaveBeenCalledWith(`user:clerk:${clerkId}`);
     });
 
     it('should handle user.updated event when user not found in database', async () => {
@@ -237,9 +229,7 @@ describe('AuthService', () => {
         deletedAt: null,
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        userToDelete,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(userToDelete);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...userToDelete,
         isActive: false,
@@ -259,9 +249,7 @@ describe('AuthService', () => {
           deletedAt: expect.any(Date),
         },
       });
-      expect(mockCacheService.delete).toHaveBeenCalledWith(
-        `user:clerk:${clerkId}`,
-      );
+      expect(mockCacheService.delete).toHaveBeenCalledWith(`user:clerk:${clerkId}`);
       expect(mockCacheService.deleteSession).toHaveBeenCalledWith(clerkId);
     });
 
@@ -325,9 +313,7 @@ describe('AuthService', () => {
         avatarUrl: 'https://example.com/old.jpg',
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        existingUser,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(existingUser);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...existingUser,
         email: 'primary@example.com',
@@ -366,9 +352,7 @@ describe('AuthService', () => {
         avatarUrl: 'https://example.com/old.jpg',
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        existingUser,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(existingUser);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...existingUser,
         name: 'No Email',
@@ -407,9 +391,7 @@ describe('AuthService', () => {
         avatarUrl: 'https://example.com/old.jpg',
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        existingUser,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(existingUser);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...existingUser,
         name: 'Jane Doe',
@@ -448,9 +430,7 @@ describe('AuthService', () => {
         avatarUrl: 'https://example.com/old.jpg',
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        existingUser,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(existingUser);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...existingUser,
       });
@@ -487,9 +467,7 @@ describe('AuthService', () => {
         deletedAt: null,
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        userToSoftDelete,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(userToSoftDelete);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...userToSoftDelete,
         isActive: false,
@@ -506,9 +484,7 @@ describe('AuthService', () => {
         },
       });
 
-      expect(mockCacheService.delete).toHaveBeenCalledWith(
-        `user:clerk:${clerkId}`,
-      );
+      expect(mockCacheService.delete).toHaveBeenCalledWith(`user:clerk:${clerkId}`);
       expect(mockCacheService.deleteSession).toHaveBeenCalledWith(clerkId);
     });
   });
@@ -549,9 +525,7 @@ describe('AuthService', () => {
         },
       };
 
-      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(
-        existingUser,
-      );
+      (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(existingUser);
       (mockPrismaService.user.update as jest.Mock).mockResolvedValue({
         ...existingUser,
         email: 'seq1@example.com',

@@ -4,7 +4,7 @@ import { CacheService } from './cache.service';
 
 /**
  * Cache Module
- * 
+ *
  * Global module - disponível em toda aplicação
  * Usa Upstash REST API
  */

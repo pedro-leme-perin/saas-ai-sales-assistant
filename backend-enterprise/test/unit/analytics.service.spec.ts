@@ -27,10 +27,7 @@ describe('AnalyticsService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AnalyticsService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [AnalyticsService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get<AnalyticsService>(AnalyticsService);
@@ -65,9 +62,9 @@ describe('AnalyticsService', () => {
 
     it('should calculate month-over-month growth', async () => {
       prisma.call.count
-        .mockResolvedValueOnce(100)  // total
-        .mockResolvedValueOnce(60)   // this month
-        .mockResolvedValueOnce(40);  // last month
+        .mockResolvedValueOnce(100) // total
+        .mockResolvedValueOnce(60) // this month
+        .mockResolvedValueOnce(40); // last month
       const result = await service.getDashboardKPIs(COMPANY_ID);
       expect(result.calls.growth).toBe(50); // (60-40)/40 = 50%
     });
@@ -120,7 +117,7 @@ describe('AnalyticsService', () => {
   describe('getWhatsAppAnalytics', () => {
     it('should return chat metrics with AI adoption', async () => {
       prisma.whatsappChat.count
-        .mockResolvedValueOnce(30)  // total
+        .mockResolvedValueOnce(30) // total
         .mockResolvedValueOnce(10); // open
       prisma.whatsappMessage.count
         .mockResolvedValueOnce(200) // messages
@@ -166,9 +163,33 @@ describe('AnalyticsService', () => {
   describe('getAIPerformance', () => {
     it('should return AI metrics with p95 latency', async () => {
       prisma.aISuggestion.findMany.mockResolvedValue([
-        { wasUsed: true, feedback: 'HELPFUL', latencyMs: 500, model: 'gpt-4o', type: 'GREETING', confidence: 0.9, createdAt: new Date() },
-        { wasUsed: false, feedback: 'NOT_HELPFUL', latencyMs: 800, model: 'gpt-4o', type: 'OBJECTION_HANDLING', confidence: 0.7, createdAt: new Date() },
-        { wasUsed: true, feedback: null, latencyMs: 300, model: 'claude', type: 'CLOSING', confidence: 0.85, createdAt: new Date() },
+        {
+          wasUsed: true,
+          feedback: 'HELPFUL',
+          latencyMs: 500,
+          model: 'gpt-4o',
+          type: 'GREETING',
+          confidence: 0.9,
+          createdAt: new Date(),
+        },
+        {
+          wasUsed: false,
+          feedback: 'NOT_HELPFUL',
+          latencyMs: 800,
+          model: 'gpt-4o',
+          type: 'OBJECTION_HANDLING',
+          confidence: 0.7,
+          createdAt: new Date(),
+        },
+        {
+          wasUsed: true,
+          feedback: null,
+          latencyMs: 300,
+          model: 'claude',
+          type: 'CLOSING',
+          confidence: 0.85,
+          createdAt: new Date(),
+        },
       ]);
       const result = await service.getAIPerformance(COMPANY_ID);
       expect(result.total).toBe(3);

@@ -2,15 +2,7 @@
 // 📞 TWILIO WEBHOOK CONTROLLER
 // =============================================
 
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Headers,
-} from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Logger, Headers } from '@nestjs/common';
 import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Public } from '@common/decorators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -26,10 +18,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  async handleVoiceWebhook(
-    @Body() body: any,
-    @Headers('x-twilio-signature') signature: string,
-  ) {
+  async handleVoiceWebhook(@Body() body: any, @Headers('x-twilio-signature') signature: string) {
     this.logger.log(`Twilio voice webhook: ${body?.CallStatus}`);
 
     // Emit event for call processing

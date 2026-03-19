@@ -11,7 +11,9 @@ export class CustomValidationPipe implements PipeTransform<unknown> {
     const object = plainToInstance(metatype, value);
     const errors = await validate(object);
     if (errors.length > 0) {
-      const messages = errors.map(err => Object.values(err.constraints || {}).join(', ')).join('; ');
+      const messages = errors
+        .map((err) => Object.values(err.constraints || {}).join(', '))
+        .join('; ');
       throw new BadRequestException(`Validation failed: ${messages}`);
     }
     return value;

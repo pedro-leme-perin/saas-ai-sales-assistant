@@ -9,9 +9,12 @@ export function isValidEmail(email: string): boolean {
 
 export function isValidBrazilianPhone(phone: string): boolean {
   const cleaned = phone.replace(/\D/g, '');
-  return cleaned.length === 10 || cleaned.length === 11 || 
-         (cleaned.length === 12 && cleaned.startsWith('55')) ||
-         (cleaned.length === 13 && cleaned.startsWith('55'));
+  return (
+    cleaned.length === 10 ||
+    cleaned.length === 11 ||
+    (cleaned.length === 12 && cleaned.startsWith('55')) ||
+    (cleaned.length === 13 && cleaned.startsWith('55'))
+  );
 }
 
 export function isValidE164Phone(phone: string): boolean {
@@ -23,7 +26,7 @@ export function isValidCNPJ(cnpj: string): boolean {
   const cleaned = cnpj.replace(/\D/g, '');
   if (cleaned.length !== 14) return false;
   if (/^(\d)\1+$/.test(cleaned)) return false;
-  
+
   let sum = 0;
   let weight = 5;
   for (let i = 0; i < 12; i++) {
@@ -32,7 +35,7 @@ export function isValidCNPJ(cnpj: string): boolean {
   }
   let digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
   if (parseInt(cleaned.charAt(12)) !== digit) return false;
-  
+
   sum = 0;
   weight = 6;
   for (let i = 0; i < 13; i++) {
@@ -47,7 +50,7 @@ export function isValidCPF(cpf: string): boolean {
   const cleaned = cpf.replace(/\D/g, '');
   if (cleaned.length !== 11) return false;
   if (/^(\d)\1+$/.test(cleaned)) return false;
-  
+
   let sum = 0;
   for (let i = 0; i < 9; i++) {
     sum += parseInt(cleaned.charAt(i)) * (10 - i);
@@ -55,7 +58,7 @@ export function isValidCPF(cpf: string): boolean {
   let digit = (sum * 10) % 11;
   if (digit === 10) digit = 0;
   if (parseInt(cleaned.charAt(9)) !== digit) return false;
-  
+
   sum = 0;
   for (let i = 0; i < 10; i++) {
     sum += parseInt(cleaned.charAt(i)) * (11 - i);

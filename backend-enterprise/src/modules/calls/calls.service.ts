@@ -142,12 +142,7 @@ export class CallsService {
     return this.findOne(id, companyId);
   }
 
-  async initiateCall(
-    companyId: string,
-    userId: string,
-    phoneNumber: string,
-    webhookUrl: string,
-  ) {
+  async initiateCall(companyId: string, userId: string, phoneNumber: string, webhookUrl: string) {
     if (!this.twilioClient) {
       throw new Error('Twilio not configured');
     }
@@ -247,7 +242,11 @@ export class CallsService {
     });
   }
 
-  async handleStatusWebhookBySid(callSid: string, status: string, duration?: number): Promise<void> {
+  async handleStatusWebhookBySid(
+    callSid: string,
+    status: string,
+    duration?: number,
+  ): Promise<void> {
     const call = await this.prisma.call.findFirst({ where: { twilioCallSid: callSid } });
     if (!call) return;
     await this.handleStatusWebhook(call.id, status, duration);
@@ -284,7 +283,7 @@ export class CallsService {
     });
 
     const total = calls.length;
-    const completed = calls.filter(c => c.status === CallStatus.COMPLETED).length;
+    const completed = calls.filter((c) => c.status === CallStatus.COMPLETED).length;
     const totalDuration = calls.reduce((sum, c) => sum + (c.duration || 0), 0);
 
     return {
@@ -314,9 +313,11 @@ export class CallsService {
 
       const response = await fetch(`${recordingUrl}.mp3`, {
         headers: {
-          'Authorization': 'Basic ' + Buffer.from(
-            `${this.configService.get('TWILIO_ACCOUNT_SID')}:${this.configService.get('TWILIO_AUTH_TOKEN')}`
-          ).toString('base64'),
+          Authorization:
+            'Basic ' +
+            Buffer.from(
+              `${this.configService.get('TWILIO_ACCOUNT_SID')}:${this.configService.get('TWILIO_AUTH_TOKEN')}`,
+            ).toString('base64'),
         },
       });
 
@@ -326,14 +327,17 @@ export class CallsService {
       }
 
       // Use Deepgram API directly for pre-recorded audio
-      const dgResponse = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${this.configService.get('DEEPGRAM_API_KEY')}`,
-          'Content-Type': 'audio/mpeg',
+      const dgResponse = await fetch(
+        'https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${this.configService.get('DEEPGRAM_API_KEY')}`,
+            'Content-Type': 'audio/mpeg',
+          },
+          body: await response.arrayBuffer(),
         },
-        body: await response.arrayBuffer(),
-      });
+      );
 
       if (!dgResponse.ok) {
         this.logger.error(`Deepgram transcription failed: ${dgResponse.status}`);
@@ -355,4 +359,3 @@ export class CallsService {
     }
   }
 }
-

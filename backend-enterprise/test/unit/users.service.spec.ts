@@ -55,10 +55,7 @@ describe('UsersService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UsersService,
-        { provide: PrismaService, useValue: mockPrismaService },
-      ],
+      providers: [UsersService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
@@ -139,9 +136,9 @@ describe('UsersService', () => {
     it('should throw NotFoundException when user not found', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.findByIdOrThrow('invalid', 'company-123'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findByIdOrThrow('invalid', 'company-123')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -464,9 +461,7 @@ describe('UsersService', () => {
     it('should silently skip when user not found', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.softDeleteByClerkId('nonexistent'),
-      ).resolves.toBeUndefined();
+      await expect(service.softDeleteByClerkId('nonexistent')).resolves.toBeUndefined();
 
       expect(mockPrismaService.user.update).not.toHaveBeenCalled();
     });

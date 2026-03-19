@@ -1,10 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import {
-  AIProvider,
-  AISuggestion,
-  AIAnalysis,
-  AIProviderConfig,
-} from './ai-provider.interface';
+import { AIProvider, AISuggestion, AIAnalysis, AIProviderConfig } from './ai-provider.interface';
 
 export class GeminiProvider extends AIProvider {
   private client: GoogleGenerativeAI;
@@ -109,15 +104,13 @@ export class GeminiProvider extends AIProvider {
       });
       await model.generateContent('test');
       return true;
-    } catch (error: any) { console.error("GEMINI HEALTH ERROR:", error.message);
+    } catch (error: any) {
+      console.error('GEMINI HEALTH ERROR:', error.message);
       return false;
     }
   }
 
-  private buildSuggestionPrompt(
-    transcript: string,
-    context?: Record<string, any>,
-  ): string {
+  private buildSuggestionPrompt(transcript: string, context?: Record<string, any>): string {
     let prompt = `Customer said: "${transcript}"\n\n`;
 
     if (context?.sentiment) {
@@ -129,6 +122,3 @@ export class GeminiProvider extends AIProvider {
     return prompt;
   }
 }
-
-
-

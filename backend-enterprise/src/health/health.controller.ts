@@ -28,9 +28,7 @@ export class HealthController {
   async check() {
     const database = await this.checkDatabase();
 
-    const circuitBreakers = this.aiManager
-      ? this.aiManager.getCircuitBreakerStatus()
-      : {};
+    const circuitBreakers = this.aiManager ? this.aiManager.getCircuitBreakerStatus() : {};
 
     const allHealthy = database.status === 'ok';
 

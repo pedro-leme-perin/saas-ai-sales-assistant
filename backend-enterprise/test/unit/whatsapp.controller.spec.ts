@@ -21,9 +21,27 @@ describe('WhatsappController', () => {
   };
 
   const mockMessages = [
-    { id: 'msg-1', chatId: 'chat-123', direction: 'INCOMING', content: 'Olá, preciso de ajuda', timestamp: new Date() },
-    { id: 'msg-2', chatId: 'chat-123', direction: 'OUTGOING', content: 'Como posso ajudar?', timestamp: new Date() },
-    { id: 'msg-3', chatId: 'chat-123', direction: 'INCOMING', content: 'Quero saber o preço', timestamp: new Date() },
+    {
+      id: 'msg-1',
+      chatId: 'chat-123',
+      direction: 'INCOMING',
+      content: 'Olá, preciso de ajuda',
+      timestamp: new Date(),
+    },
+    {
+      id: 'msg-2',
+      chatId: 'chat-123',
+      direction: 'OUTGOING',
+      content: 'Como posso ajudar?',
+      timestamp: new Date(),
+    },
+    {
+      id: 'msg-3',
+      chatId: 'chat-123',
+      direction: 'INCOMING',
+      content: 'Quero saber o preço',
+      timestamp: new Date(),
+    },
   ];
 
   const mockRes = {
@@ -68,7 +86,11 @@ describe('WhatsappController', () => {
 
   describe('receiveTwilioWebhook', () => {
     it('should process webhook and return TwiML', async () => {
-      const payload = { Body: 'Olá', From: 'whatsapp:+5511999990000', To: 'whatsapp:+5511888880000' };
+      const payload = {
+        Body: 'Olá',
+        From: 'whatsapp:+5511999990000',
+        To: 'whatsapp:+5511888880000',
+      };
       await controller.receiveTwilioWebhook(payload as any, mockRes as any);
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/xml');
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -163,7 +185,11 @@ describe('WhatsappController', () => {
     });
 
     it('should pass aiSuggestionUsed flag', async () => {
-      const body = { content: 'Resposta sugerida pela IA', aiSuggestionUsed: true, suggestionId: 'sug-1' };
+      const body = {
+        content: 'Resposta sugerida pela IA',
+        aiSuggestionUsed: true,
+        suggestionId: 'sug-1',
+      };
       await controller.sendMessage('company-123', 'chat-123', body);
       expect(whatsappService.sendMessage).toHaveBeenCalledWith('chat-123', 'company-123', body);
     });
@@ -187,7 +213,13 @@ describe('WhatsappController', () => {
 
     it('should return default suggestion when no customer messages', async () => {
       (whatsappService.getMessages as jest.Mock).mockResolvedValueOnce([
-        { id: 'msg-1', chatId: 'chat-123', direction: 'OUTGOING', content: 'Olá!', timestamp: new Date() },
+        {
+          id: 'msg-1',
+          chatId: 'chat-123',
+          direction: 'OUTGOING',
+          content: 'Olá!',
+          timestamp: new Date(),
+        },
       ]);
       const result = await controller.getSuggestion('company-123', 'chat-123');
       expect(result.suggestion).toContain('Inicie a conversa');

@@ -5,13 +5,13 @@ import { UserWithCompany } from '@/modules/users/users.service';
 
 /**
  * Extrai o usuário autenticado do request
- * 
+ *
  * @example
  * @Get('profile')
  * getProfile(@CurrentUser() user: UserWithCompany) {
  *   return user;
  * }
- * 
+ *
  * @example
  * // Extrair apenas uma propriedade
  * @Get('company')
@@ -34,26 +34,22 @@ export const CurrentUser = createParamDecorator(
 
 /**
  * Extrai o companyId do usuário autenticado (tenant isolation)
- * 
+ *
  * @example
  * @Get('calls')
  * getCalls(@CompanyId() companyId: string) {
  *   return this.callsService.findByCompany(companyId);
  * }
  */
-export const CompanyId = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): string => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.companyId || request.user?.companyId;
-  },
-);
+export const CompanyId = createParamDecorator((_data: unknown, ctx: ExecutionContext): string => {
+  const request = ctx.switchToHttp().getRequest();
+  return request.companyId || request.user?.companyId;
+});
 
 /**
  * Extrai o userId do usuário autenticado
  */
-export const UserId = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): string => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.userId || request.user?.id;
-  },
-);
+export const UserId = createParamDecorator((_data: unknown, ctx: ExecutionContext): string => {
+  const request = ctx.switchToHttp().getRequest();
+  return request.userId || request.user?.id;
+});

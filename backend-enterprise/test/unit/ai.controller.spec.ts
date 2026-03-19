@@ -60,11 +60,7 @@ describe('AiController', () => {
 
       await controller.generateSuggestion(body);
 
-      expect(service.generateSuggestion).toHaveBeenCalledWith(
-        'Hello',
-        undefined,
-        undefined,
-      );
+      expect(service.generateSuggestion).toHaveBeenCalledWith('Hello', undefined, undefined);
     });
   });
 

@@ -57,10 +57,7 @@ describe('CompaniesService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CompaniesService,
-        { provide: PrismaService, useValue: mockPrismaService },
-      ],
+      providers: [CompaniesService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
     service = module.get<CompaniesService>(CompaniesService);
@@ -84,9 +81,7 @@ describe('CompaniesService', () => {
       };
 
       const expectedCreatedCompany = { ...mockCompany, ...createCompanyDto };
-      (mockPrismaService.company.create as jest.Mock).mockResolvedValue(
-        expectedCreatedCompany,
-      );
+      (mockPrismaService.company.create as jest.Mock).mockResolvedValue(expectedCreatedCompany);
 
       const result = await service.create(createCompanyDto);
 
@@ -118,9 +113,7 @@ describe('CompaniesService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      (mockPrismaService.company.create as jest.Mock).mockResolvedValue(
-        expectedCreatedCompany,
-      );
+      (mockPrismaService.company.create as jest.Mock).mockResolvedValue(expectedCreatedCompany);
 
       const result = await service.create(createCompanyDto);
 
@@ -201,9 +194,7 @@ describe('CompaniesService', () => {
   // =============================================
   describe('findOne', () => {
     it('should find company by id with users and counts', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
 
       const result = await service.findOne('company-123');
 
@@ -245,9 +236,7 @@ describe('CompaniesService', () => {
           },
         ],
       };
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        companyWithUsers,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(companyWithUsers);
 
       const result = await service.findOne('company-123');
 
@@ -258,13 +247,9 @@ describe('CompaniesService', () => {
     });
 
     it('should throw NotFoundException when company not found', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.findOne('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('invalid-id')).rejects.toThrow(NotFoundException);
       await expect(service.findOne('invalid-id')).rejects.toThrow(
         'Company with ID invalid-id not found',
       );
@@ -278,9 +263,7 @@ describe('CompaniesService', () => {
           whatsappChats: 0,
         },
       };
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        companyWithZeroCounts,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(companyWithZeroCounts);
 
       const result = await service.findOne('company-123');
 
@@ -299,13 +282,9 @@ describe('CompaniesService', () => {
         plan: 'PROFESSIONAL',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       const updatedCompany = { ...mockCompany, ...updateCompanyDto };
-      (mockPrismaService.company.update as jest.Mock).mockResolvedValue(
-        updatedCompany,
-      );
+      (mockPrismaService.company.update as jest.Mock).mockResolvedValue(updatedCompany);
 
       const result = await service.update('company-123', updateCompanyDto);
 
@@ -332,9 +311,7 @@ describe('CompaniesService', () => {
         name: 'Only Name Changed',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.company.update as jest.Mock).mockResolvedValue({
         ...mockCompany,
         name: 'Only Name Changed',
@@ -355,9 +332,7 @@ describe('CompaniesService', () => {
         slug: 'new-slug',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.company.update as jest.Mock).mockResolvedValue({
         ...mockCompany,
         slug: 'new-slug',
@@ -378,9 +353,7 @@ describe('CompaniesService', () => {
         plan: 'ENTERPRISE',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.company.update as jest.Mock).mockResolvedValue({
         ...mockCompany,
         plan: 'ENTERPRISE',
@@ -401,9 +374,7 @@ describe('CompaniesService', () => {
         stripeCustomerId: 'cus_new_customer',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.company.update as jest.Mock).mockResolvedValue({
         ...mockCompany,
         stripeCustomerId: 'cus_new_customer',
@@ -424,9 +395,7 @@ describe('CompaniesService', () => {
         name: 'Updated',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.company.update as jest.Mock).mockResolvedValue({
         ...mockCompany,
         name: 'Updated',
@@ -443,13 +412,11 @@ describe('CompaniesService', () => {
         name: 'Updated',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(
-        service.update('invalid-id', updateCompanyDto),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('invalid-id', updateCompanyDto)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockPrismaService.company.update).not.toHaveBeenCalled();
     });
 
@@ -458,9 +425,7 @@ describe('CompaniesService', () => {
         name: 'Updated',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(null);
 
       try {
         await service.update('invalid-id', updateCompanyDto);
@@ -479,9 +444,7 @@ describe('CompaniesService', () => {
         stripeCustomerId: 'cus_multi',
       };
 
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.company.update as jest.Mock).mockResolvedValue({
         ...mockCompany,
         ...updateCompanyDto,
@@ -508,15 +471,11 @@ describe('CompaniesService', () => {
   // =============================================
   describe('getStats', () => {
     it('should return all 4 stats (calls, chats, users, activeCalls)', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.call.count as jest.Mock)
         .mockResolvedValueOnce(50) // totalCalls
         .mockResolvedValueOnce(5); // activeCalls
-      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(
-        20,
-      );
+      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(20);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(8);
 
       const result = await service.getStats('company-123');
@@ -530,9 +489,7 @@ describe('CompaniesService', () => {
     });
 
     it('should count total calls for company', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.call.count as jest.Mock)
         .mockResolvedValueOnce(100) // totalCalls
         .mockResolvedValueOnce(0); // activeCalls
@@ -550,15 +507,9 @@ describe('CompaniesService', () => {
     });
 
     it('should count whatsapp chats for company', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
-      (mockPrismaService.call.count as jest.Mock)
-        .mockResolvedValueOnce(0)
-        .mockResolvedValueOnce(0);
-      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(
-        30,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+      (mockPrismaService.call.count as jest.Mock).mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(30);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(0);
 
       const result = await service.getStats('company-123');
@@ -570,12 +521,8 @@ describe('CompaniesService', () => {
     });
 
     it('should count users for company', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
-      (mockPrismaService.call.count as jest.Mock)
-        .mockResolvedValueOnce(0)
-        .mockResolvedValueOnce(0);
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+      (mockPrismaService.call.count as jest.Mock).mockResolvedValueOnce(0).mockResolvedValueOnce(0);
       (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(0);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(15);
 
@@ -588,12 +535,8 @@ describe('CompaniesService', () => {
     });
 
     it('should count active calls with IN_PROGRESS status', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
-      (mockPrismaService.call.count as jest.Mock)
-        .mockResolvedValueOnce(0)
-        .mockResolvedValueOnce(3); // activeCalls
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+      (mockPrismaService.call.count as jest.Mock).mockResolvedValueOnce(0).mockResolvedValueOnce(3); // activeCalls
       (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(0);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(0);
 
@@ -611,12 +554,8 @@ describe('CompaniesService', () => {
     });
 
     it('should call findOne first to validate company exists', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
-      (mockPrismaService.call.count as jest.Mock)
-        .mockResolvedValueOnce(0)
-        .mockResolvedValueOnce(0);
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+      (mockPrismaService.call.count as jest.Mock).mockResolvedValueOnce(0).mockResolvedValueOnce(0);
       (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(0);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(0);
 
@@ -627,19 +566,13 @@ describe('CompaniesService', () => {
     });
 
     it('should throw NotFoundException when company not found', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.getStats('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getStats('invalid-id')).rejects.toThrow(NotFoundException);
     });
 
     it('should not make count queries if findOne throws', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(null);
 
       try {
         await service.getStats('invalid-id');
@@ -653,15 +586,11 @@ describe('CompaniesService', () => {
     });
 
     it('should run all 4 counts in parallel using Promise.all', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.call.count as jest.Mock)
         .mockResolvedValueOnce(25)
         .mockResolvedValueOnce(2);
-      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(
-        10,
-      );
+      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(10);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(5);
 
       const result = await service.getStats('company-123');
@@ -674,12 +603,8 @@ describe('CompaniesService', () => {
     });
 
     it('should handle zero values for all stats', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
-      (mockPrismaService.call.count as jest.Mock)
-        .mockResolvedValueOnce(0)
-        .mockResolvedValueOnce(0);
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+      (mockPrismaService.call.count as jest.Mock).mockResolvedValueOnce(0).mockResolvedValueOnce(0);
       (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(0);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(0);
 
@@ -692,15 +617,11 @@ describe('CompaniesService', () => {
     });
 
     it('should handle large numbers for all stats', async () => {
-      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(
-        mockCompany,
-      );
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
       (mockPrismaService.call.count as jest.Mock)
         .mockResolvedValueOnce(999999)
         .mockResolvedValueOnce(5000);
-      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(
-        500000,
-      );
+      (mockPrismaService.whatsappChat.count as jest.Mock).mockResolvedValue(500000);
       (mockPrismaService.user.count as jest.Mock).mockResolvedValue(10000);
 
       const result = await service.getStats('company-123');

@@ -4,12 +4,7 @@
 // Role-based access control (RBAC)
 // =============================================
 
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
 import { ROLES_KEY, AuthenticatedUser } from '@common/decorators';
@@ -40,9 +35,7 @@ export class RolesGuard implements CanActivate {
     const hasRole = requiredRoles.includes(user.role);
 
     if (!hasRole) {
-      throw new ForbiddenException(
-        `Access denied. Required roles: ${requiredRoles.join(', ')}`,
-      );
+      throw new ForbiddenException(`Access denied. Required roles: ${requiredRoles.join(', ')}`);
     }
 
     return true;
@@ -61,17 +54,11 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
   [UserRole.VENDOR]: 1,
 };
 
-export function hasHigherOrEqualRole(
-  userRole: UserRole,
-  requiredRole: UserRole,
-): boolean {
+export function hasHigherOrEqualRole(userRole: UserRole, requiredRole: UserRole): boolean {
   return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
 }
 
-export function canManageUser(
-  managerRole: UserRole,
-  targetRole: UserRole,
-): boolean {
+export function canManageUser(managerRole: UserRole, targetRole: UserRole): boolean {
   // User can only manage users with lower roles
   return ROLE_HIERARCHY[managerRole] > ROLE_HIERARCHY[targetRole];
 }

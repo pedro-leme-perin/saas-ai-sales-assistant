@@ -1,10 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import {
-  AIProvider,
-  AISuggestion,
-  AIAnalysis,
-  AIProviderConfig,
-} from './ai-provider.interface';
+import { AIProvider, AISuggestion, AIAnalysis, AIProviderConfig } from './ai-provider.interface';
 
 export class ClaudeProvider extends AIProvider {
   private client: Anthropic;
@@ -35,10 +30,7 @@ export class ClaudeProvider extends AIProvider {
 
       const latencyMs = Date.now() - startTime;
 
-      const text =
-        response.content[0].type === 'text'
-          ? response.content[0].text
-          : 'No suggestion';
+      const text = response.content[0].type === 'text' ? response.content[0].text : 'No suggestion';
 
       return {
         text,
@@ -68,10 +60,7 @@ export class ClaudeProvider extends AIProvider {
         ],
       });
 
-      const text =
-        response.content[0].type === 'text'
-          ? response.content[0].text
-          : '{}';
+      const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
 
       const analysis = JSON.parse(text);
 
@@ -100,10 +89,7 @@ export class ClaudeProvider extends AIProvider {
     }
   }
 
-  private buildSuggestionPrompt(
-    transcript: string,
-    context?: Record<string, any>,
-  ): string {
+  private buildSuggestionPrompt(transcript: string, context?: Record<string, any>): string {
     let prompt = `Customer said: "${transcript}"\n\n`;
 
     if (context?.sentiment) {

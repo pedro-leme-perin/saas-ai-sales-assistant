@@ -21,7 +21,9 @@ interface AuthenticatedSocket extends Socket {
   namespace: '/ws',
   transports: ['websocket', 'polling'],
 })
-export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 

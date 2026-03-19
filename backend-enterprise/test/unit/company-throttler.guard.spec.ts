@@ -10,12 +10,14 @@ describe('CompanyThrottlerGuard', () => {
   let reflector: Reflector;
   let mockSuperCanActivate: jest.SpyInstance;
 
-  const createMockContext = (overrides: {
-    user?: { companyId?: string; id?: string; email?: string };
-    company?: { plan?: string };
-    skipThrottle?: boolean;
-    throttleConfig?: Record<string, unknown> | undefined;
-  } = {}): ExecutionContext => {
+  const createMockContext = (
+    overrides: {
+      user?: { companyId?: string; id?: string; email?: string };
+      company?: { plan?: string };
+      skipThrottle?: boolean;
+      throttleConfig?: Record<string, unknown> | undefined;
+    } = {},
+  ): ExecutionContext => {
     const request: Record<string, unknown> = {};
     const response = { setHeader: jest.fn() };
 
@@ -52,9 +54,7 @@ describe('CompanyThrottlerGuard', () => {
     reflector = new Reflector();
 
     // Create guard with mocked dependencies
-    const mockOptions = [
-      { name: 'default', ttl: 60000, limit: 100 },
-    ];
+    const mockOptions = [{ name: 'default', ttl: 60000, limit: 100 }];
     const mockStorage = {
       getRecord: jest.fn(),
       addRecord: jest.fn(),
@@ -166,11 +166,7 @@ describe('CompanyThrottlerGuard', () => {
 
       await guard.canActivate(context);
 
-      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(
-        expect.any(String),
-        60,
-        60,
-      );
+      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(expect.any(String), 60, 60);
     });
 
     it('should apply PROFESSIONAL limits (200/min)', async () => {
@@ -181,11 +177,7 @@ describe('CompanyThrottlerGuard', () => {
 
       await guard.canActivate(context);
 
-      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(
-        expect.any(String),
-        200,
-        60,
-      );
+      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(expect.any(String), 200, 60);
     });
 
     it('should apply ENTERPRISE limits (500/min)', async () => {
@@ -196,11 +188,7 @@ describe('CompanyThrottlerGuard', () => {
 
       await guard.canActivate(context);
 
-      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(
-        expect.any(String),
-        500,
-        60,
-      );
+      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(expect.any(String), 500, 60);
     });
 
     it('should fall back to STARTER for unknown plan', async () => {
@@ -211,11 +199,7 @@ describe('CompanyThrottlerGuard', () => {
 
       await guard.canActivate(context);
 
-      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(
-        expect.any(String),
-        60,
-        60,
-      );
+      expect(cacheService.checkRateLimit).toHaveBeenCalledWith(expect.any(String), 60, 60);
     });
   });
 

@@ -28,17 +28,17 @@ import { AuthUser } from '../interfaces/auth-user.interface';
 
 /**
  * Tenant Isolation Guard
- * 
+ *
  * MUST be used after AuthGuard to ensure user is authenticated first.
- * 
+ *
  * Validates:
  * 1. User is authenticated (has user object)
  * 2. User belongs to a company (has companyId)
  * 3. Company is active (not suspended/deleted)
- * 
+ *
  * Injects:
  * - request.companyId for easy access in controllers/services
- * 
+ *
  * @example
  * ```typescript
  * @UseGuards(AuthGuard, TenantGuard)
@@ -55,7 +55,7 @@ export class TenantGuard implements CanActivate {
 
   /**
    * Validate tenant context
-   * 
+   *
    * @param context - Execution context
    * @returns true if user has valid tenant context
    * @throws ForbiddenException if tenant validation fails
@@ -82,9 +82,7 @@ export class TenantGuard implements CanActivate {
     request.companyId = user.companyId;
 
     // ✅ Log tenant context (useful for debugging)
-    this.logger.debug(
-      `Tenant validated: User ${user.email} → Company ${user.companyId}`,
-    );
+    this.logger.debug(`Tenant validated: User ${user.email} → Company ${user.companyId}`);
 
     return true;
   }
@@ -92,13 +90,13 @@ export class TenantGuard implements CanActivate {
 
 /**
  * Extended Request interface with tenant context
- * 
+ *
  * Use this in controllers to access injected companyId:
- * 
+ *
  * @example
  * ```typescript
  * import { TenantRequest } from '@modules/auth/guards/tenant.guard';
- * 
+ *
  * @Get('data')
  * getData(@Req() request: TenantRequest) {
  *   const companyId = request.companyId; // ✅ Type-safe access

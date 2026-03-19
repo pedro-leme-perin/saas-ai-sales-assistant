@@ -9,9 +9,27 @@ describe('BillingController', () => {
   let billingService: jest.Mocked<Partial<BillingService>>;
 
   const mockPlans = [
-    { name: 'Starter', price: 14900, currency: 'brl', interval: 'month', limits: { users: 5, calls: 100, chats: 200 } },
-    { name: 'Professional', price: 29900, currency: 'brl', interval: 'month', limits: { users: 15, calls: 500, chats: 1000 } },
-    { name: 'Enterprise', price: 59900, currency: 'brl', interval: 'month', limits: { users: 50, calls: 2000, chats: 5000 } },
+    {
+      name: 'Starter',
+      price: 14900,
+      currency: 'brl',
+      interval: 'month',
+      limits: { users: 5, calls: 100, chats: 200 },
+    },
+    {
+      name: 'Professional',
+      price: 29900,
+      currency: 'brl',
+      interval: 'month',
+      limits: { users: 15, calls: 500, chats: 1000 },
+    },
+    {
+      name: 'Enterprise',
+      price: 59900,
+      currency: 'brl',
+      interval: 'month',
+      limits: { users: 50, calls: 2000, chats: 5000 },
+    },
   ];
 
   const mockSubscription = {
@@ -40,8 +58,12 @@ describe('BillingController', () => {
       getPlans: jest.fn().mockResolvedValue(mockPlans),
       getSubscription: jest.fn().mockResolvedValue(mockSubscription),
       getInvoices: jest.fn().mockResolvedValue(mockInvoices),
-      createCheckoutSession: jest.fn().mockResolvedValue({ url: 'https://checkout.stripe.com/test' }),
-      changePlan: jest.fn().mockResolvedValue({ success: true, message: 'Plan changed', plan: mockPlans[1] }),
+      createCheckoutSession: jest
+        .fn()
+        .mockResolvedValue({ url: 'https://checkout.stripe.com/test' }),
+      changePlan: jest
+        .fn()
+        .mockResolvedValue({ success: true, message: 'Plan changed', plan: mockPlans[1] }),
       cancelSubscription: jest.fn().mockResolvedValue({ success: true, message: 'Cancelled' }),
       getPortalUrl: jest.fn().mockResolvedValue({ url: 'https://billing.stripe.com/portal' }),
       handleWebhook: jest.fn().mockResolvedValue({ received: true }),
@@ -49,9 +71,7 @@ describe('BillingController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BillingController],
-      providers: [
-        { provide: BillingService, useValue: billingService },
-      ],
+      providers: [{ provide: BillingService, useValue: billingService }],
     }).compile();
 
     controller = module.get<BillingController>(BillingController);
@@ -118,13 +138,21 @@ describe('BillingController', () => {
       const dto = { plan: 'PROFESSIONAL' as any };
       const result = await controller.createCheckout(dto, 'company-123', mockUser as any);
       expect(result).toEqual({ url: 'https://checkout.stripe.com/test' });
-      expect(billingService.createCheckoutSession).toHaveBeenCalledWith('PROFESSIONAL', 'company-123', mockUser);
+      expect(billingService.createCheckoutSession).toHaveBeenCalledWith(
+        'PROFESSIONAL',
+        'company-123',
+        mockUser,
+      );
     });
 
     it('should pass correct companyId from decorator', async () => {
       const dto = { plan: 'ENTERPRISE' as any };
       await controller.createCheckout(dto, 'company-999', mockUser as any);
-      expect(billingService.createCheckoutSession).toHaveBeenCalledWith('ENTERPRISE', 'company-999', mockUser);
+      expect(billingService.createCheckoutSession).toHaveBeenCalledWith(
+        'ENTERPRISE',
+        'company-999',
+        mockUser,
+      );
     });
   });
 
@@ -137,7 +165,11 @@ describe('BillingController', () => {
       const dto = { plan: 'PROFESSIONAL' as any };
       const result = await controller.changePlan(dto, 'company-123', mockUser as any);
       expect(result).toEqual({ success: true, message: 'Plan changed', plan: mockPlans[1] });
-      expect(billingService.changePlan).toHaveBeenCalledWith('PROFESSIONAL', 'company-123', mockUser);
+      expect(billingService.changePlan).toHaveBeenCalledWith(
+        'PROFESSIONAL',
+        'company-123',
+        mockUser,
+      );
     });
   });
 

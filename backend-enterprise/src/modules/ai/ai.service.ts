@@ -56,10 +56,7 @@ export class AiService {
   /**
    * Gerar sugestão com load balancing (round-robin entre providers)
    */
-  async generateSuggestionBalanced(
-    transcript: string,
-    context?: Record<string, any>,
-  ) {
+  async generateSuggestionBalanced(transcript: string, context?: Record<string, any>) {
     try {
       return await this.aiManager.generateSuggestionBalanced(transcript, context);
     } catch (error) {

@@ -2,16 +2,7 @@
 // 💬 WHATSAPP WEBHOOK CONTROLLER
 // =============================================
 
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Query,
-  HttpCode,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '@common/decorators';
@@ -56,10 +47,10 @@ export class WhatsappWebhookController {
     try {
       // Process each entry
       const entries = body?.entry || [];
-      
+
       for (const entry of entries) {
         const changes = entry?.changes || [];
-        
+
         for (const change of changes) {
           if (change.field === 'messages') {
             await this.processMessages(change.value);
