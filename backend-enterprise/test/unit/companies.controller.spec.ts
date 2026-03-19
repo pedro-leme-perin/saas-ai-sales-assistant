@@ -88,7 +88,7 @@ describe('CompaniesController', () => {
     });
 
     it('should handle zero limits gracefully', async () => {
-      companiesService.findOne!.mockResolvedValueOnce({
+      (companiesService.findOne as jest.Mock).mockResolvedValueOnce({
         ...mockCompany,
         maxUsers: 0,
         maxCallsPerMonth: 0,

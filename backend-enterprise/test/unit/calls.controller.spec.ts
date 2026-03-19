@@ -71,7 +71,7 @@ describe('CallsController', () => {
     });
 
     it('should return empty array when no calls', async () => {
-      callsService.findAll!.mockResolvedValueOnce([]);
+      (callsService.findAll as jest.Mock).mockResolvedValueOnce([]);
       const result = await controller.findAll('company-new');
       expect(result).toEqual([]);
     });

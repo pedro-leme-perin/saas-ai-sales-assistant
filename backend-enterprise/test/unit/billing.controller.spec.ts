@@ -103,7 +103,7 @@ describe('BillingController', () => {
     });
 
     it('should return empty array when no invoices', async () => {
-      billingService.getInvoices!.mockResolvedValueOnce([]);
+      (billingService.getInvoices as jest.Mock).mockResolvedValueOnce([]);
       const result = await controller.getInvoices('company-new');
       expect(result).toEqual([]);
     });

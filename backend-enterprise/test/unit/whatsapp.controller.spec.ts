@@ -120,7 +120,7 @@ describe('WhatsappController', () => {
     });
 
     it('should return empty array when no chats', async () => {
-      whatsappService.findAllChats!.mockResolvedValueOnce([]);
+      (whatsappService.findAllChats as jest.Mock).mockResolvedValueOnce([]);
       const result = await controller.findAllChats('company-new');
       expect(result).toEqual([]);
     });
@@ -186,7 +186,7 @@ describe('WhatsappController', () => {
     });
 
     it('should return default suggestion when no customer messages', async () => {
-      whatsappService.getMessages!.mockResolvedValueOnce([
+      (whatsappService.getMessages as jest.Mock).mockResolvedValueOnce([
         { id: 'msg-1', chatId: 'chat-123', direction: 'OUTGOING', content: 'Olá!', timestamp: new Date() },
       ]);
       const result = await controller.getSuggestion('company-123', 'chat-123');

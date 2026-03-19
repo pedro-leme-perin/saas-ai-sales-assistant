@@ -65,7 +65,7 @@ describe('UsersController', () => {
     });
 
     it('should return empty data with zero total', async () => {
-      usersService.findAllByCompany!.mockResolvedValueOnce([]);
+      (usersService.findAllByCompany as jest.Mock).mockResolvedValueOnce([]);
       const result = await controller.findAll('company-123');
       expect(result.data).toEqual([]);
       expect(result.meta.total).toBe(0);
