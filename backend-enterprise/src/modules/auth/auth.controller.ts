@@ -1,9 +1,13 @@
 // src/modules/auth/auth.controller.ts
 
 import { Controller, Get, Logger } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserWithCompany } from '@/modules/users/users.service';
 
+// Rate limit auth endpoints (System Design Interview - Cap. 4)
+// Prevent brute force / session enumeration
+@Throttle({ auth: { ttl: 60000, limit: 30 } })
 @Controller('auth')  // ← CORRIGIDO: removido 'api/'
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);

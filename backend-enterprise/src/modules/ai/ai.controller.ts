@@ -1,9 +1,13 @@
 // Force rebuild - v2
 import { Controller, Post, Get, Body } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AiService } from './ai.service';
 import { Public } from '@/common/decorators/public.decorator';
 import { AIProviderType } from '@/infrastructure/ai/ai-manager.service';
 
+// Rate limit AI endpoints more strictly (System Design Interview - Cap. 4)
+// AI calls are expensive — 20 req/min vs 100 req/min default
+@Throttle({ strict: { ttl: 60000, limit: 20 } })
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
