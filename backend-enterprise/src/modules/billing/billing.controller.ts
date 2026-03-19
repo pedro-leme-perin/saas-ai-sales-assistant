@@ -8,6 +8,7 @@
 // =============================================
 
 import { Controller, Get, Post, Body, UseGuards, HttpCode, HttpStatus, Headers } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { BillingService, PlanDetails } from './billing.service';
 import { CurrentUser, AuthenticatedUser, Roles, CompanyId } from '@common/decorators';
@@ -333,6 +334,7 @@ export class BillingController {
   }
 
   @Post('webhook')
+  @SkipThrottle() // Stripe webhooks are server-to-server, must not be rate-limited
   @HttpCode(HttpStatus.OK)
   async handleWebhook(
     @Body() payload: Buffer,

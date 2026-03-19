@@ -10,6 +10,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { WhatsappService, TwilioWebhookPayload, TwilioStatusPayload } from './whatsapp.service';
@@ -24,6 +25,7 @@ export class WhatsappController {
   ) {}
 
   @Public()
+  @SkipThrottle() // Twilio webhooks are server-to-server
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Receive incoming WhatsApp messages from Twilio' })
@@ -39,6 +41,7 @@ export class WhatsappController {
   }
 
   @Public()
+  @SkipThrottle() // Twilio status callbacks are server-to-server
   @Post('webhook/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Receive WhatsApp message status updates from Twilio' })

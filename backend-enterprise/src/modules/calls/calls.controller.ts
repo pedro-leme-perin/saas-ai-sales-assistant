@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Put, Param, Body, Res, HttpCode, Request, Logger } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '@/common/decorators/public.decorator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
@@ -79,6 +80,7 @@ export class CallsController {
   // =====================================================
 
   @Public()
+  @SkipThrottle() // Twilio webhooks are server-to-server
   @Post('webhook/voice/:callId')
   @HttpCode(200)
   @ApiOperation({ summary: 'Twilio voice webhook with Media Streams for real-time' })
@@ -121,6 +123,7 @@ export class CallsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Post('webhook/voice')
   @HttpCode(200)
   async handleVoiceWebhookInbound(
@@ -149,6 +152,7 @@ export class CallsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Post('webhook/recording/:callId')
   @HttpCode(200)
   async handleRecordingWebhook(
@@ -172,6 +176,7 @@ export class CallsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Post('webhook/status/:callId')
   @HttpCode(200)
   async handleStatusWebhook(
@@ -184,6 +189,7 @@ export class CallsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Post('webhook/status')
   @HttpCode(200)
   async handleStatusWebhookGlobal(
@@ -195,6 +201,7 @@ export class CallsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Post('webhook/transcription/:callId')
   @HttpCode(200)
   async handleTranscriptionWebhook(

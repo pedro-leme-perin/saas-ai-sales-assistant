@@ -8,11 +8,13 @@
 // version, node version, environment, uptime
 
 import { Controller, Get, Inject, Optional } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../infrastructure/database/prisma.service';
 import { AIManagerService } from '../infrastructure/ai/ai-manager.service';
 
 @ApiTags('Health')
+@SkipThrottle() // Health checks must never be rate-limited (load balancers poll frequently)
 @Controller('health')
 export class HealthController {
   constructor(
