@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import WebSocket = require('ws');
+import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 
 export interface TranscriptionResult {
   text: string;
@@ -19,6 +20,7 @@ export interface LiveSession {
 export class DeepgramService {
   private readonly logger = new Logger(DeepgramService.name);
   private readonly apiKey: string | null = null;
+  private readonly breaker: CircuitBreaker;
 
   constructor(private configService: ConfigService) {
     const key = this.configService.get<string>('DEEPGRAM_API_KEY');
@@ -28,6 +30,14 @@ export class DeepgramService {
     } else {
       this.logger.warn('⚠️ Deepgram API key not configured');
     }
+
+    // Circuit breaker for HTTP calls (Release It! - Integration Points)
+    this.breaker = new CircuitBreaker({
+      name: 'Deepgram',
+      failureThreshold: 3,
+      resetTimeoutMs: 30000,
+      callTimeoutMs: 30000, // transcription can take longer
+    });
   }
 
   isConfigured(): boolean {
@@ -117,21 +127,28 @@ export class DeepgramService {
       throw new Error('Deepgram not configured');
     }
 
-    const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url }),
+    return this.breaker.execute(async () => {
+      const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&punctuate=true', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Deepgram error: ${response.status}`);
+      }
+
+      const result: any = await response.json();
+      return result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
     });
+  }
 
-    if (!response.ok) {
-      throw new Error(`Deepgram error: ${response.status}`);
-    }
-
-    const result: any = await response.json();
-    return result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+  /** Expose circuit breaker state for /health endpoint */
+  getCircuitBreakerStatus() {
+    return this.breaker.getHealthInfo();
   }
 }
 

@@ -8,6 +8,6 @@ import { AIManagerService } from '@/infrastructure/ai/ai-manager.service';
   imports: [ConfigModule],
   controllers: [AiController],
   providers: [AiService, AIManagerService],
-  exports: [AiService],
+  exports: [AiService, AIManagerService],
 })
 export class AiModule {}
