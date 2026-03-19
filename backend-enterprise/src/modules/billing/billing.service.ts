@@ -7,6 +7,7 @@ import { PrismaService } from '@infrastructure/database/prisma.service';
 import { AuthenticatedUser } from '@common/decorators';
 import { Plan, SubscriptionStatus, AuditAction } from '@prisma/client';
 import Stripe from 'stripe';
+import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 
 export interface PlanDetails {
   name: string;
@@ -39,6 +40,7 @@ export class BillingService {
   private readonly stripe: Stripe | null = null;
   private readonly stripeSecretKey: string;
   private readonly stripePrices: Record<Plan, string>;
+  readonly stripeBreaker: CircuitBreaker;
 
   constructor(
     private readonly configService: ConfigService,
@@ -50,6 +52,14 @@ export class BillingService {
       [Plan.PROFESSIONAL]: this.configService.get<string>('stripe.prices.professional') || '',
       [Plan.ENTERPRISE]: this.configService.get<string>('stripe.prices.enterprise') || '',
     };
+
+    // Circuit breaker for Stripe API (Release It! - Integration Points)
+    this.stripeBreaker = new CircuitBreaker({
+      name: 'Stripe',
+      failureThreshold: 5,
+      resetTimeoutMs: 30000,
+      callTimeoutMs: 15000,
+    });
 
     if (this.isStripeConfigured()) {
       (this as any).stripe = new Stripe(this.stripeSecretKey, { apiVersion: '2025-02-24.acacia' });
@@ -142,30 +152,33 @@ export class BillingService {
       if (!priceId) throw new BadRequestException(`Invalid plan: ${plan}`);
 
       if (this.stripe) {
-        let stripeCustomerId = company.stripeCustomerId;
-        if (!stripeCustomerId) {
-          const customer = await this.stripe.customers.create({
-            email: user.email,
-            name: company.name,
-            metadata: { companyId },
+        // Circuit breaker wraps all Stripe API calls (Release It! - Circuit Breaker)
+        return await this.stripeBreaker.execute(async () => {
+          let stripeCustomerId = company!.stripeCustomerId;
+          if (!stripeCustomerId) {
+            const customer = await this.stripe!.customers.create({
+              email: user.email,
+              name: company!.name,
+              metadata: { companyId },
+            });
+            stripeCustomerId = customer.id;
+            await this.prisma.company.update({ where: { id: companyId }, data: { stripeCustomerId } });
+          }
+
+          const session = await this.stripe!.checkout.sessions.create({
+            customer: stripeCustomerId,
+            mode: 'subscription',
+            payment_method_types: ['card'],
+            line_items: [{ price: priceId, quantity: 1 }],
+            success_url: `${process.env.FRONTEND_URL}/faturamento?success=true&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.FRONTEND_URL}/faturamento?cancelled=true`,
+            metadata: { companyId, userId: user.id, plan },
+            subscription_data: { metadata: { companyId } },
           });
-          stripeCustomerId = customer.id;
-          await this.prisma.company.update({ where: { id: companyId }, data: { stripeCustomerId } });
-        }
 
-        const session = await this.stripe.checkout.sessions.create({
-          customer: stripeCustomerId,
-          mode: 'subscription',
-          payment_method_types: ['card'],
-          line_items: [{ price: priceId, quantity: 1 }],
-          success_url: `${process.env.FRONTEND_URL}/faturamento?success=true&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${process.env.FRONTEND_URL}/faturamento?cancelled=true`,
-          metadata: { companyId, userId: user.id, plan },
-          subscription_data: { metadata: { companyId } },
+          this.logger.log(`✅ Checkout session created for company ${companyId}, plan ${plan}`);
+          return { url: session.url };
         });
-
-        this.logger.log(`✅ Checkout session created for company ${companyId}, plan ${plan}`);
-        return { url: session.url };
       }
 
       this.logger.warn('⚠️  Stripe not configured, returning mock checkout URL');

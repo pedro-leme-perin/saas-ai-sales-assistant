@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from './infrastructure/database/prisma.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
@@ -39,6 +40,11 @@ import configuration from './config/configuration';
     BillingModule,
     AnalyticsModule,
     NotificationsModule,
+  ],
+  providers: [
+    // Activate ThrottlerGuard globally (System Design Interview - Cap. 4)
+    // Without this, @Throttle() decorators on controllers have no effect
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}
