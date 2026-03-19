@@ -36,7 +36,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
 | Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token |
 | CI/CD | ✅ Funcionando | ci.yml com coverage + ci-gate — secrets configurados |
-| Testes | ✅ 12 suites | 5 service + 7 controller specs (~150+ test cases) |
+| Testes | ✅ 14 suites | 6 service + 7 controller + 2 integration (~180+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
 
 ### Polimento concluído (13-14/03/2026):
@@ -84,31 +84,39 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - CI workflow melhorado (coverage, ci-gate job, artefatos)
 - Script setup-secrets.sh (configuração interativa via gh CLI)
 
-### Sessao 4 (19/03/2026):
+### Sessao 4 (19/03/2026) — Configuração de produção:
 
 - Sentry configurado em produção (conta criada, DSN, org, project, auth token)
 - GitHub Actions secrets configurados (6 secrets: Clerk + Sentry)
 - Vercel env vars configuradas (4 vars Sentry)
 - Stripe webhook registrado (6 eventos, endpoint Railway)
 - Fix TypeScript mock types em 5 controller specs (`as jest.Mock`)
+
+### Sessao 5 (19/03/2026) — Hardening & Analytics (10 commits):
+
 - RedisIoAdapter customizado (`common/adapters/redis-io.adapter.ts`) — fix do erro `server.adapter is not a function`
 - NotificationsGateway simplificado (Redis adapter movido para main.ts)
-- Hardening de produção:
-  - Helmet (security headers)
-  - Compression (response compression)
-  - Graceful shutdown (SIGTERM/SIGINT handlers)
-  - Rate limiting diferenciado (default: 100/min, strict: 20/min, auth: 10/min)
-  - CircuitBreaker genérico (`common/resilience/circuit-breaker.ts`)
-  - Circuit breakers integrados no AIManagerService (1 breaker por provider)
-  - Health check enriquecido (version, nodeVersion, environment)
+- CircuitBreaker genérico (`common/resilience/circuit-breaker.ts`) — 3 estados, timeout, fallback
+- Circuit breakers em TODAS as integrações: OpenAI, Claude, Gemini, Perplexity, Deepgram, Twilio WhatsApp, Stripe (7/7)
+- Helmet (security headers) + Compression (gzip)
+- Graceful shutdown (SIGTERM/SIGINT handlers com app.enableShutdownHooks)
+- Rate limiting diferenciado: default (100/min), strict AI (20/min), auth (30/min)
+- ThrottlerGuard global ativado (APP_GUARD) + @SkipThrottle em webhooks e health
+- GlobalExceptionFilter ativado — respostas padronizadas, Prisma errors mapeados, sem stack trace leak
+- LoggingInterceptor ativado — structured logs com requestId, userId, companyId, latência
+- Health check enriquecido: DB status + circuit breaker status + version/nodeVersion/environment
+- Integration tests: tenant isolation (5 tests) + ACID transactions (4 tests)
+- Analytics expandido: sentiment analytics (trend semanal), AI performance metrics (p95 latency, adoption, by provider)
+- analytics.service.spec.ts — 13 test cases
+- @Throttle decorators no AI controller (strict) e Auth controller (auth)
 
 ### Pendente / Proximos passos:
 
-- Integration tests com banco real (test DB)
-- Confirmar E2E tests passam 100%
-- Aplicar circuit breaker em Deepgram, Twilio, WhatsApp API
 - Rate limiting por companyId (Redis sliding window)
-- Monitoring: expor circuit breaker status no /health
+- Integration tests no CI (configurar test DB no GitHub Actions)
+- Coverage > 80%
+- Confirmar E2E tests passam 100%
+- Frontend: conectar analytics endpoints ao dashboard real
 
 ---
 
