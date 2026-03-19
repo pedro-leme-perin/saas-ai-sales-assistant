@@ -3,7 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp, TrendingDown, Phone, MessageSquare,
-  Clock, Sparkles, Users, BarChart3,
+  Clock, Sparkles, Users, BarChart3, Brain, Heart,
+  Zap, Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { analyticsService } from '@/services/api';
@@ -64,6 +65,16 @@ export default function AnalyticsPage() {
   const { data: waData } = useQuery({
     queryKey: ['analytics-whatsapp'],
     queryFn: () => analyticsService.getWhatsApp() as Promise<any>,
+  });
+
+  const { data: sentimentData } = useQuery({
+    queryKey: ['analytics-sentiment'],
+    queryFn: () => analyticsService.getSentiment() as Promise<any>,
+  });
+
+  const { data: aiPerfData } = useQuery({
+    queryKey: ['analytics-ai-performance'],
+    queryFn: () => analyticsService.getAIPerformance() as Promise<any>,
   });
 
   const dashboard = dashboardRaw as any;
@@ -234,6 +245,107 @@ export default function AnalyticsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Sentiment & AI Detail Row */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Sentiment Analytics */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-rose-500" />
+                  <CardTitle className="text-base">Análise de Sentimento (30 dias)</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Sentimento médio</span>
+                  <span className="text-lg font-bold tabular-nums">
+                    {((sentimentData?.avgSentiment ?? 0) * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {(sentimentData?.distribution ?? []).map((d: { label: string; count: number; percentage: number }) => (
+                    <div key={d.label} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className={
+                          d.label === 'POSITIVE' ? 'text-green-600' :
+                          d.label === 'NEGATIVE' ? 'text-red-500' : 'text-muted-foreground'
+                        }>
+                          {d.label === 'POSITIVE' ? 'Positivo' : d.label === 'NEGATIVE' ? 'Negativo' : 'Neutro'}
+                        </span>
+                        <span className="tabular-nums">{d.count} ({d.percentage}%)</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            d.label === 'POSITIVE' ? 'bg-green-500' :
+                            d.label === 'NEGATIVE' ? 'bg-red-500' : 'bg-gray-400'
+                          }`}
+                          style={{ width: `${d.percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {sentimentData?.weeklyTrend && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Tendência semanal</p>
+                    <div className="flex gap-1 items-end h-12">
+                      {sentimentData.weeklyTrend.map((week: { week: string; avgSentiment: number }, i: number) => (
+                        <div
+                          key={i}
+                          className="flex-1 bg-rose-500/20 rounded-t hover:bg-rose-500/40 transition-colors"
+                          style={{ height: `${Math.max(week.avgSentiment * 100, 5)}%` }}
+                          title={`Semana ${week.week}: ${(week.avgSentiment * 100).toFixed(0)}%`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* AI Performance Detail */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-violet-500" />
+                  <CardTitle className="text-base">IA Detalhado (30 dias)</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { label: 'Taxa de aprovação', value: `${aiPerfData?.helpfulRate ?? 0}%`, icon: Zap },
+                  { label: 'Latência média', value: `${aiPerfData?.avgLatency ?? 0}ms`, icon: Activity },
+                  { label: 'Latência P95', value: `${aiPerfData?.p95Latency ?? 0}ms`, icon: Activity },
+                  { label: 'Confiança média', value: `${((aiPerfData?.avgConfidence ?? 0) * 100).toFixed(0)}%`, icon: Sparkles },
+                ].map((item) => (
+                  <div key={item.label} className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <item.icon className="h-3 w-3" />
+                      {item.label}
+                    </span>
+                    <span className="font-medium tabular-nums">{item.value}</span>
+                  </div>
+                ))}
+                {aiPerfData?.byProvider && aiPerfData.byProvider.length > 0 && (
+                  <div className="pt-3 border-t">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Por provedor</p>
+                    <div className="space-y-2">
+                      {aiPerfData.byProvider.map((p: { provider: string; count: number; avgLatency: number }) => (
+                        <div key={p.provider} className="flex justify-between text-xs">
+                          <span className="capitalize">{p.provider}</span>
+                          <span className="tabular-nums text-muted-foreground">
+                            {p.count} chamadas, {p.avgLatency}ms média
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
     </div>

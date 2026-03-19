@@ -77,6 +77,22 @@ jobs:
       run:
         working-directory: backend-enterprise
 
+    # PostgreSQL service container for integration tests
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: saas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -104,7 +120,18 @@ jobs:
       - name: Unit tests with coverage
         run: npm test -- --coverage --testPathPattern=test/unit --forceExit --passWithNoTests
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://test:test@localhost:5432/saas_test
+          NODE_ENV: test
+
+      - name: Apply migrations for integration tests
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/saas_test
+
+      - name: Integration tests
+        run: npm test -- --testPathPattern=test/integration --forceExit --passWithNoTests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/saas_test
           NODE_ENV: test
 
       - name: Upload coverage report

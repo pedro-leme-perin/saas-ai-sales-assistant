@@ -8,3 +8,4 @@
 
 // export * from './auth.guard'; // ❌ REMOVED - use AuthGuard from AuthModule
 export * from './roles.guard';
+export * from './company-throttler.guard';

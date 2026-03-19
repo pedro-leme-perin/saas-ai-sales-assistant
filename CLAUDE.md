@@ -36,7 +36,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
 | Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token |
 | CI/CD | ✅ Funcionando | ci.yml com coverage + ci-gate — secrets configurados |
-| Testes | ✅ 14 suites | 6 service + 7 controller + 2 integration (~180+ test cases) |
+| Testes | ✅ 22 suites | 10 service + 9 controller + 2 integration + 1 guard (~300+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
 
 ### Polimento concluído (13-14/03/2026):
@@ -110,13 +110,25 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - analytics.service.spec.ts — 13 test cases
 - @Throttle decorators no AI controller (strict) e Auth controller (auth)
 
+### Sessao 6 (19/03/2026) — Rate Limiting, Testes, Analytics:
+
+- CompanyThrottlerGuard: Redis sliding window por companyId (substitui ThrottlerGuard IP-based)
+- Limites por plano: STARTER(60/min), PROFESSIONAL(200/min), ENTERPRISE(500/min)
+- Tiers: default, strict(AI), auth — com headers X-RateLimit-*
+- Fallback para IP-based em requests não autenticados
+- 7 novos test suites: companies.service, notifications.service, auth.service, circuit-breaker, notifications.controller, ai.controller, company-throttler.guard
+- Total: 22 test suites (~300+ test cases)
+- CI: PostgreSQL service container para integration tests
+- CI: `prisma migrate deploy` + integration test step no workflow
+- Frontend: analyticsService com 5 endpoints (dashboard, calls, whatsapp, sentiment, ai-performance)
+- Analytics page: seções de Sentimento (distribuição + tendência semanal) e IA Detalhado (latência, p95, confiança, por provedor)
+
 ### Pendente / Proximos passos:
 
-- Rate limiting por companyId (Redis sliding window)
-- Integration tests no CI (configurar test DB no GitHub Actions)
-- Coverage > 80%
-- Confirmar E2E tests passam 100%
-- Frontend: conectar analytics endpoints ao dashboard real
+- Confirmar E2E tests passam 100% no CI
+- Coverage report: verificar % exato após CI rodar
+- Rate limiting por companyId: injetar company.plan no request (middleware)
+- Dashboard i18n: novas strings de sentiment/AI em pt-BR e en
 
 ---
 

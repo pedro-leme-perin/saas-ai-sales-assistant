@@ -1,4 +1,4 @@
-# HANDOFF — Sessão 5 (19/03/2026)
+# HANDOFF — Sessão 6 (19/03/2026)
 
 ## Projeto
 SaaS AI Sales Assistant — Assistente de vendas com IA para ligações telefônicas (real-time) e WhatsApp.
@@ -7,37 +7,37 @@ SaaS AI Sales Assistant — Assistente de vendas com IA para ligações telefôn
 - **Fase:** 3 — Polimento & Produção
 - **Backend:** NestJS em produção (Railway) — 9 módulos, ~100 arquivos TS
 - **Frontend:** Next.js 15 em produção (Vercel) — auto-deploy via GitHub
-- **Último commit:** sessão com 6 commits (19/03/2026)
 
 ## O que foi feito nesta sessão
 
-### Configuração de produção (manual)
-1. **Sentry** — conta criada (`pedro-saas`), projeto `saas-frontend`, DSN + Auth Token
-2. **GitHub Actions secrets** — 6 secrets configurados (Clerk + Sentry)
-3. **Vercel env vars** — 4 variáveis Sentry
-4. **Stripe webhook** — endpoint Railway, 6 eventos, signing secret configurado
+### 1. Rate Limiting por companyId (Redis Sliding Window)
+- `CompanyThrottlerGuard` estende `ThrottlerGuard` com Redis sliding window
+- Limites por plano: STARTER(60/min), PROFESSIONAL(200/min), ENTERPRISE(500/min)
+- 3 tiers: default, strict(AI=10/min), auth(20/min)
+- Headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+- Fallback para IP-based em requests não autenticados
+- Arquivos: `common/guards/company-throttler.guard.ts`, `app.module.ts`
 
-### Código implementado
-1. Fix TypeScript mock types em 5 controller specs
-2. RedisIoAdapter customizado — fix do erro `server.adapter is not a function`
-3. CircuitBreaker genérico (`common/resilience/circuit-breaker.ts`)
-4. Circuit breakers em AI providers + Deepgram
-5. Helmet + Compression + Graceful shutdown
-6. Rate limiting diferenciado (3 tiers) + @Throttle decorators
-7. Health check com DB + circuit breaker status
-8. Integration tests (tenant isolation + ACID transactions)
+### 2. Testes Unitários (7 novos suites)
+- companies.service, notifications.service, auth.service
+- circuit-breaker, notifications.controller, ai.controller
+- company-throttler.guard
+- Total: 22 suites, ~300+ test cases
 
-## Testes
-- 12 suites unitárias (~150+ test cases)
-- 2 suites de integração (~10 test cases)
-- 5 suites E2E Playwright
+### 3. Integration Tests no CI
+- PostgreSQL 16 service container no GitHub Actions
+- prisma migrate deploy + integration test step
+
+### 4. Frontend Analytics Completo
+- analyticsService: 5 endpoints (dashboard, calls, whatsapp, sentiment, ai-performance)
+- Seção Sentimento (distribuição + tendência semanal)
+- Seção IA Detalhado (latência, p95, confiança, por provedor)
 
 ## Próximos passos
-1. Circuit breaker no WhatsappService (Twilio API)
-2. Rate limiting por companyId (Redis sliding window)
-3. Integration tests no CI (test DB)
-4. Coverage > 80%
-5. E2E tests confirmados 100%
+1. Confirmar E2E tests passam 100% no CI
+2. Verificar coverage % exato após CI
+3. Injetar company.plan no request (middleware)
+4. Dashboard i18n: novas strings sentiment/AI
 
 ## Avisos
 - Notebook trava com npm/build — usar apenas git no PowerShell + `--no-verify`

@@ -404,5 +404,15 @@ export const analyticsService = {
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/whatsapp/${companyId}`);
   },
+  async getSentiment() {
+    if (!apiClient.getCompanyId()) await authService.getMe();
+    const companyId = apiClient.getCompanyId();
+    return apiClient.get(`/analytics/sentiment/${companyId}`);
+  },
+  async getAIPerformance() {
+    if (!apiClient.getCompanyId()) await authService.getMe();
+    const companyId = apiClient.getCompanyId();
+    return apiClient.get(`/analytics/ai-performance/${companyId}`);
+  },
 };
 
