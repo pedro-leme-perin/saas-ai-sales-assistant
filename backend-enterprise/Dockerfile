@@ -13,6 +13,7 @@ RUN pnpm install --no-frozen-lockfile
 
 COPY . .
 
+# Cache bust: 2026-03-19-session5
 RUN pnpm prisma generate
 RUN pnpm build
 
