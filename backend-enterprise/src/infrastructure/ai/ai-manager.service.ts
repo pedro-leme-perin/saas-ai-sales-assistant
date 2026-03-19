@@ -9,6 +9,7 @@ import { OpenAIProvider } from './providers/openai.provider';
 import { ClaudeProvider } from './providers/claude.provider';
 import { GeminiProvider } from './providers/gemini.provider';
 import { PerplexityProvider } from './providers/perplexity.provider';
+import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 
 export type AIProviderType = 'openai' | 'claude' | 'gemini' | 'perplexity';
 
@@ -16,6 +17,8 @@ export type AIProviderType = 'openai' | 'claude' | 'gemini' | 'perplexity';
 export class AIManagerService {
   private readonly logger = new Logger(AIManagerService.name);
   private providers: Map<AIProviderType, AIProvider> = new Map();
+  // Circuit breaker per provider (Release It! - one breaker per integration point)
+  private breakers: Map<AIProviderType, CircuitBreaker> = new Map();
   private fallbackOrder: AIProviderType[] = [
     'gemini',
     'openai',
@@ -69,6 +72,20 @@ export class AIManagerService {
       this.logger.log('✅ Perplexity provider initialized');
     }
 
+    // Create circuit breaker for each provider (Release It! - Circuit Breaker)
+    for (const [name] of this.providers) {
+      this.breakers.set(
+        name,
+        new CircuitBreaker({
+          name: `AI:${name}`,
+          failureThreshold: 3,      // 3 failures → open
+          resetTimeoutMs: 30000,     // 30s before half-open
+          failureWindowMs: 60000,    // count failures within 60s
+          callTimeoutMs: 15000,      // 15s timeout per call (LLM SLO: 2000ms p95, but allow headroom)
+        }),
+      );
+    }
+
     if (this.providers.size === 0) {
       this.logger.warn('⚠️ No AI providers configured - using mock mode');
     }
@@ -82,12 +99,13 @@ export class AIManagerService {
     context?: Record<string, any>,
     preferredProvider?: AIProviderType,
   ): Promise<AISuggestion> {
-    // Tentar provider preferido primeiro
+    // Tentar provider preferido primeiro (com circuit breaker)
     if (preferredProvider && this.providers.has(preferredProvider)) {
+      const breaker = this.breakers.get(preferredProvider);
       try {
-        return await this.providers
-          .get(preferredProvider)!
-          .generateSuggestion(transcript, context);
+        return await (breaker
+          ? breaker.execute(() => this.providers.get(preferredProvider)!.generateSuggestion(transcript, context))
+          : this.providers.get(preferredProvider)!.generateSuggestion(transcript, context));
       } catch (error: any) {
         this.logger.error(
           `${preferredProvider} failed, trying fallback: ${error.message}`,
@@ -95,21 +113,24 @@ export class AIManagerService {
       }
     }
 
-    // Fallback automático
+    // Fallback automático (com circuit breaker por provider)
     for (const providerType of this.fallbackOrder) {
       const provider = this.providers.get(providerType);
+      const breaker = this.breakers.get(providerType);
       if (!provider) continue;
 
       try {
         this.logger.log(`Trying provider: ${providerType}`);
-        return await provider.generateSuggestion(transcript, context);
+        return await (breaker
+          ? breaker.execute(() => provider.generateSuggestion(transcript, context))
+          : provider.generateSuggestion(transcript, context));
       } catch (error: any) {
         this.logger.error(`${providerType} failed: ${error.message}`);
         continue;
       }
     }
 
-    // Se todos falharam, retorna mock
+    // Se todos falharam, retorna mock (graceful degradation - SRE)
     return this.getMockSuggestion(transcript);
   }
 
@@ -122,10 +143,11 @@ export class AIManagerService {
     preferredProvider?: AIProviderType,
   ): Promise<AIAnalysis> {
     if (preferredProvider && this.providers.has(preferredProvider)) {
+      const breaker = this.breakers.get(preferredProvider);
       try {
-        return await this.providers
-          .get(preferredProvider)!
-          .analyzeConversation(transcript, context);
+        return await (breaker
+          ? breaker.execute(() => this.providers.get(preferredProvider)!.analyzeConversation(transcript, context))
+          : this.providers.get(preferredProvider)!.analyzeConversation(transcript, context));
       } catch (error: any) {
         this.logger.error(
           `${preferredProvider} analysis failed: ${error.message}`,
@@ -133,13 +155,16 @@ export class AIManagerService {
       }
     }
 
-    // Fallback
+    // Fallback (com circuit breaker)
     for (const providerType of this.fallbackOrder) {
       const provider = this.providers.get(providerType);
+      const breaker = this.breakers.get(providerType);
       if (!provider) continue;
 
       try {
-        return await provider.analyzeConversation(transcript, context);
+        return await (breaker
+          ? breaker.execute(() => provider.analyzeConversation(transcript, context))
+          : provider.analyzeConversation(transcript, context));
       } catch (error: any) {
         this.logger.error(
           `${providerType} analysis failed: ${error.message}`,
@@ -201,6 +226,15 @@ export class AIManagerService {
    */
   getAvailableProviders(): AIProviderType[] {
     return Array.from(this.providers.keys());
+  }
+
+  /** Circuit breaker status for all providers (Release It! - expose state to ops) */
+  getCircuitBreakerStatus(): Record<string, any> {
+    const status: Record<string, any> = {};
+    for (const [name, breaker] of this.breakers) {
+      status[name] = breaker.getHealthInfo();
+    }
+    return status;
   }
 
   private getMockSuggestion(transcript: string): AISuggestion {

@@ -34,8 +34,8 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Deepgram (STT) | ✅ Funcionando | Streaming ~200ms latência |
 | OpenAI / Claude (LLM) | ✅ Funcionando | gpt-4o-mini para sugestões em tempo real |
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
-| Sentry | ⚙️ Código pronto | server/edge/client configs completos — falta DSN no Vercel |
-| CI/CD | ⚙️ Código pronto | ci.yml com coverage + ci-gate — falta secrets no GitHub |
+| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token |
+| CI/CD | ✅ Funcionando | ci.yml com coverage + ci-gate — secrets configurados |
 | Testes | ✅ 12 suites | 5 service + 7 controller specs (~150+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
 
@@ -84,15 +84,31 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - CI workflow melhorado (coverage, ci-gate job, artefatos)
 - Script setup-secrets.sh (configuração interativa via gh CLI)
 
+### Sessao 4 (19/03/2026):
+
+- Sentry configurado em produção (conta criada, DSN, org, project, auth token)
+- GitHub Actions secrets configurados (6 secrets: Clerk + Sentry)
+- Vercel env vars configuradas (4 vars Sentry)
+- Stripe webhook registrado (6 eventos, endpoint Railway)
+- Fix TypeScript mock types em 5 controller specs (`as jest.Mock`)
+- RedisIoAdapter customizado (`common/adapters/redis-io.adapter.ts`) — fix do erro `server.adapter is not a function`
+- NotificationsGateway simplificado (Redis adapter movido para main.ts)
+- Hardening de produção:
+  - Helmet (security headers)
+  - Compression (response compression)
+  - Graceful shutdown (SIGTERM/SIGINT handlers)
+  - Rate limiting diferenciado (default: 100/min, strict: 20/min, auth: 10/min)
+  - CircuitBreaker genérico (`common/resilience/circuit-breaker.ts`)
+  - Circuit breakers integrados no AIManagerService (1 breaker por provider)
+  - Health check enriquecido (version, nodeVersion, environment)
+
 ### Pendente / Proximos passos:
 
-- Rodar `npm install` localmente para atualizar @sentry/nextjs
-- Configurar `NEXT_PUBLIC_SENTRY_DSN` no Vercel (ou rodar `scripts/setup-secrets.sh`)
-- Configurar secrets no GitHub para CI (ou rodar `scripts/setup-secrets.sh`)
-- Registrar Stripe webhook endpoint no Dashboard
-- Rodar `npm test` localmente para validar os 12 test suites
-- Confirmar E2E tests passam 100%
 - Integration tests com banco real (test DB)
+- Confirmar E2E tests passam 100%
+- Aplicar circuit breaker em Deepgram, Twilio, WhatsApp API
+- Rate limiting por companyId (Redis sliding window)
+- Monitoring: expor circuit breaker status no /health
 
 ---
 

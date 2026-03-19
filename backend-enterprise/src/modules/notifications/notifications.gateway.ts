@@ -28,9 +28,6 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createAdapter } from '@socket.io/redis-adapter';
-import { createClient } from 'redis';
 
 // =====================================================
 // AUTHENTICATED SOCKET TYPE
@@ -64,36 +61,12 @@ export class NotificationsGateway
   // ✅ Track connected users per userId (for disconnect cleanup)
   private connectedUsers = new Map<string, Set<string>>();
 
-  constructor(private readonly configService: ConfigService) {}
-
   // =====================================================
   // LIFECYCLE: AFTER INIT
   // =====================================================
-  // Initialize Redis Adapter for horizontal scaling
+  // Redis Adapter is configured via RedisIoAdapter in main.ts
   // (System Design Interview - Chapter 12: Scalability)
-  async afterInit(server: Server) {
-    // ✅ Redis Adapter for multi-instance WebSocket sync
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-    
-    if (redisUrl) {
-      try {
-        const pubClient = createClient({ url: redisUrl });
-        const subClient = pubClient.duplicate();
-
-        await Promise.all([pubClient.connect(), subClient.connect()]);
-
-        server.adapter(createAdapter(pubClient, subClient));
-        
-        this.logger.log('✅ Redis Adapter initialized - WebSocket can scale horizontally');
-      } catch (error) {
-        this.logger.error('❌ Redis Adapter failed - falling back to memory adapter');
-        this.logger.error(error);
-        // Continue without Redis (single instance only)
-      }
-    } else {
-      this.logger.warn('⚠️ No REDIS_URL - using memory adapter (single instance only)');
-    }
-
+  afterInit() {
     this.logger.log('🚀 WebSocket Gateway initialized');
   }
 

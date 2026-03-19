@@ -8,19 +8,21 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 
+interface ServiceStatus {
+  status: 'ok' | 'error';
+  message?: string;
+}
+
 interface HealthCheckResponse {
   status: 'ok' | 'unhealthy';
   timestamp: string;
   uptime: number;
+  version: string;
+  nodeVersion: string;
+  environment: string;
   services: {
-    database: {
-      status: 'ok' | 'error';
-      message?: string;
-    };
-    cache: {
-      status: 'ok' | 'error';
-      message?: string;
-    };
+    database: ServiceStatus;
+    cache: ServiceStatus;
   };
 }
 
@@ -81,6 +83,9 @@ export class HealthController {
       status: allHealthy ? 'ok' : 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
+      version: process.env.npm_package_version || '1.0.0',
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || 'development',
       services,
     };
   }

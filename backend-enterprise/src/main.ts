@@ -1,9 +1,14 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import * as compression from 'compression';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { MediaStreamsGateway } from './modules/calls/media-streams.gateway';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
+
+const logger = new Logger('Bootstrap');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -12,6 +17,23 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
+
+  // ── Security headers (Release It! - Defense in Depth) ──
+  app.use(helmet({
+    contentSecurityPolicy: false, // Next.js handles CSP
+    crossOriginEmbedderPolicy: false,
+  }));
+
+  // ── Response compression (HPBN - Performance) ──
+  app.use(compression());
+
+  // ── Redis WebSocket Adapter (System Design Interview - Cap. 12) ──
+  const redisIoAdapter = new RedisIoAdapter(app, configService);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
+
+  // ── Graceful Shutdown (Release It! - Stability Patterns) ──
+  app.enableShutdownHooks();
 
   app.enableCors({
     origin: [
@@ -107,8 +129,22 @@ async function bootstrap() {
     }
   });
 
-  console.log(`Server running on http://localhost:${port}`);
-  console.log(`API Docs: http://localhost:${port}/api/docs`);
+  logger.log(`🚀 Server running on http://localhost:${port}`);
+  logger.log(`📚 API Docs: http://localhost:${port}/api/docs`);
+
+  // ── Graceful Shutdown handlers (SRE - Release Engineering) ──
+  const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
+  for (const signal of signals) {
+    process.on(signal, async () => {
+      logger.warn(`⚠️ Received ${signal} — starting graceful shutdown...`);
+      await app.close();
+      logger.log('✅ Application shut down gracefully');
+      process.exit(0);
+    });
+  }
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  logger.error('❌ Failed to start application', err);
+  process.exit(1);
+});

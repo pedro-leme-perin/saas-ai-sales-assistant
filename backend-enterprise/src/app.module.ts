@@ -20,7 +20,13 @@ import configuration from './config/configuration';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    // Rate Limiting (System Design Interview - Cap. 4: Sliding Window)
+    // Multiple tiers: default, strict (AI/auth), webhook (relaxed)
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60000, limit: 100 },    // 100 req/min general
+      { name: 'strict', ttl: 60000, limit: 20 },       // 20 req/min for AI endpoints
+      { name: 'auth', ttl: 60000, limit: 10 },          // 10 req/min for auth attempts
+    ]),
     PrismaModule,
     CacheModule,
     HealthModule,
