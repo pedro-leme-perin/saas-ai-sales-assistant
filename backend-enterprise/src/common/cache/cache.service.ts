@@ -23,7 +23,7 @@ export class CacheService {
 
   async getJson<T>(key: string): Promise<T | null> {
     const data = await this.get(key);
-    return data ? JSON.parse(data) : null;
+    return data ? JSON.parse(data as string) : null;
   }
 
   userKey(userId: string): string {

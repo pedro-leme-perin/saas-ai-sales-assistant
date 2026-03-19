@@ -55,20 +55,22 @@ const nextConfig = {
   },
 };
 
-// Wrap with Sentry only if @sentry/nextjs is installed
+// Wrap with Sentry only if @sentry/nextjs is installed AND secrets are configured
 let config = nextConfig;
+const hasSentrySecrets = process.env.SENTRY_ORG && process.env.SENTRY_PROJECT;
 try {
-  const { withSentryConfig } = require('@sentry/nextjs');
-  config = withSentryConfig(nextConfig, {
-    // Sentry webpack plugin options
-    org: process.env.SENTRY_ORG,
-    project: process.env.SENTRY_PROJECT,
-    silent: !process.env.CI,
-    widenClientFileUpload: true,
-    hideSourceMaps: true,
-    disableLogger: true,
-    tunnelRoute: '/monitoring',
-  });
+  if (hasSentrySecrets) {
+    const { withSentryConfig } = require('@sentry/nextjs');
+    config = withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      hideSourceMaps: true,
+      disableLogger: true,
+      tunnelRoute: '/monitoring',
+    });
+  }
 } catch {
   // @sentry/nextjs not installed — skip wrapping
 }
