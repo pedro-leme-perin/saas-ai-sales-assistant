@@ -21,4 +21,14 @@ export class AnalyticsController {
   async getWhatsAppAnalytics(@Param('companyId') companyId: string) {
     return this.analyticsService.getWhatsAppAnalytics(companyId);
   }
+
+  @Get('sentiment/:companyId')
+  async getSentimentAnalytics(@Param('companyId') companyId: string) {
+    return this.analyticsService.getSentimentAnalytics(companyId);
+  }
+
+  @Get('ai-performance/:companyId')
+  async getAIPerformance(@Param('companyId') companyId: string) {
+    return this.analyticsService.getAIPerformance(companyId);
+  }
 }
