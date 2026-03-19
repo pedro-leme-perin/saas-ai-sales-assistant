@@ -7,6 +7,8 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { MediaStreamsGateway } from './modules/calls/media-streams.gateway';
 import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 const logger = new Logger('Bootstrap');
 
@@ -31,6 +33,12 @@ async function bootstrap() {
   const redisIoAdapter = new RedisIoAdapter(app, configService);
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
+
+  // ── Global Exception Filter (Release It! - Error Handling) ──
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // ── Structured Logging (SRE - Monitoring: structured logs with context) ──
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   // ── Graceful Shutdown (Release It! - Stability Patterns) ──
   app.enableShutdownHooks();

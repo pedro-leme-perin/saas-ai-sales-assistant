@@ -28,6 +28,7 @@ import { AiService } from '../ai/ai.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { MessageType, MessageDirection, MessageStatus } from '@prisma/client';
 import twilio = require('twilio');
+import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 
 // =====================================================
 // TWILIO WEBHOOK PAYLOAD TYPES
@@ -61,6 +62,7 @@ export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
   private twilioClient!: twilio.Twilio;
   private readonly sandboxNumber: string;
+  private readonly twilioBreaker: CircuitBreaker;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -81,6 +83,14 @@ export class WhatsappService {
     this.sandboxNumber =
       this.configService.get<string>('TWILIO_WHATSAPP_NUMBER') ||
       'whatsapp:+14155238886';
+
+    // Circuit breaker for Twilio API (Release It! - Integration Points)
+    this.twilioBreaker = new CircuitBreaker({
+      name: 'Twilio:WhatsApp',
+      failureThreshold: 5,
+      resetTimeoutMs: 30000,
+      callTimeoutMs: 10000,
+    });
 
     // Log config on startup for debugging
     this.logger.log(`📱 Sandbox number configured: ${this.sandboxNumber}`);
@@ -287,16 +297,14 @@ export class WhatsappService {
 
     let twilioMessage: any;
     try {
-      twilioMessage = await Promise.race([
+      // Circuit breaker wraps Twilio API call (Release It! - Circuit Breaker + Timeout)
+      twilioMessage = await this.twilioBreaker.execute(() =>
         this.twilioClient.messages.create({
           from: fromNumber,
           to: toNumber,
           body: data.content,
         }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Twilio timeout after 10s')), 10000),
-        ),
-      ]);
+      );
     } catch (error: any) {
       // Log full Twilio error details
       this.logger.error('❌ Twilio sendMessage failed:');
