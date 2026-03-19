@@ -146,8 +146,8 @@ describe('AnalyticsService', () => {
       ]);
       const result = await service.getSentimentAnalytics(COMPANY_ID);
       expect(result.avgSentiment).toBeCloseTo(0.77, 1);
-      expect(result.distribution['POSITIVE']).toBe(2);
-      expect(result.distribution['NEUTRAL']).toBe(1);
+      expect((result.distribution as any)['POSITIVE']).toBe(2);
+      expect((result.distribution as any)['NEUTRAL']).toBe(1);
       expect(result.totalAnalyzed).toBe(3);
     });
 
@@ -176,8 +176,8 @@ describe('AnalyticsService', () => {
       expect(result.adoptionRate).toBe(67);
       expect(result.helpfulRate).toBe(50); // 1 helpful / 2 with feedback
       expect(result.avgLatency).toBe(533);
-      expect(result.byProvider['gpt-4o'].count).toBe(2);
-      expect(result.byProvider['claude'].count).toBe(1);
+      expect((result.byProvider as any)['gpt-4o'].count).toBe(2);
+      expect((result.byProvider as any)['claude'].count).toBe(1);
     });
 
     it('should handle empty AI data', async () => {
