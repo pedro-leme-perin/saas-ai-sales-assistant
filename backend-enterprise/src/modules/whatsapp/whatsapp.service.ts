@@ -22,6 +22,7 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { MessageType, MessageDirection, MessageStatus } from '@prisma/client';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import twilio = require('twilio');
 import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 

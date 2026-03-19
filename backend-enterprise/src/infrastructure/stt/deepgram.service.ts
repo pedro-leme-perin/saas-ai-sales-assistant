@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import WebSocket = require('ws');
 import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 

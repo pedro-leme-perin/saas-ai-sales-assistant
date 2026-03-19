@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CompaniesController } from '../../src/modules/companies/companies.controller';
 import { CompaniesService } from '../../src/modules/companies/companies.service';
+import { AuthGuard } from '../../src/modules/auth/guards/auth.guard';
+import { TenantGuard } from '../../src/modules/auth/guards/tenant.guard';
+import { RolesGuard } from '../../src/modules/auth/guards/roles.guard';
 
 jest.setTimeout(15000);
 
@@ -44,11 +47,11 @@ describe('CompaniesController', () => {
       controllers: [CompaniesController],
       providers: [{ provide: CompaniesService, useValue: companiesService }],
     })
-      .overrideGuard(require('../../src/modules/auth/guards/auth.guard').AuthGuard)
+      .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
-      .overrideGuard(require('../../src/modules/auth/guards/tenant.guard').TenantGuard)
+      .overrideGuard(TenantGuard)
       .useValue({ canActivate: () => true })
-      .overrideGuard(require('../../src/modules/auth/guards/roles.guard').RolesGuard)
+      .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
