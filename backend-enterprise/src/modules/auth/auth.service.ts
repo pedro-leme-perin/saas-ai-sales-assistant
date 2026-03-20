@@ -5,6 +5,19 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@/infrastructure/cache/cache.service';
 
+interface ClerkUserData {
+  id: string;
+  email_addresses?: Array<{ email_address: string }>;
+  first_name?: string;
+  last_name?: string;
+  image_url?: string;
+}
+
+interface ClerkWebhookPayload {
+  type: string;
+  data: ClerkUserData;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -46,7 +59,7 @@ export class AuthService {
     };
   }
 
-  async handleClerkWebhook(payload: any) {
+  async handleClerkWebhook(payload: ClerkWebhookPayload) {
     const { type, data } = payload;
 
     switch (type) {
@@ -66,12 +79,12 @@ export class AuthService {
     return { received: true };
   }
 
-  private async handleUserCreated(data: any) {
+  private async handleUserCreated(data: ClerkUserData) {
     this.logger.log(`New Clerk user: ${data.id}`);
     // User creation is handled during invitation/signup flow
   }
 
-  private async handleUserUpdated(data: any) {
+  private async handleUserUpdated(data: ClerkUserData) {
     const user = await this.prisma.user.findUnique({
       where: { clerkId: data.id },
     });
@@ -91,7 +104,7 @@ export class AuthService {
     }
   }
 
-  private async handleUserDeleted(data: any) {
+  private async handleUserDeleted(data: ClerkUserData) {
     const user = await this.prisma.user.findUnique({
       where: { clerkId: data.id },
     });

@@ -29,7 +29,7 @@ export interface CreateNotificationDto {
   type: NotificationType;
   title: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown> | null;
   channel?: NotificationChannel;
 }
 

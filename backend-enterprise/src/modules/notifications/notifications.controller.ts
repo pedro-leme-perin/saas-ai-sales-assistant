@@ -29,6 +29,14 @@ import { NotificationsService, CreateNotificationDto } from './notifications.ser
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 // =====================================================
+// TYPES
+// =====================================================
+
+interface AuthenticatedRequest {
+  user?: { id?: string; companyId?: string };
+}
+
+// =====================================================
 // CONTROLLER
 // =====================================================
 
@@ -45,7 +53,7 @@ export class NotificationsController {
   @Post()
   @ApiOperation({ summary: 'Create a new notification' })
   @ApiResponse({ status: 201, description: 'Notification created successfully' })
-  async create(@Body() createDto: CreateNotificationDto, @Request() req: any) {
+  async create(@Body() createDto: CreateNotificationDto, @Request() req: AuthenticatedRequest) {
     // ✅ Extract user context from authenticated request
     // TODO: After AuthModule, req.user will have userId and companyId
     const userId = req.user?.id || createDto.userId;
@@ -64,7 +72,7 @@ export class NotificationsController {
   @Get()
   @ApiOperation({ summary: 'Get all notifications for authenticated user' })
   @ApiResponse({ status: 200, description: 'Returns paginated notifications' })
-  async findAll(@Query() pagination: PaginationDto, @Request() req: any) {
+  async findAll(@Query() pagination: PaginationDto, @Request() req: AuthenticatedRequest) {
     // ✅ Extract user context from authenticated request
     // TODO: After AuthModule, req.user will be properly populated
     const userId = req.user?.id;
@@ -83,7 +91,7 @@ export class NotificationsController {
   @Get('unread/count')
   @ApiOperation({ summary: 'Get count of unread notifications' })
   @ApiResponse({ status: 200, description: 'Returns unread count' })
-  async getUnreadCount(@Request() req: any) {
+  async getUnreadCount(@Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
@@ -101,7 +109,7 @@ export class NotificationsController {
   @Patch(':id/read')
   @ApiOperation({ summary: 'Mark a notification as read' })
   @ApiResponse({ status: 200, description: 'Notification marked as read' })
-  async markAsRead(@Param('id') id: string, @Request() req: any) {
+  async markAsRead(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
@@ -119,7 +127,7 @@ export class NotificationsController {
   @Patch('read-all')
   @ApiOperation({ summary: 'Mark all notifications as read' })
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
-  async markAllAsRead(@Request() req: any) {
+  async markAllAsRead(@Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
@@ -137,7 +145,7 @@ export class NotificationsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a notification' })
   @ApiResponse({ status: 200, description: 'Notification deleted successfully' })
-  async delete(@Param('id') id: string, @Request() req: any) {
+  async delete(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
@@ -155,7 +163,7 @@ export class NotificationsController {
   @Delete('read/all')
   @ApiOperation({ summary: 'Delete all read notifications' })
   @ApiResponse({ status: 200, description: 'Read notifications deleted' })
-  async deleteAllRead(@Request() req: any) {
+  async deleteAllRead(@Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
@@ -174,7 +182,7 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Get a notification by ID' })
   @ApiResponse({ status: 200, description: 'Returns the notification' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
-  async findById(@Param('id') id: string, @Request() req: any) {
+  async findById(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
     const companyId = req.user?.companyId;

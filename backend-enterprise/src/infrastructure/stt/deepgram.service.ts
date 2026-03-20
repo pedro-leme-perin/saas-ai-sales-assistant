@@ -47,7 +47,7 @@ export class DeepgramService {
 
   createLiveSession(
     onTranscript: (result: TranscriptionResult) => void,
-    onError?: (error: any) => void,
+    onError?: (error: unknown) => void,
   ): LiveSession {
     if (!this.apiKey) {
       throw new Error('Deepgram not configured');
@@ -150,7 +150,13 @@ export class DeepgramService {
         throw new Error(`Deepgram error: ${response.status}`);
       }
 
-      const result: any = await response.json();
+      const result: {
+        results?: {
+          channels?: Array<{
+            alternatives?: Array<{ transcript?: string }>;
+          }>;
+        };
+      } = await response.json();
       return result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
     });
   }

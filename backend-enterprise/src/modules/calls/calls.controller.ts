@@ -41,12 +41,27 @@ export class CallsController {
   }
 
   @Post(':companyId')
-  async create(@Param('companyId') companyId: string, @Body() data: any, @Request() req: any) {
+  async create(
+    @Param('companyId') companyId: string,
+    @Body() data: { phoneNumber: string; direction?: string },
+    @Request() req: { user: { id: string } },
+  ) {
     return this.callsService.create(companyId, req.user.id, data);
   }
 
   @Put(':companyId/:id')
-  async update(@Param('companyId') companyId: string, @Param('id') id: string, @Body() data: any) {
+  async update(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Body()
+    data: {
+      phoneNumber?: string;
+      direction?: string;
+      status?: string;
+      transcript?: string;
+      duration?: number;
+    },
+  ) {
     return this.callsService.update(id, companyId, data);
   }
 
@@ -55,7 +70,7 @@ export class CallsController {
   async initiateCall(
     @Param('companyId') companyId: string,
     @Body() data: { phoneNumber: string },
-    @Request() req: any,
+    @Request() req: { user: { id: string } },
   ) {
     const webhookUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
     return this.callsService.initiateCall(companyId, req.user.id, data.phoneNumber, webhookUrl);
@@ -203,7 +218,7 @@ export class CallsController {
   async analyzeCall(
     @Param('companyId') companyId: string,
     @Param('id') id: string,
-    @Request() req: any,
+    @Request() req: { user: { id: string } },
   ) {
     return this.callsService.analyzeCall(id, companyId, req.user.id);
   }

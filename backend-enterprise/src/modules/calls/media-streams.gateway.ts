@@ -15,6 +15,13 @@ interface ActiveSession {
   fullTranscript: string[];
 }
 
+interface TwilioStreamMessage {
+  event: 'connected' | 'start' | 'media' | 'stop';
+  streamSid?: string;
+  start?: { callSid: string };
+  media?: { payload: string };
+}
+
 @Injectable()
 export class MediaStreamsGateway {
   private readonly logger = new Logger(MediaStreamsGateway.name);
@@ -70,11 +77,11 @@ export class MediaStreamsGateway {
     });
   }
 
-  init(httpServer: any) {
+  init(_httpServer: unknown) {
     this.initWss();
   }
 
-  private async handleTwilioMessage(message: any) {
+  private async handleTwilioMessage(message: TwilioStreamMessage) {
     switch (message.event) {
       case 'connected':
         this.logger.log('Twilio stream connected event received');
@@ -93,7 +100,7 @@ export class MediaStreamsGateway {
     }
   }
 
-  private async handleStreamStart(message: any) {
+  private async handleStreamStart(message: TwilioStreamMessage) {
     const streamSid = message.streamSid;
     const callSid = message.start?.callSid;
     this.logger.log(`Stream started: streamSid=${streamSid} callSid=${callSid}`);
@@ -207,7 +214,7 @@ export class MediaStreamsGateway {
     }
   }
 
-  private handleMediaChunk(message: any) {
+  private handleMediaChunk(message: TwilioStreamMessage) {
     const streamSid = message.streamSid;
     const session = this.activeSessions.get(streamSid);
     if (!session?.deepgramSession) return;
@@ -223,7 +230,7 @@ export class MediaStreamsGateway {
     session.deepgramSession.send(audioBuffer);
   }
 
-  private async handleStreamStop(message: any) {
+  private async handleStreamStop(message: TwilioStreamMessage) {
     const streamSid = message.streamSid;
     const session = this.activeSessions.get(streamSid);
     if (!session) return;

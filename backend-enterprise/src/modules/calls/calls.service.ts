@@ -59,7 +59,11 @@ export class CallsService {
     return call;
   }
 
-  async create(companyId: string, userId: string, data: any) {
+  async create(
+    companyId: string,
+    userId: string,
+    data: { phoneNumber: string; direction?: string },
+  ) {
     return this.prisma.call.create({
       data: {
         phoneNumber: data.phoneNumber,
@@ -72,7 +76,7 @@ export class CallsService {
     });
   }
 
-  async update(id: string, companyId: string, data: any) {
+  async update(id: string, companyId: string, data: Record<string, unknown>) {
     if (companyId) {
       await this.findOne(id, companyId);
     }
@@ -212,7 +216,7 @@ export class CallsService {
     }
   }
 
-  async findOrCreateByCallSid(callSid: string, fromNumber: string): Promise<any> {
+  async findOrCreateByCallSid(callSid: string, fromNumber: string) {
     const existing = await this.prisma.call.findFirst({
       where: { twilioCallSid: callSid },
     });
@@ -344,7 +348,9 @@ export class CallsService {
         return;
       }
 
-      const dgResult: any = await dgResponse.json();
+      const dgResult: {
+        results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string }> }> };
+      } = await dgResponse.json();
       const transcript = dgResult?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
 
       if (transcript) {

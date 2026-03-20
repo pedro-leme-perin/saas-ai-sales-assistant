@@ -73,8 +73,12 @@ export class AiController {
         sentiment: 'neutral',
       });
       return { success: true, result };
-    } catch (error: any) {
-      return { success: false, error: error.message, stack: error.stack };
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      };
     }
   }
 }

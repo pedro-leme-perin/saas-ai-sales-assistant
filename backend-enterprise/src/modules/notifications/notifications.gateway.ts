@@ -176,28 +176,28 @@ export class NotificationsGateway
   // =====================================================
 
   // Send AI suggestion to specific user
-  sendAISuggestion(userId: string, payload: any) {
+  sendAISuggestion(userId: string, payload: Record<string, unknown>) {
     this.logger.log('Emitting ai:suggestion to user:' + userId);
     this.server.to(`user:${userId}`).emit('ai:suggestion', payload);
   }
 
   // Send call status update to specific user
-  sendCallStatusUpdate(userId: string, payload: any) {
+  sendCallStatusUpdate(userId: string, payload: Record<string, unknown>) {
     this.server.to(`user:${userId}`).emit('call:status', payload);
   }
 
   // Send WhatsApp message notification to specific user
-  sendWhatsAppMessage(userId: string, payload: any) {
+  sendWhatsAppMessage(userId: string, payload: Record<string, unknown>) {
     this.server.to(`user:${userId}`).emit('whatsapp:message', payload);
   }
 
   // Send generic notification to specific user
-  sendNotification(userId: string, notification: any) {
+  sendNotification(userId: string, notification: Record<string, unknown>) {
     this.server.to(`user:${userId}`).emit('notification', notification);
   }
 
   // Broadcast to entire company (e.g., system announcements)
-  broadcastToCompany(companyId: string, event: string, payload: any) {
+  broadcastToCompany(companyId: string, event: string, payload: Record<string, unknown>) {
     this.server.to(`company:${companyId}`).emit(event, payload);
   }
 

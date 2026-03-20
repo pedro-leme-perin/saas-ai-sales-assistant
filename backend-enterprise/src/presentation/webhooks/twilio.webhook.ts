@@ -7,6 +7,19 @@ import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Public } from '@common/decorators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
+interface TwilioVoiceBody {
+  CallSid?: string;
+  CallStatus?: string;
+  From?: string;
+  To?: string;
+  CallDuration?: string;
+  RecordingUrl?: string;
+  RecordingSid?: string;
+  RecordingDuration?: string;
+  TranscriptionText?: string;
+  TranscriptionSid?: string;
+}
+
 @ApiTags('Webhooks')
 @Controller('webhooks/twilio')
 export class TwilioWebhookController {
@@ -18,7 +31,10 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  async handleVoiceWebhook(@Body() body: any, @Headers('x-twilio-signature') signature: string) {
+  async handleVoiceWebhook(
+    @Body() body: TwilioVoiceBody,
+    @Headers('x-twilio-signature') signature: string,
+  ) {
     this.logger.log(`Twilio voice webhook: ${body?.CallStatus}`);
 
     // Emit event for call processing
@@ -43,7 +59,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  async handleStatusCallback(@Body() body: any) {
+  async handleStatusCallback(@Body() body: TwilioVoiceBody) {
     this.logger.log(`Call status update: ${body?.CallSid} - ${body?.CallStatus}`);
 
     this.eventEmitter.emit('twilio.call.status-update', {
@@ -60,7 +76,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  async handleTranscription(@Body() body: any) {
+  async handleTranscription(@Body() body: TwilioVoiceBody) {
     this.logger.log(`Transcription received for: ${body?.CallSid}`);
 
     this.eventEmitter.emit('twilio.transcription', {
@@ -77,7 +93,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  async handleRecording(@Body() body: any) {
+  async handleRecording(@Body() body: TwilioVoiceBody) {
     this.logger.log(`Recording ready: ${body?.RecordingSid}`);
 
     this.eventEmitter.emit('twilio.recording', {

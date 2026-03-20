@@ -21,7 +21,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { MessageType, MessageDirection, MessageStatus } from '@prisma/client';
+import { MessageType, MessageDirection, MessageStatus, WhatsappChat } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import twilio = require('twilio');
 import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
@@ -218,7 +218,7 @@ export class WhatsappService {
   // GENERATE & SEND AI SUGGESTION
   // =====================================================
   private async generateAndSendAISuggestion(
-    chat: any,
+    chat: WhatsappChat,
     incomingText: string,
     userId: string,
   ): Promise<void> {
@@ -273,7 +273,7 @@ export class WhatsappService {
       aiSuggestionUsed?: boolean;
       suggestionId?: string;
     },
-  ): Promise<any> {
+  ) {
     const chat = await this.findChat(chatId, companyId);
 
     if (!this.twilioClient) {
@@ -294,7 +294,11 @@ export class WhatsappService {
     this.logger.log(`   to:   ${toNumber}`);
     this.logger.log(`   body: ${data.content}`);
 
-    let twilioMessage: any;
+    interface TwilioMessage {
+      sid: string;
+    }
+
+    let twilioMessage: TwilioMessage;
     try {
       // Circuit breaker wraps Twilio API call (Release It! - Circuit Breaker + Timeout)
       twilioMessage = await this.twilioBreaker.execute(() =>
@@ -304,18 +308,37 @@ export class WhatsappService {
           body: data.content,
         }),
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Log full Twilio error details
+      const err =
+        error instanceof Error
+          ? {
+              message: error.message,
+              code: undefined,
+              status: undefined,
+              moreInfo: undefined,
+              details: undefined,
+            }
+          : typeof error === 'object' && error !== null
+            ? (error as Record<string, unknown>)
+            : {
+                message: String(error),
+                code: undefined,
+                status: undefined,
+                moreInfo: undefined,
+                details: undefined,
+              };
+
       this.logger.error('❌ Twilio sendMessage failed:');
-      this.logger.error(`   message:  ${error?.message}`);
-      this.logger.error(`   code:     ${error?.code}`);
-      this.logger.error(`   status:   ${error?.status}`);
-      this.logger.error(`   moreInfo: ${error?.moreInfo}`);
-      this.logger.error(`   details:  ${JSON.stringify(error?.details)}`);
-      this.logger.error(`   full:     ${JSON.stringify(error)}`);
+      this.logger.error(`   message:  ${err.message}`);
+      this.logger.error(`   code:     ${err.code}`);
+      this.logger.error(`   status:   ${err.status}`);
+      this.logger.error(`   moreInfo: ${err.moreInfo}`);
+      this.logger.error(`   details:  ${JSON.stringify(err.details)}`);
+      this.logger.error(`   full:     ${JSON.stringify(err)}`);
 
       throw new BadRequestException(
-        `Failed to send message via WhatsApp: [${error?.code}] ${error?.message}`,
+        `Failed to send message via WhatsApp: [${err.code}] ${err.message}`,
       );
     }
 

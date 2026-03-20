@@ -36,7 +36,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
 | Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token |
 | CI/CD | ✅ Green | ci.yml com coverage + ci-gate + E2E Playwright — all passing |
-| Testes | ✅ 22 suites | 10 service + 9 controller + 2 integration + 1 guard (~336 test cases) |
+| Testes | ✅ 25 suites | 10 service + 10 controller + 2 integration + 1 guard + 2 infra (~424 test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
 
 ### Polimento concluído (13-14/03/2026):
@@ -142,12 +142,31 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - **CI #28: Frontend ✅ Backend ✅ CI Gate ✅ — ALL GREEN**
 - 336 tests passing (319 unit + 9 E2E passed + 8 E2E skipped)
 
+### Sessao 8 (19/03/2026) — Type Safety + Test Coverage:
+
+- **`any` type elimination**: ~72 `any` types eliminados em 19 arquivos de produção
+  - billing.service.ts: `as any` → Stripe types (`Stripe.Subscription`, `Stripe.Invoice`, `Stripe.Checkout.Session`), `Prisma.JsonValue`, interfaces `StripeInvoice`/`StripeCheckoutSession`
+  - notifications.controller.ts: `req: any` → `AuthenticatedRequest` interface (8 endpoints)
+  - calls.controller.ts + calls.service.ts: typed DTOs, `Record<string, unknown>`, typed Deepgram response
+  - auth.service.ts + auth.guard.ts: `ClerkWebhookPayload`/`ClerkUserData` interfaces, `error: unknown`
+  - companies.controller.ts: `CurrentUserPayload` interface
+  - whatsapp.service.ts + whatsapp.controller.ts: `WhatsappChat` Prisma type, `TwilioMessage` interface, typed message filters
+  - notifications.gateway.ts: `Record<string, unknown>` em 5 métodos públicos
+  - media-streams.gateway.ts: `TwilioStreamMessage` interface
+  - main.ts: `IncomingMessage` + `NetSocket` types para upgrade handler
+  - presentation/webhooks: `TwilioVoiceBody`, `WhatsAppWebhookBody`/`WhatsAppMessageValue`/`WhatsAppMessage` interfaces
+  - deepgram.service.ts: `onError: unknown`, typed transcription response
+  - api-response.types.ts: `details: Record<string, unknown> | string | null`
+  - notifications.service.ts: `data: Record<string, unknown> | null`
+- **Único `as any` restante**: `prisma.service.ts` linha 27 — necessário para Prisma event API, com `eslint-disable`
+- 3 novos test suites: `cache.service.spec.ts` (~45 tests), `deepgram.service.spec.ts` (~20 tests), `clerk-webhook.controller.spec.ts` (~23 tests)
+- Total: 25 test suites (~424 test cases)
+
 ### Pendente / Proximos passos:
 
-- Lint warnings: `any` types em `ai-manager.service.ts` (8) e `circuit-breaker.ts` (2) — warn level
-- Rate limiting middleware: injetar `company.plan` no request
+- Coverage: ~45% statements — meta >60%
 - Dashboard i18n: novas strings de sentiment/AI em pt-BR e en
-- Coverage: ~40% statements — aumentar para >60%
+- Node.js 20 deprecation no GitHub Actions (deadline junho 2026)
 
 ---
 

@@ -5,7 +5,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { AuthenticatedUser } from '@common/decorators';
-import { Plan, SubscriptionStatus, AuditAction } from '@prisma/client';
+import { Plan, SubscriptionStatus, AuditAction, Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 
@@ -32,6 +32,26 @@ interface StripeSubscription {
   canceled_at: number | null;
   metadata?: { companyId?: string };
   items: { data: Array<{ price: { id: string } }> };
+}
+
+interface StripeInvoice {
+  id: string;
+  customer: string;
+  currency?: string;
+  amount_due?: number;
+  amount_paid?: number;
+  hosted_invoice_url?: string;
+  invoice_pdf?: string;
+  period_start?: number;
+  period_end?: number;
+  subscription?: string;
+  metadata?: { companyId?: string };
+  subscription_details?: { metadata?: { companyId?: string } };
+}
+
+interface StripeCheckoutSession {
+  id: string;
+  metadata?: { companyId?: string; userId?: string; plan?: string };
 }
 
 @Injectable()
@@ -62,7 +82,9 @@ export class BillingService {
     });
 
     if (this.isStripeConfigured()) {
-      (this as any).stripe = new Stripe(this.stripeSecretKey, { apiVersion: '2025-02-24.acacia' });
+      Object.assign(this, {
+        stripe: new Stripe(this.stripeSecretKey, { apiVersion: '2025-02-24.acacia' }),
+      });
       this.logger.log('✅ Stripe initialized');
     } else {
       this.logger.warn('⚠️  Stripe not configured - running in development mode');
@@ -257,8 +279,8 @@ export class BillingService {
             resource: 'subscription',
             resourceId: companyId,
             description: `Plan changed from ${oldPlan} to ${newPlan}`,
-            oldValues: { plan: oldPlan } as any,
-            newValues: { plan: newPlan } as any,
+            oldValues: { plan: oldPlan } as Prisma.JsonValue,
+            newValues: { plan: newPlan } as Prisma.JsonValue,
           },
         });
       });
@@ -351,22 +373,22 @@ export class BillingService {
 
     switch (event.type) {
       case 'customer.subscription.created':
-        await this.handleSubscriptionCreated(event.data.object as any);
+        await this.handleSubscriptionCreated(event.data.object as Stripe.Subscription);
         break;
       case 'customer.subscription.updated':
-        await this.handleSubscriptionUpdated(event.data.object as any);
+        await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
         break;
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionDeleted(event.data.object as any);
+        await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
       case 'invoice.paid':
-        await this.handleInvoicePaid(event.data.object as any);
+        await this.handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
       case 'invoice.payment_failed':
-        await this.handleInvoicePaymentFailed(event.data.object as any);
+        await this.handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
         break;
       case 'checkout.session.completed':
-        await this.handleCheckoutCompleted(event.data.object as any);
+        await this.handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
       default:
         this.logger.log(`Unhandled event type: ${event.type}`);
@@ -474,7 +496,7 @@ export class BillingService {
     }
   }
 
-  async handleInvoicePaid(stripeInvoice: any) {
+  async handleInvoicePaid(stripeInvoice: StripeInvoice) {
     try {
       const companyId =
         stripeInvoice.metadata?.companyId ||
@@ -517,7 +539,7 @@ export class BillingService {
     }
   }
 
-  async handleInvoicePaymentFailed(stripeInvoice: any) {
+  async handleInvoicePaymentFailed(stripeInvoice: StripeInvoice) {
     try {
       const companyId =
         stripeInvoice.metadata?.companyId ||
@@ -572,7 +594,7 @@ export class BillingService {
     }
   }
 
-  async handleCheckoutCompleted(session: any) {
+  async handleCheckoutCompleted(session: StripeCheckoutSession) {
     try {
       this.logger.log(`✅ Checkout completed: ${session.id}`);
     } catch (error) {

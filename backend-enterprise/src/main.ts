@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { IncomingMessage } from 'http';
+import { Socket as NetSocket } from 'net';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import compression = require('compression');
 import helmet from 'helmet';
@@ -124,7 +126,7 @@ async function bootstrap() {
   httpServer.removeAllListeners('upgrade');
 
   // Add our own router that decides who handles each upgrade
-  httpServer.on('upgrade', (request: any, socket: any, head: Buffer) => {
+  httpServer.on('upgrade', (request: IncomingMessage, socket: NetSocket, head: Buffer) => {
     const url = request.url || '';
     console.log(`[UpgradeRouter] WebSocket upgrade request: ${url}`);
 

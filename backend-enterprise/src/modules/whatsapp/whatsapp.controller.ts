@@ -95,7 +95,9 @@ export class WhatsappController {
   @ApiOperation({ summary: 'Get AI suggestion for current chat context' })
   async getSuggestion(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     const messages = await this.whatsappService.getMessages(chatId, companyId);
-    const lastCustomerMessage = messages.filter((m: any) => m.direction === 'INCOMING').pop();
+    const lastCustomerMessage = messages
+      .filter((m: { direction: string; content: string }) => m.direction === 'INCOMING')
+      .pop();
 
     if (!lastCustomerMessage) {
       return {
@@ -108,7 +110,10 @@ export class WhatsappController {
 
     const conversationHistory = messages
       .slice(-10)
-      .map((m: any) => `${m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor'}: ${m.content}`)
+      .map(
+        (m: { direction: string; content: string }) =>
+          `${m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor'}: ${m.content}`,
+      )
       .join('\n');
 
     const aiResult = await this.aiService.generateSuggestion(lastCustomerMessage.content, {

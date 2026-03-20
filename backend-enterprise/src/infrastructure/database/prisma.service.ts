@@ -23,7 +23,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     // Log queries em desenvolvimento
     if (configService.get('NODE_ENV') === 'development') {
-      (this as any).$on('query', (e: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this as any).$on('query', (e: { query: string; duration: number }) => {
         this.logger.debug(`Query: ${e.query}`);
         this.logger.debug(`Duration: ${e.duration}ms`);
       });

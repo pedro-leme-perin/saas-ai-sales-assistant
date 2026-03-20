@@ -13,6 +13,13 @@ import { Roles } from '@modules/auth/decorators/roles.decorator';
 import { CurrentUser } from '@modules/auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
 
+interface CurrentUserPayload {
+  id: string;
+  companyId: string;
+  email: string;
+  role: string;
+}
+
 @ApiTags('Companies')
 @Controller('companies')
 @UseGuards(AuthGuard, TenantGuard, RolesGuard)
@@ -22,14 +29,14 @@ export class CompaniesController {
 
   @Get('current')
   @ApiOperation({ summary: 'Get current user company' })
-  async getCurrent(@CurrentUser() user: any) {
+  async getCurrent(@CurrentUser() user: CurrentUserPayload) {
     const company = await this.companiesService.findOne(user.companyId);
     return { success: true, data: company };
   }
 
   @Get('current/usage')
   @ApiOperation({ summary: 'Get current company usage' })
-  async getCurrentUsage(@CurrentUser() user: any) {
+  async getCurrentUsage(@CurrentUser() user: CurrentUserPayload) {
     const company = await this.companiesService.findOne(user.companyId);
     const usage = {
       plan: company.plan,
@@ -60,7 +67,7 @@ export class CompaniesController {
 
   @Get('current/stats')
   @ApiOperation({ summary: 'Get current company stats' })
-  async getCurrentStats(@CurrentUser() user: any) {
+  async getCurrentStats(@CurrentUser() user: CurrentUserPayload) {
     const stats = await this.companiesService.getStats(user.companyId);
     return { success: true, data: stats };
   }

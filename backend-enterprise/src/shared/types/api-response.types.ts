@@ -14,7 +14,7 @@ export interface ApiErrorResponse {
   statusCode: number;
   message: string;
   error: string;
-  details?: any;
+  details?: Record<string, unknown> | string | null;
   timestamp: string;
   path: string;
   requestId?: string;

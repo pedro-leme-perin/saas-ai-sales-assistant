@@ -8,6 +8,39 @@ import { ConfigService } from '@nestjs/config';
 import { Public } from '@common/decorators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
+interface WhatsAppWebhookBody {
+  entry?: Array<{
+    changes?: Array<{
+      field: string;
+      value: WhatsAppMessageValue;
+    }>;
+  }>;
+}
+
+interface WhatsAppMessageValue {
+  messages?: Array<WhatsAppMessage>;
+  contacts?: Array<{ wa_id: string; profile?: { name?: string } }>;
+  metadata?: { phone_number_id?: string };
+  statuses?: Array<{
+    id: string;
+    status: string;
+    timestamp: string;
+    recipient_id: string;
+  }>;
+}
+
+interface WhatsAppMessage {
+  id: string;
+  from: string;
+  timestamp: string;
+  type: string;
+  text?: { body?: string };
+  image?: { caption?: string };
+  video?: { caption?: string };
+  document?: { filename?: string };
+  location?: { latitude: number; longitude: number };
+}
+
 @ApiTags('Webhooks')
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {
@@ -41,7 +74,7 @@ export class WhatsappWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  async handleWebhook(@Body() body: any) {
+  async handleWebhook(@Body() body: WhatsAppWebhookBody) {
     this.logger.debug('WhatsApp webhook received:', JSON.stringify(body));
 
     try {
@@ -65,13 +98,13 @@ export class WhatsappWebhookController {
     }
   }
 
-  private async processMessages(value: any) {
+  private async processMessages(value: WhatsAppMessageValue) {
     const messages = value?.messages || [];
     const contacts = value?.contacts || [];
     const metadata = value?.metadata;
 
     for (const message of messages) {
-      const contact = contacts.find((c: any) => c.wa_id === message.from);
+      const contact = contacts.find((c) => c.wa_id === message.from);
 
       const messageData = {
         waMessageId: message.id,
@@ -101,7 +134,7 @@ export class WhatsappWebhookController {
     }
   }
 
-  private extractContent(message: any): string {
+  private extractContent(message: WhatsAppMessage): string {
     switch (message.type) {
       case 'text':
         return message.text?.body || '';
