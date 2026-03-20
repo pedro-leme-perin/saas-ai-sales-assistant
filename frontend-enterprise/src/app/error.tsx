@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import Link from 'next/link';
+import * as Sentry from '@sentry/nextjs';
 
 export default function Error({
   error,
@@ -13,6 +14,15 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error('Application error:', error);
+
+    // Capture error in Sentry for monitoring
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      Sentry.captureException(error, {
+        extra: {
+          digest: error.digest,
+        },
+      });
+    }
   }, [error]);
 
   return (

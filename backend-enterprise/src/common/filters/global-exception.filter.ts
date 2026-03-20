@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
+import * as Sentry from '@sentry/node';
 
 interface ErrorResponse {
   success: false;
@@ -40,6 +41,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // Log the error
     this.logError(exception, errorResponse);
+
+    // Send 5xx errors to Sentry for monitoring
+    if (errorResponse.statusCode >= 500 && process.env.SENTRY_DSN) {
+      Sentry.captureException(exception, {
+        extra: {
+          path: request.url,
+          method: request.method,
+          statusCode: errorResponse.statusCode,
+          requestId: errorResponse.requestId,
+          message: errorResponse.message,
+        },
+      });
+    }
 
     response.status(errorResponse.statusCode).json(errorResponse);
   }

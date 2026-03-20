@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { IncomingMessage } from 'http';
 import { Socket as NetSocket } from 'net';
+import * as Sentry from '@sentry/node';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import compression = require('compression');
 import helmet from 'helmet';
@@ -14,6 +15,24 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 const logger = new Logger('Bootstrap');
+
+// ── Initialize Sentry (Release It! - Error Tracking & Monitoring) ──
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    beforeSend(event) {
+      // Strip PII — Authorization, Cookies, Auth Tokens
+      if (event.request?.headers) {
+        delete event.request.headers['authorization'];
+        delete event.request.headers['cookie'];
+        delete event.request.headers['x-clerk-auth-token'];
+      }
+      return event;
+    },
+  });
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {

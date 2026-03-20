@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Search, Mail, Phone, Shield, ShieldCheck,
@@ -44,6 +44,76 @@ function TeamSkeleton() {
   );
 }
 
+// Memoized user row component for performance
+const UserRow = memo(function UserRow({
+  user,
+  onDelete,
+}: {
+  user: UserType;
+  onDelete: (user: UserType) => void;
+}) {
+  return (
+    <div
+      className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors group"
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
+          {user.name
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase()}
+        </div>
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-medium">{user.name}</p>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full border ${roleColors[user.role]}`}
+            >
+              {roleLabels[user.role]}
+            </span>
+            {!user.isActive && (
+              <span className="text-xs px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200">
+                Inativo
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-0.5">
+            <span className="flex items-center gap-1">
+              <Mail className="h-3 w-3" />
+              {user.email}
+            </span>
+            {user.phone && (
+              <span className="flex items-center gap-1 hidden sm:flex">
+                <Phone className="h-3 w-3" />
+                {user.phone}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground hidden sm:block">
+          {formatDateTime(user.createdAt).split(',')[0]}
+        </span>
+        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => onDelete(user)}
+          disabled={user.role === 'OWNER'}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+});
+
 export default function TeamPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,10 +151,25 @@ export default function TeamPage() {
     }
   }, [showInviteModal]);
 
-  const filteredUsers = usersData?.data?.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  // Memoize filtered users for performance
+  const filteredUsers = useMemo(
+    () =>
+      usersData?.data?.filter(
+        (user) =>
+          user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [usersData?.data, searchQuery]
+  );
+
+  // Memoize stats computations
+  const stats = useMemo(
+    () => ({
+      adminCount: usersData?.data?.filter((u) => u.role === 'ADMIN' || u.role === 'OWNER')
+        .length || 0,
+      vendorCount: usersData?.data?.filter((u) => u.role === 'VENDOR').length || 0,
+    }),
+    [usersData?.data]
   );
 
   const handleDeleteUser = (user: UserType) => {
@@ -146,9 +231,7 @@ export default function TeamPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Administradores</p>
-                <p className="text-2xl font-bold">
-                  {usersData?.data?.filter((u) => u.role === 'ADMIN' || u.role === 'OWNER').length || 0}
-                </p>
+                <p className="text-2xl font-bold">{stats.adminCount}</p>
               </div>
               <ShieldCheck className="h-8 w-8 text-blue-500/30" />
             </div>
@@ -159,9 +242,7 @@ export default function TeamPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Vendedores</p>
-                <p className="text-2xl font-bold">
-                  {usersData?.data?.filter((u) => u.role === 'VENDOR').length || 0}
-                </p>
+                <p className="text-2xl font-bold">{stats.vendorCount}</p>
               </div>
               <User className="h-8 w-8 text-green-500/30" />
             </div>
@@ -215,58 +296,7 @@ export default function TeamPage() {
           ) : filteredUsers && filteredUsers.length > 0 ? (
             <div className="space-y-2">
               {filteredUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                      {user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{user.name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${roleColors[user.role]}`}>
-                          {roleLabels[user.role]}
-                        </span>
-                        {!user.isActive && (
-                          <span className="text-xs px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200">
-                            Inativo
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-0.5">
-                        <span className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {user.email}
-                        </span>
-                        {user.phone && (
-                          <span className="flex items-center gap-1 hidden sm:flex">
-                            <Phone className="h-3 w-3" />
-                            {user.phone}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground hidden sm:block">
-                      {formatDateTime(user.createdAt).split(',')[0]}
-                    </span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleDeleteUser(user)}
-                      disabled={user.role === 'OWNER'}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                <UserRow key={user.id} user={user} onDelete={handleDeleteUser} />
               ))}
             </div>
           ) : (

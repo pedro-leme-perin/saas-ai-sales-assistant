@@ -1,5 +1,6 @@
 'use client';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useBilling } from '@/hooks/useBilling';
@@ -12,6 +13,17 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+
+// Dynamically import heavy sections
+const PlansSection = dynamic(
+  () => import('@/components/billing/plans-section'),
+  { ssr: false, loading: () => <PlansSkeleton /> }
+);
+
+const InvoicesSection = dynamic(
+  () => import('@/components/billing/invoices-section'),
+  { ssr: false, loading: () => <InvoicesSkeleton /> }
+);
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
   STARTER:      <Zap className="w-6 h-6" />,
@@ -34,6 +46,41 @@ const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
   void:          { label: 'Cancelado',  color: 'text-muted-foreground bg-muted' },
   uncollectible: { label: 'Incobrável', color: 'text-red-700 bg-red-100' },
 };
+
+function PlansSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {[...Array(3)].map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-6 animate-pulse space-y-4">
+            <div className="h-6 w-24 bg-muted rounded" />
+            <div className="h-8 w-20 bg-muted rounded" />
+            <div className="space-y-2">
+              {[...Array(4)].map((_, j) => (
+                <div key={j} className="h-4 w-full bg-muted rounded" />
+              ))}
+            </div>
+            <div className="h-10 w-full bg-muted rounded" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function InvoicesSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-0 animate-pulse">
+        <div className="space-y-3 p-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-10 w-full bg-muted rounded" />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function BillingSkeleton() {
   return (
@@ -79,6 +126,12 @@ function BillingPageContent() {
   const [banner, setBanner] = useState<'success' | 'canceled' | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // Memoize subscription data for child components
+  const subscriptionMemo = useMemo(
+    () => ({ subscription: subscription?.subscription, company: subscription?.company }),
+    [subscription]
+  );
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') setBanner('success');
@@ -228,138 +281,28 @@ function BillingPageContent() {
         </Card>
       </section>
 
-      {/* Planos */}
+      {/* Planos - Lazy loaded */}
       <section>
         <h2 className="text-lg font-semibold mb-4">Planos Disponíveis</h2>
-        {plans.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="p-8 text-center text-muted-foreground text-sm">
-              Planos não disponíveis.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {plans.map((plan) => {
-              const isCurrent = plan.plan === currentPlan;
-              const isLoading = actionLoading === plan.plan;
-              const hasStripe = !!activeSub;
-
-              return (
-                <Card
-                  key={plan.plan}
-                  className={`relative flex flex-col transition-shadow hover:shadow-md ${
-                    plan.isPopular ? 'border-primary ring-2 ring-primary' : ''
-                  }`}
-                >
-                  {plan.isPopular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-                      Mais popular
-                    </span>
-                  )}
-
-                  <CardContent className="p-6 flex flex-col gap-4 flex-1">
-                    <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${plan.isPopular ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                        {PLAN_ICONS[plan.plan] || <CreditCard className="w-5 h-5" />}
-                      </div>
-                      <div>
-                        <p className="font-semibold">{plan.name}</p>
-                        <p className="text-2xl font-bold mt-0.5">
-                          {formatCurrency(plan.price)}
-                          <span className="text-sm font-normal text-muted-foreground">/mês</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <ul className="space-y-1.5 flex-1">
-                      {plan.features.map((f, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {isCurrent ? (
-                      <div className="w-full py-2.5 text-center text-sm font-medium text-primary bg-primary/10 rounded-lg">
-                        Plano atual
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          if (hasStripe) {
-                            handleAction(plan.plan, () => changePlan(plan.plan));
-                          } else {
-                            handleAction(plan.plan, () => startCheckout(plan.plan));
-                          }
-                        }}
-                        disabled={!!actionLoading}
-                        variant={plan.isPopular ? 'default' : 'outline'}
-                        className="w-full gap-2"
-                      >
-                        {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {hasStripe ? 'Mudar plano' : 'Fazer upgrade'}
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        <Suspense fallback={<PlansSkeleton />}>
+          <PlansSection
+            plans={plans}
+            currentPlan={currentPlan}
+            hasStripe={!!activeSub}
+            actionLoading={actionLoading}
+            onAction={handleAction}
+            startCheckout={startCheckout}
+            changePlan={changePlan}
+          />
+        </Suspense>
       </section>
 
-      {/* Faturas */}
+      {/* Faturas - Lazy loaded */}
       <section>
         <h2 className="text-lg font-semibold mb-4">Histórico de Faturas</h2>
-        {invoices.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="p-8 text-center text-muted-foreground text-sm">
-              Nenhuma fatura encontrada.
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b bg-muted/50">
-                    <tr>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Data</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Valor</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">PDF</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {invoices.map((inv) => {
-                      const st = INVOICE_STATUS[inv.status] || { label: inv.status, color: 'text-muted-foreground bg-muted' };
-                      return (
-                        <tr key={inv.id} className="hover:bg-muted/50 transition-colors">
-                          <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.createdAt)}</td>
-                          <td className="px-4 py-3 font-medium tabular-nums">{formatCurrency((inv.amount || 0) / 100)}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${st.color}`}>
-                              {st.label}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            {inv.pdfUrl ? (
-                              <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-primary hover:underline text-xs">
-                                <FileText className="w-3.5 h-3.5" /> Baixar
-                              </a>
-                            ) : <span className="text-muted-foreground">—</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Suspense fallback={<InvoicesSkeleton />}>
+          <InvoicesSection invoices={invoices} />
+        </Suspense>
       </section>
 
       {/* =============================================

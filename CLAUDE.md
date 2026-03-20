@@ -36,7 +36,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
 | Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token |
 | CI/CD | ✅ Green | ci.yml com coverage + ci-gate + E2E Playwright — all passing |
-| Testes | ✅ 29 suites | 10 service + 14 controller + 2 integration + 1 guard + 2 infra (~550+ test cases) |
+| Testes | ✅ 36 suites | 11 service + 15 controller + 2 integration + 4 guard + 2 infra + 2 misc (~825+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
 
 ### Polimento concluído (13-14/03/2026):
@@ -174,11 +174,37 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - `company-plan.middleware.spec.ts` (~32 tests) — plan lookup, cache, request enrichment, error handling
 - Total: 29 test suites (~550+ test cases)
 
+### Sessao 10 (20/03/2026) — Test Coverage, Performance, Sentry Backend:
+
+- **7 novos test suites** (+275 test cases):
+  - `auth-guards.spec.ts` (~38 tests) — AuthGuard, RolesGuard, TenantGuard
+  - `global-exception-filter.spec.ts` (~46 tests) — HTTP, Prisma, generic errors, stack trace leak prevention
+  - `interceptors-middleware.spec.ts` (~33 tests) — LoggingInterceptor, TransformInterceptor, RequestLoggerMiddleware
+  - `media-streams.gateway.spec.ts` (~40 tests) — Twilio WebSocket, Deepgram streaming, AI suggestions
+  - `ai-manager.service.spec.ts` (~42 tests) — provider selection, fallback, circuit breaker, round-robin
+  - `health.controller.spec.ts` (~33 tests) — health check, liveness, readiness probes
+  - `roles.guard.spec.ts` (~43 tests) — RBAC hierarchy, canManageUser, role enforcement
+- Total: 36 test suites (~825+ test cases)
+- **Performance frontend** (quick wins):
+  - `robots.txt` + `sitemap.ts` (SEO)
+  - `font-display: 'swap'` no Inter (LCP)
+  - Dynamic imports: analytics (SentimentAnalytics, AIPerformanceDetail), billing (PlansSection, InvoicesSection), settings (5 tabs lazy), team (UserRow memo)
+  - 9 novos componentes extraídos para code splitting
+  - `useMemo` em KPIs, filtered lists, stats computations
+- **Sentry backend** (produção):
+  - `@sentry/node` adicionado ao backend
+  - `Sentry.init()` em `main.ts` (antes do NestFactory.create)
+  - `Sentry.captureException()` no GlobalExceptionFilter (5xx errors)
+  - PII strip (authorization, cookie, x-clerk-auth-token)
+  - Frontend `error.tsx` agora envia erros ao Sentry
+
 ### Pendente / Proximos passos:
 
-- Coverage: ~50% statements — meta >60% (precisa mais service/use-case tests)
-- Monitoramento Sentry em produção: validar erros e alertas
-- Performance profiling: lighthouse score frontend, p95 latency backend
+- Web Vitals tracking (CLS, LCP, TTFB) — integrar com Sentry
+- Bundle analyzer + CI gates para tamanho de bundle
+- Service worker para offline support (PWA)
+- Distributed tracing frontend↔backend
+- Sentry alerting rules (5xx > 0.1%, latency p95 > 2s)
 
 ---
 

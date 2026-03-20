@@ -1,5 +1,7 @@
 'use client';
 
+import { Suspense, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp, TrendingDown, Phone, MessageSquare,
@@ -10,6 +12,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { analyticsService } from '@/services/api';
 import { formatDuration } from '@/lib/utils';
 import { useTranslation } from '@/i18n/use-translation';
+
+// Dynamically import heavy detail sections
+const SentimentAnalytics = dynamic(
+  () => import('@/components/dashboard/analytics/sentiment-analytics'),
+  { ssr: false, loading: () => <AnalyticsDetailSkeleton /> }
+);
+
+const AIPerformanceDetail = dynamic(
+  () => import('@/components/dashboard/analytics/ai-performance-detail'),
+  { ssr: false, loading: () => <AnalyticsDetailSkeleton /> }
+);
 
 function KPISkeleton() {
   return (
@@ -52,6 +65,24 @@ function DetailSkeleton() {
   );
 }
 
+function AnalyticsDetailSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="h-5 w-40 bg-muted rounded animate-pulse" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {[...Array(5)].map((_, j) => (
+          <div key={j} className="flex justify-between">
+            <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AnalyticsPage() {
   const { t } = useTranslation();
 
@@ -82,7 +113,8 @@ export default function AnalyticsPage() {
 
   const dashboard = dashboardRaw as any;
 
-  const kpis = [
+  // Memoize KPI computation
+  const kpis = useMemo(() => [
     {
       title: t('analytics.totalCalls'),
       value: dashboard?.calls?.total ?? 0,
@@ -131,7 +163,7 @@ export default function AnalyticsPage() {
       icon: BarChart3,
       color: 'text-emerald-500',
     },
-  ];
+  ], [dashboard, t]);
 
   return (
     <div className="space-y-6">
@@ -249,105 +281,20 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          {/* Sentiment & AI Detail Row */}
+          {/* Sentiment & AI Detail Row - Lazy loaded */}
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Sentiment Analytics */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-rose-500" />
-                  <CardTitle className="text-base">{t('analytics.sentiment.title')}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{t('analytics.sentiment.avgSentiment')}</span>
-                  <span className="text-lg font-bold tabular-nums">
-                    {((sentimentData?.avgSentiment ?? 0) * 100).toFixed(0)}%
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {(sentimentData?.distribution ?? []).map((d: { label: string; count: number; percentage: number }) => (
-                    <div key={d.label} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className={
-                          d.label === 'POSITIVE' ? 'text-green-600' :
-                          d.label === 'NEGATIVE' ? 'text-red-500' : 'text-muted-foreground'
-                        }>
-                          {d.label === 'POSITIVE' ? t('analytics.sentiment.positive') : d.label === 'NEGATIVE' ? t('analytics.sentiment.negative') : t('analytics.sentiment.neutral')}
-                        </span>
-                        <span className="tabular-nums">{d.count} ({d.percentage}%)</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            d.label === 'POSITIVE' ? 'bg-green-500' :
-                            d.label === 'NEGATIVE' ? 'bg-red-500' : 'bg-gray-400'
-                          }`}
-                          style={{ width: `${d.percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {sentimentData?.weeklyTrend && (
-                  <div className="pt-2 border-t">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">{t('analytics.sentiment.weeklyTrend')}</p>
-                    <div className="flex gap-1 items-end h-12">
-                      {sentimentData.weeklyTrend.map((week: { week: string; avgSentiment: number }, i: number) => (
-                        <div
-                          key={i}
-                          className="flex-1 bg-rose-500/20 rounded-t hover:bg-rose-500/40 transition-colors"
-                          style={{ height: `${Math.max(week.avgSentiment * 100, 5)}%` }}
-                          title={`${t('analytics.sentiment.weekLabel')} ${week.week}: ${(week.avgSentiment * 100).toFixed(0)}%`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* AI Performance Detail */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-violet-500" />
-                  <CardTitle className="text-base">{t('analytics.aiDetail.title')}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { label: t('analytics.aiDetail.approvalRate'), value: `${aiPerfData?.helpfulRate ?? 0}%`, icon: Zap },
-                  { label: t('analytics.aiDetail.avgLatency'), value: `${aiPerfData?.avgLatency ?? 0}ms`, icon: Activity },
-                  { label: t('analytics.aiDetail.p95Latency'), value: `${aiPerfData?.p95Latency ?? 0}ms`, icon: Activity },
-                  { label: t('analytics.aiDetail.avgConfidence'), value: `${((aiPerfData?.avgConfidence ?? 0) * 100).toFixed(0)}%`, icon: Sparkles },
-                ].map((item) => (
-                  <div key={item.label} className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <item.icon className="h-3 w-3" />
-                      {item.label}
-                    </span>
-                    <span className="font-medium tabular-nums">{item.value}</span>
-                  </div>
-                ))}
-                {aiPerfData?.byProvider && aiPerfData.byProvider.length > 0 && (
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">{t('analytics.aiDetail.byProvider')}</p>
-                    <div className="space-y-2">
-                      {aiPerfData.byProvider.map((p: { provider: string; count: number; avgLatency: number }) => (
-                        <div key={p.provider} className="flex justify-between text-xs">
-                          <span>{t(`analytics.aiDetail.providers.${p.provider}` as Parameters<typeof t>[0]) || p.provider}</span>
-                          <span className="tabular-nums text-muted-foreground">
-                            {p.count} {t('analytics.aiDetail.calls')}, {p.avgLatency}ms {t('analytics.aiDetail.avgLabel')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <Suspense fallback={<AnalyticsDetailSkeleton />}>
+              <SentimentAnalytics
+                sentimentData={sentimentData}
+                t={t}
+              />
+            </Suspense>
+            <Suspense fallback={<AnalyticsDetailSkeleton />}>
+              <AIPerformanceDetail
+                aiPerfData={aiPerfData}
+                t={t}
+              />
+            </Suspense>
           </div>
         </>
       )}
