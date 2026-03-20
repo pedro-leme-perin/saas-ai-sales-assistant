@@ -77,6 +77,21 @@ export default () => ({
     webhookSecret: process.env.WHATSAPP_WEBHOOK_SECRET,
   },
 
+  // Upload (Cloudflare R2)
+  r2: {
+    accountId: process.env.R2_ACCOUNT_ID,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    bucketName: process.env.R2_BUCKET_NAME || 'salesai-uploads',
+    publicUrl: process.env.R2_PUBLIC_URL,
+  },
+
+  // Email (Resend)
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY,
+    from: process.env.EMAIL_FROM || 'noreply@salesai.com.br',
+  },
+
   // Rate Limiting
   throttle: {
     ttl: parseInt(process.env.THROTTLE_TTL || '60', 10),

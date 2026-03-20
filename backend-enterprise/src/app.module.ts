@@ -16,6 +16,8 @@ import { BillingModule } from './modules/billing/billing.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { EmailModule } from './modules/email/email.module';
+import { UploadModule } from './modules/upload/upload.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import configuration from './config/configuration';
@@ -43,6 +45,8 @@ import configuration from './config/configuration';
     BillingModule,
     AnalyticsModule,
     NotificationsModule,
+    EmailModule,
+    UploadModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { UseMutationResult } from '@tanstack/react-query';
-import { Save, Building2, Globe, MapPin } from 'lucide-react';
+import { Save, Building2, Globe, MapPin, Upload, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { uploadService } from '@/services/api';
+import { toast } from 'sonner';
 
 interface CompanyFormData {
   name: string;
@@ -60,6 +62,9 @@ export default function CompanyTab({
     timezone: 'America/Sao_Paulo',
   });
   const [isDirty, setIsDirty] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (company) {
@@ -69,6 +74,7 @@ export default function CompanyTab({
         industry: company.industry || '',
         timezone: company.timezone || 'America/Sao_Paulo',
       });
+      setLogoUrl(company.logoUrl || '');
     }
   }, [company]);
 
@@ -78,6 +84,38 @@ export default function CompanyTab({
       setIsDirty(true);
     },
     [],
+  );
+
+  const handleLogoUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast.error(t('settings.company.logoTooLarge'));
+        return;
+      }
+
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+        toast.error(t('settings.company.logoInvalidType'));
+        return;
+      }
+
+      setIsUploading(true);
+      try {
+        const publicUrl = await uploadService.uploadFile(file, 'logos');
+        setLogoUrl(publicUrl);
+        updateMutation.mutate({ logoUrl: publicUrl });
+        toast.success(t('settings.company.logoUploaded'));
+      } catch {
+        toast.error(t('settings.company.logoUploadError'));
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    },
+    [t, updateMutation],
   );
 
   const handleSave = useCallback(() => {
@@ -114,6 +152,46 @@ export default function CompanyTab({
           <CardDescription>{t('settings.company.subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Logo Upload */}
+          <div className="flex items-center gap-4 pb-4 border-b">
+            <div className="relative h-16 w-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="h-full w-full object-cover rounded-lg"
+                />
+              ) : (
+                <Building2 className="h-8 w-8 text-muted-foreground/50" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-medium">{t('settings.company.logo')}</p>
+              <p className="text-xs text-muted-foreground">{t('settings.company.logoHint')}</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-1.5"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {isUploading ? t('common.loading') : t('settings.company.uploadLogo')}
+              </Button>
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="text-sm font-medium">{t('settings.company.name')}</label>

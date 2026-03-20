@@ -394,6 +394,47 @@ export const notificationsService = {
 
 
 // =============================================
+// UPLOAD SERVICE
+// =============================================
+
+export const uploadService = {
+  async getPresignedUrl(params: {
+    fileName: string;
+    contentType: string;
+    category: 'logos' | 'avatars' | 'attachments';
+  }): Promise<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }> {
+    const res = await apiClient.post<{
+      data: { uploadUrl: string; publicUrl: string; key: string; expiresIn: number };
+    }>('/upload/presigned-url', params);
+    return (res as Record<string, unknown>).data as {
+      uploadUrl: string;
+      publicUrl: string;
+      key: string;
+      expiresIn: number;
+    };
+  },
+
+  async uploadFile(
+    file: File,
+    category: 'logos' | 'avatars' | 'attachments',
+  ): Promise<string> {
+    const { uploadUrl, publicUrl } = await this.getPresignedUrl({
+      fileName: file.name,
+      contentType: file.type,
+      category,
+    });
+
+    await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+
+    return publicUrl;
+  },
+};
+
+// =============================================
 // ANALYTICS SERVICE
 // =============================================
 export const analyticsService = {

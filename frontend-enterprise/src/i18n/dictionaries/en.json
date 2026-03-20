@@ -206,7 +206,14 @@
       "integrationDeepgram": "Voice transcription (STT)",
       "integrationSentry": "Error monitoring",
       "connected": "Connected",
-      "disconnected": "Disconnected"
+      "disconnected": "Disconnected",
+      "logo": "Company Logo",
+      "logoHint": "JPG, PNG, WebP or SVG. Max 5MB.",
+      "uploadLogo": "Change Logo",
+      "logoUploaded": "Logo updated successfully",
+      "logoTooLarge": "File too large. Max 5MB.",
+      "logoInvalidType": "Invalid type. Use JPG, PNG, WebP or SVG.",
+      "logoUploadError": "Failed to upload logo. Try again."
     },
     "notifications": {
       "title": "Notification Preferences",

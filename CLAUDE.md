@@ -284,12 +284,38 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - i18n: 12 novas chaves (timezone, plan, integrations, connected/disconnected, 6 descrições)
   - Settings page: toast success/error, tipo `Record<string, unknown>` (elimina `any`)
 
+### Sessao 16 (20/03/2026) — Email Service, Logo Upload:
+
+- **EmailModule** (Resend integration):
+  - `email.service.ts` — send via Resend API com circuit breaker (Release It!)
+  - `email.module.ts` — @Global module, registered in AppModule
+  - Template HTML profissional para convite de equipe (responsivo, dark-safe)
+  - Non-blocking: email failure não impede criação do invite
+  - `sendInviteEmail()` — tradução de roles PT-BR, sign-up URL com email param
+  - `email.service.spec.ts` — ~12 test cases (send, error handling, circuit breaker)
+  - Configuração: `RESEND_API_KEY`, `EMAIL_FROM` no configuration.ts
+- **UploadModule** (Cloudflare R2 — S3-compatible):
+  - `upload.service.ts` — presigned URL generation (AWS S3 V4 signature)
+  - `upload.controller.ts` — `POST /upload/presigned-url` (OWNER/ADMIN)
+  - `upload.module.ts` — registered in AppModule
+  - Frontend `uploadService` — `getPresignedUrl()` + `uploadFile()` helper
+  - Validação: MIME types (JPEG/PNG/WebP/SVG), max 5MB
+  - File naming: `{category}/{companyId}/{timestamp}_{random}.{ext}`
+  - Configuração: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
+- **Company logo upload UI**:
+  - Logo preview com placeholder (Building2 icon)
+  - File input hidden + button trigger
+  - Upload progress (Loader2 spinner)
+  - Client-side validation (size + type)
+  - Save imediato via `updateMutation.mutate({ logoUrl })`
+  - i18n: 7 novas chaves logo (pt-BR + en)
+
 ### Pendente / Proximos passos:
 
 - Sentry alerting rules — configurar no painel Sentry seguindo `SENTRY_ALERTING_GUIDE.md`
 - Migração para pnpm workspaces (monorepo unificado)
-- Team invites email sending (integração com serviço de email)
-- Logo upload (S3/Cloudflare R2 + presigned URLs)
+- Upload tests (upload.service.spec.ts)
+- Email domain verification no Resend
 
 ---
 

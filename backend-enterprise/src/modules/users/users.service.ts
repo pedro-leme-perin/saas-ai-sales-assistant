@@ -8,6 +8,7 @@ import {
   ClerkUserData,
   CreateUserFromClerkDto,
 } from '../auth/interfaces/clerk.interfaces';
+import { EmailService } from '../email/email.service';
 
 // Tipo com company incluída
 export type UserWithCompany = User & { company: Company };
@@ -16,7 +17,10 @@ export type UserWithCompany = User & { company: Company };
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   // ============================================
   // BUSCA
@@ -371,6 +375,28 @@ export class UsersService {
     });
 
     this.logger.log(`User invitation created: ${user.id} (${user.email})`);
+
+    // Send invitation email (non-blocking — don't fail invite if email fails)
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: inviterId },
+      select: { name: true },
+    });
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true },
+    });
+
+    this.emailService
+      .sendInviteEmail({
+        recipientEmail: email,
+        inviterName: inviter?.name || 'Um membro da equipe',
+        companyName: company?.name || 'Sua empresa',
+        role,
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Non-blocking: invite email failed for ${email}: ${message}`);
+      });
 
     return {
       success: true,
