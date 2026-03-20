@@ -337,7 +337,7 @@ export default function AnalyticsPage() {
                     <div className="space-y-2">
                       {aiPerfData.byProvider.map((p: { provider: string; count: number; avgLatency: number }) => (
                         <div key={p.provider} className="flex justify-between text-xs">
-                          <span className="capitalize">{p.provider}</span>
+                          <span>{t(`analytics.aiDetail.providers.${p.provider}` as Parameters<typeof t>[0]) || p.provider}</span>
                           <span className="tabular-nums text-muted-foreground">
                             {p.count} {t('analytics.aiDetail.calls')}, {p.avgLatency}ms {t('analytics.aiDetail.avgLabel')}
                           </span>

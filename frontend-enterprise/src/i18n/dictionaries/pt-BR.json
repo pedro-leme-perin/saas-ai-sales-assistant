@@ -335,7 +335,13 @@
       "avgConfidence": "Confiança média",
       "byProvider": "Por provedor",
       "calls": "chamadas",
-      "avgLabel": "média"
+      "avgLabel": "média",
+      "providers": {
+        "openai": "OpenAI",
+        "claude": "Claude",
+        "gemini": "Gemini",
+        "perplexity": "Perplexity"
+      }
     }
   },
   "errors": {

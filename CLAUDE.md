@@ -19,12 +19,12 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 19/03/2026
+> Última atualização: 20/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `547697e` (19/03/2026) | CI green — all tests passing |
+| Último commit | `22fb891` (20/03/2026) | CI green — all tests passing |
 | Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
 | Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
 | Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
@@ -36,7 +36,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
 | Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token |
 | CI/CD | ✅ Green | ci.yml com coverage + ci-gate + E2E Playwright — all passing |
-| Testes | ✅ 25 suites | 10 service + 10 controller + 2 integration + 1 guard + 2 infra (~424 test cases) |
+| Testes | ✅ 29 suites | 10 service + 14 controller + 2 integration + 1 guard + 2 infra (~550+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
 
 ### Polimento concluído (13-14/03/2026):
@@ -162,11 +162,23 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - 3 novos test suites: `cache.service.spec.ts` (~45 tests), `deepgram.service.spec.ts` (~20 tests), `clerk-webhook.controller.spec.ts` (~23 tests)
 - Total: 25 test suites (~424 test cases)
 
+### Sessao 9 (20/03/2026) — CI Node.js 22, i18n, Test Coverage:
+
+- **Node.js 20 → 22** no CI: `.github/workflows/ci.yml` — `NODE_VERSION: '22'` (fix deprecation warning)
+- **Dashboard i18n**: provider names (`openai`, `claude`, `gemini`, `perplexity`) em pt-BR e en
+- Analytics page: provider span com `t()` + fallback para nome raw
+- 4 novos test suites:
+  - `twilio-webhook.controller.spec.ts` (~18 tests) — todos os endpoints de voz Twilio
+  - `whatsapp-webhook.controller.spec.ts` (~34 tests) — webhook verification, message processing, extractContent
+  - `notifications.gateway.spec.ts` (~45 tests) — WebSocket rooms, broadcast, cleanup, guard
+  - `company-plan.middleware.spec.ts` (~32 tests) — plan lookup, cache, request enrichment, error handling
+- Total: 29 test suites (~550+ test cases)
+
 ### Pendente / Proximos passos:
 
-- Coverage: ~45% statements — meta >60%
-- Dashboard i18n: novas strings de sentiment/AI em pt-BR e en
-- Node.js 20 deprecation no GitHub Actions (deadline junho 2026)
+- Coverage: ~50% statements — meta >60% (precisa mais service/use-case tests)
+- Monitoramento Sentry em produção: validar erros e alertas
+- Performance profiling: lighthouse score frontend, p95 latency backend
 
 ---
 

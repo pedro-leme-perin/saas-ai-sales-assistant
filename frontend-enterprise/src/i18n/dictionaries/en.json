@@ -335,7 +335,13 @@
       "avgConfidence": "Avg confidence",
       "byProvider": "By provider",
       "calls": "calls",
-      "avgLabel": "avg"
+      "avgLabel": "avg",
+      "providers": {
+        "openai": "OpenAI",
+        "claude": "Claude",
+        "gemini": "Gemini",
+        "perplexity": "Perplexity"
+      }
     }
   },
   "errors": {
