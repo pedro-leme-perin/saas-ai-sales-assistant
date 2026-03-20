@@ -48,6 +48,14 @@ export const usersService = {
     return apiClient.put(`/users/${id}`, data);
   },
 
+  async invite(email: string, role: string): Promise<User> {
+    return apiClient.post('/users/invite', { email, role });
+  },
+
+  async updateRole(id: string, role: string): Promise<User> {
+    return apiClient.patch(`/users/${id}/role`, { role });
+  },
+
   async delete(id: string): Promise<void> {
     return apiClient.delete(`/users/${id}`);
   },
@@ -72,7 +80,7 @@ export const companiesService = {
     return res?.data ?? res;
   },
 
-  async update(data: Partial<Company>): Promise<Company> {
+  async update(data: Partial<Company> | Record<string, unknown>): Promise<Company> {
     return apiClient.put('/companies/current', data);
   },
 };

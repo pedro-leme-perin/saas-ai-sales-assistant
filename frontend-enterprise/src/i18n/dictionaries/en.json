@@ -194,7 +194,19 @@
         "finance": "Finance",
         "education": "Education",
         "other": "Other"
-      }
+      },
+      "timezone": "Timezone",
+      "plan": "Current Plan",
+      "integrations": "Integrations",
+      "integrationsDesc": "External services connected to your account.",
+      "integrationTwilio": "Telephony and voice calls",
+      "integrationWhatsApp": "WhatsApp Business messaging",
+      "integrationStripe": "Payments and subscriptions",
+      "integrationOpenAI": "Real-time AI suggestions",
+      "integrationDeepgram": "Voice transcription (STT)",
+      "integrationSentry": "Error monitoring",
+      "connected": "Connected",
+      "disconnected": "Disconnected"
     },
     "notifications": {
       "title": "Notification Preferences",

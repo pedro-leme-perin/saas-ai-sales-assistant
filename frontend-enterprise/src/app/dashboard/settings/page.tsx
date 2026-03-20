@@ -16,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { companiesService } from '@/services/api';
 import { useUIStore } from '@/stores';
 import { useTranslation } from '@/i18n/use-translation';
+import { toast } from 'sonner';
 
 // Dynamically import heavy form sections
 const ProfileTab = dynamic(
@@ -73,9 +74,13 @@ export default function SettingsPage() {
   });
 
   const updateCompanyMutation = useMutation({
-    mutationFn: (data: any) => companiesService.update(data),
+    mutationFn: (data: Record<string, unknown>) => companiesService.update(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company'] });
+      toast.success(t('common.saveChanges'));
+    },
+    onError: () => {
+      toast.error(t('common.error'));
     },
   });
 

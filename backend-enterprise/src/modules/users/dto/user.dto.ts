@@ -34,3 +34,19 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsBoolean()
   isActive?: boolean;
 }
+
+export class InviteUserDto {
+  @ApiProperty({ description: 'Email address of the user to invite' })
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ description: 'Role to assign to the invited user', enum: UserRole })
+  @IsEnum(UserRole)
+  role!: UserRole;
+}
+
+export class UpdateUserRoleDto {
+  @ApiProperty({ description: 'New role for the user', enum: UserRole })
+  @IsEnum(UserRole)
+  role!: UserRole;
+}

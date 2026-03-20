@@ -1,10 +1,33 @@
 // src/modules/users/users.controller.ts
 
-import { Controller, Get, Param, Logger, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Logger,
+  Query,
+  Request,
+  UnauthorizedException,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CurrentUser, CompanyId } from '@/modules/auth/decorators/current-user.decorator';
+import { CurrentUser, CompanyId, UserId } from '@/modules/auth/decorators/current-user.decorator';
 import { UserWithCompany } from './users.service';
+import { InviteUserDto, UpdateUserRoleDto } from './dto/user.dto';
+
+// Interface for authenticated requests
+interface AuthenticatedRequest {
+  user?: {
+    id?: string;
+    companyId?: string;
+  };
+}
 
 @ApiTags('users')
 @ApiBearerAuth('JWT')
@@ -57,6 +80,108 @@ export class UsersController {
       avatarUrl: user.avatarUrl,
       status: user.status,
       createdAt: user.createdAt,
+    };
+  }
+
+  @Post('invite')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Invite a user to the company',
+    description:
+      'Send an invitation to a new user. Creates a PENDING user record that becomes ACTIVE when the invited person signs up.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Invitation sent successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request data',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'User already exists in company',
+  })
+  async invite(@Request() req: AuthenticatedRequest, @Body() body: InviteUserDto) {
+    const companyId = req.user?.companyId;
+    const inviterId = req.user?.id;
+
+    if (!companyId || !inviterId) {
+      throw new UnauthorizedException('User context not found');
+    }
+
+    this.logger.log(`User ${inviterId} inviting ${body.email} to company ${companyId}`);
+
+    return this.usersService.inviteUser(companyId, body.email, body.role, inviterId);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Remove a user from the company',
+    description: 'Soft-delete active users or hard-delete pending invitations',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User removed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot remove the last admin',
+  })
+  async remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    const companyId = req.user?.companyId;
+
+    if (!companyId) {
+      throw new UnauthorizedException('User context not found');
+    }
+
+    this.logger.log(`Removing user ${id} from company ${companyId}`);
+
+    return this.usersService.removeUser(id, companyId);
+  }
+
+  @Patch(':id/role')
+  @ApiOperation({
+    summary: "Update a user's role",
+    description: 'Change the role (permission level) of a user in the company',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User role updated successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid role or no change',
+  })
+  async updateRole(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: UpdateUserRoleDto,
+  ) {
+    const companyId = req.user?.companyId;
+
+    if (!companyId) {
+      throw new UnauthorizedException('User context not found');
+    }
+
+    this.logger.log(`Updating role for user ${id} to ${body.role}`);
+
+    const updated = await this.usersService.updateUserRole(id, companyId, body.role);
+
+    return {
+      id: updated.id,
+      email: updated.email,
+      role: updated.role,
+      updatedAt: updated.updatedAt,
     };
   }
 }

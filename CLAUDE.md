@@ -263,12 +263,33 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - ~90 audit logs + ~90 notifications
   - Idempotente (upsert), dados realistas brasileiros
 
+### Sessao 15 (20/03/2026) — Team Invites, Company Settings:
+
+- **Team invites backend** (3 novos endpoints):
+  - `POST /users/invite` — cria User com status PENDING + temporary clerkId
+  - `DELETE /users/:id` — remove user (soft ACTIVE, hard PENDING) com proteção last-admin
+  - `PATCH /users/:id/role` — atualiza role com audit trail
+  - `InviteUserDto` e `UpdateUserRoleDto` com validação class-validator
+  - Webhook handler `createFromWebhook()` atualizado: transição PENDING→ACTIVE por email match
+- **Team invites frontend**:
+  - `usersService.invite()` e `usersService.updateRole()` no api.ts
+  - `handleInvite()` com useMutation no team page — formulário modal funcional
+- **Company settings page** (perfil + integrações):
+  - `PUT /companies/current` — novo endpoint no controller (OWNER/ADMIN)
+  - `UpdateCompanyDto` expandido: website, industry, logoUrl, timezone, metadata
+  - `companies.service.update()` — aceita todos os novos campos dinamicamente
+  - `company-tab.tsx` reescrito: form state controlado (useState), dirty tracking, real API save
+  - Seção de integrações: cards Twilio, WhatsApp, Stripe, OpenAI, Deepgram, Sentry (status connected)
+  - Timezone selector com fusos brasileiros + globais
+  - i18n: 12 novas chaves (timezone, plan, integrations, connected/disconnected, 6 descrições)
+  - Settings page: toast success/error, tipo `Record<string, unknown>` (elimina `any`)
+
 ### Pendente / Proximos passos:
 
 - Sentry alerting rules — configurar no painel Sentry seguindo `SENTRY_ALERTING_GUIDE.md`
-- Team invites backend (POST /users/invite, email sending)
-- Company settings page (editar perfil, logo, integrações)
 - Migração para pnpm workspaces (monorepo unificado)
+- Team invites email sending (integração com serviço de email)
+- Logo upload (S3/Cloudflare R2 + presigned URLs)
 
 ---
 

@@ -93,6 +93,24 @@ export class CompaniesController {
     return { success: true, data: stats };
   }
 
+  @Put('current')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Update current company',
+    description: 'Updates current user company profile and settings (OWNER/ADMIN only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company updated successfully',
+  })
+  async updateCurrent(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() updateCompanyDto: UpdateCompanyDto,
+  ) {
+    const company = await this.companiesService.update(user.companyId, updateCompanyDto);
+    return { success: true, data: company };
+  }
+
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({

@@ -133,6 +133,21 @@ export default function TeamPage() {
     queryFn: () => companiesService.getUsage(),
   });
 
+  const inviteUserMutation = useMutation({
+    mutationFn: (data: { email: string; role: string }) =>
+      usersService.invite(data.email, data.role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Convite enviado com sucesso!');
+      setInviteEmail('');
+      setInviteRole('VENDOR');
+      setShowInviteModal(false);
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao enviar convite', { description: error.message });
+    },
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: (userId: string) => usersService.delete(userId),
     onSuccess: () => {
@@ -182,10 +197,7 @@ export default function TeamPage() {
 
   const handleInvite = () => {
     if (!inviteEmail.trim()) return;
-    toast.success('Convite enviado!', { description: `Email enviado para ${inviteEmail}` });
-    setInviteEmail('');
-    setInviteRole('VENDOR');
-    setShowInviteModal(false);
+    inviteUserMutation.mutate({ email: inviteEmail, role: inviteRole });
   };
 
   return (
@@ -373,8 +385,16 @@ export default function TeamPage() {
                 <Button variant="outline" className="flex-1" onClick={() => setShowInviteModal(false)}>
                   Cancelar
                 </Button>
-                <Button className="flex-1 gap-2" onClick={handleInvite} disabled={!inviteEmail.trim()}>
-                  <Mail className="h-4 w-4" />
+                <Button
+                  className="flex-1 gap-2"
+                  onClick={handleInvite}
+                  disabled={!inviteEmail.trim() || inviteUserMutation.isPending}
+                >
+                  {inviteUserMutation.isPending ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  ) : (
+                    <Mail className="h-4 w-4" />
+                  )}
                   Enviar Convite
                 </Button>
               </div>

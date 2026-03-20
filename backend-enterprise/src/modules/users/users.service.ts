@@ -1,8 +1,8 @@
 // src/modules/users/users.service.ts
 
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
-import { User, Company, UserRole, Plan, UserStatus, Prisma } from '@prisma/client';
+import { User, Company, UserRole, Plan, UserStatus, Prisma, AuditAction } from '@prisma/client';
 import {
   ClerkJwtPayload,
   ClerkUserData,
@@ -227,6 +227,34 @@ export class UsersService {
       return existing;
     }
 
+    // Check if there's a PENDING user with this email to match
+    const email = clerkData.email_addresses?.[0]?.email_address;
+    if (email) {
+      const pendingUser = await this.prisma.user.findFirst({
+        where: {
+          email,
+          status: 'PENDING',
+        },
+        include: { company: true },
+      });
+
+      if (pendingUser) {
+        this.logger.log(`Found pending user, updating with Clerk data: ${pendingUser.id}`);
+        return this.prisma.user.update({
+          where: { id: pendingUser.id },
+          data: {
+            clerkId: clerkData.id,
+            name: this.buildFullName(clerkData.first_name, clerkData.last_name) || pendingUser.name,
+            avatarUrl: clerkData.image_url,
+            phone: clerkData.phone_numbers?.[0]?.phone_number,
+            status: 'ACTIVE',
+            isActive: true,
+          },
+          include: { company: true },
+        });
+      }
+    }
+
     const userData: CreateUserFromClerkDto = {
       clerkId: clerkData.id,
       email: clerkData.email_addresses?.[0]?.email_address ?? '',
@@ -279,6 +307,205 @@ export class UsersService {
     });
 
     this.logger.log(`User soft deleted: ${user.id}`);
+  }
+
+  // ============================================
+  // TEAM MANAGEMENT - INVITE / REMOVE / ROLE UPDATE
+  // ============================================
+
+  async inviteUser(
+    companyId: string,
+    email: string,
+    role: UserRole,
+    inviterId: string,
+  ): Promise<{ success: boolean; message: string; userId: string }> {
+    this.logger.log(`Inviting user ${email} to company ${companyId}`);
+
+    // Validate email format
+    if (!email || !email.includes('@')) {
+      throw new BadRequestException('Invalid email format');
+    }
+
+    // Check if user already exists in this company
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        email,
+        companyId,
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User already exists in this company');
+    }
+
+    // Create PENDING user
+    const pendingClerkId = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        name: email.split('@')[0],
+        role,
+        companyId,
+        clerkId: pendingClerkId,
+        status: 'PENDING',
+        isActive: false,
+      },
+    });
+
+    // Log the invite action
+    await this.prisma.auditLog.create({
+      data: {
+        companyId,
+        userId: inviterId,
+        action: 'INVITE' as AuditAction,
+        resource: 'USER',
+        resourceId: user.id,
+        description: `Invited user ${email} with role ${role}`,
+        newValues: {
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        },
+      },
+    });
+
+    this.logger.log(`User invitation created: ${user.id} (${user.email})`);
+
+    return {
+      success: true,
+      message: 'Invitation created successfully',
+      userId: user.id,
+    };
+  }
+
+  async removeUser(
+    userId: string,
+    companyId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    this.logger.log(`Removing user ${userId} from company ${companyId}`);
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        companyId,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Don't allow removing the last ADMIN
+    const adminCount = await this.prisma.user.count({
+      where: {
+        companyId,
+        role: 'ADMIN',
+        isActive: true,
+      },
+    });
+
+    if (user.role === 'ADMIN' && adminCount === 1) {
+      throw new BadRequestException('Cannot remove the last admin from the company');
+    }
+
+    // Soft delete or hard delete based on status
+    if (user.status === 'PENDING') {
+      // Hard delete pending users
+      await this.prisma.user.delete({
+        where: { id: userId },
+      });
+    } else {
+      // Soft delete active users
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          isActive: false,
+          status: 'INACTIVE',
+          deletedAt: new Date(),
+        },
+      });
+    }
+
+    // Log the removal
+    await this.prisma.auditLog.create({
+      data: {
+        companyId,
+        userId: userId,
+        action: 'DELETE' as AuditAction,
+        resource: 'USER',
+        resourceId: userId,
+        description: `User ${user.email} was removed`,
+        oldValues: {
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        },
+      },
+    });
+
+    this.logger.log(`User removed: ${userId}`);
+
+    return {
+      success: true,
+      message: 'User removed successfully',
+    };
+  }
+
+  async updateUserRole(
+    userId: string,
+    companyId: string,
+    newRole: UserRole,
+  ): Promise<User> {
+    this.logger.log(`Updating role for user ${userId} to ${newRole}`);
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        companyId,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === newRole) {
+      throw new BadRequestException('New role is the same as current role');
+    }
+
+    // Store old role for audit log
+    const oldRole = user.role;
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        role: newRole,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Log the role change
+    await this.prisma.auditLog.create({
+      data: {
+        companyId,
+        userId: userId,
+        action: 'UPDATE' as AuditAction,
+        resource: 'USER',
+        resourceId: userId,
+        description: `User role changed from ${oldRole} to ${newRole}`,
+        oldValues: {
+          role: oldRole,
+        },
+        newValues: {
+          role: newRole,
+        },
+      },
+    });
+
+    this.logger.log(`User role updated: ${userId} from ${oldRole} to ${newRole}`);
+
+    return updated;
   }
 
   // ============================================

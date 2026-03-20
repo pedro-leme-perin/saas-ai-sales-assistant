@@ -76,23 +76,23 @@ export class CompaniesService {
     // Check if company exists
     await this.findOne(id);
 
+    const allowedFields: (keyof UpdateCompanyDto)[] = [
+      'name',
+      'slug',
+      'plan',
+      'stripeCustomerId',
+      'website',
+      'industry',
+      'logoUrl',
+      'timezone',
+      'metadata',
+    ];
+
     const data: Prisma.CompanyUpdateInput = {};
-
-    // Only include fields that are provided
-    if (updateCompanyDto.name !== undefined) {
-      data.name = updateCompanyDto.name;
-    }
-
-    if (updateCompanyDto.slug !== undefined) {
-      data.slug = updateCompanyDto.slug;
-    }
-
-    if (updateCompanyDto.plan !== undefined) {
-      data.plan = updateCompanyDto.plan;
-    }
-
-    if (updateCompanyDto.stripeCustomerId !== undefined) {
-      data.stripeCustomerId = updateCompanyDto.stripeCustomerId;
+    for (const field of allowedFields) {
+      if (updateCompanyDto[field] !== undefined) {
+        (data as Record<string, unknown>)[field] = updateCompanyDto[field];
+      }
     }
 
     return this.prisma.company.update({
