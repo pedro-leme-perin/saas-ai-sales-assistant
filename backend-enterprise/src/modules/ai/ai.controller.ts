@@ -17,7 +17,7 @@ export class AiController {
     @Body()
     body: {
       transcript: string;
-      context?: Record<string, any>;
+      context?: Record<string, unknown>;
       provider?: AIProviderType;
     },
   ) {
@@ -26,7 +26,7 @@ export class AiController {
 
   @Post('suggestion/balanced')
   async generateSuggestionBalanced(
-    @Body() body: { transcript: string; context?: Record<string, any> },
+    @Body() body: { transcript: string; context?: Record<string, unknown> },
   ) {
     return this.aiService.generateSuggestionBalanced(body.transcript, body.context);
   }
@@ -36,7 +36,7 @@ export class AiController {
     @Body()
     body: {
       transcript: string;
-      context?: Record<string, any>;
+      context?: Record<string, unknown>;
       provider?: AIProviderType;
     },
   ) {

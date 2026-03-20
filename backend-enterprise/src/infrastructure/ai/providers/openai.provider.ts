@@ -13,7 +13,7 @@ export class OpenAIProvider extends AIProvider {
 
   async generateSuggestion(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AISuggestion> {
     const startTime = Date.now();
 
@@ -43,14 +43,14 @@ export class OpenAIProvider extends AIProvider {
         latencyMs,
         tokensUsed: response.usage?.total_tokens,
       };
-    } catch (error: any) {
-      throw new Error(`OpenAI error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`OpenAI error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AIAnalysis> {
     try {
       const response = await this.client.chat.completions.create({
@@ -76,8 +76,8 @@ export class OpenAIProvider extends AIProvider {
         confidence: 0.85,
         provider: this.providerName,
       };
-    } catch (error: any) {
-      throw new Error(`OpenAI analysis error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`OpenAI analysis error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -85,13 +85,13 @@ export class OpenAIProvider extends AIProvider {
     try {
       await this.client.models.list();
       return true;
-    } catch (error: any) {
-      console.error('OPENAI HEALTH ERROR:', error.message);
+    } catch (error: unknown) {
+      console.error('OPENAI HEALTH ERROR:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
 
-  private buildSuggestionPrompt(transcript: string, context?: Record<string, any>): string {
+  private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {
     let prompt = `Customer said: "${transcript}"\n\n`;
 
     if (context?.sentiment) {

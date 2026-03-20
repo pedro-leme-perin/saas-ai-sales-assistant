@@ -13,7 +13,7 @@ export class ClaudeProvider extends AIProvider {
 
   async generateSuggestion(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AISuggestion> {
     const startTime = Date.now();
 
@@ -39,14 +39,14 @@ export class ClaudeProvider extends AIProvider {
         latencyMs,
         tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
       };
-    } catch (error: any) {
-      throw new Error(`Claude error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Claude error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AIAnalysis> {
     try {
       const response = await this.client.messages.create({
@@ -71,8 +71,8 @@ export class ClaudeProvider extends AIProvider {
         confidence: 0.88,
         provider: this.providerName,
       };
-    } catch (error: any) {
-      throw new Error(`Claude analysis error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Claude analysis error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -89,7 +89,7 @@ export class ClaudeProvider extends AIProvider {
     }
   }
 
-  private buildSuggestionPrompt(transcript: string, context?: Record<string, any>): string {
+  private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {
     let prompt = `Customer said: "${transcript}"\n\n`;
 
     if (context?.sentiment) {

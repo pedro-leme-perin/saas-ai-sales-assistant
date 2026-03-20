@@ -41,7 +41,7 @@ export abstract class AIProvider {
    */
   abstract generateSuggestion(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AISuggestion>;
 
   /**
@@ -49,7 +49,7 @@ export abstract class AIProvider {
    */
   abstract analyzeConversation(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AIAnalysis>;
 
   /**

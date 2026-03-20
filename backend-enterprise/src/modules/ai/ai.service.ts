@@ -26,7 +26,7 @@ export class AiService {
    */
   async generateSuggestion(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     provider?: AIProviderType,
   ) {
     try {
@@ -42,7 +42,7 @@ export class AiService {
    */
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     provider?: AIProviderType,
   ) {
     try {
@@ -56,7 +56,7 @@ export class AiService {
   /**
    * Gerar sugestão com load balancing (round-robin entre providers)
    */
-  async generateSuggestionBalanced(transcript: string, context?: Record<string, any>) {
+  async generateSuggestionBalanced(transcript: string, context?: Record<string, unknown>) {
     try {
       return await this.aiManager.generateSuggestionBalanced(transcript, context);
     } catch (error) {

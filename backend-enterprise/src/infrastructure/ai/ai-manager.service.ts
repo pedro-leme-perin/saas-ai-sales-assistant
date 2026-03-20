@@ -78,7 +78,7 @@ export class AIManagerService {
    */
   async generateSuggestion(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     preferredProvider?: AIProviderType,
   ): Promise<AISuggestion> {
     // Tentar provider preferido primeiro (com circuit breaker)
@@ -90,8 +90,8 @@ export class AIManagerService {
               this.providers.get(preferredProvider)!.generateSuggestion(transcript, context),
             )
           : this.providers.get(preferredProvider)!.generateSuggestion(transcript, context));
-      } catch (error: any) {
-        this.logger.error(`${preferredProvider} failed, trying fallback: ${error.message}`);
+      } catch (error: unknown) {
+        this.logger.error(`${preferredProvider} failed, trying fallback: ${error instanceof Error ? error.message : error}`);
       }
     }
 
@@ -106,8 +106,8 @@ export class AIManagerService {
         return await (breaker
           ? breaker.execute(() => provider.generateSuggestion(transcript, context))
           : provider.generateSuggestion(transcript, context));
-      } catch (error: any) {
-        this.logger.error(`${providerType} failed: ${error.message}`);
+      } catch (error: unknown) {
+        this.logger.error(`${providerType} failed: ${error instanceof Error ? error.message : error}`);
         continue;
       }
     }
@@ -121,7 +121,7 @@ export class AIManagerService {
    */
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     preferredProvider?: AIProviderType,
   ): Promise<AIAnalysis> {
     if (preferredProvider && this.providers.has(preferredProvider)) {
@@ -132,8 +132,8 @@ export class AIManagerService {
               this.providers.get(preferredProvider)!.analyzeConversation(transcript, context),
             )
           : this.providers.get(preferredProvider)!.analyzeConversation(transcript, context));
-      } catch (error: any) {
-        this.logger.error(`${preferredProvider} analysis failed: ${error.message}`);
+      } catch (error: unknown) {
+        this.logger.error(`${preferredProvider} analysis failed: ${error instanceof Error ? error.message : error}`);
       }
     }
 
@@ -147,8 +147,8 @@ export class AIManagerService {
         return await (breaker
           ? breaker.execute(() => provider.analyzeConversation(transcript, context))
           : provider.analyzeConversation(transcript, context));
-      } catch (error: any) {
-        this.logger.error(`${providerType} analysis failed: ${error.message}`);
+      } catch (error: unknown) {
+        this.logger.error(`${providerType} analysis failed: ${error instanceof Error ? error.message : error}`);
         continue;
       }
     }
@@ -161,7 +161,7 @@ export class AIManagerService {
    */
   async generateSuggestionBalanced(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AISuggestion> {
     const availableProviders = Array.from(this.providers.keys());
 
@@ -175,7 +175,7 @@ export class AIManagerService {
 
     try {
       return await this.providers.get(provider)!.generateSuggestion(transcript, context);
-    } catch (error: any) {
+    } catch (_error: unknown) {
       this.logger.error(`Load balanced provider ${provider} failed`);
       return this.generateSuggestion(transcript, context);
     }
@@ -206,8 +206,8 @@ export class AIManagerService {
   }
 
   /** Circuit breaker status for all providers (Release It! - expose state to ops) */
-  getCircuitBreakerStatus(): Record<string, any> {
-    const status: Record<string, any> = {};
+  getCircuitBreakerStatus(): Record<string, unknown> {
+    const status: Record<string, unknown> = {};
     for (const [name, breaker] of this.breakers) {
       status[name] = breaker.getHealthInfo();
     }

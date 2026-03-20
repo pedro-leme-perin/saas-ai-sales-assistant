@@ -11,7 +11,7 @@ export class GeminiProvider extends AIProvider {
 
   async generateSuggestion(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AISuggestion> {
     const startTime = Date.now();
 
@@ -52,14 +52,14 @@ export class GeminiProvider extends AIProvider {
         latencyMs,
         tokensUsed: result.response.usageMetadata?.totalTokenCount,
       };
-    } catch (error: any) {
-      throw new Error(`Gemini error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Gemini error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AIAnalysis> {
     try {
       const model = this.client.getGenerativeModel({
@@ -92,8 +92,8 @@ export class GeminiProvider extends AIProvider {
         confidence: 0.83,
         provider: this.providerName,
       };
-    } catch (error: any) {
-      throw new Error(`Gemini analysis error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Gemini analysis error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -104,13 +104,13 @@ export class GeminiProvider extends AIProvider {
       });
       await model.generateContent('test');
       return true;
-    } catch (error: any) {
-      console.error('GEMINI HEALTH ERROR:', error.message);
+    } catch (error: unknown) {
+      console.error('GEMINI HEALTH ERROR:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
 
-  private buildSuggestionPrompt(transcript: string, context?: Record<string, any>): string {
+  private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {
     let prompt = `Customer said: "${transcript}"\n\n`;
 
     if (context?.sentiment) {

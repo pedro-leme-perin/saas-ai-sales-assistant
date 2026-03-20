@@ -37,7 +37,7 @@ export interface CircuitBreakerOptions {
   /** Timeout for each call in ms (Release It! - Timeouts pattern) */
   callTimeoutMs?: number;
   /** Fallback function when circuit is open */
-  fallback?: () => Promise<any>;
+  fallback?: () => Promise<unknown>;
 }
 
 export class CircuitBreaker {
@@ -50,7 +50,7 @@ export class CircuitBreaker {
   private readonly resetTimeoutMs: number;
   private readonly failureWindowMs: number;
   private readonly callTimeoutMs: number;
-  private readonly fallback?: () => Promise<any>;
+  private readonly fallback?: () => Promise<unknown>;
 
   constructor(private readonly options: CircuitBreakerOptions) {
     this.logger = new Logger(`CircuitBreaker:${options.name}`);

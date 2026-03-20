@@ -15,7 +15,7 @@ export class PerplexityProvider extends AIProvider {
 
   async generateSuggestion(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AISuggestion> {
     const startTime = Date.now();
 
@@ -45,14 +45,14 @@ export class PerplexityProvider extends AIProvider {
         latencyMs,
         tokensUsed: response.usage?.total_tokens,
       };
-    } catch (error: any) {
-      throw new Error(`Perplexity error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Perplexity error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): Promise<AIAnalysis> {
     try {
       const response = await this.client.chat.completions.create({
@@ -77,8 +77,8 @@ export class PerplexityProvider extends AIProvider {
         confidence: 0.8,
         provider: this.providerName,
       };
-    } catch (error: any) {
-      throw new Error(`Perplexity analysis error: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Perplexity analysis error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -95,7 +95,7 @@ export class PerplexityProvider extends AIProvider {
     }
   }
 
-  private buildSuggestionPrompt(transcript: string, context?: Record<string, any>): string {
+  private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {
     let prompt = `Customer said: "${transcript}"\n\n`;
 
     if (context?.sentiment) {

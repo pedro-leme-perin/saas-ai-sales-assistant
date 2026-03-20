@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -17,6 +17,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
+import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import configuration from './config/configuration';
 
 @Module({
@@ -50,4 +51,9 @@ import configuration from './config/configuration';
     { provide: APP_GUARD, useClass: CompanyThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Inject company.plan into request for rate limiting
+    consumer.apply(CompanyPlanMiddleware).forRoutes('*');
+  }
+}
