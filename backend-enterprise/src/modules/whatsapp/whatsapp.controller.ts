@@ -9,14 +9,15 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { WhatsappService, TwilioWebhookPayload, TwilioStatusPayload } from './whatsapp.service';
 import { AiService } from '../ai/ai.service';
 
-@ApiTags('WhatsApp')
+@ApiTags('whatsapp')
+@ApiBearerAuth('JWT')
 @Controller('whatsapp')
 export class WhatsappController {
   constructor(
@@ -28,7 +29,7 @@ export class WhatsappController {
   @SkipThrottle() // Twilio webhooks are server-to-server
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Receive incoming WhatsApp messages from Twilio' })
+  @ApiExcludeEndpoint()
   async receiveTwilioWebhook(@Body() payload: TwilioWebhookPayload, @Res() res: Response) {
     this.whatsappService
       .processWebhook(payload)
@@ -41,7 +42,7 @@ export class WhatsappController {
   @SkipThrottle() // Twilio status callbacks are server-to-server
   @Post('webhook/status')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Receive WhatsApp message status updates from Twilio' })
+  @ApiExcludeEndpoint()
   async receiveTwilioStatus(@Body() payload: TwilioStatusPayload, @Res() res: Response) {
     this.whatsappService
       .processStatusCallback(payload)
@@ -52,31 +53,59 @@ export class WhatsappController {
 
   @Public()
   @Get('webhook')
-  @ApiOperation({ summary: 'Webhook verification' })
+  @ApiExcludeEndpoint()
   async verifyWebhook(@Res() res: Response) {
     res.status(200).send('OK');
   }
 
   @Get('chats/:companyId')
-  @ApiOperation({ summary: 'List all WhatsApp chats' })
+  @ApiOperation({
+    summary: 'List all WhatsApp chats',
+    description: 'Returns paginated list of all customer chats with message counts',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Chats retrieved successfully',
+  })
   async findAllChats(@Param('companyId') companyId: string) {
     return this.whatsappService.findAllChats(companyId);
   }
 
   @Get('chats/:companyId/:id')
-  @ApiOperation({ summary: 'Get chat details' })
+  @ApiOperation({
+    summary: 'Get chat details',
+    description: 'Retrieve metadata and stats for a specific WhatsApp chat',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Chat details retrieved successfully',
+  })
   async findChat(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.whatsappService.findChat(id, companyId);
   }
 
   @Get('chats/:companyId/:chatId/messages')
-  @ApiOperation({ summary: 'Get chat messages' })
+  @ApiOperation({
+    summary: 'Get chat message history',
+    description: 'Returns all messages in chat ordered by timestamp',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Messages retrieved successfully',
+  })
   async getMessages(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     return this.whatsappService.getMessages(chatId, companyId);
   }
 
   @Post('chats/:companyId/:chatId/messages')
-  @ApiOperation({ summary: 'Send message to customer via WhatsApp (Twilio)' })
+  @ApiOperation({
+    summary: 'Send WhatsApp message to customer',
+    description: 'Sends message via Twilio WhatsApp Business API. Tracks if AI suggestion was used.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Message sent successfully',
+  })
   async sendMessage(
     @Param('companyId') companyId: string,
     @Param('chatId') chatId: string,
@@ -92,7 +121,14 @@ export class WhatsappController {
   }
 
   @Get('chats/:companyId/:chatId/suggestion')
-  @ApiOperation({ summary: 'Get AI suggestion for current chat context' })
+  @ApiOperation({
+    summary: 'Get AI suggestion for chat',
+    description: 'Generates contextual AI response suggestion based on last customer message',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Suggestion generated successfully',
+  })
   async getSuggestion(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     const messages = await this.whatsappService.getMessages(chatId, companyId);
     const lastCustomerMessage = messages
@@ -130,7 +166,14 @@ export class WhatsappController {
   }
 
   @Patch('chats/:companyId/:chatId/read')
-  @ApiOperation({ summary: 'Mark chat messages as read' })
+  @ApiOperation({
+    summary: 'Mark chat as read',
+    description: 'Marks all unread messages in chat as read',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Chat marked as read successfully',
+  })
   async markAsRead(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     return this.whatsappService.markAsRead(chatId, companyId);
   }

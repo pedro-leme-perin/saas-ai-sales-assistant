@@ -120,37 +120,60 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('SaaS AI Sales Assistant API')
-    .setDescription('API para assistente de vendas com IA - Ligacoes e WhatsApp')
-    .setVersion('1.0')
-    .addTag('auth', 'Autenticacao e autorizacao')
-    .addTag('users', 'Gerenciamento de usuarios')
-    .addTag('companies', 'Gerenciamento de empresas')
-    .addTag('calls', 'Gerenciamento de ligacoes')
-    .addTag('whatsapp', 'Gerenciamento de WhatsApp')
-    .addTag('ai', 'Sugestoes de IA')
-    .addTag('billing', 'Faturamento e assinaturas')
-    .addTag('notifications', 'Notificacoes')
-    .addTag('analytics', 'Analytics e metricas')
+    .setDescription(
+      'Enterprise-grade SaaS API for AI-powered sales assistance via phone calls and WhatsApp Business. ' +
+        'Integrate with Twilio for real-time call transcription and WhatsApp for messaging suggestions. ' +
+        'All endpoints require JWT authentication from Clerk.',
+    )
+    .setVersion('1.0.0')
+    .setContact('Sales AI Team', 'https://github.com', 'support@example.com')
+    .setLicense('UNLICENSED', '')
+    // ── Authentication ──
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'Token JWT do Clerk',
+        description:
+          'JWT token from Clerk. Include in Authorization header: "Authorization: Bearer <token>"',
       },
       'JWT',
     )
-    .addServer('http://localhost:3001', 'Desenvolvimento Local')
+    // ── API Tags (organize endpoints by feature) ──
+    .addTag('auth', 'Authentication & session management (Clerk integration)')
+    .addTag('users', 'User management (CRUD, profiles, roles)')
+    .addTag('companies', 'Company/tenant management (usage, stats, configuration)')
+    .addTag('calls', 'Phone call management (Twilio integration, transcription, analysis)')
+    .addTag('whatsapp', 'WhatsApp Business messaging (send, receive, analytics)')
+    .addTag('ai', 'AI suggestion generation (LLM integration, multiple providers)')
+    .addTag('billing', 'Subscription & payment management (Stripe integration)')
+    .addTag('notifications', 'Real-time notifications (WebSocket/Socket.io)')
+    .addTag('analytics', 'Business metrics & dashboards (KPIs, sentiment, performance)')
+    .addTag('health', 'Health checks & monitoring (liveness, readiness, services)')
+    .addTag('webhooks', 'External service webhooks (Twilio, WhatsApp, Stripe, Clerk)')
+    // ── Servers ──
+    .addServer('http://localhost:3001', 'Local Development')
+    .addServer('https://api.saas-ai-sales-assistant.railway.app', 'Production')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document, {
-    customSiteTitle: 'SaaS AI Sales - API Docs',
+    customSiteTitle: 'SaaS AI Sales Assistant - API Documentation',
     swaggerOptions: {
       persistAuthorization: true,
       displayRequestDuration: true,
+      displayOperationId: true,
       filter: true,
+      showRequestHeaders: true,
+      tryItOutEnabled: true,
+      deepLinking: true,
+      presets: undefined,
+      plugins: undefined,
     },
+    customCss:
+      '.swagger-ui .topbar { display: none } ' +
+      '.swagger-ui .scheme-container { background: #fafafa; padding: 20px; border-radius: 4px; } ' +
+      '.swagger-ui .info { margin-bottom: 40px; }',
   });
 
   const port = configService.get('PORT', 3001);

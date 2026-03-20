@@ -217,13 +217,28 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - `src/components/service-worker-registrar.tsx` — toasts offline/online + update
   - i18n: strings de SW em pt-BR e en
 
+### Sessao 12 (20/03/2026) — E2E, Swagger, Load Testing:
+
+- **E2E tests**: 2 novos specs (billing.spec.ts ~8 tests, settings.spec.ts ~10 tests)
+  - Billing: plan cards, invoices, dark mode, skeleton loaders
+  - Settings: 5 tabs lazy-loaded, language selector, tab persistence
+- **Swagger/OpenAPI**: documentação completa da API
+  - `@nestjs/swagger` + `swagger-ui-express` — 64 endpoints documentados
+  - 11 tags: auth, calls, whatsapp, ai, analytics, billing, users, companies, notifications, health, webhooks
+  - `@ApiTags()`, `@ApiBearerAuth()`, `@ApiOperation()`, `@ApiResponse()` em 14 controllers
+  - Acessível em `/api/docs` (dev e produção)
+- **Load testing (k6)**: 3 scripts + helper + docs
+  - `k6/load-test.js` — 100 VU, 4min, valida SLOs (p95 < 500ms, errors < 0.1%)
+  - `k6/stress-test.js` — 1000 VU, 10min, testa circuit breakers
+  - `k6/ai-latency-test.js` — AI providers, valida p95 < 2000ms
+  - `k6/run-tests.sh` — script interativo de execução
+
 ### Pendente / Proximos passos:
 
 - Sentry alerting rules (5xx > 0.1%, latency p95 > 2s) — configurar no painel Sentry
-- Load testing (k6/artillery) — validar SLOs sob carga
-- E2E tests para novos componentes (billing sections, settings tabs)
 - Migração para pnpm workspaces (monorepo unificado)
-- Documentação API (Swagger/OpenAPI)
+- Execução real dos k6 tests em staging/produção
+- Cobertura E2E para WhatsApp e analytics pages
 
 ---
 

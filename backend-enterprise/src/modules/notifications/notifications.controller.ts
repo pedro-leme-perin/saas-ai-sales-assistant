@@ -40,8 +40,8 @@ interface AuthenticatedRequest {
 // CONTROLLER
 // =====================================================
 
-@ApiTags('Notifications')
-@ApiBearerAuth() // ✅ Requires authentication
+@ApiTags('notifications')
+@ApiBearerAuth('JWT') // ✅ Requires authentication
 // @UseGuards(AuthGuard, TenantGuard) // TODO: Implement after AuthModule
 @Controller('notifications')
 export class NotificationsController {

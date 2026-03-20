@@ -3,7 +3,7 @@
 // =============================================
 
 import { Controller, Post, Body, HttpCode, HttpStatus, Logger, Headers } from '@nestjs/common';
-import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ApiTags, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
 import { Public } from '@common/decorators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -20,7 +20,7 @@ interface TwilioVoiceBody {
   TranscriptionSid?: string;
 }
 
-@ApiTags('Webhooks')
+@ApiTags('webhooks')
 @Controller('webhooks/twilio')
 export class TwilioWebhookController {
   private readonly logger = new Logger(TwilioWebhookController.name);
@@ -31,6 +31,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
+  @ApiOperation({ summary: 'Twilio voice callback webhook (internal)' })
   async handleVoiceWebhook(
     @Body() body: TwilioVoiceBody,
     @Headers('x-twilio-signature') signature: string,
@@ -59,6 +60,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
+  @ApiOperation({ summary: 'Twilio call status webhook (internal)' })
   async handleStatusCallback(@Body() body: TwilioVoiceBody) {
     this.logger.log(`Call status update: ${body?.CallSid} - ${body?.CallStatus}`);
 
@@ -76,6 +78,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
+  @ApiOperation({ summary: 'Twilio transcription webhook (internal)' })
   async handleTranscription(@Body() body: TwilioVoiceBody) {
     this.logger.log(`Transcription received for: ${body?.CallSid}`);
 
@@ -93,6 +96,7 @@ export class TwilioWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
+  @ApiOperation({ summary: 'Twilio recording webhook (internal)' })
   async handleRecording(@Body() body: TwilioVoiceBody) {
     this.logger.log(`Recording ready: ${body?.RecordingSid}`);
 

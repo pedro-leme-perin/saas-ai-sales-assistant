@@ -12,12 +12,13 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '@/common/decorators/public.decorator';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
 import { Response } from 'express';
 import * as twilio from 'twilio';
 
-@ApiTags('Calls')
+@ApiTags('calls')
+@ApiBearerAuth('JWT')
 @Controller('calls')
 export class CallsController {
   private readonly logger = new Logger(CallsController.name);
@@ -25,22 +26,53 @@ export class CallsController {
   constructor(private readonly callsService: CallsService) {}
 
   @Get(':companyId')
+  @ApiOperation({
+    summary: 'List all calls for company',
+    description: 'Returns paginated list of calls with transcripts, duration, status',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Calls retrieved successfully',
+  })
   async findAll(@Param('companyId') companyId: string) {
     return this.callsService.findAll(companyId);
   }
 
   @Get(':companyId/stats')
-  @ApiOperation({ summary: 'Get call statistics' })
+  @ApiOperation({
+    summary: 'Get call statistics',
+    description: 'Returns aggregated call stats: count, avg duration, status breakdown',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Call statistics retrieved successfully',
+  })
   async getStats(@Param('companyId') companyId: string) {
     return this.callsService.getCallStats(companyId);
   }
 
   @Get(':companyId/:id')
+  @ApiOperation({
+    summary: 'Get call details',
+    description: 'Retrieve full details for specific call including transcript and metadata',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Call details retrieved successfully',
+  })
   async findOne(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.callsService.findOne(id, companyId);
   }
 
   @Post(':companyId')
+  @ApiOperation({
+    summary: 'Create a call record',
+    description: 'Creates a new call record for tracking',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Call created successfully',
+  })
   async create(
     @Param('companyId') companyId: string,
     @Body() data: { phoneNumber: string; direction?: string },
@@ -50,6 +82,14 @@ export class CallsController {
   }
 
   @Put(':companyId/:id')
+  @ApiOperation({
+    summary: 'Update call details',
+    description: 'Updates call transcript, status, duration, or other metadata',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Call updated successfully',
+  })
   async update(
     @Param('companyId') companyId: string,
     @Param('id') id: string,
@@ -66,7 +106,14 @@ export class CallsController {
   }
 
   @Post(':companyId/initiate')
-  @ApiOperation({ summary: 'Initiate outbound call via Twilio' })
+  @ApiOperation({
+    summary: 'Initiate outbound call',
+    description: 'Starts an outbound call to specified phone number via Twilio Media Streams',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Call initiated successfully',
+  })
   async initiateCall(
     @Param('companyId') companyId: string,
     @Body() data: { phoneNumber: string },
@@ -77,7 +124,14 @@ export class CallsController {
   }
 
   @Post(':companyId/:id/end')
-  @ApiOperation({ summary: 'End an active call' })
+  @ApiOperation({
+    summary: 'End active call',
+    description: 'Terminates an active call and saves final transcript',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Call ended successfully',
+  })
   async endCall(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.callsService.endCall(id, companyId);
   }
@@ -90,7 +144,7 @@ export class CallsController {
   @SkipThrottle() // Twilio webhooks are server-to-server
   @Post('webhook/voice/:callId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Twilio voice webhook with Media Streams for real-time' })
+  @ApiExcludeEndpoint()
   async handleVoiceWebhook(@Param('callId') callId: string, @Res() res: Response) {
     this.logger.log(`Voice webhook called for call: ${callId}`);
 
@@ -127,6 +181,7 @@ export class CallsController {
   @SkipThrottle()
   @Post('webhook/voice')
   @HttpCode(200)
+  @ApiExcludeEndpoint()
   async handleVoiceWebhookInbound(
     @Body() body: { CallSid: string; From: string; To: string },
     @Res() res: Response,
@@ -153,6 +208,7 @@ export class CallsController {
   @SkipThrottle()
   @Post('webhook/recording/:callId')
   @HttpCode(200)
+  @ApiExcludeEndpoint()
   async handleRecordingWebhook(
     @Param('callId') callId: string,
     @Body()
@@ -178,6 +234,7 @@ export class CallsController {
   @SkipThrottle()
   @Post('webhook/status/:callId')
   @HttpCode(200)
+  @ApiExcludeEndpoint()
   async handleStatusWebhook(
     @Param('callId') callId: string,
     @Body() body: { CallStatus: string; CallDuration?: string; CallSid?: string },
@@ -191,6 +248,7 @@ export class CallsController {
   @SkipThrottle()
   @Post('webhook/status')
   @HttpCode(200)
+  @ApiExcludeEndpoint()
   async handleStatusWebhookGlobal(
     @Body() body: { CallStatus: string; CallDuration?: string; CallSid: string },
   ) {
@@ -203,6 +261,7 @@ export class CallsController {
   @SkipThrottle()
   @Post('webhook/transcription/:callId')
   @HttpCode(200)
+  @ApiExcludeEndpoint()
   async handleTranscriptionWebhook(
     @Param('callId') callId: string,
     @Body() body: { TranscriptionText?: string },
@@ -214,7 +273,14 @@ export class CallsController {
   }
 
   @Post(':companyId/:id/analyze')
-  @ApiOperation({ summary: 'Analyze call transcript with AI' })
+  @ApiOperation({
+    summary: 'Analyze call transcript with AI',
+    description: 'Performs sentiment analysis and generates actionable insights from call transcript',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Analysis completed successfully',
+  })
   async analyzeCall(
     @Param('companyId') companyId: string,
     @Param('id') id: string,

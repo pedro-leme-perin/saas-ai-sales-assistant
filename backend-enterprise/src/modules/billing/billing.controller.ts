@@ -47,8 +47,8 @@ import { CreateCheckoutDto, ChangePlanDto } from './dto/billing.dto';
  * - Critical operations (checkout, cancel) require OWNER/ADMIN roles
  * - Tenant isolation via @CompanyId() decorator
  */
-@ApiTags('Billing')
-@ApiBearerAuth('JWT-auth')
+@ApiTags('billing')
+@ApiBearerAuth('JWT')
 @Controller('billing')
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}

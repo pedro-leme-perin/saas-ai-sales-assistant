@@ -3,7 +3,7 @@
 // =============================================
 
 import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus, Logger } from '@nestjs/common';
-import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ApiTags, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '@common/decorators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -41,7 +41,7 @@ interface WhatsAppMessage {
   location?: { latitude: number; longitude: number };
 }
 
-@ApiTags('Webhooks')
+@ApiTags('webhooks')
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {
   private readonly logger = new Logger(WhatsappWebhookController.name);
@@ -54,6 +54,7 @@ export class WhatsappWebhookController {
   @Get()
   @Public()
   @ApiExcludeEndpoint()
+  @ApiOperation({ summary: 'WhatsApp webhook verification (internal)' })
   verifyWebhook(
     @Query('hub.mode') mode: string,
     @Query('hub.verify_token') token: string,
@@ -74,6 +75,7 @@ export class WhatsappWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
+  @ApiOperation({ summary: 'WhatsApp message webhook (internal)' })
   async handleWebhook(@Body() body: WhatsAppWebhookBody) {
     this.logger.debug('WhatsApp webhook received:', JSON.stringify(body));
 

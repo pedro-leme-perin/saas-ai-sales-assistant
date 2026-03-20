@@ -13,7 +13,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../infrastructure/database/prisma.service';
 import { AIManagerService } from '../infrastructure/ai/ai-manager.service';
 
-@ApiTags('Health')
+@ApiTags('health')
 @SkipThrottle() // Health checks must never be rate-limited (load balancers poll frequently)
 @Controller('health')
 export class HealthController {

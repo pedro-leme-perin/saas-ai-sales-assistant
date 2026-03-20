@@ -20,7 +20,7 @@ interface CurrentUserPayload {
   role: string;
 }
 
-@ApiTags('Companies')
+@ApiTags('companies')
 @Controller('companies')
 @UseGuards(AuthGuard, TenantGuard, RolesGuard)
 @ApiBearerAuth('JWT')
@@ -28,14 +28,28 @@ export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
   @Get('current')
-  @ApiOperation({ summary: 'Get current user company' })
+  @ApiOperation({
+    summary: 'Get current user company',
+    description: 'Returns company profile for authenticated user tenant',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company profile retrieved successfully',
+  })
   async getCurrent(@CurrentUser() user: CurrentUserPayload) {
     const company = await this.companiesService.findOne(user.companyId);
     return { success: true, data: company };
   }
 
   @Get('current/usage')
-  @ApiOperation({ summary: 'Get current company usage' })
+  @ApiOperation({
+    summary: 'Get current company usage',
+    description: 'Returns usage metrics for users, calls, and chats against plan limits',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usage metrics retrieved successfully',
+  })
   async getCurrentUsage(@CurrentUser() user: CurrentUserPayload) {
     const company = await this.companiesService.findOne(user.companyId);
     const usage = {
@@ -66,7 +80,14 @@ export class CompaniesController {
   }
 
   @Get('current/stats')
-  @ApiOperation({ summary: 'Get current company stats' })
+  @ApiOperation({
+    summary: 'Get current company statistics',
+    description: 'Returns aggregated stats: active users, call volume, chat activity',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company statistics retrieved successfully',
+  })
   async getCurrentStats(@CurrentUser() user: CurrentUserPayload) {
     const stats = await this.companiesService.getStats(user.companyId);
     return { success: true, data: stats };
@@ -74,12 +95,28 @@ export class CompaniesController {
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Create company',
+    description: 'Creates new company (OWNER/ADMIN only)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Company created successfully',
+  })
   async create(@Body() createCompanyDto: CreateCompanyDto) {
     const company = await this.companiesService.create(createCompanyDto);
     return { success: true, data: company };
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get company by ID',
+    description: 'Retrieve company profile and configuration',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company retrieved successfully',
+  })
   async findOne(@Param('id') id: string) {
     const company = await this.companiesService.findOne(id);
     return { success: true, data: company };
@@ -87,12 +124,28 @@ export class CompaniesController {
 
   @Put(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Update company',
+    description: 'Updates company profile and settings (OWNER/ADMIN only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company updated successfully',
+  })
   async update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto) {
     const company = await this.companiesService.update(id, updateCompanyDto);
     return { success: true, data: company };
   }
 
   @Get(':id/stats')
+  @ApiOperation({
+    summary: 'Get company statistics by ID',
+    description: 'Returns detailed statistics for specific company',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company statistics retrieved successfully',
+  })
   async getStats(@Param('id') id: string) {
     const stats = await this.companiesService.getStats(id);
     return { success: true, data: stats };

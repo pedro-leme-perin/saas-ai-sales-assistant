@@ -12,6 +12,7 @@ import {
   RawBodyRequest,
   Req,
 } from '@nestjs/common';
+import { ApiTags, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { Webhook } from 'svix';
 import { UsersService } from '../../users/users.service';
@@ -22,6 +23,7 @@ import {
   ClerkWebhookEventType,
 } from '../interfaces/clerk.interfaces';
 
+@ApiTags('webhooks')
 @Controller('webhooks/clerk')
 export class ClerkWebhookController {
   private readonly logger = new Logger(ClerkWebhookController.name);
@@ -31,6 +33,8 @@ export class ClerkWebhookController {
   @Public()
   @Post()
   @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  @ApiOperation({ summary: 'Clerk user events webhook (internal)' })
   async handleWebhook(
     @Req() req: RawBodyRequest<Request>,
     @Headers('svix-id') svixId: string,
