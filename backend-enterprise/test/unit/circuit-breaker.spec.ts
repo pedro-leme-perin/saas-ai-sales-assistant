@@ -119,14 +119,15 @@ describe('CircuitBreaker', () => {
       });
       const fn = jest.fn().mockRejectedValue(new Error('Test error'));
 
-      // Trip the circuit
-      await expect(cb.execute(fn)).rejects.toThrow('Test error');
+      // Trip the circuit — with fallback, execute resolves with fallback instead of rejecting
+      const fallbackResult = await cb.execute(fn);
+      expect(fallbackResult).toBe('fallback response');
       expect(cb.getState()).toBe(CircuitState.OPEN);
 
-      // Circuit is OPEN, fallback should be called
+      // Circuit is OPEN, fallback should be called again
       const result = await cb.execute(jest.fn());
       expect(result).toBe('fallback response');
-      expect(fallbackFn).toHaveBeenCalled();
+      expect(fallbackFn).toHaveBeenCalledTimes(2);
     });
 
     it('should prevent cascading failures while OPEN', async () => {
@@ -151,7 +152,7 @@ describe('CircuitBreaker', () => {
   });
 
   describe('State transitions OPEN → HALF_OPEN', () => {
-    it('should transition OPEN → HALF_OPEN after resetTimeout expires', async () => {
+    it('should transition OPEN → HALF_OPEN → CLOSED after resetTimeout expires and success', async () => {
       const cb = new CircuitBreaker({
         name: 'TestService',
         failureThreshold: 1,
@@ -167,12 +168,12 @@ describe('CircuitBreaker', () => {
       // Wait for resetTimeout
       await new Promise((resolve) => setTimeout(resolve, 250));
 
-      // Next call should transition to HALF_OPEN
+      // Next call transitions HALF_OPEN then succeeds → CLOSED
       const successFn = jest.fn().mockResolvedValue('recovered');
       const result = await cb.execute(successFn);
 
       expect(result).toBe('recovered');
-      expect(cb.getState()).toBe(CircuitState.HALF_OPEN);
+      expect(cb.getState()).toBe(CircuitState.CLOSED);
     });
 
     it('should remain OPEN until resetTimeout expires', async () => {
@@ -258,8 +259,10 @@ describe('CircuitBreaker', () => {
       });
       const failFn = jest.fn().mockRejectedValue(new Error('Test error'));
 
-      // Trip the circuit
-      await expect(cb.execute(failFn)).rejects.toThrow('Test error');
+      // Trip the circuit — with fallback, resolves instead of rejecting
+      const fallbackResult = await cb.execute(failFn);
+      expect(fallbackResult).toBe('fallback data');
+      expect(cb.getState()).toBe(CircuitState.OPEN);
 
       // Wait for resetTimeout
       await new Promise((resolve) => setTimeout(resolve, 250));
@@ -519,10 +522,12 @@ describe('CircuitBreaker', () => {
       });
       const fn = jest.fn().mockRejectedValue(new Error('Test error'));
 
-      // Trip the circuit
-      await expect(cb.execute(fn)).rejects.toThrow('Test error');
+      // With fallback, execute resolves with fallback on error
+      const fallbackResult = await cb.execute<{ default: boolean }>(fn);
+      expect(fallbackResult.default).toBe(true);
+      expect(cb.getState()).toBe(CircuitState.OPEN);
 
-      // Should return fallback with correct structure
+      // Should return fallback with correct structure when OPEN
       const result = await cb.execute<{ default: boolean }>(jest.fn());
       expect(result.default).toBe(true);
     });

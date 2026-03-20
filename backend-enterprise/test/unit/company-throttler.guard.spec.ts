@@ -27,10 +27,8 @@ describe('CompanyThrottlerGuard', () => {
         email: 'test@test.com',
         companyId: overrides.user.companyId,
         ...overrides.user,
+        company: overrides.company || undefined,
       };
-    }
-    if (overrides.company) {
-      request.company = overrides.company;
     }
 
     const handler = {} as object;

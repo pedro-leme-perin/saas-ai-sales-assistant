@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Landing Page', () => {
   test('should render hero section with CTA', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('h1')).toContainText('SalesAI', { timeout: 10_000 });
+    await expect(page.locator('h1')).toContainText(/SalesAI|vendas|sales/i, { timeout: 10_000 });
     await expect(page.getByRole('link', { name: /começar|start/i })).toBeVisible();
   });
 

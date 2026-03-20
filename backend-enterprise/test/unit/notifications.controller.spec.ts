@@ -10,7 +10,7 @@ describe('NotificationsController', () => {
 
   const mockRequest = {
     user: {
-      userId: 'test-user-id',
+      id: 'test-user-id',
       companyId: 'test-company-id',
     },
   };
@@ -111,11 +111,7 @@ describe('NotificationsController', () => {
 
       const result = await controller.findAll(pagination, mockRequest as any);
 
-      expect(service.findAll).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
-        ...pagination,
-      });
+      expect(service.findAll).toHaveBeenCalledWith('test-user-id', 'test-company-id', pagination);
       expect(result).toEqual(mockNotifications);
     });
 
@@ -131,7 +127,7 @@ describe('NotificationsController', () => {
 
     it('should throw error if companyId is missing', async () => {
       const invalidRequest = {
-        user: { userId: 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
       const pagination = { skip: 0, take: 10 };
 
@@ -145,9 +141,7 @@ describe('NotificationsController', () => {
 
       await controller.findAll(pagination, mockRequest as any);
 
-      expect(service.findAll).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
+      expect(service.findAll).toHaveBeenCalledWith('test-user-id', 'test-company-id', {
         skip: 20,
         take: 5,
       });
@@ -160,10 +154,7 @@ describe('NotificationsController', () => {
 
       const result = await controller.getUnreadCount(mockRequest as any);
 
-      expect(service.getUnreadCount).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
-      });
+      expect(service.getUnreadCount).toHaveBeenCalledWith('test-user-id', 'test-company-id');
       expect(result).toBe(5);
     });
 
@@ -178,7 +169,7 @@ describe('NotificationsController', () => {
 
     it('should throw error if companyId is missing', async () => {
       const invalidRequest = {
-        user: { userId: 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       await expect(controller.getUnreadCount(invalidRequest as any)).rejects.toThrow();
@@ -194,11 +185,11 @@ describe('NotificationsController', () => {
 
       const result = await controller.markAsRead(notificationId, mockRequest as any);
 
-      expect(service.markAsRead).toHaveBeenCalledWith({
-        id: notificationId,
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
-      });
+      expect(service.markAsRead).toHaveBeenCalledWith(
+        notificationId,
+        'test-user-id',
+        'test-company-id',
+      );
       expect(result.read).toBe(true);
     });
 
@@ -213,7 +204,7 @@ describe('NotificationsController', () => {
 
     it('should throw error if companyId is missing', async () => {
       const invalidRequest = {
-        user: { userId: 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       await expect(controller.markAsRead('notif-1', invalidRequest as any)).rejects.toThrow();
@@ -223,14 +214,11 @@ describe('NotificationsController', () => {
 
   describe('markAllAsRead', () => {
     it('should mark all notifications as read', async () => {
-      (service.markAllAsRead as jest.Mock).mockResolvedValue({ count: 3 });
+      (service.markAllAsRead as jest.Mock).mockResolvedValue({ success: true });
 
       const result = await controller.markAllAsRead(mockRequest as any);
 
-      expect(service.markAllAsRead).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
-      });
+      expect(service.markAllAsRead).toHaveBeenCalledWith('test-user-id', 'test-company-id');
       expect(result.success).toBe(true);
     });
 
@@ -245,7 +233,7 @@ describe('NotificationsController', () => {
 
     it('should throw error if companyId is missing', async () => {
       const invalidRequest = {
-        user: { userId: 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       await expect(controller.markAllAsRead(invalidRequest as any)).rejects.toThrow();
@@ -260,11 +248,11 @@ describe('NotificationsController', () => {
 
       const result = await controller.delete(notificationId, mockRequest as any);
 
-      expect(service.delete).toHaveBeenCalledWith({
-        id: notificationId,
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
-      });
+      expect(service.delete).toHaveBeenCalledWith(
+        notificationId,
+        'test-user-id',
+        'test-company-id',
+      );
       expect(result.success).toBe(true);
     });
 
@@ -279,7 +267,7 @@ describe('NotificationsController', () => {
 
     it('should throw error if companyId is missing', async () => {
       const invalidRequest = {
-        user: { userId: 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       await expect(controller.delete('notif-1', invalidRequest as any)).rejects.toThrow();
@@ -289,14 +277,11 @@ describe('NotificationsController', () => {
 
   describe('deleteAllRead', () => {
     it('should delete all read notifications', async () => {
-      (service.deleteAllRead as jest.Mock).mockResolvedValue({ count: 5 });
+      (service.deleteAllRead as jest.Mock).mockResolvedValue({ deleted: 5 });
 
       const result = await controller.deleteAllRead(mockRequest as any);
 
-      expect(service.deleteAllRead).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
-      });
+      expect(service.deleteAllRead).toHaveBeenCalledWith('test-user-id', 'test-company-id');
       expect(result.deleted).toBe(5);
     });
 
@@ -311,7 +296,7 @@ describe('NotificationsController', () => {
 
     it('should throw error if companyId is missing', async () => {
       const invalidRequest = {
-        user: { userId: 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       await expect(controller.deleteAllRead(invalidRequest as any)).rejects.toThrow();
@@ -326,11 +311,11 @@ describe('NotificationsController', () => {
 
       const result = await controller.findById(notificationId, mockRequest as any);
 
-      expect(service.findById).toHaveBeenCalledWith({
-        id: notificationId,
-        userId: 'test-user-id',
-        companyId: 'test-company-id',
-      });
+      expect(service.findById).toHaveBeenCalledWith(
+        notificationId,
+        'test-user-id',
+        'test-company-id',
+      );
       expect(result).toEqual(mockNotification);
     });
 
@@ -345,7 +330,7 @@ describe('NotificationsController', () => {
 
     it('should throw error if companyId is missing', async () => {
       const invalidRequest = {
-        user: { userId: 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       await expect(controller.findById('notif-1', invalidRequest as any)).rejects.toThrow();
