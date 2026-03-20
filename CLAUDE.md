@@ -24,7 +24,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `22fb891` (20/03/2026) | CI green — all tests passing |
+| Último commit | `232c7f1` (20/03/2026) | CI green — all tests passing |
 | Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
 | Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
 | Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
@@ -233,12 +233,20 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - `k6/ai-latency-test.js` — AI providers, valida p95 < 2000ms
   - `k6/run-tests.sh` — script interativo de execução
 
+### Sessao 13 (20/03/2026) — E2E WhatsApp/Analytics, Sentry Alerting Guide:
+
+- **E2E tests**: 2 novos specs (whatsapp.spec.ts ~8 tests, analytics.spec.ts ~10 tests)
+  - WhatsApp: chat list, search, message area, AI suggestions, dark mode
+  - Analytics: KPI cards, charts, sentiment (dynamic), AI performance (dynamic), skeleton loaders
+- **Sentry alerting guide**: `SENTRY_ALERTING_GUIDE.md` com 6 regras recomendadas
+  - Error rate > 0.1%, 5xx spike, API p95 > 500ms, AI p95 > 2s, unhandled exceptions, LCP regression
+- Total E2E: 9 specs (~60 tests)
+
 ### Pendente / Proximos passos:
 
-- Sentry alerting rules (5xx > 0.1%, latency p95 > 2s) — configurar no painel Sentry
+- Sentry alerting rules — configurar no painel Sentry seguindo `SENTRY_ALERTING_GUIDE.md`
 - Migração para pnpm workspaces (monorepo unificado)
 - Execução real dos k6 tests em staging/produção
-- Cobertura E2E para WhatsApp e analytics pages
 
 ---
 
