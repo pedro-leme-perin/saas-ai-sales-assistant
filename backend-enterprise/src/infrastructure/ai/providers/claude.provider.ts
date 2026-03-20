@@ -72,7 +72,9 @@ export class ClaudeProvider extends AIProvider {
         provider: this.providerName,
       };
     } catch (error: unknown) {
-      throw new Error(`Claude analysis error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Claude analysis error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

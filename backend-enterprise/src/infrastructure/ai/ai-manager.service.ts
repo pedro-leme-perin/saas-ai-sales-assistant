@@ -91,7 +91,9 @@ export class AIManagerService {
             )
           : this.providers.get(preferredProvider)!.generateSuggestion(transcript, context));
       } catch (error: unknown) {
-        this.logger.error(`${preferredProvider} failed, trying fallback: ${error instanceof Error ? error.message : error}`);
+        this.logger.error(
+          `${preferredProvider} failed, trying fallback: ${error instanceof Error ? error.message : error}`,
+        );
       }
     }
 
@@ -107,7 +109,9 @@ export class AIManagerService {
           ? breaker.execute(() => provider.generateSuggestion(transcript, context))
           : provider.generateSuggestion(transcript, context));
       } catch (error: unknown) {
-        this.logger.error(`${providerType} failed: ${error instanceof Error ? error.message : error}`);
+        this.logger.error(
+          `${providerType} failed: ${error instanceof Error ? error.message : error}`,
+        );
         continue;
       }
     }
@@ -133,7 +137,9 @@ export class AIManagerService {
             )
           : this.providers.get(preferredProvider)!.analyzeConversation(transcript, context));
       } catch (error: unknown) {
-        this.logger.error(`${preferredProvider} analysis failed: ${error instanceof Error ? error.message : error}`);
+        this.logger.error(
+          `${preferredProvider} analysis failed: ${error instanceof Error ? error.message : error}`,
+        );
       }
     }
 
@@ -148,7 +154,9 @@ export class AIManagerService {
           ? breaker.execute(() => provider.analyzeConversation(transcript, context))
           : provider.analyzeConversation(transcript, context));
       } catch (error: unknown) {
-        this.logger.error(`${providerType} analysis failed: ${error instanceof Error ? error.message : error}`);
+        this.logger.error(
+          `${providerType} analysis failed: ${error instanceof Error ? error.message : error}`,
+        );
         continue;
       }
     }
@@ -175,7 +183,7 @@ export class AIManagerService {
 
     try {
       return await this.providers.get(provider)!.generateSuggestion(transcript, context);
-    } catch (_error: unknown) {
+    } catch {
       this.logger.error(`Load balanced provider ${provider} failed`);
       return this.generateSuggestion(transcript, context);
     }

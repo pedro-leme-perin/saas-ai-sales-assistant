@@ -93,7 +93,9 @@ export class GeminiProvider extends AIProvider {
         provider: this.providerName,
       };
     } catch (error: unknown) {
-      throw new Error(`Gemini analysis error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Gemini analysis error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

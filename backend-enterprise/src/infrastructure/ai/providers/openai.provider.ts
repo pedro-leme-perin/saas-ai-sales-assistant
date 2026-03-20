@@ -77,7 +77,9 @@ export class OpenAIProvider extends AIProvider {
         provider: this.providerName,
       };
     } catch (error: unknown) {
-      throw new Error(`OpenAI analysis error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `OpenAI analysis error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

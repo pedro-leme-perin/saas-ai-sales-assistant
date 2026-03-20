@@ -46,7 +46,9 @@ export class PerplexityProvider extends AIProvider {
         tokensUsed: response.usage?.total_tokens,
       };
     } catch (error: unknown) {
-      throw new Error(`Perplexity error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Perplexity error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -78,7 +80,9 @@ export class PerplexityProvider extends AIProvider {
         provider: this.providerName,
       };
     } catch (error: unknown) {
-      throw new Error(`Perplexity analysis error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Perplexity analysis error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
