@@ -240,7 +240,13 @@
   "notifications": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",
-    "noNotifications": "No notifications"
+    "noNotifications": "No notifications",
+    "sw_update_title": "Update available",
+    "sw_update_description": "The app has been updated. Refresh to get the latest version.",
+    "offline_title": "You are offline",
+    "offline_description": "Some features may be unavailable. Changes will sync when reconnected.",
+    "online_title": "Back online",
+    "online_description": "Syncing your data..."
   },
   "theme": {
     "light": "Switch to light mode",
@@ -353,5 +359,8 @@
     "connectionRestored": "Connection restored",
     "reconnectFailed": "Reconnection failed",
     "reloadPage": "Reload the page to try again."
+  },
+  "actions": {
+    "refresh": "Refresh"
   }
 }

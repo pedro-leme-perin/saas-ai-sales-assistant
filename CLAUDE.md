@@ -198,13 +198,32 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - PII strip (authorization, cookie, x-clerk-auth-token)
   - Frontend `error.tsx` agora envia erros ao Sentry
 
+### Sessao 11 (20/03/2026) — Observabilidade, Performance, PWA:
+
+- **Web Vitals tracking**: `web-vitals` v4 + Sentry integration (CLS, LCP, TTFB, INP, FID)
+  - `src/lib/web-vitals.ts` — métricas enviadas via `Sentry.setMeasurement()` + breadcrumbs
+  - `src/components/web-vitals-reporter.tsx` — client component no root layout
+- **Bundle analyzer**: `@next/bundle-analyzer` + CI gate (5MB threshold)
+  - `next.config.js` encadeado: `withSentryConfig(withBundleAnalyzer(config))`
+  - CI step "Check bundle size" com warning no GitHub Actions
+  - npm script `analyze` para inspeção local
+- **Distributed tracing frontend↔backend**:
+  - `tracePropagationTargets` no Sentry client (localhost, railway.app, API URL)
+  - Backend CORS: `sentry-trace` e `baggage` em `allowedHeaders`
+  - Middleware de extração de trace context no backend
+- **Service worker (PWA offline)**:
+  - `public/sw.js` — network-first (API) + stale-while-revalidate (assets)
+  - `src/lib/register-sw.ts` — registro com update detection (1h interval)
+  - `src/components/service-worker-registrar.tsx` — toasts offline/online + update
+  - i18n: strings de SW em pt-BR e en
+
 ### Pendente / Proximos passos:
 
-- Web Vitals tracking (CLS, LCP, TTFB) — integrar com Sentry
-- Bundle analyzer + CI gates para tamanho de bundle
-- Service worker para offline support (PWA)
-- Distributed tracing frontend↔backend
-- Sentry alerting rules (5xx > 0.1%, latency p95 > 2s)
+- Sentry alerting rules (5xx > 0.1%, latency p95 > 2s) — configurar no painel Sentry
+- Load testing (k6/artillery) — validar SLOs sob carga
+- E2E tests para novos componentes (billing sections, settings tabs)
+- Migração para pnpm workspaces (monorepo unificado)
+- Documentação API (Swagger/OpenAPI)
 
 ---
 

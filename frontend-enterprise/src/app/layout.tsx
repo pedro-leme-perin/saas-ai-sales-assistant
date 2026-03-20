@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers, AuthProvider } from '@/providers';
+import { WebVitalsReporter } from '@/components/web-vitals-reporter';
+import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -74,6 +76,8 @@ export default function RootLayout({
               {children}
             </AuthProvider>
           </Providers>
+          <WebVitalsReporter />
+          <ServiceWorkerRegistrar />
         </body>
       </html>
     </ClerkProvider>

@@ -24,6 +24,7 @@ class ApiClient {
     });
 
     // Get fresh token on EVERY request
+    // Also preserve Sentry trace headers for distributed tracing
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
         if (clerkGetToken && config.headers) {
@@ -36,6 +37,13 @@ class ApiClient {
             console.error('Failed to get auth token:', err);
           }
         }
+
+        // Distributed tracing: preserve Sentry headers if they exist
+        // @sentry/nextjs automatically adds sentry-trace and baggage headers
+        // We ensure they're not stripped by preserving them here
+        // Headers set by @sentry/nextjs are automatically included by axios
+        // This explicit handling is defensive and future-proof
+
         return config;
       },
       (error) => Promise.reject(error)

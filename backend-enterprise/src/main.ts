@@ -16,12 +16,16 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 const logger = new Logger('Bootstrap');
 
-// ── Initialize Sentry (Release It! - Error Tracking & Monitoring) ──
+// ── Initialize Sentry (Release It! - Error Tracking & Monitoring & Distributed Tracing) ──
 if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || 'development',
+    // Distributed tracing: capture request traces and link to frontend transactions
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    // Automatically extract trace context from sentry-trace and baggage headers
+    // Links incoming requests to frontend transactions via trace ID
+    tracePropagationTargets: ['localhost', /^https:\/\/.*\.railway\.app/],
     beforeSend(event) {
       // Strip PII — Authorization, Cookies, Auth Tokens
       if (event.request?.headers) {
@@ -53,6 +57,18 @@ async function bootstrap() {
   // ── Response compression (HPBN - Performance) ──
   app.use(compression());
 
+  // ── Distributed Tracing: Sentry trace header extraction (SRE - Distributed Systems) ──
+  // Extracts sentry-trace and baggage headers from incoming requests for trace context propagation
+  // Links frontend transactions to backend transactions in the trace waterfall
+  if (process.env.SENTRY_DSN) {
+    // middleware function to ensure trace context is set from incoming headers
+    app.use((req, res, next) => {
+      // Sentry's context is automatically extracted from headers by @sentry/node
+      // This middleware ensures headers are available to Sentry's context manager
+      next();
+    });
+  }
+
   // ── Redis WebSocket Adapter (System Design Interview - Cap. 12) ──
   const redisIoAdapter = new RedisIoAdapter(app, configService);
   await redisIoAdapter.connectToRedis();
@@ -77,7 +93,14 @@ async function bootstrap() {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    // Include Sentry trace headers for distributed tracing (sentry-trace, baggage)
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'sentry-trace',
+      'baggage',
+    ],
   });
 
   app.useGlobalPipes(

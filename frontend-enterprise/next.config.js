@@ -1,5 +1,9 @@
 // @ts-check
 
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -55,13 +59,13 @@ const nextConfig = {
   },
 };
 
-// Wrap with Sentry only if @sentry/nextjs is installed AND secrets are configured
-let config = nextConfig;
+// Wrap with bundle analyzer first, then Sentry
+let config = withBundleAnalyzer(nextConfig);
 const hasSentrySecrets = process.env.SENTRY_ORG && process.env.SENTRY_PROJECT;
 try {
   if (hasSentrySecrets) {
     const { withSentryConfig } = require('@sentry/nextjs');
-    config = withSentryConfig(nextConfig, {
+    config = withSentryConfig(config, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
       silent: !process.env.CI,

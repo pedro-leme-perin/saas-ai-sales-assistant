@@ -53,6 +53,22 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
+      - name: Check bundle size
+        run: |
+          TOTAL_SIZE=$(find .next -name "*.js" -type f -exec du -cb {} + 2>/dev/null | tail -1 | cut -f1)
+          if [ -z "$TOTAL_SIZE" ] || [ "$TOTAL_SIZE" = "0" ]; then
+            echo "Warning: Could not calculate bundle size"
+            exit 0
+          fi
+          MAX_SIZE=5242880  # 5MB
+          SIZE_MB=$(echo "scale=2; $TOTAL_SIZE/1048576" | bc)
+          echo "Total JS bundle size: ${SIZE_MB}MB"
+          if [ "$TOTAL_SIZE" -gt "$MAX_SIZE" ]; then
+            echo "::warning::Bundle size (${SIZE_MB}MB) exceeds 5MB threshold"
+          else
+            echo "::notice::Bundle size check passed (${SIZE_MB}MB < 5MB)"
+          fi
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 

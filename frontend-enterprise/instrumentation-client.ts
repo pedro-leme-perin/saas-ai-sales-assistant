@@ -25,9 +25,24 @@ Sentry.init({
     /Loading chunk \d+ failed/,
   ],
 
+  // Distributed tracing: propagate trace headers to backend
+  // Allows linking frontend transactions to backend transactions via sentry-trace & baggage headers
+  tracePropagationTargets: [
+    'localhost',
+    /^https:\/\/.*\.railway\.app/,
+    process.env.NEXT_PUBLIC_API_URL,
+  ].filter(Boolean),
+
   integrations: [
     Sentry.replayIntegration(),
-    Sentry.browserTracingIntegration(),
+    Sentry.browserTracingIntegration({
+      // Capture HTTP client spans (fetch, axios)
+      tracingOrigins: [
+        'localhost',
+        /^https:\/\/.*\.railway\.app/,
+        process.env.NEXT_PUBLIC_API_URL,
+      ].filter(Boolean),
+    }),
   ],
 
   // Set user context from Clerk
