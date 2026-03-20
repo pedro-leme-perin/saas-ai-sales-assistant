@@ -310,11 +310,16 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - Save imediato via `updateMutation.mutate({ logoUrl })`
   - i18n: 7 novas chaves logo (pt-BR + en)
 
+### Sessao 17 (20/03/2026) — Upload Tests, Test Coverage:
+
+- `upload.service.spec.ts` (~25 tests) — presigned URL generation, MIME validation, sanitization, S3 V4 signature, no-credentials fallback, isValidUploadUrl
+- `upload.controller.spec.ts` (~8 tests) — endpoint routing, companyId injection, error propagation, categories
+- Total: 38 test suites (~860+ test cases)
+
 ### Pendente / Proximos passos:
 
 - Sentry alerting rules — configurar no painel Sentry seguindo `SENTRY_ALERTING_GUIDE.md`
 - Migração para pnpm workspaces (monorepo unificado)
-- Upload tests (upload.service.spec.ts)
 - Email domain verification no Resend
 
 ---
