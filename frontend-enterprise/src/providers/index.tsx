@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { usePathname, useRouter } from 'next/navigation';
 import { Toaster } from 'sonner';
 import apiClient, { setClerkGetToken } from '@/lib/api-client';
 import { wsClient } from '@/lib/websocket';
@@ -93,6 +94,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { setUser, setCompany, setLoading, clear } = useUserStore();
+  const router = useRouter();
+  const pathname = usePathname();
   const { addNotification } = useNotificationsStore();
   const { addSuggestion } = useAISuggestionsStore();
   const { addTranscriptEntry } = useActiveCallStore();
@@ -120,6 +123,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (user.company) {
           setCompany(user.company);
+
+          // Redirect to onboarding if not completed
+          const metadata = user.company.metadata as Record<string, unknown> | null;
+          const isOnboarded = metadata?.onboarded === true;
+          if (!isOnboarded && !pathname.startsWith('/onboarding')) {
+            router.push('/onboarding');
+          }
         }
         if (user.companyId) {
           apiClient.setCompanyId(user.companyId);

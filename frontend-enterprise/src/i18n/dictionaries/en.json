@@ -362,5 +362,67 @@
   },
   "actions": {
     "refresh": "Refresh"
+  },
+  "onboarding": {
+    "stepOf": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Get Started",
+    "skip": "Skip",
+    "success": "Setup complete! Welcome to SalesAI.",
+    "error": "Error saving configuration. Please try again.",
+    "welcome": {
+      "title": "Welcome to SalesAI!",
+      "subtitle": "Let's set up your account in a few steps.",
+      "companyLabel": "Your company name",
+      "companyPlaceholder": "E.g. Acme Sales"
+    },
+    "team": {
+      "title": "About your team",
+      "subtitle": "This helps us personalize your experience.",
+      "sizeLabel": "Team size",
+      "people": "people",
+      "industryLabel": "Industry",
+      "industries": {
+        "sales": "Sales",
+        "realEstate": "Real Estate",
+        "insurance": "Insurance",
+        "saas": "SaaS / Technology",
+        "other": "Other"
+      }
+    },
+    "channels": {
+      "title": "Communication channels",
+      "subtitle": "Select the channels your team uses.",
+      "phone": {
+        "name": "Phone Calls",
+        "desc": "Real-time transcription + AI suggestions during the call"
+      },
+      "whatsapp": {
+        "name": "WhatsApp Business",
+        "desc": "AI-generated contextual responses for incoming messages"
+      }
+    },
+    "plan": {
+      "title": "Choose your plan",
+      "subtitle": "Start free and upgrade anytime.",
+      "plans": {
+        "STARTER": {
+          "name": "Starter",
+          "desc": "Great to get started — up to 5 users",
+          "price": "Free"
+        },
+        "PROFESSIONAL": {
+          "name": "Professional",
+          "desc": "For growing teams — up to 20 users",
+          "price": "$99/mo"
+        },
+        "ENTERPRISE": {
+          "name": "Enterprise",
+          "desc": "For large operations — unlimited users",
+          "price": "Contact us"
+        }
+      }
+    }
   }
 }

@@ -242,11 +242,33 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - Error rate > 0.1%, 5xx spike, API p95 > 500ms, AI p95 > 2s, unhandled exceptions, LCP regression
 - Total E2E: 9 specs (~60 tests)
 
+### Sessao 14 (20/03/2026) — README, Onboarding, Seed Data:
+
+- **README.md profissional**: documentação completa do projeto no GitHub
+  - Features, tech stack, architecture diagram, project structure
+  - Getting started, environment variables, testing, SLOs
+  - Observability, security, resilience, deploy info
+- **Onboarding wizard** (`/onboarding`):
+  - 4 steps: Welcome (company name) → Team Size/Industry → Channels → Plan Selection
+  - Progress bar, Back/Next navigation, validation
+  - Dark mode, responsivo, i18n (pt-BR + en — 57 chaves cada)
+  - Persiste via `companiesService.update()` com `metadata.onboarded = true`
+  - Redirect automático no AuthProvider para usuários não-onboarded
+  - `/onboarding` adicionado às rotas públicas no middleware
+- **Seed script** (`prisma/seed.ts`):
+  - 3 empresas (Starter, Professional, Enterprise)
+  - 12 usuários (4 por empresa, roles variados)
+  - ~100 calls com transcrições em PT-BR, sentiment, AI suggestions
+  - ~50 WhatsApp chats com ~300 mensagens
+  - ~90 audit logs + ~90 notifications
+  - Idempotente (upsert), dados realistas brasileiros
+
 ### Pendente / Proximos passos:
 
 - Sentry alerting rules — configurar no painel Sentry seguindo `SENTRY_ALERTING_GUIDE.md`
+- Team invites backend (POST /users/invite, email sending)
+- Company settings page (editar perfil, logo, integrações)
 - Migração para pnpm workspaces (monorepo unificado)
-- Execução real dos k6 tests em staging/produção
 
 ---
 

@@ -362,5 +362,67 @@
   },
   "actions": {
     "refresh": "Recarregar"
+  },
+  "onboarding": {
+    "stepOf": "Passo {{current}} de {{total}}",
+    "back": "Voltar",
+    "next": "Próximo",
+    "finish": "Começar a usar",
+    "skip": "Pular",
+    "success": "Configuração concluída! Bem-vindo ao SalesAI.",
+    "error": "Erro ao salvar configuração. Tente novamente.",
+    "welcome": {
+      "title": "Bem-vindo ao SalesAI!",
+      "subtitle": "Vamos configurar sua conta em poucos passos.",
+      "companyLabel": "Nome da sua empresa",
+      "companyPlaceholder": "Ex: Acme Vendas"
+    },
+    "team": {
+      "title": "Sobre sua equipe",
+      "subtitle": "Isso nos ajuda a personalizar sua experiência.",
+      "sizeLabel": "Tamanho da equipe",
+      "people": "pessoas",
+      "industryLabel": "Setor de atuação",
+      "industries": {
+        "sales": "Vendas",
+        "realEstate": "Imobiliário",
+        "insurance": "Seguros",
+        "saas": "SaaS / Tecnologia",
+        "other": "Outro"
+      }
+    },
+    "channels": {
+      "title": "Canais de comunicação",
+      "subtitle": "Selecione os canais que sua equipe utiliza.",
+      "phone": {
+        "name": "Ligações Telefônicas",
+        "desc": "Transcrição em tempo real + sugestões IA durante a chamada"
+      },
+      "whatsapp": {
+        "name": "WhatsApp Business",
+        "desc": "Respostas contextuais geradas por IA para mensagens recebidas"
+      }
+    },
+    "plan": {
+      "title": "Escolha seu plano",
+      "subtitle": "Comece grátis e faça upgrade quando quiser.",
+      "plans": {
+        "STARTER": {
+          "name": "Starter",
+          "desc": "Ideal para começar — até 5 usuários",
+          "price": "Grátis"
+        },
+        "PROFESSIONAL": {
+          "name": "Professional",
+          "desc": "Para equipes em crescimento — até 20 usuários",
+          "price": "R$99/mês"
+        },
+        "ENTERPRISE": {
+          "name": "Enterprise",
+          "desc": "Para grandes operações — usuários ilimitados",
+          "price": "Sob consulta"
+        }
+      }
+    }
   }
 }
