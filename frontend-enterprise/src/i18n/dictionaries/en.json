@@ -102,6 +102,7 @@
     "inbound": "Inbound",
     "outbound": "Outbound",
     "transcript": "Transcript",
+    "recording": "Recording",
     "noTranscript": "No transcript available.",
     "analyzeWithAI": "Analyze with AI",
     "analyzing": "Analyzing...",
@@ -120,7 +121,10 @@
     "suggestionCopied": "Suggestion copied!",
     "callDetails": "Call details",
     "muteLabel": "Mute microphone",
-    "endCallLabel": "End call"
+    "endCallLabel": "End call",
+    "export": "Export CSV",
+    "exportSuccess": "Calls exported successfully!",
+    "exportError": "Error exporting calls. Try again."
   },
   "whatsapp": {
     "conversations": "Conversations",
@@ -367,6 +371,42 @@
         "gemini": "Gemini",
         "perplexity": "Perplexity"
       }
+    }
+  },
+  "auditLogs": {
+    "title": "Audit Log",
+    "subtitle": "Complete history of actions and changes in your account.",
+    "logsList": "Audit Records",
+    "noResults": "No audit records found.",
+    "loadError": "Error loading records. Please try again later.",
+    "filters": {
+      "title": "Filters",
+      "action": "Action",
+      "allActions": "All actions",
+      "resource": "Resource",
+      "resourcePlaceholder": "E.g. User, Call, Company",
+      "user": "User",
+      "userPlaceholder": "Search by ID or email",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "reset": "Clear filters"
+    },
+    "actions": {
+      "CREATE": "Create",
+      "READ": "View",
+      "UPDATE": "Update",
+      "DELETE": "Delete",
+      "LOGIN": "Sign in",
+      "LOGOUT": "Sign out",
+      "EXPORT": "Export",
+      "IMPORT": "Import",
+      "INVITE": "Invite",
+      "REVOKE": "Revoke"
+    },
+    "pagination": {
+      "showing": "Showing",
+      "to": "to",
+      "of": "of"
     }
   },
   "errors": {

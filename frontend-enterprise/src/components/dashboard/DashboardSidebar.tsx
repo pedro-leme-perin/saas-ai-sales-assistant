@@ -93,6 +93,18 @@ export function DashboardSidebar() {
           Cobrança
         </Link>
 
+        <Link href="/dashboard/audit-logs" style={{
+          display: 'block',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          color: '#374151',
+          textDecoration: 'none',
+          fontSize: '14px',
+          fontWeight: '500'
+        }}>
+          Auditoria
+        </Link>
+
         <Link href="/dashboard/settings" style={{
           display: 'block',
           padding: '8px 16px',

@@ -260,4 +260,76 @@ export class AnalyticsService {
     const index = Math.ceil((p / 100) * sorted.length) - 1;
     return sorted[Math.max(0, index)];
   }
+
+  // ─────────────────────────────────────────
+  // AUDIT LOG ANALYTICS
+  // ─────────────────────────────────────────
+  async getAuditLogs(
+    companyId: string,
+    filters: {
+      page: number;
+      limit: number;
+      action?: string;
+      resource?: string;
+      userId?: string;
+      startDate?: Date;
+      endDate?: Date;
+    },
+  ) {
+    // Build WHERE clause with filters
+    const where: Record<string, unknown> = {
+      companyId,
+    };
+
+    if (filters.action) {
+      where.action = filters.action;
+    }
+
+    if (filters.resource) {
+      where.resource = filters.resource;
+    }
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        (where.createdAt as Record<string, unknown>).gte = filters.startDate;
+      }
+      if (filters.endDate) {
+        (where.createdAt as Record<string, unknown>).lte = filters.endDate;
+      }
+    }
+
+    // Get total count
+    const total = await this.prisma.auditLog.count({ where });
+
+    // Get paginated results
+    const skip = (filters.page - 1) * filters.limit;
+    const logs = await this.prisma.auditLog.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: filters.limit,
+    });
+
+    const totalPages = Math.ceil(total / filters.limit);
+
+    return {
+      data: logs,
+      meta: {
+        total,
+        page: filters.page,
+        limit: filters.limit,
+        totalPages,
+      },
+    };
+  }
 }

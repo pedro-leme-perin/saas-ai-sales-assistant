@@ -288,4 +288,22 @@ export class CallsController {
   ) {
     return this.callsService.analyzeCall(id, companyId, req.user.id);
   }
+
+  @Get(':companyId/export')
+  @ApiOperation({
+    summary: 'Export all calls as CSV',
+    description: 'Returns CSV export of all calls including date, phone, direction, status, duration, sentiment, and AI suggestions count',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'CSV export generated successfully',
+  })
+  async exportCalls(@Param('companyId') companyId: string, @Res() res: Response) {
+    const csv = await this.callsService.exportCallsAsCsv(companyId);
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename="calls-export-${Date.now()}.csv"`,
+    });
+    res.send(csv);
+  }
 }

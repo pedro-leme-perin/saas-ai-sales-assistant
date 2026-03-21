@@ -6,7 +6,8 @@ import {
   Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed,
   Search, Plus, Sparkles, Clock, MoreVertical,
   Mic, MicOff, X, MessageSquare, Timer,
-  Copy, Check, ChevronRight,
+  Copy, Check, ChevronRight, Download, Loader2,
+  Play, Pause, Volume2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,63 @@ function ConfidenceBar({ value }: { value: number }) {
   );
 }
 
+function AudioPlayer({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const toggle = useCallback(() => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying]);
+
+  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audioRef.current) return;
+    const time = parseFloat(e.target.value);
+    audioRef.current.currentTime = time;
+    setCurrentTime(time);
+  }, []);
+
+  const fmt = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-muted/50 rounded-lg p-3 border">
+      <audio
+        ref={audioRef}
+        src={src}
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+        onEnded={() => setIsPlaying(false)}
+      />
+      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={toggle}>
+        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+      </Button>
+      <span className="text-xs text-muted-foreground tabular-nums w-10">{fmt(currentTime)}</span>
+      <input
+        type="range"
+        min={0}
+        max={duration || 0}
+        step={0.1}
+        value={currentTime}
+        onChange={handleSeek}
+        className="flex-1 h-1.5 accent-primary cursor-pointer"
+      />
+      <span className="text-xs text-muted-foreground tabular-nums w-10">{fmt(duration)}</span>
+      <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+    </div>
+  );
+}
+
 export default function CallsPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -62,6 +120,7 @@ export default function CallsPage() {
   const [showNewCallModal, setShowNewCallModal] = useState(false);
   const [newCallPhone, setNewCallPhone] = useState('');
   const [copiedSuggestion, setCopiedSuggestion] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -210,6 +269,31 @@ export default function CallsPage() {
     return status;
   };
 
+  const handleExportCsv = async () => {
+    try {
+      setExportingCsv(true);
+      const csv = await callsService.exportCsv();
+
+      // Create blob and download
+      const blob = new Blob([csv as any], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `calls-export-${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(t('calls.exportSuccess'));
+    } catch (error) {
+      console.error('CSV export failed:', error);
+      toast.error(t('calls.exportError'));
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -218,10 +302,20 @@ export default function CallsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('calls.title')}</h1>
           <p className="text-muted-foreground">{t('calls.subtitle')}</p>
         </div>
-        <Button onClick={() => setShowNewCallModal(true)} disabled={isInCall}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('calls.newCall')}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCsv} disabled={exportingCsv}>
+            {exportingCsv ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {t('calls.export')}
+          </Button>
+          <Button onClick={() => setShowNewCallModal(true)} disabled={isInCall}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('calls.newCall')}
+          </Button>
+        </div>
       </div>
 
       {/* Active Call Panel */}
@@ -613,6 +707,17 @@ export default function CallsPage() {
                   <p className="text-sm text-muted-foreground italic">{t('calls.noTranscript')}</p>
                 )}
               </div>
+
+              {/* Recording Playback */}
+              {callDetail?.recordingUrl && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="font-medium">{t('calls.recording')}</h3>
+                  </div>
+                  <AudioPlayer src={callDetail.recordingUrl} />
+                </div>
+              )}
 
               {/* AI Suggestions */}
               <div>

@@ -193,4 +193,47 @@ export class NotificationsController {
 
     return this.notificationsService.findById(id, userId, companyId);
   }
+
+  // =====================================================
+  // GET NOTIFICATION PREFERENCES
+  // =====================================================
+  @Get('preferences/current')
+  @ApiOperation({ summary: 'Get current user notification preferences' })
+  @ApiResponse({ status: 200, description: 'Returns notification preferences' })
+  async getPreferences(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.id;
+    const companyId = req.user?.companyId;
+
+    if (!userId || !companyId) {
+      throw new Error('User not authenticated');
+    }
+
+    return this.notificationsService.getPreferences(userId, companyId);
+  }
+
+  // =====================================================
+  // UPDATE NOTIFICATION PREFERENCES
+  // =====================================================
+  @Patch('preferences/current')
+  @ApiOperation({ summary: 'Update notification preferences' })
+  @ApiResponse({ status: 200, description: 'Preferences updated successfully' })
+  async updatePreferences(
+    @Body() data: {
+      emailCalls?: boolean;
+      emailMessages?: boolean;
+      pushSuggestions?: boolean;
+      emailReports?: boolean;
+      emailBilling?: boolean;
+    },
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    const companyId = req.user?.companyId;
+
+    if (!userId || !companyId) {
+      throw new Error('User not authenticated');
+    }
+
+    return this.notificationsService.updatePreferences(userId, companyId, data);
+  }
 }

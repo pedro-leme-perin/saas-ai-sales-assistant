@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 
@@ -73,5 +73,38 @@ export class AnalyticsController {
   })
   async getAIPerformance(@Param('companyId') companyId: string) {
     return this.analyticsService.getAIPerformance(companyId);
+  }
+
+  @Get('audit-logs/:companyId')
+  @ApiOperation({
+    summary: 'Get audit logs',
+    description: 'Paginated list of audit logs with filtering by action, resource, userId, and date range',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Audit logs retrieved successfully',
+  })
+  async getAuditLogs(
+    @Param('companyId') companyId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('action') action?: string,
+    @Query('resource') resource?: string,
+    @Query('userId') userId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+
+    return this.analyticsService.getAuditLogs(companyId, {
+      page: pageNum,
+      limit: limitNum,
+      action,
+      resource,
+      userId,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    });
   }
 }

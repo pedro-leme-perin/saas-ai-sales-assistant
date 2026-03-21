@@ -193,6 +193,15 @@ export const callsService = {
     const companyId = apiClient.getCompanyId();
     return apiClient.delete(`/calls/${companyId}/${id}`);
   },
+
+  async exportCsv(): Promise<Blob> {
+    const companyId = apiClient.getCompanyId();
+    if (!companyId) {
+      await authService.getMe();
+    }
+    const csv = await apiClient.get(`/calls/${apiClient.getCompanyId()}/export`, {}, true);
+    return csv as unknown as Blob;
+  },
 };
 
 // =============================================
@@ -370,6 +379,14 @@ export const billingService = {
 // NOTIFICATIONS SERVICE
 // =============================================
 
+export interface NotificationPreferences {
+  emailCalls?: boolean;
+  emailMessages?: boolean;
+  pushSuggestions?: boolean;
+  emailReports?: boolean;
+  emailBilling?: boolean;
+}
+
 export const notificationsService = {
   async getAll(params?: { page?: number; limit?: number }): Promise<PaginatedResponse<Notification>> {
     return apiClient.get('/notifications', params);
@@ -385,6 +402,14 @@ export const notificationsService = {
 
   async markAllAsRead(): Promise<{ success: boolean }> {
     return apiClient.post('/notifications/read-all');
+  },
+
+  async getPreferences(): Promise<NotificationPreferences> {
+    return apiClient.get('/notifications/preferences/current');
+  },
+
+  async updatePreferences(data: NotificationPreferences): Promise<NotificationPreferences> {
+    return apiClient.patch('/notifications/preferences/current', data);
   },
 };
 
@@ -462,6 +487,19 @@ export const analyticsService = {
     if (!apiClient.getCompanyId()) await authService.getMe();
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/ai-performance/${companyId}`);
+  },
+  async getAuditLogs(params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    resource?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    if (!apiClient.getCompanyId()) await authService.getMe();
+    const companyId = apiClient.getCompanyId();
+    return apiClient.get(`/analytics/audit-logs/${companyId}`, params);
   },
 };
 

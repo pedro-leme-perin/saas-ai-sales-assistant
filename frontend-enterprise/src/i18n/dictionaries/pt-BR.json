@@ -102,6 +102,7 @@
     "inbound": "Recebidas",
     "outbound": "Realizadas",
     "transcript": "Transcrição",
+    "recording": "Gravação",
     "noTranscript": "Sem transcrição disponível.",
     "analyzeWithAI": "Analisar com IA",
     "analyzing": "Analisando...",
@@ -120,7 +121,10 @@
     "suggestionCopied": "Sugestão copiada!",
     "callDetails": "Detalhes da ligação",
     "muteLabel": "Silenciar microfone",
-    "endCallLabel": "Encerrar ligação"
+    "endCallLabel": "Encerrar ligação",
+    "export": "Exportar CSV",
+    "exportSuccess": "Ligações exportadas com sucesso!",
+    "exportError": "Erro ao exportar ligações. Tente novamente."
   },
   "whatsapp": {
     "conversations": "Conversas",
@@ -367,6 +371,42 @@
         "gemini": "Gemini",
         "perplexity": "Perplexity"
       }
+    }
+  },
+  "auditLogs": {
+    "title": "Log de Auditoria",
+    "subtitle": "Histórico completo de ações e alterações na sua conta.",
+    "logsList": "Registros de Auditoria",
+    "noResults": "Nenhum registro de auditoria encontrado.",
+    "loadError": "Erro ao carregar registros. Tente novamente mais tarde.",
+    "filters": {
+      "title": "Filtros",
+      "action": "Ação",
+      "allActions": "Todas as ações",
+      "resource": "Recurso",
+      "resourcePlaceholder": "Ex: User, Call, Company",
+      "user": "Usuário",
+      "userPlaceholder": "Buscar por ID ou email",
+      "startDate": "Data de início",
+      "endDate": "Data de término",
+      "reset": "Limpar filtros"
+    },
+    "actions": {
+      "CREATE": "Criar",
+      "READ": "Visualizar",
+      "UPDATE": "Atualizar",
+      "DELETE": "Excluir",
+      "LOGIN": "Entrar",
+      "LOGOUT": "Sair",
+      "EXPORT": "Exportar",
+      "IMPORT": "Importar",
+      "INVITE": "Convidar",
+      "REVOKE": "Revogar"
+    },
+    "pagination": {
+      "showing": "Mostrando",
+      "to": "até",
+      "of": "de"
     }
   },
   "errors": {

@@ -364,4 +364,58 @@ export class CallsService {
       this.logger.error(`Transcription error for call ${callId}:`, error);
     }
   }
+
+  // =====================================================
+  // EXPORT CALLS AS CSV
+  // =====================================================
+  async exportCallsAsCsv(companyId: string): Promise<string> {
+    // ✅ Fetch all calls with related suggestions
+    const calls = await this.prisma.call.findMany({
+      where: { companyId },
+      include: {
+        aiSuggestions: {
+          select: { id: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Build CSV header
+    const headers = ['Date', 'Phone', 'Direction', 'Status', 'Duration (sec)', 'Sentiment', 'AI Suggestions Count'];
+    const rows: string[] = [headers.join(',')];
+
+    // Build CSV rows
+    for (const call of calls) {
+      const date = new Date(call.createdAt).toISOString().split('T')[0];
+      const phone = call.phoneNumber || '';
+      const direction = call.direction || '';
+      const status = call.status || '';
+      const duration = call.duration || 0;
+      const sentiment = call.sentiment ? call.sentiment.toFixed(2) : '';
+      const suggestionsCount = call.aiSuggestions?.length ?? 0;
+
+      // Escape CSV fields with commas or quotes
+      const escapeCsvField = (field: string | number): string => {
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const row = [
+        escapeCsvField(date),
+        escapeCsvField(phone),
+        escapeCsvField(direction),
+        escapeCsvField(status),
+        escapeCsvField(duration),
+        escapeCsvField(sentiment),
+        escapeCsvField(suggestionsCount),
+      ].join(',');
+
+      rows.push(row);
+    }
+
+    return rows.join('\n');
+  }
 }

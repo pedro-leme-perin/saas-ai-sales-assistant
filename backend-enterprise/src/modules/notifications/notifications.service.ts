@@ -38,6 +38,14 @@ export interface UpdateNotificationDto {
   readAt?: Date;
 }
 
+export interface NotificationPreferences {
+  emailCalls?: boolean;
+  emailMessages?: boolean;
+  pushSuggestions?: boolean;
+  emailReports?: boolean;
+  emailBilling?: boolean;
+}
+
 // =====================================================
 // SERVICE
 // =====================================================
@@ -259,5 +267,81 @@ export class NotificationsService {
     }
 
     return notification;
+  }
+
+  // =====================================================
+  // GET NOTIFICATION PREFERENCES
+  // =====================================================
+  // Retrieve user notification preferences from company settings
+  async getPreferences(userId: string, companyId: string): Promise<NotificationPreferences> {
+    // ✅ Validate tenant context
+    if (!companyId) {
+      throw new Error('companyId is required for tenant isolation');
+    }
+
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { settings: true },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    // Extract preferences from company settings
+    const settings = (company.settings as Record<string, unknown>) || {};
+    const preferences = (settings.notificationPreferences || {}) as NotificationPreferences;
+
+    // Return with defaults
+    return {
+      emailCalls: preferences.emailCalls ?? true,
+      emailMessages: preferences.emailMessages ?? true,
+      pushSuggestions: preferences.pushSuggestions ?? true,
+      emailReports: preferences.emailReports ?? true,
+      emailBilling: preferences.emailBilling ?? true,
+    };
+  }
+
+  // =====================================================
+  // UPDATE NOTIFICATION PREFERENCES
+  // =====================================================
+  // Update user notification preferences in company settings
+  async updatePreferences(
+    userId: string,
+    companyId: string,
+    preferences: NotificationPreferences,
+  ): Promise<NotificationPreferences> {
+    // ✅ Validate tenant context
+    if (!companyId) {
+      throw new Error('companyId is required for tenant isolation');
+    }
+
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { settings: true },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    // Merge with existing settings
+    const existingSettings = (company.settings as Record<string, unknown>) || {};
+    const updatedSettings = {
+      ...existingSettings,
+      notificationPreferences: {
+        ...((existingSettings.notificationPreferences as Record<string, unknown>) || {}),
+        ...preferences,
+      },
+    };
+
+    // Save updated settings
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { settings: updatedSettings },
+    });
+
+    // Return updated preferences
+    return this.getPreferences(userId, companyId);
   }
 }

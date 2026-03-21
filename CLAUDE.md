@@ -316,6 +316,27 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - `upload.controller.spec.ts` (~8 tests) — endpoint routing, companyId injection, error propagation, categories
 - Total: 38 test suites (~860+ test cases)
 
+### Sessao 18 (20/03/2026) — Audit Log, Notifications, Export, Recording:
+
+- **Audit Log viewer**:
+  - `GET /analytics/audit-logs/:companyId` — paginação, filtros (action, resource, userId, dateRange)
+  - Include user relation (nome, email) na resposta
+  - Frontend: página `/dashboard/audit-logs` com tabela, badges por ação, filtros, paginação
+  - Sidebar: link adicionado com ícone ScrollText
+  - i18n: ~25 chaves (título, ações, filtros, colunas) em pt-BR + en
+- **Notification preferences persistence**:
+  - `GET /notifications/preferences/current` + `PATCH /notifications/preferences/current`
+  - Prefs armazenadas no Company.settings JSON
+  - Frontend reescrito: toggles funcionais com save imediato via API
+  - Toast feedback, loading state, optimistic updates
+- **CSV Export (calls)**:
+  - `GET /calls/:companyId/export` — retorna CSV com Date, Phone, Direction, Status, Duration, Sentiment
+  - Frontend: botão Download no header de calls, blob handling
+- **Call recording playback**:
+  - AudioPlayer component: play/pause, seek, progress bar, duration
+  - Integrado no modal de detalhe da call (quando recordingUrl existe)
+  - i18n: chave `calls.recording`
+
 ### Pendente / Proximos passos:
 
 - Sentry alerting rules — configurar no painel Sentry seguindo `SENTRY_ALERTING_GUIDE.md`

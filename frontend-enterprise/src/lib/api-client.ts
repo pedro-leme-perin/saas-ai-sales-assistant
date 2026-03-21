@@ -100,8 +100,12 @@ class ApiClient {
     return new Error(error.message || 'Erro desconhecido');
   }
 
-  async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-    const response = await this.client.get<T>(url, { params });
+  async get<T>(url: string, params?: Record<string, unknown>, isBlob?: boolean): Promise<T> {
+    const config: Record<string, unknown> = { params };
+    if (isBlob) {
+      config.responseType = 'blob';
+    }
+    const response = await this.client.get<T>(url, config as any);
     return response.data;
   }
 
