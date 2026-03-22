@@ -19,12 +19,12 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 20/03/2026
+> Última atualização: 21/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `232c7f1` (20/03/2026) | CI green — all tests passing |
+| Último commit | `24d10b2` (21/03/2026) | Cleanup monorepo — pastas legacy removidas |
 | Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
 | Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
 | Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
@@ -337,11 +337,56 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - Integrado no modal de detalhe da call (quando recordingUrl existe)
   - i18n: chave `calls.recording`
 
+### Sessao 19 (20/03/2026) — pnpm Workspaces Monorepo, Sentry Alerts, Resend:
+
+- **pnpm workspaces monorepo**:
+  - Root: `pnpm-workspace.yaml`, `package.json` (scripts unificados), `.npmrc`, `tsconfig.json` (project refs)
+  - `apps/backend` — movido de `backend-enterprise/`, renomeado para `@saas/backend`
+  - `apps/frontend` — movido de `frontend-enterprise/`, renomeado para `@saas/frontend`
+  - `packages/shared` — `@saas/shared` com tipos puros (zero deps externas)
+    - `enums.ts` — 12 enums (Plan, UserRole, CallStatus, etc.)
+    - `entities.ts` — 8 interfaces (User, Company, Call, WhatsAppChat, etc.)
+    - `api-types.ts` — ApiResponse, PaginationMeta, PaginatedResponse
+    - `analytics-types.ts` — CompanyStats, CompanyUsage, CallStats, PlanDetails
+    - `websocket-types.ts` — WSAISuggestion, WSCallStatus, WSNewMessage, WSNotification
+  - Frontend `types/index.ts` reescrito: re-export de `@saas/shared` (elimina ~270 linhas duplicadas)
+  - Backend `api-response.types.ts` reescrito: re-export de `@saas/shared`
+  - `next.config.js`: adicionado `transpilePackages: ['@saas/shared']`
+  - CI workflow reescrito: `pnpm/action-setup@v4`, job `install` (shared build + cache), `--frozen-lockfile`
+  - Removidos `package-lock.json` dos apps (pnpm usa `pnpm-lock.yaml` na raiz)
+- **Sentry alerting rules** (script automatizado):
+  - `scripts/setup-sentry-alerts.sh` — cria 6 alert rules via Sentry API
+  - Issue alerts: High Error Rate (>10 events/5min), New Unhandled Exception
+  - Metric alerts: 5xx Spike (>5/min), API Latency p95 (>500ms), AI Latency p95 (>2s), LCP Regression (>2.5s)
+  - Execução: `SENTRY_ORG=x SENTRY_PROJECT=y SENTRY_AUTH_TOKEN=z ./scripts/setup-sentry-alerts.sh`
+- **Resend domain setup**:
+  - `scripts/RESEND_DOMAIN_SETUP.md` — guia passo-a-passo (DNS records, verificação, teste curl)
+
+### Sessao 20 (21/03/2026) — Cleanup & Deploy Config:
+
+- CLAUDE.md atualizado: data, pendências, sessão 20
+- Pastas antigas `backend-enterprise/` e `frontend-enterprise/` pendentes de remoção no Windows
+
+### Sessao 21 (21/03/2026) — Monorepo Cleanup & Deploy Config:
+
+- **Pastas legacy removidas**: `backend-enterprise/` e `frontend-enterprise/` deletadas (196 arquivos, 43.080 linhas)
+- **Arquivo corrompido removido**: filename Unicode inválido no git tree (auth.guard.ts com path absoluto)
+- **Git remote configurado**: token GitHub, push para `origin/main`
+- **Railway configurado** (via Chrome):
+  - Root directory: `apps/backend` (já estava correto)
+  - Watch paths adicionados: `packages/shared/**` + `apps/backend/**`
+  - Build command: `pnpm install --no-frozen-lockfile && pnpm build`
+- **Vercel configurado** (via Chrome):
+  - Root directory: `./` → `apps/frontend`
+  - "Include files outside root directory" habilitado (para `packages/shared`)
+- Commits: `4598051` (cleanup enterprise folders) + `24d10b2` (remove corrupted filename)
+
 ### Pendente / Proximos passos:
 
-- Sentry alerting rules — configurar no painel Sentry seguindo `SENTRY_ALERTING_GUIDE.md`
-- Migração para pnpm workspaces (monorepo unificado)
-- Email domain verification no Resend
+- Executar `scripts/setup-sentry-alerts.sh` com credenciais de produção
+- Seguir `scripts/RESEND_DOMAIN_SETUP.md` para verificar domínio de email
+- Triggar redeploy no Vercel (último deploy foi Mar 14, antes do monorepo)
+- Revogar token GitHub exposto e gerar novo
 
 ---
 
@@ -361,7 +406,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | STT | Deepgram | ~200ms latência, streaming, suporte a Português |
 | Telefonia | Twilio | Media Streams, webhooks, escala global |
 | WhatsApp | WhatsApp Business API | API oficial, sem risco de ban |
-| Monorepo | pnpm workspaces | — |
+| Monorepo | pnpm workspaces | ✅ Configurado — `apps/` + `packages/shared` (migrado sessão 19) |
 | Testes | Vitest (unit/integration) + Playwright (E2E) | — |
 | Observabilidade | Sentry (erros) + Axiom (logs) + OpenTelemetry (traces) | *SRE* |
 | CI/CD | GitHub Actions | *SRE Cap. 8* |
@@ -423,30 +468,52 @@ Referências: *Building Microservices Cap. 1* (monolith-first), *Fundamentals of
 ```
 /
 ├── apps/
-│   ├── backend/                  # NestJS
+│   ├── backend/                  # @saas/backend — NestJS
 │   │   └── src/
 │   │       ├── modules/          # Um diretório por módulo de negócio
-│   │       │   ├── calls/
-│   │       │   ├── whatsapp/
 │   │       │   ├── ai/
-│   │       │   ├── subscriptions/
-│   │       │   └── users/
-│   │       ├── domain/           # Entidades e Value Objects puros
-│   │       ├── common/           # Guards, Pipes, Interceptors, Filters globais
-│   │       └── config/           # Variáveis de ambiente tipadas
-│   └── frontend/                 # Next.js 15
+│   │       │   ├── analytics/
+│   │       │   ├── auth/
+│   │       │   ├── billing/
+│   │       │   ├── calls/
+│   │       │   ├── companies/
+│   │       │   ├── email/
+│   │       │   ├── notifications/
+│   │       │   ├── upload/
+│   │       │   ├── users/
+│   │       │   └── whatsapp/
+│   │       ├── common/           # Guards, Pipes, Interceptors, Filters, Resilience
+│   │       ├── config/           # Variáveis de ambiente tipadas
+│   │       ├── health/           # Health check endpoints
+│   │       ├── infrastructure/   # Prisma, API clients
+│   │       ├── presentation/     # Controllers, DTOs, Webhooks
+│   │       └── shared/           # Types, helpers (re-exports de @saas/shared)
+│   └── frontend/                 # @saas/frontend — Next.js 15
 │       └── src/
 │           ├── app/              # App Router (pages)
 │           ├── components/       # Componentes reutilizáveis
+│           ├── hooks/            # Custom React hooks
+│           ├── i18n/             # Internacionalização (pt-BR + en)
 │           ├── lib/              # Clients (API, WebSocket, utils)
-│           └── types/            # Tipos compartilhados frontend
+│           ├── providers/        # Context providers
+│           ├── services/         # API service layer
+│           ├── stores/           # Zustand stores
+│           └── types/            # Re-exports de @saas/shared
 ├── packages/
-│   └── shared/                   # DTOs e tipos consumidos por ambos os apps
-├── prisma/
-│   └── schema.prisma
+│   └── shared/                   # @saas/shared — Tipos puros (zero deps)
+│       └── src/
+│           ├── enums.ts          # 12 enums compartilhados
+│           ├── entities.ts       # 8 interfaces de domínio
+│           ├── api-types.ts      # ApiResponse, Pagination
+│           ├── analytics-types.ts # Stats, Usage, Limits
+│           ├── websocket-types.ts # WS event types
+│           └── index.ts          # Barrel export
+├── scripts/                      # Setup scripts
 ├── .github/
-│   └── workflows/
-└── pnpm-workspace.yaml
+│   └── workflows/ci.yml          # pnpm workspaces CI
+├── pnpm-workspace.yaml
+├── package.json                  # Root scripts (dev, build, test, lint)
+└── tsconfig.json                 # Project references
 ```
 
 Cada módulo NestJS contém: `controller`, `service`, `use-cases/`, `repository`, `dto/`, `entities/`, `*.module.ts`.

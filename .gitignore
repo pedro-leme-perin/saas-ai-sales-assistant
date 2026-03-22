@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env
 .env.local
 .env*.local
@@ -9,4 +9,5 @@ dist/
 coverage/
 .turbo/
 .vercel
-.env*.local
+playwright-report/
+test-results/

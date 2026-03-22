@@ -1,0 +1,32 @@
+{
+  "name": "saas-ai-sales-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise-grade AI-powered Sales Assistant SaaS Platform — Monorepo",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:backend": "pnpm --filter @saas/backend run start:dev",
+    "dev:frontend": "pnpm --filter @saas/frontend run dev",
+    "build": "pnpm -r run build",
+    "build:backend": "pnpm --filter @saas/backend run build",
+    "build:frontend": "pnpm --filter @saas/frontend run build",
+    "lint": "pnpm -r run lint",
+    "lint:check": "pnpm -r run lint:check",
+    "type-check": "pnpm -r run type-check",
+    "test": "pnpm --filter @saas/backend run test",
+    "test:unit": "pnpm --filter @saas/backend run test:unit",
+    "test:integration": "pnpm --filter @saas/backend run test:integration",
+    "test:e2e": "pnpm --filter @saas/frontend exec playwright test",
+    "format": "pnpm -r run format",
+    "prisma:generate": "pnpm --filter @saas/backend run prisma:generate",
+    "prisma:migrate": "pnpm --filter @saas/backend run prisma:migrate",
+    "prisma:studio": "pnpm --filter @saas/backend run prisma:studio",
+    "prisma:seed": "pnpm --filter @saas/backend run prisma:seed",
+    "clean": "pnpm -r exec rm -rf node_modules dist .next coverage .turbo"
+  }
+}
