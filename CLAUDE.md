@@ -19,12 +19,12 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 21/03/2026
+> Última atualização: 24/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `24d10b2` (21/03/2026) | Cleanup monorepo — pastas legacy removidas |
+| Último commit | `57ef971` (24/03/2026) | Monorepo migration + Vercel prerender fix |
 | Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
 | Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
 | Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
@@ -34,7 +34,9 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Deepgram (STT) | ✅ Funcionando | Streaming ~200ms latência |
 | OpenAI / Claude (LLM) | ✅ Funcionando | gpt-4o-mini para sugestões em tempo real |
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
-| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token |
+| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token + 6 alert rules |
+| Email (Resend) | ✅ Funcionando | Domínio theiadvisor.com verificado, team@theiadvisor.com |
+| Domínio | ✅ Comprado | theiadvisor.com (Cloudflare, expira 03/2027) |
 | CI/CD | ✅ Green | ci.yml com coverage + ci-gate + E2E Playwright — all passing |
 | Testes | ✅ 36 suites | 11 service + 15 controller + 2 integration + 4 guard + 2 infra + 2 misc (~825+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
@@ -381,12 +383,53 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - "Include files outside root directory" habilitado (para `packages/shared`)
 - Commits: `4598051` (cleanup enterprise folders) + `24d10b2` (remove corrupted filename)
 
+### Sessao 22 (24/03/2026) — Vercel Deploy Fix, Sentry Alerts:
+
+- **Monorepo commit consolidado**: `57ef971` — apps/, packages/shared, configs raiz commitados ao git
+  - Commits das sessões 19-21 tinham sido perdidos; working tree tinha estrutura monorepo mas git não rastreava
+  - Pastas legacy (`backend-enterprise/`, `frontend-enterprise/`) removidas do git tracking
+  - Arquivos de backup/debug excluídos do commit (*.bak, diagnose-*, scripts one-off prisma)
+- **Fix Vercel prerender error** (Clerk `Missing publishableKey`):
+  - `export const dynamic = 'force-dynamic'` em 4 páginas Clerk:
+    - `apps/frontend/src/app/sign-in/[[...sign-in]]/page.tsx`
+    - `apps/frontend/src/app/sign-up/[[...sign-up]]/page.tsx`
+    - `apps/frontend/src/app/(auth)/login/page.tsx`
+    - `apps/frontend/src/app/(auth)/register/page.tsx`
+  - Causa: Next.js tentava prerender estático dessas páginas, mas Clerk precisa de env vars em runtime
+- **Vercel deploy em produção**: build passou, `saas-ai-sales-assistant.vercel.app` live
+- **Sentry Alerts configurados** (6 regras via UI):
+  - `[SalesAI] High Error Rate` — Number of Errors > 10 (critical) / > 5 (warning), 5min interval
+  - `[SalesAI] New Unhandled Exception` — Issue alert, first seen, tag handled=no, 1h interval
+  - `[SalesAI] 5xx Error Spike` — count() http.status_code:5*, > 5 (critical) / > 2 (warning), 1min
+  - `[SalesAI] High API Latency` — p95 duration, transaction.op:http.server, > 2000ms / > 500ms, 5min
+  - `[SalesAI] AI Provider Slow` — p95 duration, transaction:*/ai/*, > 5000ms / > 2000ms, 5min
+  - `[SalesAI] LCP Regression` — p75 LCP, > 4000ms / > 2500ms, 1h interval
+
+### Sessao 22b (24/03/2026) — Domínio, Email, Sentry Alerts:
+
+- **Domínio `theiadvisor.com`** comprado via Cloudflare Registrar (expira 24/03/2027)
+- **Resend email configurado**:
+  - Domínio `theiadvisor.com` adicionado ao Resend
+  - DNS records (DKIM, SPF, MX) auto-configurados via Cloudflare integration
+  - Status: Verified
+  - `EMAIL_FROM=team@theiadvisor.com` configurado no Railway
+  - `RESEND_API_KEY` configurado no Railway
+  - Email de teste enviado com sucesso para `leme.baseapr@gmail.com`
+- **Sentry Alerts** (6 regras) criados via UI do Sentry (API não tinha scope suficiente)
+
+### Sessao 23 (26/03/2026) — Domínio → Vercel:
+
+- **DNS configurado no Cloudflare** para apontar `theiadvisor.com` ao Vercel:
+  - A record: `@` → `216.198.79.1` (DNS only)
+  - CNAME record: `www` → `0680291e37413ab4.vercel-dns-017.com` (DNS only)
+- **Vercel custom domain**: `theiadvisor.com` + `www.theiadvisor.com` adicionados (Valid Configuration)
+- **SSL**: certificado gerado automaticamente pelo Vercel
+- `theiadvisor.com` redireciona 307 → `www.theiadvisor.com` (Production)
+
 ### Pendente / Proximos passos:
 
-- Executar `scripts/setup-sentry-alerts.sh` com credenciais de produção
-- Seguir `scripts/RESEND_DOMAIN_SETUP.md` para verificar domínio de email
-- Triggar redeploy no Vercel (último deploy foi Mar 14, antes do monorepo)
 - Revogar token GitHub exposto e gerar novo
+- Deletar `.env.sentry` do diretório do projeto (contém credenciais em texto)
 
 ---
 
