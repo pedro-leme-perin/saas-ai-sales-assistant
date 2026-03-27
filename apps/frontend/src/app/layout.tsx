@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'SalesAI' }],
   creator: 'SalesAI',
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || 'https://saas-ai-sales-assistant.vercel.app'
+    process.env.NEXT_PUBLIC_APP_URL || 'https://www.theiadvisor.com'
   ),
   openGraph: {
     type: 'website',

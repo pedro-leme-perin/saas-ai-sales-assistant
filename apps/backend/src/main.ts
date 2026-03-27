@@ -87,8 +87,8 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://saas-ai-sales-assistant-oc6b.vercel.app',
-      'https://saas-ai-sales-assistant.vercel.app',
+      'https://www.theiadvisor.com',
+      'https://theiadvisor.com',
       configService.get('FRONTEND_URL', 'http://localhost:3000'),
     ],
     credentials: true,
@@ -126,7 +126,7 @@ async function bootstrap() {
         'All endpoints require JWT authentication from Clerk.',
     )
     .setVersion('1.0.0')
-    .setContact('Sales AI Team', 'https://github.com', 'support@example.com')
+    .setContact('Sales AI Team', 'https://www.theiadvisor.com', 'team@theiadvisor.com')
     .setLicense('UNLICENSED', '')
     // ── Authentication ──
     .addBearerAuth(
@@ -153,7 +153,7 @@ async function bootstrap() {
     .addTag('webhooks', 'External service webhooks (Twilio, WhatsApp, Stripe, Clerk)')
     // ── Servers ──
     .addServer('http://localhost:3001', 'Local Development')
-    .addServer('https://api.saas-ai-sales-assistant.railway.app', 'Production')
+    .addServer(process.env.BACKEND_URL || 'https://api.theiadvisor.com', 'Production')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

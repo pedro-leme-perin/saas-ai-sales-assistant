@@ -27,6 +27,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService, CreateNotificationDto } from './notifications.service';
 import { PaginationDto } from '@common/dto/pagination.dto';
+import { AuthGuard } from '@modules/auth/guards/auth.guard';
+import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 
 // =====================================================
 // TYPES
@@ -42,7 +44,7 @@ interface AuthenticatedRequest {
 
 @ApiTags('notifications')
 @ApiBearerAuth('JWT') // ✅ Requires authentication
-// @UseGuards(AuthGuard, TenantGuard) // TODO: Implement after AuthModule
+@UseGuards(AuthGuard, TenantGuard)
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
@@ -54,8 +56,6 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Create a new notification' })
   @ApiResponse({ status: 201, description: 'Notification created successfully' })
   async create(@Body() createDto: CreateNotificationDto, @Request() req: AuthenticatedRequest) {
-    // ✅ Extract user context from authenticated request
-    // TODO: After AuthModule, req.user will have userId and companyId
     const userId = req.user?.id || createDto.userId;
     const companyId = req.user?.companyId || createDto.companyId;
 
@@ -73,8 +73,6 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Get all notifications for authenticated user' })
   @ApiResponse({ status: 200, description: 'Returns paginated notifications' })
   async findAll(@Query() pagination: PaginationDto, @Request() req: AuthenticatedRequest) {
-    // ✅ Extract user context from authenticated request
-    // TODO: After AuthModule, req.user will be properly populated
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
 

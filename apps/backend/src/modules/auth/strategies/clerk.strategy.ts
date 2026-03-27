@@ -109,8 +109,8 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       process.env.NEXT_PUBLIC_APP_URL,
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://saas-ai-sales-assistant-oc6b.vercel.app',
-      'https://saas-ai-sales-assistant.vercel.app',
+      'https://www.theiadvisor.com',
+      'https://theiadvisor.com',
     ].filter(Boolean) as string[];
 
     return [...new Set(parties.map((p) => p.replace(/\/$/, '')))];
