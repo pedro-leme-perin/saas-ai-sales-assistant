@@ -19,12 +19,12 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 24/03/2026
+> Última atualização: 28/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `57ef971` (24/03/2026) | Monorepo migration + Vercel prerender fix |
+| Último commit | `7f5d83f` (28/03/2026) | Domain hardening + cleanup |
 | Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
 | Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
 | Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
@@ -426,10 +426,24 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - **SSL**: certificado gerado automaticamente pelo Vercel
 - `theiadvisor.com` redireciona 307 → `www.theiadvisor.com` (Production)
 
+### Sessao 24 (28/03/2026) — Domain Hardening & Cleanup:
+
+- **CORS atualizado**: `main.ts` — old vercel.app URLs → `theiadvisor.com` + `www.theiadvisor.com`
+- **Clerk authorized parties**: `clerk.strategy.ts` — atualizado para domínio novo
+- **Swagger**: server URL dinâmica via `BACKEND_URL` env, contact → `team@theiadvisor.com`
+- **SEO**: `sitemap.ts`, `layout.tsx` metadataBase, `robots.txt` — todos atualizados
+- **Auth guards ativados**: `notifications.controller.ts` — imports AuthGuard/TenantGuard adicionados, decorator ativado
+- **Vercel env var**: `NEXT_PUBLIC_APP_URL=https://www.theiadvisor.com` adicionada + redeploy
+- **Cleanup**: removidos fix-cors.js, fix-clerk.js, SWAGGER_CHANGES_SUMMARY.txt, SWAGGER_IMPLEMENTATION.md, SWAGGER_VERIFICATION_CHECKLIST.md
+- **Cleanup**: removidas pastas legacy `backend-enterprise/`, `frontend-enterprise/`, docs soltos, `migrate-to-monorepo.ps1`
+- **Zero referências** ao domínio antigo (vercel.app) no código de produção
+- Commits: `5fba2b8` + `7f5d83f` pushed to main
+
 ### Pendente / Proximos passos:
 
-- Revogar token GitHub exposto e gerar novo
-- Deletar `.env.sentry` do diretório do projeto (contém credenciais em texto)
+- Triggerar redeploy Railway (empty commit ou reconectar webhook GitHub)
+- Criar instância Production no Clerk (domínio auth, novas API keys, env vars)
+- Testar CORS em produção após Railway redeploy
 
 ---
 
