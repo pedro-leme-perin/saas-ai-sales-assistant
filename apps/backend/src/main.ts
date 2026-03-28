@@ -226,3 +226,4 @@ bootstrap().catch((err) => {
   logger.error('❌ Failed to start application', err);
   process.exit(1);
 });
+
