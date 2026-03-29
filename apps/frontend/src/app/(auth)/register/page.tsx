@@ -5,10 +5,10 @@ export const dynamic = 'force-dynamic';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 const benefits = [
-  'IA para ligações em tempo real',
-  'WhatsApp com sugestões inteligentes',
+  'IA para ligaÃ§Ãµes em tempo real',
+  'WhatsApp com sugestÃµes inteligentes',
   'Dashboard de analytics',
-  '7 dias de teste grátis',
+  '7 dias de teste grÃ¡tis',
 ];
 
 export default function RegisterPage() {
@@ -30,11 +30,11 @@ export default function RegisterPage() {
           </ul>
           <div className="mt-8 p-4 rounded-lg bg-white/10 backdrop-blur">
             <p className="text-sm text-white/90">
-              &ldquo;O SalesAI aumentou nossas conversões em 40% no primeiro mês.
+              &ldquo;O SalesAI aumentou nossas conversÃµes em 40% no primeiro mÃªs.
               A IA realmente entende o contexto das conversas.&rdquo;
             </p>
             <p className="text-sm font-medium mt-2">
-              — Maria S., Gerente de Vendas
+              â Maria S., Gerente de Vendas
             </p>
           </div>
         </div>
@@ -52,7 +52,7 @@ export default function RegisterPage() {
           
           <h1 className="text-2xl font-bold mb-2">Criar conta</h1>
           <p className="text-muted-foreground mb-8">
-            Comece seu teste grátis de 7 dias
+            Comece seu teste grÃ¡tis de 7 dias
           </p>
 
           <SignUp
@@ -73,11 +73,11 @@ export default function RegisterPage() {
             routing="path"
             path="/register"
             signInUrl="/login"
-            afterSignUpUrl="/dashboard"
+            fallbackRedirectUrl="/dashboard"
           />
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Já tem uma conta?{' '}
+            JÃ¡ tem uma conta?{' '}
             <Link href="/login" className="text-primary hover:underline font-medium">
               Fazer login
             </Link>
