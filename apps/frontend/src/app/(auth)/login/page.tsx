@@ -40,7 +40,7 @@ export default function LoginPage() {
             routing="path"
             path="/login"
             signUpUrl="/register"
-            afterSignInUrl="/dashboard"
+            fallbackRedirectUrl="/dashboard"
           />
 
           <p className="text-center text-sm text-muted-foreground mt-6">

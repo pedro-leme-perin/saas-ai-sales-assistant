@@ -73,7 +73,7 @@ export default function RegisterPage() {
             routing="path"
             path="/register"
             signInUrl="/login"
-            afterSignUpUrl="/dashboard"
+            fallbackRedirectUrl="/dashboard"
           />
 
           <p className="text-center text-sm text-muted-foreground mt-6">
