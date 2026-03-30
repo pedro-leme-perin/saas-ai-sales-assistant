@@ -19,12 +19,12 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 28/03/2026
+> Última atualização: 29/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `7f5d83f` (28/03/2026) | Domain hardening + cleanup |
+| Último commit | `bf7fc78` (29/03/2026) | Clerk fallbackRedirectUrl fix |
 | Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
 | Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
 | Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
@@ -34,7 +34,7 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 | Deepgram (STT) | ✅ Funcionando | Streaming ~200ms latência |
 | OpenAI / Claude (LLM) | ✅ Funcionando | gpt-4o-mini para sugestões em tempo real |
 | Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
-| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Auth Token + 6 alert rules |
+| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Railway + Auth Token + 6 alert rules |
 | Email (Resend) | ✅ Funcionando | Domínio theiadvisor.com verificado, team@theiadvisor.com |
 | Domínio | ✅ Comprado | theiadvisor.com (Cloudflare, expira 03/2027) |
 | CI/CD | ✅ Green | ci.yml com coverage + ci-gate + E2E Playwright — all passing |
@@ -439,12 +439,48 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 - **Zero referências** ao domínio antigo (vercel.app) no código de produção
 - Commits: `5fba2b8` + `7f5d83f` pushed to main
 
+### Sessao 25 (28/03/2026) — Clerk Production, Vercel Build Fix:
+
+- **Clerk Production instance** criada (pk_live_*, sk_live_*)
+- **Vercel + Railway env vars** atualizadas com production keys
+- **Clerk webhook** configurado: user.created, user.deleted, user.updated
+- **Vercel Root Directory** corrigido: apps/frontend
+- **next.config.js**: eslint.ignoreDuringBuilds + typescript.ignoreBuildErrors
+
+### Sessao 26 (28/03/2026) — Vercel Domain Fix, Clerk Production Live:
+
+- **Fix**: dominios custom movidos para projeto Vercel correto
+- **Vercel domains**: www.theiadvisor.com (Production) + theiadvisor.com (redirect)
+- **Clerk Production confirmado**: pk_live_* servido, sem banner "Development mode"
+
+### Sessao 27 (28/03/2026) — Google OAuth, CORS, Production Verification:
+
+- **Google Cloud project** criado + OAuth 2.0 Client ID
+- **Clerk Google OAuth habilitado** e publicado
+- **CORS producao verificado** + Auth flow funcionando
+- **Service worker stale limpo**
+- **Clerk deprecation fix**: afterSignInUrl -> fallbackRedirectUrl
+
+### Sessao 28 (29/03/2026) — Production Audit & Hardening:
+
+- **Clerk deprecation fix pushed**: commit bf7fc78 via GitHub Git Data API
+- **Vercel env var**: NEXT_PUBLIC_SENTRY_DSN adicionada + redeploy
+- **Railway SENTRY_DSN** adicionado (30 service vars total)
+- **Railway env vars auditadas** (30 variaveis completas)
+- **Sentry trial**: 2 dias restantes, auto-downgrade para Developer (free)
+  - LEMBRETE: migrar para plano pago quando equipe/trafego crescer
+- **Cloudflare R2**: checkout preparado mas Activate bloqueado por anti-bot
+
 ### Pendente / Proximos passos:
 
-- Triggerar redeploy Railway (empty commit ou reconectar webhook GitHub)
-- Criar instância Production no Clerk (domínio auth, novas API keys, env vars)
-- Testar CORS em produção após Railway redeploy
-
+**Pedro precisa fazer manualmente:**
+- [ ] Cloudflare R2: clicar Activate -> criar bucket -> API keys -> Railway env vars
+- [ ] Stripe: trocar para live mode keys
+- [ ] Twilio: verificar conta production, comprar numero real
+- [ ] WhatsApp Business API: configurar credenciais reais (Meta Business Manager)
+- [ ] Testar login completo com Google OAuth
+- [ ] Sincronizar repo local com git pull
+- [ ] FUTURO: migrar Sentry para plano pago
 ---
 
 ## 3. STACK TECNOLÓGICA
