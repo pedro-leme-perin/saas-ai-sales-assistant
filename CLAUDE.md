@@ -1,18 +1,21 @@
-# SaaS AI Sales Assistant — Instruções do Projeto
-**Versão:** 3.0  
-**Atualização:** Março 2026  
-**Base:** 19 livros técnicos de referência (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
+# SaaS AI Sales Assistant — Project Instructions
+**Versão:** 4.0
+**Atualização:** Março 2026
+**Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
+**Histórico detalhado:** ver `PROJECT_HISTORY.md`
 
 ---
 
 ## 1. VISÃO DO PRODUTO
 
-SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
+SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 
-- **Ligações telefônicas em tempo real** — IA transcreve a conversa e sugere respostas ao vendedor instantaneamente via WebSocket
+- **Ligações telefônicas em tempo real** — IA transcreve via Deepgram e sugere respostas ao vendedor instantaneamente via WebSocket
 - **WhatsApp Business** — IA analisa mensagens recebidas e sugere respostas contextuais
 
-**Posicionamento:** Produto profissional desde o primeiro commit. Nenhuma decisão de "MVP descartável".
+**Nome comercial:** TheIAdvisor
+**Domínio:** `theiadvisor.com` (Cloudflare, SSL Vercel, www redirect)
+**Posicionamento:** Produto profissional desde o primeiro commit. Zero decisões de "MVP descartável".
 
 ---
 
@@ -21,994 +24,506 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
 > Última atualização: 31/03/2026
 
-| Dimensão | Status | Observações |
+### 2.1 Status Geral
+
+| Dimensão | Status | Detalhes |
 |---|---|---|
-| Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `257a47e` (31/03/2026) | CLAUDE.md update via GitHub API |
-| Backend (NestJS) | ✅ Em produção | Railway — 11 módulos, 94 arquivos TS, 36 env vars |
-| Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, domínio theiadvisor.com |
-| Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
-| Auth (Clerk) | ✅ Funcionando | Production keys (pk_live_*), Google OAuth, webhooks OK |
-| Twilio (Voz) | ✅ Funcionando | Pay-as-you-go, número +1 507 763 4719, TWILIO_WEBHOOK_URL configurado |
-| WhatsApp Business API | ⚠️ Código pronto | Código funcional, mas credenciais de produção NÃO configuradas (requer CNPJ/MEI) |
-| Deepgram (STT) | ✅ Funcionando | Streaming ~200ms latência |
-| OpenAI / Claude (LLM) | ✅ Funcionando | gpt-4o-mini para sugestões em tempo real |
-| Stripe (Pagamentos) | ✅ Live mode | 3 produtos (Starter R$97, Professional R$297, Enterprise R$697), webhook live, CPF |
-| Cloudflare R2 (Upload) | ✅ Configurado | Bucket `theiadvisor-uploads`, domínio `uploads.theiadvisor.com`, API keys no Railway |
-| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Railway + 6 alert rules (plano Developer free) |
-| Email (Resend) | ✅ Funcionando | Domínio theiadvisor.com verificado, team@theiadvisor.com |
-| Domínio | ✅ Configurado | theiadvisor.com (Cloudflare, expira 03/2027), SSL Vercel, www redirect |
-| CI/CD | ✅ Green | ci.yml com coverage + ci-gate + E2E Playwright — all passing |
-| Testes | ✅ 36 suites | 11 service + 15 controller + 2 integration + 4 guard + 2 infra + 2 misc (~825+ test cases) |
-| Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
+| Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
+| Último commit | `643bcbc` (31/03/2026) | CLAUDE.md Session 29 update |
+| Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 39 test suites, 36 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
+| Auth (Clerk) | ✅ Produção | Production keys (`pk_live_*`), Google OAuth, webhooks OK |
+| Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, `TWILIO_WEBHOOK_URL` configurado |
+| WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
+| Deepgram (STT) | ✅ Produção | Streaming ~200ms latência |
+| OpenAI (LLM) | ✅ Produção | gpt-4o-mini para sugestões em tempo real |
+| Stripe (Pagamentos) | ✅ Live mode | 3 planos BRL (R$97/R$297/R$697), webhook live (6 eventos), CPF |
+| Cloudflare R2 (Upload) | ✅ Produção | Bucket `theiadvisor-uploads`, domínio `uploads.theiadvisor.com` |
+| Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
+| Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
+| CI/CD | ✅ Green | GitHub Actions: lint → typecheck → build → test → E2E → ci-gate |
+| Testes | ✅ 48 suites | 39 backend (.spec.ts) + 9 frontend (E2E Playwright) |
 
-### Polimento concluído (13-14/03/2026):
+### 2.2 Infraestrutura de Produção
 
-- Timer de ligação funcional (incrementa a cada segundo)
-- Modais próprios (sem prompt/confirm/alert nativos)
-- Tags de sugestão IA traduzidas PT-BR
-- Skeleton loading em todas as páginas
-- Dark mode funcional (toggle no header)
-- Notification panel no header
-- Landing page profissional (hero, features, stats, CTA)
-- SEO meta tags + Open Graph
-- 404 customizada com catch-all `[...slug]`
-- Error boundaries (global + dashboard)
-- Sidebar consolidada (removidos duplicados)
-- Billing compatível com dark mode
-- Toasts (sonner) em todas as ações
-- Responsividade mobile (breakpoints, dvh, safe-area, viewport)
-- Favicon SVG + ICO + Apple Touch Icon
-- Page transitions (framer-motion AnimatePresence)
-- Toasts globais para erros WebSocket/API (reconnect, 500, 429, offline)
-- PWA manifest + ícones (192, 512, maskable)
-- Acessibilidade (skip-to-content, aria-labels, Escape em modais, role="dialog")
-- Performance (security headers, cache immutable, image avif/webp, tree-shaking radix)
-- i18n base (dicionários pt-BR + en, hook useTranslation, seletor em Settings)
-- Testes E2E Playwright (landing, auth, dashboard, calls, mobile)
+| Serviço | Plataforma | Configuração |
+|---|---|---|
+| Backend API | Railway | `apps/backend`, build: `pnpm install && pnpm build`, 36 env vars |
+| Frontend | Vercel | `apps/frontend`, auto-deploy via GitHub, custom domain |
+| Database | Neon (PostgreSQL) | Managed, connection pooling |
+| Cache/PubSub | Upstash (Redis) | Sessions, rate limiting, WebSocket adapter |
+| DNS/CDN | Cloudflare | Registrar + DNS, R2 storage |
+| Auth | Clerk | Production instance, Google OAuth |
+| Payments | Stripe | Live mode, BRL, CPF individual |
+| Monitoring | Sentry | Frontend + Backend, distributed tracing |
+| Email | Resend | Domínio verificado, templates HTML |
 
-### Sessao 2 (14/03/2026):
+### 2.3 Stripe Live — Produtos
 
-- i18n efetivo: 5 paginas + layout migradas para `useTranslation()`, dicionarios expandidos (~150 chaves)
-- GitHub Actions CI/CD: `.github/workflows/ci.yml` (frontend + backend jobs)
-- Sentry: configs client/server/edge, `global-error.tsx`, `instrumentation.ts`, next.config wrapper
-- Testes unitarios: `calls.service.spec.ts` corrigido e expandido (~20 test cases)
+| Plano | Preço/mês | Price ID |
+|---|---|---|
+| Starter | R$97 | `price_1TGufHJ1Cbnf5voGRVcHKHyU` |
+| Professional | R$297 | `price_1TGuhyJ1Cbnf5voGaclVV3ny` |
+| Enterprise | R$697 | `price_1TGujaJ1Cbnf5voGVY2vqNW9` |
 
-### Sessao 3 (15/03/2026):
+Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.trial_will_end`)
 
-- Invoice webhook handlers (handleInvoicePaid + handleInvoicePaymentFailed)
-- billing.service.spec.ts (~30 test cases)
-- users.service.spec.ts fix (timeout + fetch leak)
-- Landing page i18n 100% confirmado
-- SETUP_SECRETS.md guia completo
-- Sentry server/edge configs melhorados (ignoreErrors, beforeSend, PII strip)
-- @sentry/nextjs atualizado para ^9.24.0 (compat Next.js 15.5)
-- 7 controller test files (billing, calls, whatsapp, users, analytics, auth, companies)
-- CI workflow melhorado (coverage, ci-gate job, artefatos)
-- Script setup-secrets.sh (configuração interativa via gh CLI)
+### 2.4 Pendente / Próximos Passos
 
-### Sessao 4 (19/03/2026) — Configuração de produção:
-
-- Sentry configurado em produção (conta criada, DSN, org, project, auth token)
-- GitHub Actions secrets configurados (6 secrets: Clerk + Sentry)
-- Vercel env vars configuradas (4 vars Sentry)
-- Stripe webhook registrado (6 eventos, endpoint Railway)
-- Fix TypeScript mock types em 5 controller specs (`as jest.Mock`)
-
-### Sessao 5 (19/03/2026) — Hardening & Analytics (10 commits):
-
-- RedisIoAdapter customizado (`common/adapters/redis-io.adapter.ts`) — fix do erro `server.adapter is not a function`
-- NotificationsGateway simplificado (Redis adapter movido para main.ts)
-- CircuitBreaker genérico (`common/resilience/circuit-breaker.ts`) — 3 estados, timeout, fallback
-- Circuit breakers em TODAS as integrações: OpenAI, Claude, Gemini, Perplexity, Deepgram, Twilio WhatsApp, Stripe (7/7)
-- Helmet (security headers) + Compression (gzip)
-- Graceful shutdown (SIGTERM/SIGINT handlers com app.enableShutdownHooks)
-- Rate limiting diferenciado: default (100/min), strict AI (20/min), auth (30/min)
-- ThrottlerGuard global ativado (APP_GUARD) + @SkipThrottle em webhooks e health
-- GlobalExceptionFilter ativado — respostas padronizadas, Prisma errors mapeados, sem stack trace leak
-- LoggingInterceptor ativado — structured logs com requestId, userId, companyId, latência
-- Health check enriquecido: DB status + circuit breaker status + version/nodeVersion/environment
-- Integration tests: tenant isolation (5 tests) + ACID transactions (4 tests)
-- Analytics expandido: sentiment analytics (trend semanal), AI performance metrics (p95 latency, adoption, by provider)
-- analytics.service.spec.ts — 13 test cases
-- @Throttle decorators no AI controller (strict) e Auth controller (auth)
-
-### Sessao 6 (19/03/2026) — Rate Limiting, Testes, Analytics:
-
-- CompanyThrottlerGuard: Redis sliding window por companyId (substitui ThrottlerGuard IP-based)
-- Limites por plano: STARTER(60/min), PROFESSIONAL(200/min), ENTERPRISE(500/min)
-- Tiers: default, strict(AI), auth — com headers X-RateLimit-*
-- Fallback para IP-based em requests não autenticados
-- 7 novos test suites: companies.service, notifications.service, auth.service, circuit-breaker, notifications.controller, ai.controller, company-throttler.guard
-- Total: 22 test suites (~300+ test cases)
-- CI: PostgreSQL service container para integration tests
-- CI: `prisma migrate deploy` + integration test step no workflow
-- Frontend: analyticsService com 5 endpoints (dashboard, calls, whatsapp, sentiment, ai-performance)
-- Analytics page: seções de Sentimento (distribuição + tendência semanal) e IA Detalhado (latência, p95, confiança, por provedor)
-
-### Sessao 7 (19/03/2026) — CI Green + Test Fixes:
-
-- Fix TS error: `cache.service.ts` — `JSON.parse(data as string)` (unknown→string cast)
-- Sentry config tolerante: `next.config.js` só ativa Sentry se `SENTRY_ORG` + `SENTRY_PROJECT` existem
-- CI env vars: adicionadas 4 vars Sentry no build step do frontend
-- `.npmrc` com `legacy-peer-deps=true` (backend + frontend) — resolve conflito zod v4 vs openai
-- `.eslintrc.json` no frontend — evita prompt interativo do `next lint` no CI
-- Prettier: 81 arquivos backend reformatados
-- ESLint fixes: `any`→`unknown` em cache/filter/interceptor/pipe, eslint-disable para CJS imports
-- E2E: `landing.spec.ts` — h1 regex i18n + `.first()` para CTA link (strict mode)
-- E2E: `mobile.spec.ts` — `test.use()` movido para top-level
-- E2E: `playwright.config.ts` — webServer com `npm run start` no CI
-- Test fixes: `circuit-breaker.spec.ts` — assertions alinhadas com comportamento de fallback
-- Test fixes: `notifications.controller.spec.ts` — mock `req.user.id` (não `userId`)
-- Test fixes: `company-throttler.guard.spec.ts` — `company` dentro de `user` (não separado)
-- Test fixes: `companies.controller.spec.ts` — ES imports para guards
-- **CI #28: Frontend ✅ Backend ✅ CI Gate ✅ — ALL GREEN**
-- 336 tests passing (319 unit + 9 E2E passed + 8 E2E skipped)
-
-### Sessao 8 (19/03/2026) — Type Safety + Test Coverage:
-
-- **`any` type elimination**: ~72 `any` types eliminados em 19 arquivos de produção
-  - billing.service.ts: `as any` → Stripe types (`Stripe.Subscription`, `Stripe.Invoice`, `Stripe.Checkout.Session`), `Prisma.JsonValue`, interfaces `StripeInvoice`/`StripeCheckoutSession`
-  - notifications.controller.ts: `req: any` → `AuthenticatedRequest` interface (8 endpoints)
-  - calls.controller.ts + calls.service.ts: typed DTOs, `Record<string, unknown>`, typed Deepgram response
-  - auth.service.ts + auth.guard.ts: `ClerkWebhookPayload`/`ClerkUserData` interfaces, `error: unknown`
-  - companies.controller.ts: `CurrentUserPayload` interface
-  - whatsapp.service.ts + whatsapp.controller.ts: `WhatsappChat` Prisma type, `TwilioMessage` interface, typed message filters
-  - notifications.gateway.ts: `Record<string, unknown>` em 5 métodos públicos
-  - media-streams.gateway.ts: `TwilioStreamMessage` interface
-  - main.ts: `IncomingMessage` + `NetSocket` types para upgrade handler
-  - presentation/webhooks: `TwilioVoiceBody`, `WhatsAppWebhookBody`/`WhatsAppMessageValue`/`WhatsAppMessage` interfaces
-  - deepgram.service.ts: `onError: unknown`, typed transcription response
-  - api-response.types.ts: `details: Record<string, unknown> | string | null`
-  - notifications.service.ts: `data: Record<string, unknown> | null`
-- **Único `as any` restante**: `prisma.service.ts` linha 27 — necessário para Prisma event API, com `eslint-disable`
-- 3 novos test suites: `cache.service.spec.ts` (~45 tests), `deepgram.service.spec.ts` (~20 tests), `clerk-webhook.controller.spec.ts` (~23 tests)
-- Total: 25 test suites (~424 test cases)
-
-### Sessao 9 (20/03/2026) — CI Node.js 22, i18n, Test Coverage:
-
-- **Node.js 20 → 22** no CI: `.github/workflows/ci.yml` — `NODE_VERSION: '22'` (fix deprecation warning)
-- **Dashboard i18n**: provider names (`openai`, `claude`, `gemini`, `perplexity`) em pt-BR e en
-- Analytics page: provider span com `t()` + fallback para nome raw
-- 4 novos test suites:
-  - `twilio-webhook.controller.spec.ts` (~18 tests) — todos os endpoints de voz Twilio
-  - `whatsapp-webhook.controller.spec.ts` (~34 tests) — webhook verification, message processing, extractContent
-  - `notifications.gateway.spec.ts` (~45 tests) — WebSocket rooms, broadcast, cleanup, guard
-  - `company-plan.middleware.spec.ts` (~32 tests) — plan lookup, cache, request enrichment, error handling
-- Total: 29 test suites (~550+ test cases)
-
-### Sessao 10 (20/03/2026) — Test Coverage, Performance, Sentry Backend:
-
-- **7 novos test suites** (+275 test cases):
-  - `auth-guards.spec.ts` (~38 tests) — AuthGuard, RolesGuard, TenantGuard
-  - `global-exception-filter.spec.ts` (~46 tests) — HTTP, Prisma, generic errors, stack trace leak prevention
-  - `interceptors-middleware.spec.ts` (~33 tests) — LoggingInterceptor, TransformInterceptor, RequestLoggerMiddleware
-  - `media-streams.gateway.spec.ts` (~40 tests) — Twilio WebSocket, Deepgram streaming, AI suggestions
-  - `ai-manager.service.spec.ts` (~42 tests) — provider selection, fallback, circuit breaker, round-robin
-  - `health.controller.spec.ts` (~33 tests) — health check, liveness, readiness probes
-  - `roles.guard.spec.ts` (~43 tests) — RBAC hierarchy, canManageUser, role enforcement
-- Total: 36 test suites (~825+ test cases)
-- **Performance frontend** (quick wins):
-  - `robots.txt` + `sitemap.ts` (SEO)
-  - `font-display: 'swap'` no Inter (LCP)
-  - Dynamic imports: analytics (SentimentAnalytics, AIPerformanceDetail), billing (PlansSection, InvoicesSection), settings (5 tabs lazy), team (UserRow memo)
-  - 9 novos componentes extraídos para code splitting
-  - `useMemo` em KPIs, filtered lists, stats computations
-- **Sentry backend** (produção):
-  - `@sentry/node` adicionado ao backend
-  - `Sentry.init()` em `main.ts` (antes do NestFactory.create)
-  - `Sentry.captureException()` no GlobalExceptionFilter (5xx errors)
-  - PII strip (authorization, cookie, x-clerk-auth-token)
-  - Frontend `error.tsx` agora envia erros ao Sentry
-
-### Sessao 11 (20/03/2026) — Observabilidade, Performance, PWA:
-
-- **Web Vitals tracking**: `web-vitals` v4 + Sentry integration (CLS, LCP, TTFB, INP, FID)
-  - `src/lib/web-vitals.ts` — métricas enviadas via `Sentry.setMeasurement()` + breadcrumbs
-  - `src/components/web-vitals-reporter.tsx` — client component no root layout
-- **Bundle analyzer**: `@next/bundle-analyzer` + CI gate (5MB threshold)
-  - `next.config.js` encadeado: `withSentryConfig(withBundleAnalyzer(config))`
-  - CI step "Check bundle size" com warning no GitHub Actions
-  - npm script `analyze` para inspeção local
-- **Distributed tracing frontend↔backend**:
-  - `tracePropagationTargets` no Sentry client (localhost, railway.app, API URL)
-  - Backend CORS: `sentry-trace` e `baggage` em `allowedHeaders`
-  - Middleware de extração de trace context no backend
-- **Service worker (PWA offline)**:
-  - `public/sw.js` — network-first (API) + stale-while-revalidate (assets)
-  - `src/lib/register-sw.ts` — registro com update detection (1h interval)
-  - `src/components/service-worker-registrar.tsx` — toasts offline/online + update
-  - i18n: strings de SW em pt-BR e en
-
-### Sessao 12 (20/03/2026) — E2E, Swagger, Load Testing:
-
-- **E2E tests**: 2 novos specs (billing.spec.ts ~8 tests, settings.spec.ts ~10 tests)
-  - Billing: plan cards, invoices, dark mode, skeleton loaders
-  - Settings: 5 tabs lazy-loaded, language selector, tab persistence
-- **Swagger/OpenAPI**: documentação completa da API
-  - `@nestjs/swagger` + `swagger-ui-express` — 64 endpoints documentados
-  - 11 tags: auth, calls, whatsapp, ai, analytics, billing, users, companies, notifications, health, webhooks
-  - `@ApiTags()`, `@ApiBearerAuth()`, `@ApiOperation()`, `@ApiResponse()` em 14 controllers
-  - Acessível em `/api/docs` (dev e produção)
-- **Load testing (k6)**: 3 scripts + helper + docs
-  - `k6/load-test.js` — 100 VU, 4min, valida SLOs (p95 < 500ms, errors < 0.1%)
-  - `k6/stress-test.js` — 1000 VU, 10min, testa circuit breakers
-  - `k6/ai-latency-test.js` — AI providers, valida p95 < 2000ms
-  - `k6/run-tests.sh` — script interativo de execução
-
-### Sessao 13 (20/03/2026) — E2E WhatsApp/Analytics, Sentry Alerting Guide:
-
-- **E2E tests**: 2 novos specs (whatsapp.spec.ts ~8 tests, analytics.spec.ts ~10 tests)
-  - WhatsApp: chat list, search, message area, AI suggestions, dark mode
-  - Analytics: KPI cards, charts, sentiment (dynamic), AI performance (dynamic), skeleton loaders
-- **Sentry alerting guide**: `SENTRY_ALERTING_GUIDE.md` com 6 regras recomendadas
-  - Error rate > 0.1%, 5xx spike, API p95 > 500ms, AI p95 > 2s, unhandled exceptions, LCP regression
-- Total E2E: 9 specs (~60 tests)
-
-### Sessao 14 (20/03/2026) — README, Onboarding, Seed Data:
-
-- **README.md profissional**: documentação completa do projeto no GitHub
-  - Features, tech stack, architecture diagram, project structure
-  - Getting started, environment variables, testing, SLOs
-  - Observability, security, resilience, deploy info
-- **Onboarding wizard** (`/onboarding`):
-  - 4 steps: Welcome (company name) → Team Size/Industry → Channels → Plan Selection
-  - Progress bar, Back/Next navigation, validation
-  - Dark mode, responsivo, i18n (pt-BR + en — 57 chaves cada)
-  - Persiste via `companiesService.update()` com `metadata.onboarded = true`
-  - Redirect automático no AuthProvider para usuários não-onboarded
-  - `/onboarding` adicionado às rotas públicas no middleware
-- **Seed script** (`prisma/seed.ts`):
-  - 3 empresas (Starter, Professional, Enterprise)
-  - 12 usuários (4 por empresa, roles variados)
-  - ~100 calls com transcrições em PT-BR, sentiment, AI suggestions
-  - ~50 WhatsApp chats com ~300 mensagens
-  - ~90 audit logs + ~90 notifications
-  - Idempotente (upsert), dados realistas brasileiros
-
-### Sessao 15 (20/03/2026) — Team Invites, Company Settings:
-
-- **Team invites backend** (3 novos endpoints):
-  - `POST /users/invite` — cria User com status PENDING + temporary clerkId
-  - `DELETE /users/:id` — remove user (soft ACTIVE, hard PENDING) com proteção last-admin
-  - `PATCH /users/:id/role` — atualiza role com audit trail
-  - `InviteUserDto` e `UpdateUserRoleDto` com validação class-validator
-  - Webhook handler `createFromWebhook()` atualizado: transição PENDING→ACTIVE por email match
-- **Team invites frontend**:
-  - `usersService.invite()` e `usersService.updateRole()` no api.ts
-  - `handleInvite()` com useMutation no team page — formulário modal funcional
-- **Company settings page** (perfil + integrações):
-  - `PUT /companies/current` — novo endpoint no controller (OWNER/ADMIN)
-  - `UpdateCompanyDto` expandido: website, industry, logoUrl, timezone, metadata
-  - `companies.service.update()` — aceita todos os novos campos dinamicamente
-  - `company-tab.tsx` reescrito: form state controlado (useState), dirty tracking, real API save
-  - Seção de integrações: cards Twilio, WhatsApp, Stripe, OpenAI, Deepgram, Sentry (status connected)
-  - Timezone selector com fusos brasileiros + globais
-  - i18n: 12 novas chaves (timezone, plan, integrations, connected/disconnected, 6 descrições)
-  - Settings page: toast success/error, tipo `Record<string, unknown>` (elimina `any`)
-
-### Sessao 16 (20/03/2026) — Email Service, Logo Upload:
-
-- **EmailModule** (Resend integration):
-  - `email.service.ts` — send via Resend API com circuit breaker (Release It!)
-  - `email.module.ts` — @Global module, registered in AppModule
-  - Template HTML profissional para convite de equipe (responsivo, dark-safe)
-  - Non-blocking: email failure não impede criação do invite
-  - `sendInviteEmail()` — tradução de roles PT-BR, sign-up URL com email param
-  - `email.service.spec.ts` — ~12 test cases (send, error handling, circuit breaker)
-  - Configuração: `RESEND_API_KEY`, `EMAIL_FROM` no configuration.ts
-- **UploadModule** (Cloudflare R2 — S3-compatible):
-  - `upload.service.ts` — presigned URL generation (AWS S3 V4 signature)
-  - `upload.controller.ts` — `POST /upload/presigned-url` (OWNER/ADMIN)
-  - `upload.module.ts` — registered in AppModule
-  - Frontend `uploadService` — `getPresignedUrl()` + `uploadFile()` helper
-  - Validação: MIME types (JPEG/PNG/WebP/SVG), max 5MB
-  - File naming: `{category}/{companyId}/{timestamp}_{random}.{ext}`
-  - Configuração: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
-- **Company logo upload UI**:
-  - Logo preview com placeholder (Building2 icon)
-  - File input hidden + button trigger
-  - Upload progress (Loader2 spinner)
-  - Client-side validation (size + type)
-  - Save imediato via `updateMutation.mutate({ logoUrl })`
-  - i18n: 7 novas chaves logo (pt-BR + en)
-
-### Sessao 17 (20/03/2026) — Upload Tests, Test Coverage:
-
-- `upload.service.spec.ts` (~25 tests) — presigned URL generation, MIME validation, sanitization, S3 V4 signature, no-credentials fallback, isValidUploadUrl
-- `upload.controller.spec.ts` (~8 tests) — endpoint routing, companyId injection, error propagation, categories
-- Total: 38 test suites (~860+ test cases)
-
-### Sessao 18 (20/03/2026) — Audit Log, Notifications, Export, Recording:
-
-- **Audit Log viewer**:
-  - `GET /analytics/audit-logs/:companyId` — paginação, filtros (action, resource, userId, dateRange)
-  - Include user relation (nome, email) na resposta
-  - Frontend: página `/dashboard/audit-logs` com tabela, badges por ação, filtros, paginação
-  - Sidebar: link adicionado com ícone ScrollText
-  - i18n: ~25 chaves (título, ações, filtros, colunas) em pt-BR + en
-- **Notification preferences persistence**:
-  - `GET /notifications/preferences/current` + `PATCH /notifications/preferences/current`
-  - Prefs armazenadas no Company.settings JSON
-  - Frontend reescrito: toggles funcionais com save imediato via API
-  - Toast feedback, loading state, optimistic updates
-- **CSV Export (calls)**:
-  - `GET /calls/:companyId/export` — retorna CSV com Date, Phone, Direction, Status, Duration, Sentiment
-  - Frontend: botão Download no header de calls, blob handling
-- **Call recording playback**:
-  - AudioPlayer component: play/pause, seek, progress bar, duration
-  - Integrado no modal de detalhe da call (quando recordingUrl existe)
-  - i18n: chave `calls.recording`
-
-### Sessao 19 (20/03/2026) — pnpm Workspaces Monorepo, Sentry Alerts, Resend:
-
-- **pnpm workspaces monorepo**:
-  - Root: `pnpm-workspace.yaml`, `package.json` (scripts unificados), `.npmrc`, `tsconfig.json` (project refs)
-  - `apps/backend` — movido de `backend-enterprise/`, renomeado para `@saas/backend`
-  - `apps/frontend` — movido de `frontend-enterprise/`, renomeado para `@saas/frontend`
-  - `packages/shared` — `@saas/shared` com tipos puros (zero deps externas)
-    - `enums.ts` — 12 enums (Plan, UserRole, CallStatus, etc.)
-    - `entities.ts` — 8 interfaces (User, Company, Call, WhatsAppChat, etc.)
-    - `api-types.ts` — ApiResponse, PaginationMeta, PaginatedResponse
-    - `analytics-types.ts` — CompanyStats, CompanyUsage, CallStats, PlanDetails
-    - `websocket-types.ts` — WSAISuggestion, WSCallStatus, WSNewMessage, WSNotification
-  - Frontend `types/index.ts` reescrito: re-export de `@saas/shared` (elimina ~270 linhas duplicadas)
-  - Backend `api-response.types.ts` reescrito: re-export de `@saas/shared`
-  - `next.config.js`: adicionado `transpilePackages: ['@saas/shared']`
-  - CI workflow reescrito: `pnpm/action-setup@v4`, job `install` (shared build + cache), `--frozen-lockfile`
-  - Removidos `package-lock.json` dos apps (pnpm usa `pnpm-lock.yaml` na raiz)
-- **Sentry alerting rules** (script automatizado):
-  - `scripts/setup-sentry-alerts.sh` — cria 6 alert rules via Sentry API
-  - Issue alerts: High Error Rate (>10 events/5min), New Unhandled Exception
-  - Metric alerts: 5xx Spike (>5/min), API Latency p95 (>500ms), AI Latency p95 (>2s), LCP Regression (>2.5s)
-  - Execução: `SENTRY_ORG=x SENTRY_PROJECT=y SENTRY_AUTH_TOKEN=z ./scripts/setup-sentry-alerts.sh`
-- **Resend domain setup**:
-  - `scripts/RESEND_DOMAIN_SETUP.md` — guia passo-a-passo (DNS records, verificação, teste curl)
-
-### Sessao 20 (21/03/2026) — Cleanup & Deploy Config:
-
-- CLAUDE.md atualizado: data, pendências, sessão 20
-- Pastas antigas `backend-enterprise/` e `frontend-enterprise/` pendentes de remoção no Windows
-
-### Sessao 21 (21/03/2026) — Monorepo Cleanup & Deploy Config:
-
-- **Pastas legacy removidas**: `backend-enterprise/` e `frontend-enterprise/` deletadas (196 arquivos, 43.080 linhas)
-- **Arquivo corrompido removido**: filename Unicode inválido no git tree (auth.guard.ts com path absoluto)
-- **Git remote configurado**: token GitHub, push para `origin/main`
-- **Railway configurado** (via Chrome):
-  - Root directory: `apps/backend` (já estava correto)
-  - Watch paths adicionados: `packages/shared/**` + `apps/backend/**`
-  - Build command: `pnpm install --no-frozen-lockfile && pnpm build`
-- **Vercel configurado** (via Chrome):
-  - Root directory: `./` → `apps/frontend`
-  - "Include files outside root directory" habilitado (para `packages/shared`)
-- Commits: `4598051` (cleanup enterprise folders) + `24d10b2` (remove corrupted filename)
-
-### Sessao 22 (24/03/2026) — Vercel Deploy Fix, Sentry Alerts:
-
-- **Monorepo commit consolidado**: `57ef971` — apps/, packages/shared, configs raiz commitados ao git
-  - Commits das sessões 19-21 tinham sido perdidos; working tree tinha estrutura monorepo mas git não rastreava
-  - Pastas legacy (`backend-enterprise/`, `frontend-enterprise/`) removidas do git tracking
-  - Arquivos de backup/debug excluídos do commit (*.bak, diagnose-*, scripts one-off prisma)
-- **Fix Vercel prerender error** (Clerk `Missing publishableKey`):
-  - `export const dynamic = 'force-dynamic'` em 4 páginas Clerk:
-    - `apps/frontend/src/app/sign-in/[[...sign-in]]/page.tsx`
-    - `apps/frontend/src/app/sign-up/[[...sign-up]]/page.tsx`
-    - `apps/frontend/src/app/(auth)/login/page.tsx`
-    - `apps/frontend/src/app/(auth)/register/page.tsx`
-  - Causa: Next.js tentava prerender estático dessas páginas, mas Clerk precisa de env vars em runtime
-- **Vercel deploy em produção**: build passou, `saas-ai-sales-assistant.vercel.app` live
-- **Sentry Alerts configurados** (6 regras via UI):
-  - `[SalesAI] High Error Rate` — Number of Errors > 10 (critical) / > 5 (warning), 5min interval
-  - `[SalesAI] New Unhandled Exception` — Issue alert, first seen, tag handled=no, 1h interval
-  - `[SalesAI] 5xx Error Spike` — count() http.status_code:5*, > 5 (critical) / > 2 (warning), 1min
-  - `[SalesAI] High API Latency` — p95 duration, transaction.op:http.server, > 2000ms / > 500ms, 5min
-  - `[SalesAI] AI Provider Slow` — p95 duration, transaction:*/ai/*, > 5000ms / > 2000ms, 5min
-  - `[SalesAI] LCP Regression` — p75 LCP, > 4000ms / > 2500ms, 1h interval
-
-### Sessao 22b (24/03/2026) — Domínio, Email, Sentry Alerts:
-
-- **Domínio `theiadvisor.com`** comprado via Cloudflare Registrar (expira 24/03/2027)
-- **Resend email configurado**:
-  - Domínio `theiadvisor.com` adicionado ao Resend
-  - DNS records (DKIM, SPF, MX) auto-configurados via Cloudflare integration
-  - Status: Verified
-  - `EMAIL_FROM=team@theiadvisor.com` configurado no Railway
-  - `RESEND_API_KEY` configurado no Railway
-  - Email de teste enviado com sucesso para `leme.baseapr@gmail.com`
-- **Sentry Alerts** (6 regras) criados via UI do Sentry (API não tinha scope suficiente)
-
-### Sessao 23 (26/03/2026) — Domínio → Vercel:
-
-- **DNS configurado no Cloudflare** para apontar `theiadvisor.com` ao Vercel:
-  - A record: `@` → `216.198.79.1` (DNS only)
-  - CNAME record: `www` → `0680291e37413ab4.vercel-dns-017.com` (DNS only)
-- **Vercel custom domain**: `theiadvisor.com` + `www.theiadvisor.com` adicionados (Valid Configuration)
-- **SSL**: certificado gerado automaticamente pelo Vercel
-- `theiadvisor.com` redireciona 307 → `www.theiadvisor.com` (Production)
-
-### Sessao 24 (28/03/2026) — Domain Hardening & Cleanup:
-
-- **CORS atualizado**: `main.ts` — old vercel.app URLs → `theiadvisor.com` + `www.theiadvisor.com`
-- **Clerk authorized parties**: `clerk.strategy.ts` — atualizado para domínio novo
-- **Swagger**: server URL dinâmica via `BACKEND_URL` env, contact → `team@theiadvisor.com`
-- **SEO**: `sitemap.ts`, `layout.tsx` metadataBase, `robots.txt` — todos atualizados
-- **Auth guards ativados**: `notifications.controller.ts` — imports AuthGuard/TenantGuard adicionados, decorator ativado
-- **Vercel env var**: `NEXT_PUBLIC_APP_URL=https://www.theiadvisor.com` adicionada + redeploy
-- **Cleanup**: removidos fix-cors.js, fix-clerk.js, SWAGGER_CHANGES_SUMMARY.txt, SWAGGER_IMPLEMENTATION.md, SWAGGER_VERIFICATION_CHECKLIST.md
-- **Cleanup**: removidas pastas legacy `backend-enterprise/`, `frontend-enterprise/`, docs soltos, `migrate-to-monorepo.ps1`
-- **Zero referências** ao domínio antigo (vercel.app) no código de produção
-- Commits: `5fba2b8` + `7f5d83f` pushed to main
-
-### Sessao 25 (28/03/2026) — Clerk Production, Vercel Build Fix:
-
-- **Clerk Production instance** criada (pk_live_*, sk_live_*)
-- **Vercel + Railway env vars** atualizadas com production keys
-- **Clerk webhook** configurado: user.created, user.deleted, user.updated
-- **Vercel Root Directory** corrigido: apps/frontend
-- **next.config.js**: eslint.ignoreDuringBuilds + typescript.ignoreBuildErrors
-
-### Sessao 26 (28/03/2026) — Vercel Domain Fix, Clerk Production Live:
-
-- **Fix**: dominios custom movidos para projeto Vercel correto
-- **Vercel domains**: www.theiadvisor.com (Production) + theiadvisor.com (redirect)
-- **Clerk Production confirmado**: pk_live_* servido, sem banner "Development mode"
-
-### Sessao 27 (28/03/2026) — Google OAuth, CORS, Production Verification:
-
-- **Google Cloud project** criado + OAuth 2.0 Client ID
-- **Clerk Google OAuth habilitado** e publicado
-- **CORS producao verificado** + Auth flow funcionando
-- **Service worker stale limpo**
-- **Clerk deprecation fix**: afterSignInUrl -> fallbackRedirectUrl
-
-### Sessao 28 (29/03/2026) — Production Audit & Hardening:
-
-- **Clerk deprecation fix pushed**: commit bf7fc78 via GitHub Git Data API
-- **Vercel env var**: NEXT_PUBLIC_SENTRY_DSN adicionada + redeploy
-- **Railway SENTRY_DSN** adicionado (30 service vars total)
-- **Railway env vars auditadas** (30 variaveis completas)
-- **Sentry trial**: 2 dias restantes, auto-downgrade para Developer (free)
-  - LEMBRETE: migrar para plano pago quando equipe/trafego crescer
-- **Cloudflare R2**: checkout preparado mas Activate bloqueado por anti-bot
-
-### Sessao 29 (31/03/2026) — Production Readiness (5 de 6 itens concluídos):
-
-- **Cloudflare R2 ativado e configurado**:
-  - R2 Object Storage ativado na conta Cloudflare
-  - Bucket `theiadvisor-uploads` criado (localização: automática)
-  - Custom domain `uploads.theiadvisor.com` configurado (CNAME no Cloudflare DNS)
-  - API token criado (permissões Object Read & Write)
-  - 5 env vars configuradas no Railway: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME=theiadvisor-uploads`, `R2_PUBLIC_URL=https://uploads.theiadvisor.com`
-- **Stripe migrado para live mode**:
-  - Conta ativada com CPF pessoal (Individual, sem CNPJ por enquanto)
-  - Categoria: Software → "Software as a Service (SaaS)"
-  - Statement descriptor: `THEIADVISOR`
-  - 3 produtos criados em produção (preço em BRL):
-    - Starter: R$97/mês (`price_1TGufHJ1Cbnf5voGRVcHKHyU`)
-    - Professional: R$297/mês (`price_1TGuhyJ1Cbnf5voGaclVV3ny`)
-    - Enterprise: R$697/mês (`price_1TGujaJ1Cbnf5voGVY2vqNW9`)
-  - API keys live configuradas no Railway: `STRIPE_SECRET_KEY` (sk_live_*), `STRIPE_PUBLISHABLE_KEY` (pk_live_*)
-  - Webhook live criado: endpoint Railway, 6 eventos (checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.paid, invoice.payment_failed, customer.subscription.trial_will_end)
-  - `STRIPE_WEBHOOK_SECRET` (whsec_*) configurado no Railway
-  - Chave de segurança Stripe armazenada: `mlbn-hxoi-cayp-pcjg-htgo`
-- **Twilio auditado e corrigido**:
-  - Conta verificada: Pay-as-you-go (upgraded), Trial balance usado
-  - Número ativo: +1 507 763 4719 (US, Voice + SMS)
-  - **Fix crítico**: `TWILIO_WEBHOOK_URL` estava FALTANDO no Railway — adicionada via browser
-    - Sem ela, outbound calls falhariam (callback URLs em `calls.service.ts` linhas 168-177)
-  - Total Railway env vars: 36 (antes eram 30)
-  - Deploy Railway acionado com sucesso após adição
-- **Google OAuth testado**:
-  - Login via Google OAuth funcionando em `www.theiadvisor.com`
-  - Clerk webhook `user.created` disparou com sucesso
-  - Fluxo completo: Google login → Clerk → webhook → backend → user criado no DB
-- **Repo local sincronizado**:
-  - `git pull` executado em `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL`
-  - Conflitos em CLAUDE.md e next.config.js resolvidos (checkout --theirs)
-  - `pnpm install` executado com sucesso
-  - **AVISO**: Pedro tem duas cópias do projeto — usar APENAS `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL` (não a do OneDrive)
-- **WhatsApp Business API — ADIADO**:
-  - Requer CNPJ (MEI) para verificação no Meta Business Manager
-  - Código backend 100% pronto, mas credenciais de produção não configuradas
-  - Env vars faltantes no Railway: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`
-- **Guia .docx criado**: `TheIAdvisor_Guia_Producao_6_Itens.docx` com passo-a-passo detalhado dos 6 itens
-- **CLAUDE.md auditado e atualizado** (esta sessão)
-
-### Pendente / Próximos passos:
-
-**Pedro precisa fazer manualmente (requer CNPJ/MEI):**
-- [ ] Abrir MEI (recomendado: CNAE 6201-5/01 — Desenvolvimento de programas de computador sob encomenda)
-- [ ] WhatsApp Business API: criar conta Meta Business Manager → verificar empresa com CNPJ → configurar número BR → obter Access Token + Phone Number ID → adicionar no Railway
-- [ ] Stripe: migrar de CPF para CNPJ quando MEI estiver pronto (opcional, mas recomendado)
-- [ ] Twilio: comprar número BR (+55) quando tiver operação local (opcional)
+**Requer CNPJ/MEI (Pedro):**
+- [ ] Abrir MEI (CNAE 6201-5/01 — Desenvolvimento de programas de computador sob encomenda)
+- [ ] WhatsApp Business API: Meta Business Manager → verificar empresa → configurar número BR → Access Token + Phone Number ID → Railway
+- [ ] Stripe: migrar CPF → CNPJ (opcional, recomendado)
+- [ ] Twilio: comprar número BR +55 (opcional)
 
 **Itens técnicos futuros:**
-- [ ] FUTURO: migrar Sentry para plano pago quando equipe/tráfego crescer
-- [ ] FUTURO: configurar Axiom (logs) + OpenTelemetry (traces) — observabilidade completa
-- [ ] FUTURO: load testing real com k6 contra produção (scripts prontos em `k6/`)
-- [ ] FUTURO: CI/CD pipeline para staging environment
----
-
-## 3. STACK TECNOLÓGICA
-
-| Camada | Tecnologia | Justificativa |
-|---|---|---|
-| Backend | NestJS + TypeScript | DI nativa, modular forçado, decorators — *Clean Architecture* |
-| Frontend | Next.js 15 + TypeScript | Server Components, Edge runtime, WebSocket — *HPBN* |
-| ORM | Prisma | Type-safe, migrations, ACID — *Designing Data-Intensive Apps* |
-| Banco de Dados | PostgreSQL (Neon) | ACID, consistência forte, JSON support |
-| Cache / Pub-Sub | Redis (Upstash) | Sessions, rate limiting, WebSocket scaling — *System Design Interview* |
-| Real-time | Socket.io + Redis Adapter | Fallback polling, escala horizontal |
-| Auth | Clerk | OAuth, MFA, RBAC, audit logs — segurança não é nosso core |
-| Pagamentos | Stripe | PCI compliance, subscriptions, webhooks |
-| LLM | OpenAI GPT-4o / Claude Sonnet | Managed, baixa latência, custo controlado — *ML Systems* |
-| STT | Deepgram | ~200ms latência, streaming, suporte a Português |
-| Telefonia | Twilio | Media Streams, webhooks, escala global |
-| WhatsApp | WhatsApp Business API | API oficial, sem risco de ban |
-| Monorepo | pnpm workspaces | ✅ Configurado — `apps/` + `packages/shared` (migrado sessão 19) |
-| Testes | Vitest (unit/integration) + Playwright (E2E) | — |
-| Observabilidade | Sentry (erros) + Axiom (logs) + OpenTelemetry (traces) | *SRE* |
-| CI/CD | GitHub Actions | *SRE Cap. 8* |
+- [ ] Sentry: migrar para plano pago quando tráfego crescer
+- [ ] Axiom (logs) + OpenTelemetry (traces) — observabilidade completa
+- [ ] Load testing real com k6 contra produção (scripts prontos em `k6/`)
+- [ ] CI/CD pipeline para staging environment
 
 ---
 
-## 4. ARQUITETURA
+## 3. ARQUITETURA
 
-**ADR #001 — Decisão aceita:** Monolith Modular com Event-Driven Architecture.  
-Referências: *Building Microservices Cap. 1* (monolith-first), *Fundamentals of Software Architecture Cap. 13* (Service-Based), *Clean Architecture* (Dependency Rule).
+### 3.1 Decisão (ADR #001)
+
+**Monolith Modular + Event-Driven Architecture.**
+
+Referências: *Building Microservices* Cap. 1 (monolith-first), *Fundamentals of Software Architecture* Cap. 13 (Service-Based), *Clean Architecture* (Dependency Rule).
+
+Justificativa: ACID transactions preservadas, sem overhead de orquestração, banco compartilhado permite joins SQL, 11 módulos NestJS com boundaries claros. Migração futura para microservices possível via *Building Microservices* Cap. 3 (incremental migration).
+
+### 3.2 Dependency Rule (*Clean Architecture* Cap. 22)
+
+```
+Presentation (Controllers, Gateways)
+       ↓ depende de
+Application (Services, Use Cases)
+       ↓ depende de
+Domain (Entities, Value Objects, Interfaces)
+       ↑ NÃO depende de nada externo
+
+Infrastructure (Prisma, API Clients, Redis)
+       ↑ implementa interfaces do Domain
+```
+
+**Regra inviolável:** Domain Layer tem zero imports de Prisma, HTTP, frameworks. Controllers nunca contêm lógica de negócio.
+
+### 3.3 Diagrama de Componentes
 
 ```
 ┌─────────────────────────────────────────┐
-│           FRONTEND (Next.js)            │
-│  Server Components · Client Components  │
-│  WebSocket Client (Socket.io-client)    │
+│         FRONTEND (Next.js 15)           │
+│  App Router · Server/Client Components  │
+│  Socket.io-client · Zustand · i18n      │
 └────────────────────┬────────────────────┘
-                     │ HTTP / WebSocket
+                     │ HTTPS / WSS
 ┌────────────────────▼────────────────────┐
-│            BACKEND (NestJS)             │
+│           BACKEND (NestJS)              │
 │                                         │
 │  ┌──────────────────────────────────┐   │
-│  │  PRESENTATION LAYER              │   │
-│  │  REST Controllers · WS Gateways  │   │
+│  │  PRESENTATION                    │   │
+│  │  14 Controllers · 2 WS Gateways │   │
+│  │  64 endpoints documentados       │   │
 │  └─────────────────┬────────────────┘   │
-│                    │                    │
-│  ┌──────────────────────────────────┐   │
-│  │  APPLICATION LAYER               │   │
-│  │  Use Cases · Services            │   │
+│  ┌─────────────────▼────────────────┐   │
+│  │  APPLICATION (11 Modules)        │   │
+│  │  Services · Use Cases · DTOs     │   │
 │  └─────────────────┬────────────────┘   │
-│                    │                    │
-│  ┌──────────────────────────────────┐   │
-│  │  DOMAIN LAYER                    │   │
-│  │  Entities · Value Objects        │   │
-│  │  Domain Services · Rules         │   │
+│  ┌─────────────────▼────────────────┐   │
+│  │  DOMAIN                          │   │
+│  │  Entities · Interfaces · Rules   │   │
 │  └─────────────────┬────────────────┘   │
-│                    │                    │
-│  ┌──────────────────────────────────┐   │
-│  │  INFRASTRUCTURE LAYER            │   │
-│  │  Prisma Repos · API Clients      │   │
-│  │  Redis Pub/Sub · Cache           │   │
+│  ┌─────────────────▼────────────────┐   │
+│  │  INFRASTRUCTURE                  │   │
+│  │  Prisma · Redis · API Clients    │   │
+│  │  Circuit Breakers (7 integrações)│   │
 │  └──────────────────────────────────┘   │
 └────────────────────┬────────────────────┘
                      │
 ┌────────────────────▼────────────────────┐
-│           EXTERNAL SERVICES             │
-│  PostgreSQL · Redis · Twilio            │
-│  WhatsApp API · OpenAI · Deepgram       │
-│  Clerk · Stripe                         │
+│          SERVIÇOS EXTERNOS              │
+│  PostgreSQL · Redis · Twilio · Deepgram │
+│  OpenAI · Stripe · Clerk · Resend · R2  │
 └─────────────────────────────────────────┘
 ```
 
-**Dependency Rule (Uncle Bob):** Infrastructure → Application → Domain. O Domain nunca conhece Infrastructure. Use Cases nunca conhecem Controllers.
+---
+
+## 4. STACK TECNOLÓGICA
+
+| Camada | Tecnologia | Referência |
+|---|---|---|
+| Backend | NestJS + TypeScript (strict) | *Clean Architecture* — DI, módulos, decorators |
+| Frontend | Next.js 15 + TypeScript | *HPBN* — Server Components, Edge, WebSocket |
+| ORM | Prisma | *DDIA* Cap. 2,7 — Type-safe, migrations, ACID |
+| Database | PostgreSQL (Neon) | *DDIA* — ACID, consistência forte, JSON |
+| Cache/PubSub | Redis (Upstash) | *System Design Interview* Cap. 4,12 — rate limiting, WS scaling |
+| Real-time | Socket.io + Redis Adapter | *HPBN* Cap. 17, *SDI* Cap. 12 |
+| Auth | Clerk | *Building Microservices* Cap. 11 — segurança não é core |
+| Payments | Stripe | PCI compliance, subscriptions, webhooks |
+| LLM | OpenAI GPT-4o-mini | *Designing ML Systems* — online prediction |
+| STT | Deepgram | Streaming ~200ms, suporte PT-BR |
+| Telephony | Twilio | Media Streams, webhooks |
+| WhatsApp | WhatsApp Business API | API oficial Meta |
+| Object Storage | Cloudflare R2 (S3-compatible) | Presigned URLs, domínio custom |
+| Email | Resend | Transactional emails, templates HTML |
+| Monitoring | Sentry | Frontend + Backend, distributed tracing, Web Vitals |
+| Monorepo | pnpm workspaces | `apps/` + `packages/shared` |
+| Tests | Jest (unit/integration) + Playwright (E2E) | *Clean Code* Cap. 9 |
+| CI/CD | GitHub Actions | *SRE* Cap. Release Engineering |
 
 ---
 
-## 5. ESTRUTURA DE PASTAS
+## 5. ESTRUTURA DO MONOREPO
 
 ```
 /
 ├── apps/
-│   ├── backend/                  # @saas/backend — NestJS
+│   ├── backend/                    # @saas/backend (NestJS)
 │   │   └── src/
-│   │       ├── modules/          # Um diretório por módulo de negócio
-│   │       │   ├── ai/
-│   │       │   ├── analytics/
-│   │       │   ├── auth/
-│   │       │   ├── billing/
-│   │       │   ├── calls/
-│   │       │   ├── companies/
-│   │       │   ├── email/
-│   │       │   ├── notifications/
-│   │       │   ├── upload/
-│   │       │   ├── users/
-│   │       │   └── whatsapp/
-│   │       ├── common/           # Guards, Pipes, Interceptors, Filters, Resilience
-│   │       ├── config/           # Variáveis de ambiente tipadas
-│   │       ├── health/           # Health check endpoints
-│   │       ├── infrastructure/   # Prisma, API clients
-│   │       ├── presentation/     # Controllers, DTOs, Webhooks
-│   │       └── shared/           # Types, helpers (re-exports de @saas/shared)
-│   └── frontend/                 # @saas/frontend — Next.js 15
+│   │       ├── modules/
+│   │       │   ├── ai/             # LLM providers, suggestions, fallback
+│   │       │   ├── analytics/      # Dashboard stats, sentiment, AI perf
+│   │       │   ├── auth/           # Clerk integration, guards, strategies
+│   │       │   ├── billing/        # Stripe subscriptions, invoices, webhooks
+│   │       │   ├── calls/          # Twilio calls, Deepgram STT, recordings
+│   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
+│   │       │   ├── email/          # Resend integration, templates
+│   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
+│   │       │   ├── upload/         # R2 presigned URLs, file validation
+│   │       │   ├── users/          # CRUD, invites, roles, RBAC
+│   │       │   └── whatsapp/       # WhatsApp API, chat, messages
+│   │       ├── common/             # Guards, Pipes, Interceptors, Filters
+│   │       │   └── resilience/     # CircuitBreaker genérico
+│   │       ├── config/             # Env vars tipadas (13 grupos, 42+ vars)
+│   │       ├── health/             # Health check, liveness, readiness
+│   │       ├── infrastructure/     # Prisma service, cache service
+│   │       └── presentation/       # Webhooks (Twilio, Clerk)
+│   └── frontend/                   # @saas/frontend (Next.js 15)
 │       └── src/
-│           ├── app/              # App Router (pages)
-│           ├── components/       # Componentes reutilizáveis
-│           ├── hooks/            # Custom React hooks
-│           ├── i18n/             # Internacionalização (pt-BR + en)
-│           ├── lib/              # Clients (API, WebSocket, utils)
-│           ├── providers/        # Context providers
-│           ├── services/         # API service layer
-│           ├── stores/           # Zustand stores
-│           └── types/            # Re-exports de @saas/shared
+│           ├── app/                # App Router (15 routes)
+│           │   ├── dashboard/      # analytics, audit-logs, billing,
+│           │   │                   # calls, settings, team, whatsapp
+│           │   ├── onboarding/     # 4-step wizard
+│           │   ├── sign-in/        # Clerk (force-dynamic)
+│           │   └── sign-up/        # Clerk (force-dynamic)
+│           ├── components/         # UI components (modais, skeletons, etc.)
+│           ├── hooks/              # useTranslation, custom hooks
+│           ├── i18n/               # pt-BR + en (~200+ chaves cada)
+│           ├── lib/                # API client, WebSocket, web-vitals, SW
+│           ├── providers/          # Auth, Theme, Query providers
+│           ├── services/           # API service layer (typed)
+│           ├── stores/             # Zustand state management
+│           └── types/              # Re-exports de @saas/shared
 ├── packages/
-│   └── shared/                   # @saas/shared — Tipos puros (zero deps)
+│   └── shared/                     # @saas/shared (zero deps)
 │       └── src/
-│           ├── enums.ts          # 12 enums compartilhados
-│           ├── entities.ts       # 8 interfaces de domínio
-│           ├── api-types.ts      # ApiResponse, Pagination
-│           ├── analytics-types.ts # Stats, Usage, Limits
-│           ├── websocket-types.ts # WS event types
-│           └── index.ts          # Barrel export
-├── scripts/                      # Setup scripts
-├── .github/
-│   └── workflows/ci.yml          # pnpm workspaces CI
+│           ├── enums.ts            # 12 enums compartilhados
+│           ├── entities.ts         # 8 interfaces de domínio
+│           ├── api-types.ts        # ApiResponse, Pagination
+│           ├── analytics-types.ts  # Stats, Usage, Limits
+│           ├── websocket-types.ts  # WS event types
+│           └── index.ts            # Barrel export
+├── scripts/                        # setup-secrets.sh, setup-sentry-alerts.sh
+├── k6/                             # Load test scripts (load, stress, AI)
+├── .github/workflows/ci.yml        # 4 jobs: install → frontend → backend → ci-gate
 ├── pnpm-workspace.yaml
-├── package.json                  # Root scripts (dev, build, test, lint)
-└── tsconfig.json                 # Project references
+├── package.json                    # Root scripts
+└── tsconfig.json                   # Project references
 ```
-
-Cada módulo NestJS contém: `controller`, `service`, `use-cases/`, `repository`, `dto/`, `entities/`, `*.module.ts`.
 
 ---
 
-## 6. MÓDULOS E STATUS
+## 6. SCHEMA DE DADOS (Prisma)
 
-| Módulo | Responsabilidade | Status |
+### 6.1 Modelos (11)
+
+| Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
-| `AuthModule` | Integração Clerk, guards de autenticação, extração de tenant | Não iniciado |
-| `UsersModule` | CRUD de usuários, roles, perfis | Não iniciado |
-| `CallsModule` | Webhook Twilio, transcrição Deepgram, ciclo de vida da ligação | Não iniciado |
-| `WhatsAppModule` | Webhook WhatsApp, processamento de mensagens | Não iniciado |
-| `AIModule` | Geração de sugestões via LLM, cache de prompts, fallback | Não iniciado |
-| `NotificationsModule` | Gateway WebSocket, rooms por userId e companyId | Não iniciado |
-| `SubscriptionsModule` | Planos, Stripe webhooks, limites por plano | Não iniciado |
-| `AnalyticsModule` | Métricas de negócio, dashboard de performance | Não iniciado |
+| **Company** | Tenant root. Plano, limites, settings JSON, WhatsApp config | → Users, Calls, Chats, Subscriptions, Invoices, ApiKeys, AuditLogs, Notifications |
+| **User** | Perfil, role (OWNER/ADMIN/MANAGER/VENDOR), status, prefs | → Company, Calls, Chats, AISuggestions, AuditLogs |
+| **Call** | Ligação telefônica. Twilio SID, transcrição, sentiment, AI analysis | → Company, User, AISuggestions |
+| **WhatsappChat** | Thread de conversa. Status, prioridade, agente atribuído | → Company, User?, Messages, AISuggestions |
+| **WhatsappMessage** | Mensagem individual. Tipo, status, mídia, tracking de AI | → Chat |
+| **AISuggestion** | Sugestão gerada por IA. Contexto (call ou chat), feedback, métricas | → Call?, Chat?, User? |
+| **Subscription** | Assinatura Stripe. Plano, status, período, trial, cancelamento | → Company |
+| **Invoice** | Fatura Stripe. Valor BRL, status, URLs de pagamento | → Company |
+| **Notification** | Notificação multi-canal (in-app, email, push, SMS) | → Company, User |
+| **ApiKey** | Chave de API. Hash, escopos, expiração, uso | → Company |
+| **AuditLog** | Trail de auditoria. Ação, recurso, valores old/new, IP, requestId | → Company, User? |
+
+### 6.2 Enums (19)
+
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10)
+
+### 6.3 Regras de Schema
+
+- **Multi-tenancy obrigatório:** toda query inclui `companyId` como filtro. Repositórios nunca expõem métodos sem esse parâmetro (*DDIA* Cap. 2).
+- **Composite indexes:** ordenados por query pattern mais frequente (`[companyId, createdAt(sort: Desc)]`). Ordem das colunas importa (*DDIA* Cap. 3).
+- **JSON para dados flexíveis:** `settings`, `metadata`, `aiSuggestions` — schema-on-read (*DDIA* Cap. 2).
+- **Soft delete:** `deletedAt` em Company, User, WhatsappChat. Hard delete apenas em PENDING users.
+- **Schema é contrato:** não alterar sem ADR documentado.
 
 ---
 
-## 7. SCHEMA DE DADOS (Prisma)
+## 7. VARIÁVEIS DE AMBIENTE
 
-Schema é contrato — não alterar sem ADR documentado.
+### Backend (`apps/backend/.env`) — 13 grupos
 
-```prisma
-// prisma/schema.prisma
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-enum Plan {
-  STARTER
-  PROFESSIONAL
-  ENTERPRISE
-}
-
-enum UserRole {
-  ADMIN
-  MANAGER
-  VENDOR
-}
-
-enum CallDirection {
-  INBOUND
-  OUTBOUND
-}
-
-enum CallStatus {
-  INITIATED
-  IN_PROGRESS
-  COMPLETED
-  FAILED
-}
-
-enum WhatsappMessageDirection {
-  INBOUND
-  OUTBOUND
-}
-
-model Company {
-  id               String         @id @default(uuid())
-  name             String
-  plan             Plan           @default(STARTER)
-  stripeCustomerId String?        @unique
-  users            User[]
-  calls            Call[]
-  whatsappChats    WhatsappChat[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  @@index([stripeCustomerId])
-}
-
-model User {
-  id        String   @id @default(uuid())
-  clerkId   String   @unique
-  email     String   @unique
-  name      String
-  role      UserRole @default(VENDOR)
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
-  calls     Call[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([email])
-  @@index([companyId])
-  @@index([clerkId])
-}
-
-model Call {
-  id           String        @id @default(uuid())
-  userId       String
-  user         User          @relation(fields: [userId], references: [id])
-  companyId    String
-  company      Company       @relation(fields: [companyId], references: [id])
-  phoneNumber  String
-  direction    CallDirection
-  durationSecs Int           @default(0)
-  status       CallStatus    @default(INITIATED)
-  transcript   String?       @db.Text
-  sentiment    Float?
-  recordingUrl String?
-  aiSuggestions Json         @default("[]")
-  metadata     Json?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  @@index([userId, createdAt(sort: Desc)])
-  @@index([companyId, status, createdAt(sort: Desc)])
-}
-
-model WhatsappChat {
-  id          String             @id @default(uuid())
-  companyId   String
-  company     Company            @relation(fields: [companyId], references: [id])
-  phoneNumber String
-  messages    WhatsappMessage[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-
-  @@index([companyId])
-  @@unique([companyId, phoneNumber])
-}
-
-model WhatsappMessage {
-  id            String                   @id @default(uuid())
-  chatId        String
-  chat          WhatsappChat             @relation(fields: [chatId], references: [id])
-  direction     WhatsappMessageDirection
-  content       String                   @db.Text
-  aiSuggestion  String?                  @db.Text
-  timestamp     DateTime
-  createdAt     DateTime                 @default(now())
-
-  @@index([chatId, timestamp(sort: Asc)])
-}
-
-model AuditLog {
-  id        String   @id @default(uuid())
-  companyId String
-  userId    String
-  action    String
-  metadata  Json?
-  createdAt DateTime @default(now())
-
-  @@index([companyId, createdAt(sort: Desc)])
-  @@index([userId])
-}
 ```
+# App
+NODE_ENV, PORT, API_VERSION, APP_NAME
 
-**Regra crítica de multi-tenancy:** toda query ao banco **obrigatoriamente** inclui `companyId` como filtro. Repositórios nunca expõem métodos sem esse parâmetro.
-
----
-
-## 8. VARIÁVEIS DE AMBIENTE
-
-Todas as variáveis devem estar em `.env.local` (desenvolvimento) e configuradas no Railway/Vercel (produção). Nunca commitar valores reais.
-
-**Backend (`apps/backend/.env`):**
-```
 # Database
-DATABASE_URL=
+DATABASE_URL
 
 # Redis
-REDIS_URL=
+REDIS_URL, REDIS_TTL
 
-# Auth
-CLERK_SECRET_KEY=
-CLERK_WEBHOOK_SECRET=
-
-# Telephony
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=
-TWILIO_WEBHOOK_URL=
-
-# WhatsApp
-WHATSAPP_ACCESS_TOKEN=
-WHATSAPP_PHONE_NUMBER_ID=
-WHATSAPP_WEBHOOK_VERIFY_TOKEN=
+# Auth (Clerk)
+CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY, CLERK_WEBHOOK_SECRET
 
 # AI
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
+OPENAI_API_KEY, OPENAI_MODEL, OPENAI_MAX_TOKENS, ANTHROPIC_API_KEY
 
-# STT
-DEEPGRAM_API_KEY=
+# Telephony (Twilio)
+TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, TWILIO_WEBHOOK_URL
 
-# Payments
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
+# STT (Deepgram)
+DEEPGRAM_API_KEY
 
-# Observability
-SENTRY_DSN=
-AXIOM_TOKEN=
-AXIOM_DATASET=
+# Payments (Stripe)
+STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET
+STRIPE_PRICE_STARTER, STRIPE_PRICE_PROFESSIONAL, STRIPE_PRICE_ENTERPRISE
 
-# App
-NODE_ENV=development
-PORT=3001
-FRONTEND_URL=http://localhost:3000
+# WhatsApp
+WHATSAPP_API_URL, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN
+WHATSAPP_VERIFY_TOKEN, WHATSAPP_WEBHOOK_SECRET
+
+# Object Storage (R2)
+R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL
+
+# Email (Resend)
+RESEND_API_KEY, EMAIL_FROM
+
+# Rate Limiting
+THROTTLE_TTL, THROTTLE_LIMIT
+
+# CORS
+FRONTEND_URL, ALLOWED_ORIGINS
+
+# Security
+JWT_SECRET, ENCRYPTION_KEY
 ```
 
-**Frontend (`apps/frontend/.env.local`):**
+### Frontend (`apps/frontend/.env.local`)
+
 ```
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
+NEXT_PUBLIC_API_URL, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY
+NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN
+SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
 ```
+
+**Railway (produção):** 36 env vars configuradas.
+**Vercel (produção):** 8 env vars configuradas.
 
 ---
 
-## 9. DECISÕES ARQUITETURAIS (ADRs)
+## 8. RESILIÊNCIA (*Release It!*)
 
-| # | Decisão | Status | Referência |
-|---|---|---|---|
-| 001 | Monolith Modular + Event-Driven | Aceito | *Building Microservices Cap.1, Fundamentals Cap.13* |
-| 002 | PostgreSQL como banco principal | Aceito | *Designing Data-Intensive Apps Cap.2,7* |
-| 003 | Multi-tenancy por shared DB + companyId | Aceito | *Designing Data-Intensive Apps Cap.2* |
-| 004 | Redis adapter para WebSocket horizontal scaling | Aceito | *System Design Interview Cap.12* |
-| 005 | Clerk para autenticação (não construir próprio) | Aceito | *Building Microservices Cap.9* |
-| 006 | Deepgram para STT (não Whisper self-hosted) | Aceito | *Designing ML Systems* — latência crítica |
-| 007 | Circuit breaker em todas as integrações externas | Aceito | *Release It! — Stability Patterns* |
+### 8.1 Circuit Breakers — 7 integrações protegidas
 
-Novas decisões devem ser adicionadas aqui antes de implementadas.
+Cada integração externa tem CircuitBreaker com estados: CLOSED → OPEN → HALF_OPEN.
+
+| Integração | Fallback quando aberto |
+|---|---|
+| OpenAI | Sugestão genérica pré-definida |
+| Anthropic Claude | Fallback para OpenAI |
+| Gemini | Fallback para OpenAI |
+| Perplexity | Fallback para OpenAI |
+| Deepgram | Log de erro, transcrição parcial |
+| Twilio WhatsApp | Mensagem de retry ao usuário |
+| Stripe | Queue para retry posterior |
+
+### 8.2 Outros Patterns de Resiliência
+
+- **Timeouts:** configurados em toda chamada externa (*Release It!* — "Never wait forever")
+- **Retry com exponential backoff:** para falhas transitórias
+- **Bulkheads:** filas separadas por tipo (AI, STT, webhook) — falha em AI não impacta webhooks
+- **Fail Fast:** validação de input imediata antes de processamento (*Release It!*)
+- **Graceful shutdown:** SIGTERM/SIGINT handlers com `app.enableShutdownHooks()`
+- **Rate limiting por plano:** STARTER(60/min), PROFESSIONAL(200/min), ENTERPRISE(500/min) — Redis sliding window, headers `X-RateLimit-*`
 
 ---
 
-## 10. CONVENÇÕES DE CÓDIGO
+## 9. SEGURANÇA
 
-### Nomenclatura
-- **Classes:** PascalCase, substantivos (`CallRepository`, `AIService`)
-- **Métodos/funções:** camelCase, verbos (`processTranscript`, `generateSuggestion`)
-- **Booleanos:** prefixo `is`, `has`, `can` (`isActive`, `canReceiveSuggestions`)
-- **Constantes:** UPPER_SNAKE_CASE (`MAX_RETRY_ATTEMPTS`, `DEFAULT_TIMEOUT_MS`)
-- **Arquivos:** kebab-case (`call.repository.ts`, `process-transcript.use-case.ts`)
-- **Variáveis:** nomes completos e pronunciáveis — proibido abreviações opacas
+- **Auth:** Clerk Production (OAuth, MFA, RBAC). Guards: AuthGuard + TenantGuard + RolesGuard
+- **RBAC hierárquico:** OWNER > ADMIN > MANAGER > VENDOR. `canManageUser()` respeita hierarquia
+- **Tenant isolation:** garantida no repositório, nunca no controller (*DDIA* Cap. 2)
+- **Input validation:** class-validator/Zod em todos os endpoints (*Release It!* Fail Fast)
+- **Secrets:** exclusivamente em env vars, nunca hardcoded (*Building Microservices* Cap. 11)
+- **Headers:** Helmet (security headers) + Compression (gzip)
+- **CORS:** apenas `theiadvisor.com` + `www.theiadvisor.com`
+- **PII strip:** authorization, cookie, x-clerk-auth-token removidos de logs/Sentry
+- **WSS obrigatório:** WebSocket sempre via TLS em produção (*HPBN* Cap. 17)
 
-### Funções
-- Máximo 50 linhas por função
-- Um único nível de abstração por função
-- Máximo 2-3 parâmetros — usar objeto tipado se mais for necessário
-- Lançar exceções tipadas, nunca retornar null nem códigos de erro
+---
 
-### Arquitetura
-- Domain Layer tem zero dependências externas (sem Prisma, sem HTTP clients)
-- Toda lógica de negócio vive em Entidades ou Use Cases — nunca em Controllers
-- Repositórios são abstrações (interface) implementadas na Infrastructure Layer
-- Todas as integrações externas (Twilio, OpenAI, Deepgram) encapsuladas em providers com interface própria
+## 10. OBSERVABILIDADE (*SRE*)
 
-### Segurança
-- Validação de input obrigatória com Zod em todos os endpoints
-- Tenant isolation garantida no nível do repositório — nunca no controller
-- Secrets exclusivamente em variáveis de ambiente — nenhum valor hardcoded
-- Rate limiting aplicado via Redis (sliding window) em todos os endpoints públicos
+### 10.1 SLOs (Service Level Objectives)
 
-### Resiliência (Release It!)
-- Circuit breaker obrigatório em: OpenAI, Deepgram, Twilio, WhatsApp API
-- Timeout configurado em toda chamada externa
-- Retry com exponential backoff para falhas transitórias
-- Bulkhead por tipo de operação (AI queue separada de webhook queue)
+| Métrica | Alvo | Alert Rule |
+|---|---|---|
+| Disponibilidade | 99.9% (≤ 43 min/mês downtime) | High Error Rate |
+| API p95 | ≤ 500ms | High API Latency |
+| Sugestão IA p95 | ≤ 2.000ms | AI Provider Slow |
+| Taxa de erros | < 0.1% | 5xx Error Spike |
+
+### 10.2 Sentry — 6 Alert Rules configuradas
+
+1. `[SalesAI] High Error Rate` — >10 errors/5min (critical), >5 (warning)
+2. `[SalesAI] New Unhandled Exception` — first seen, handled=no
+3. `[SalesAI] 5xx Error Spike` — >5/min (critical), >2 (warning)
+4. `[SalesAI] High API Latency` — p95 >2000ms (critical), >500ms (warning)
+5. `[SalesAI] AI Provider Slow` — p95 >5000ms (critical), >2000ms (warning)
+6. `[SalesAI] LCP Regression` — p75 >4000ms (critical), >2500ms (warning)
+
+### 10.3 Frontend Performance
+
+- Web Vitals: CLS, LCP, TTFB, INP, FID → Sentry measurements
+- Distributed tracing: `sentry-trace` + `baggage` headers
+- Bundle analyzer: 5MB threshold no CI
+- PWA: Service Worker (network-first API, stale-while-revalidate assets)
+
+---
+
+## 11. CONVENÇÕES DE CÓDIGO
+
+### Nomenclatura (*Clean Code* Cap. 2)
+- Classes: PascalCase, substantivos (`CallRepository`, `AIService`)
+- Métodos: camelCase, verbos (`processTranscript`, `generateSuggestion`)
+- Booleanos: prefixo `is/has/can` (`isActive`, `canReceiveSuggestions`)
+- Constantes: UPPER_SNAKE_CASE (`MAX_RETRY_ATTEMPTS`)
+- Arquivos: kebab-case (`call.repository.ts`, `process-transcript.use-case.ts`)
+- Nomes completos e pronunciáveis — proibido abreviações opacas
+
+### Funções (*Clean Code* Cap. 3)
+- Máximo 50 linhas
+- Um nível de abstração por função
+- Máximo 2-3 parâmetros — objeto tipado se mais
+- Lançar exceções tipadas, nunca retornar null
 
 ### TypeScript
 - `strict: true` — sem exceções
-- Proibido uso de `any` — usar `unknown` com type guard quando necessário
-- DTOs validados com class-validator ou Zod
-- Tipos de domínio definidos em `packages/shared` quando consumidos por ambos os apps
+- Proibido `any` — usar `unknown` com type guard (único `as any` restante: `prisma.service.ts` L27)
+- DTOs validados com class-validator
+- Tipos compartilhados em `@saas/shared`
+
+### Arquitetura (*Clean Architecture*)
+- Domain Layer: zero deps externas
+- Lógica de negócio em Entities/Use Cases — nunca em Controllers
+- Repositórios: abstrações (interface) implementadas em Infrastructure
+- Integrações externas: encapsuladas em providers com interface própria
 
 ---
 
-## 11. ESTRATÉGIA DE TESTES
+## 12. TESTES (*Clean Code* Cap. 9)
 
-| Tipo | Escopo | Meta de Cobertura | Ferramenta |
+| Tipo | Escopo | Cobertura | Ferramenta |
 |---|---|---|---|
-| Unit | Entidades de domínio, Use Cases isolados | > 80% | Vitest |
-| Integration | Use Cases com banco real (test DB) | Flows críticos | Vitest + Prisma |
-| E2E | Jornadas do usuário ponta a ponta | 5–10 paths críticos | Playwright |
+| Unit | Services, Guards, Filters, Interceptors, Gateways | 39 suites | Jest |
+| Integration | Tenant isolation, ACID transactions | 2 suites | Jest + Prisma |
+| E2E | Landing, auth, dashboard, calls, whatsapp, analytics, billing, settings, mobile | 9 specs | Playwright |
 
-Regra: toda lógica de negócio nova tem unit test antes do merge. Mocks são usados apenas na camada de Infrastructure — nunca para esconder lógica de domínio.
+**Regra:** toda lógica de negócio nova tem unit test antes do merge. Mocks apenas na camada de Infrastructure.
 
----
+### CI Pipeline (GitHub Actions)
 
-## 12. SLOS (Service Level Objectives)
+```
+install (pnpm, build @saas/shared, cache)
+  ├── frontend (lint → typecheck → build → bundle check → E2E Playwright)
+  ├── backend (lint → typecheck → build → unit tests → integration tests [PostgreSQL])
+  └── ci-gate (requires: frontend ✅ + backend ✅)
+```
 
-| Métrica | Alvo |
-|---|---|
-| Disponibilidade | 99.9% (≤ 43 min/mês de downtime) |
-| Latência API (p95) | ≤ 500ms |
-| Latência sugestão IA (p95) | ≤ 2.000ms |
-| Taxa de erros | < 0.1% |
-
-Baseado em *SRE Cap. 4 — Service Level Objectives*.
+Node.js 22 · pnpm v9 · Cancel-in-progress on same ref
 
 ---
 
-## 13. CHECKLIST PRÉ-MERGE
+## 13. ADRs (Architecture Decision Records)
 
-### Arquitetura
-- [ ] Dependency Rule respeitada (Domain não conhece Infrastructure)?
-- [ ] Separation of Concerns clara?
-- [ ] ADR criado para decisões novas?
+| # | Decisão | Status | Referência |
+|---|---|---|---|
+| 001 | Monolith Modular + Event-Driven | Aceito | *Building Microservices* Cap.1, *Fundamentals* Cap.13 |
+| 002 | PostgreSQL como banco principal | Aceito | *DDIA* Cap.2,7 |
+| 003 | Multi-tenancy por shared DB + companyId | Aceito | *DDIA* Cap.2 |
+| 004 | Redis adapter para WebSocket horizontal scaling | Aceito | *SDI* Cap.12 |
+| 005 | Clerk para auth (não construir próprio) | Aceito | *Building Microservices* Cap.9 |
+| 006 | Deepgram para STT (não Whisper self-hosted) | Aceito | *Designing ML Systems* — latência crítica |
+| 007 | Circuit breaker em todas as integrações externas | Aceito | *Release It!* — Stability Patterns |
 
-### Código
-- [ ] SOLID principles aplicados?
-- [ ] Funções ≤ 50 linhas?
-- [ ] Nomes descritivos, sem abreviações opacas?
-- [ ] Sem `any` no TypeScript?
-
-### Resiliência
-- [ ] Circuit breaker nas integrações externas?
-- [ ] Timeouts configurados?
-- [ ] Retry com backoff?
-- [ ] Error handling com exceções tipadas?
-
-### Segurança
-- [ ] Input validation com Zod?
-- [ ] Tenant isolation no repositório?
-- [ ] Nenhum secret hardcoded?
-- [ ] Rate limiting no endpoint?
-
-### Performance
-- [ ] Queries com índices apropriados?
-- [ ] N+1 queries eliminados?
-- [ ] Cache aplicado onde reduz latência ou custo?
-
-### Testes
-- [ ] Unit tests para lógica de domínio nova (> 80%)?
-- [ ] Integration test para flows críticos?
-
-### Observabilidade
-- [ ] Logs estruturados (JSON) com contexto (requestId, userId, companyId)?
-- [ ] Erros enviados ao Sentry com contexto de usuário?
-- [ ] Métricas de negócio registradas?
+ADRs seguem formato de *Fundamentals of Software Architecture* Cap. 19: Title → Status → Context → Decision → Consequences → Compliance → Notes. Novos ADRs obrigatórios antes de implementar decisões arquiteturais.
 
 ---
 
-## 14. REFERÊNCIAS (Knowledge Base)
+## 14. REFERÊNCIA RÁPIDA — PROBLEMA → LIVRO
 
-Consultar `MASTER_KNOWLEDGE_BASE_INDEX.md` antes de qualquer decisão arquitetural ou implementação de feature nova. O índice mapeia cada tópico técnico aos capítulos exatos dos 19 livros de referência.
+| Problema | Livro | Capítulo |
+|---|---|---|
+| Estrutura de camadas NestJS | *Clean Architecture* | Cap. 22 (Dependency Rule) |
+| Repository pattern | *Patterns of Enterprise* | Repository, Data Mapper |
+| Schema/índices PostgreSQL | *DDIA* | Cap. 2, 3 |
+| Transactions Prisma | *DDIA* | Cap. 7 (ACID) |
+| Circuit breaker/Timeout | *Release It!* | Stability Patterns |
+| Rate limiting Redis | *System Design Interview* | Cap. 4 |
+| WebSocket scaling | *SDI* + *HPBN* | Cap. 12 + Cap. 17 |
+| LLMs em produção | *Designing ML Systems* | Deployment, Monitoring |
+| SLOs e alertas | *SRE* | SLOs, Monitoring chapters |
+| Naming/Functions/Tests | *Clean Code* | Cap. 2, 3, 9 |
+| Módulo NestJS boundaries | *Building Microservices* | Cap. 2 (bounded context) |
+| Quando extrair serviço | *Building Microservices* | Cap. 3 (incremental migration) |
 
-**Livros críticos para consulta contínua:**
-- *Clean Architecture* — estrutura de código, Dependency Rule, SOLID
-- *Release It!* — toda integração externa, stability patterns
-- *System Design Interview* — rate limiting, WebSockets, notification system, chat system
-- *Designing Data-Intensive Applications* — schema, transactions, scaling
-- *Designing Machine Learning Systems* — LLMs em produção, context management, monitoring
+Índice completo em `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`.
 
 ---
 
-*Versão: 3.0 — Março 2026*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+## 15. CHECKLIST PRÉ-MERGE
+
+- [ ] Dependency Rule respeitada (Domain ≠ Infrastructure)?
+- [ ] Funções ≤ 50 linhas, nomes descritivos, sem `any`?
+- [ ] Circuit breaker em integrações externas? Timeouts configurados?
+- [ ] Input validation (class-validator/Zod)? Tenant isolation no repositório?
+- [ ] Nenhum secret hardcoded? Rate limiting no endpoint?
+- [ ] Queries com índices? N+1 eliminados? Cache onde reduz latência?
+- [ ] Unit tests para lógica nova (>80%)? Integration test para flows críticos?
+- [ ] Logs estruturados com requestId/userId/companyId? Erros → Sentry?
+- [ ] ADR criado para decisões arquiteturais novas?
+
+---
+
+## 16. NOTAS OPERACIONAIS
+
+### Repo local do Pedro
+- Caminho: `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL`
+- **NÃO usar a cópia do OneDrive** (conflitos com git)
+- Sempre `git pull origin main` antes de trabalhar
+
+### Chave de segurança Stripe
+`mlbn-hxoi-cayp-pcjg-htgo`
+
+### Twilio
+- Número: +1 507 763 4719 (US, Voice + SMS)
+- `TWILIO_WEBHOOK_URL` é CRÍTICA — sem ela, outbound calls falham (callback URLs em `calls.service.ts` L168-177)
+
+### Swagger
+Documentação da API em `/api/docs` (64 endpoints, 11 tags)
+
+---
+
+*Versão: 4.0 — Março 2026*
+*Histórico completo de sessões: ver `PROJECT_HISTORY.md`*
