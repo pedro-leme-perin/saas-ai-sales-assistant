@@ -19,24 +19,25 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 29/03/2026
+> Última atualização: 31/03/2026
 
 | Dimensão | Status | Observações |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend e Frontend funcionais em produção |
-| Último commit | `bf7fc78` (29/03/2026) | Clerk fallbackRedirectUrl fix |
-| Backend (NestJS) | ✅ Em produção | Railway — 9 módulos, 94 arquivos TS |
-| Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, tsc limpo |
+| Último commit | `257a47e` (31/03/2026) | CLAUDE.md update via GitHub API |
+| Backend (NestJS) | ✅ Em produção | Railway — 11 módulos, 94 arquivos TS, 36 env vars |
+| Frontend (Next.js) | ✅ Em produção | Vercel — auto-deploy via GitHub, domínio theiadvisor.com |
 | Banco de dados (Prisma) | ✅ Configurado | PostgreSQL (Neon) — 12 modelos Prisma |
-| Auth (Clerk) | ✅ Funcionando | Login, registro, middleware, guards |
-| Twilio (Voz) | ✅ Funcionando | Media Streams + transcrição em tempo real |
-| WhatsApp Business API | ✅ Funcionando | Webhooks + IA integrada |
+| Auth (Clerk) | ✅ Funcionando | Production keys (pk_live_*), Google OAuth, webhooks OK |
+| Twilio (Voz) | ✅ Funcionando | Pay-as-you-go, número +1 507 763 4719, TWILIO_WEBHOOK_URL configurado |
+| WhatsApp Business API | ⚠️ Código pronto | Código funcional, mas credenciais de produção NÃO configuradas (requer CNPJ/MEI) |
 | Deepgram (STT) | ✅ Funcionando | Streaming ~200ms latência |
 | OpenAI / Claude (LLM) | ✅ Funcionando | gpt-4o-mini para sugestões em tempo real |
-| Stripe (Pagamentos) | ✅ Funcionando | Planos, webhooks (6 eventos), billing page |
-| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Railway + Auth Token + 6 alert rules |
+| Stripe (Pagamentos) | ✅ Live mode | 3 produtos (Starter R$97, Professional R$297, Enterprise R$697), webhook live, CPF |
+| Cloudflare R2 (Upload) | ✅ Configurado | Bucket `theiadvisor-uploads`, domínio `uploads.theiadvisor.com`, API keys no Railway |
+| Sentry | ✅ Funcionando | server/edge/client configs + DSN no Vercel + Railway + 6 alert rules (plano Developer free) |
 | Email (Resend) | ✅ Funcionando | Domínio theiadvisor.com verificado, team@theiadvisor.com |
-| Domínio | ✅ Comprado | theiadvisor.com (Cloudflare, expira 03/2027) |
+| Domínio | ✅ Configurado | theiadvisor.com (Cloudflare, expira 03/2027), SSL Vercel, www redirect |
 | CI/CD | ✅ Green | ci.yml com coverage + ci-gate + E2E Playwright — all passing |
 | Testes | ✅ 36 suites | 11 service + 15 controller + 2 integration + 4 guard + 2 infra + 2 misc (~825+ test cases) |
 | Deploy | ✅ Em produção | Vercel (frontend) + Railway (backend) |
@@ -471,16 +472,62 @@ SaaS enterprise-grade de assistência de vendas com IA, operando em dois canais:
   - LEMBRETE: migrar para plano pago quando equipe/trafego crescer
 - **Cloudflare R2**: checkout preparado mas Activate bloqueado por anti-bot
 
-### Pendente / Proximos passos:
+### Sessao 29 (31/03/2026) — Production Readiness (5 de 6 itens concluídos):
 
-**Pedro precisa fazer manualmente:**
-- [ ] Cloudflare R2: clicar Activate -> criar bucket -> API keys -> Railway env vars
-- [ ] Stripe: trocar para live mode keys
-- [ ] Twilio: verificar conta production, comprar numero real
-- [ ] WhatsApp Business API: configurar credenciais reais (Meta Business Manager)
-- [ ] Testar login completo com Google OAuth
-- [ ] Sincronizar repo local com git pull
-- [ ] FUTURO: migrar Sentry para plano pago
+- **Cloudflare R2 ativado e configurado**:
+  - R2 Object Storage ativado na conta Cloudflare
+  - Bucket `theiadvisor-uploads` criado (localização: automática)
+  - Custom domain `uploads.theiadvisor.com` configurado (CNAME no Cloudflare DNS)
+  - API token criado (permissões Object Read & Write)
+  - 5 env vars configuradas no Railway: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME=theiadvisor-uploads`, `R2_PUBLIC_URL=https://uploads.theiadvisor.com`
+- **Stripe migrado para live mode**:
+  - Conta ativada com CPF pessoal (Individual, sem CNPJ por enquanto)
+  - Categoria: Software → "Software as a Service (SaaS)"
+  - Statement descriptor: `THEIADVISOR`
+  - 3 produtos criados em produção (preço em BRL):
+    - Starter: R$97/mês (`price_1TGufHJ1Cbnf5voGRVcHKHyU`)
+    - Professional: R$297/mês (`price_1TGuhyJ1Cbnf5voGaclVV3ny`)
+    - Enterprise: R$697/mês (`price_1TGujaJ1Cbnf5voGVY2vqNW9`)
+  - API keys live configuradas no Railway: `STRIPE_SECRET_KEY` (sk_live_*), `STRIPE_PUBLISHABLE_KEY` (pk_live_*)
+  - Webhook live criado: endpoint Railway, 6 eventos (checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.paid, invoice.payment_failed, customer.subscription.trial_will_end)
+  - `STRIPE_WEBHOOK_SECRET` (whsec_*) configurado no Railway
+  - Chave de segurança Stripe armazenada: `mlbn-hxoi-cayp-pcjg-htgo`
+- **Twilio auditado e corrigido**:
+  - Conta verificada: Pay-as-you-go (upgraded), Trial balance usado
+  - Número ativo: +1 507 763 4719 (US, Voice + SMS)
+  - **Fix crítico**: `TWILIO_WEBHOOK_URL` estava FALTANDO no Railway — adicionada via browser
+    - Sem ela, outbound calls falhariam (callback URLs em `calls.service.ts` linhas 168-177)
+  - Total Railway env vars: 36 (antes eram 30)
+  - Deploy Railway acionado com sucesso após adição
+- **Google OAuth testado**:
+  - Login via Google OAuth funcionando em `www.theiadvisor.com`
+  - Clerk webhook `user.created` disparou com sucesso
+  - Fluxo completo: Google login → Clerk → webhook → backend → user criado no DB
+- **Repo local sincronizado**:
+  - `git pull` executado em `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL`
+  - Conflitos em CLAUDE.md e next.config.js resolvidos (checkout --theirs)
+  - `pnpm install` executado com sucesso
+  - **AVISO**: Pedro tem duas cópias do projeto — usar APENAS `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL` (não a do OneDrive)
+- **WhatsApp Business API — ADIADO**:
+  - Requer CNPJ (MEI) para verificação no Meta Business Manager
+  - Código backend 100% pronto, mas credenciais de produção não configuradas
+  - Env vars faltantes no Railway: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`
+- **Guia .docx criado**: `TheIAdvisor_Guia_Producao_6_Itens.docx` com passo-a-passo detalhado dos 6 itens
+- **CLAUDE.md auditado e atualizado** (esta sessão)
+
+### Pendente / Próximos passos:
+
+**Pedro precisa fazer manualmente (requer CNPJ/MEI):**
+- [ ] Abrir MEI (recomendado: CNAE 6201-5/01 — Desenvolvimento de programas de computador sob encomenda)
+- [ ] WhatsApp Business API: criar conta Meta Business Manager → verificar empresa com CNPJ → configurar número BR → obter Access Token + Phone Number ID → adicionar no Railway
+- [ ] Stripe: migrar de CPF para CNPJ quando MEI estiver pronto (opcional, mas recomendado)
+- [ ] Twilio: comprar número BR (+55) quando tiver operação local (opcional)
+
+**Itens técnicos futuros:**
+- [ ] FUTURO: migrar Sentry para plano pago quando equipe/tráfego crescer
+- [ ] FUTURO: configurar Axiom (logs) + OpenTelemetry (traces) — observabilidade completa
+- [ ] FUTURO: load testing real com k6 contra produção (scripts prontos em `k6/`)
+- [ ] FUTURO: CI/CD pipeline para staging environment
 ---
 
 ## 3. STACK TECNOLÓGICA
@@ -964,4 +1011,4 @@ Consultar `MASTER_KNOWLEDGE_BASE_INDEX.md` antes de qualquer decisão arquitetur
 
 ---
 
-*Versão: 3.0 — Março 2026*
+*Versão: 3.0 — Março 2026*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
