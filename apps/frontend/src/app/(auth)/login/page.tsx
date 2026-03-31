@@ -44,7 +44,7 @@ export default function LoginPage() {
           />
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Não tem uma conta?{' '}
+            NÃ£o tem uma conta?{' '}
             <Link href="/register" className="text-primary hover:underline font-medium">
               Criar conta
             </Link>
@@ -59,7 +59,7 @@ export default function LoginPage() {
             Transforme suas vendas com IA
           </h2>
           <p className="text-white/80 max-w-md">
-            Receba sugestões inteligentes em tempo real durante suas ligações e
+            Receba sugestÃµes inteligentes em tempo real durante suas ligaÃ§Ãµes e
             conversas no WhatsApp.
           </p>
         </div>
