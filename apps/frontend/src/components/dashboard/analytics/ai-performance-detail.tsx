@@ -50,7 +50,7 @@ export default function AIPerformanceDetail({
   );
 
   const memoizedProviders = useMemo(
-    () => aiPerfData?.byProvider ?? [],
+    () => Array.isArray(aiPerfData?.byProvider) ? aiPerfData.byProvider : [],
     [aiPerfData?.byProvider]
   );
 

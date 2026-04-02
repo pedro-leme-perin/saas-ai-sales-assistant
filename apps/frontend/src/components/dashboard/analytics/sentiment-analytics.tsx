@@ -18,12 +18,12 @@ export default function SentimentAnalytics({
   t,
 }: SentimentAnalyticsProps) {
   const memoizedDistribution = useMemo(
-    () => sentimentData?.distribution ?? [],
+    () => Array.isArray(sentimentData?.distribution) ? sentimentData.distribution : [],
     [sentimentData?.distribution]
   );
 
   const memoizedTrend = useMemo(
-    () => sentimentData?.weeklyTrend ?? [],
+    () => Array.isArray(sentimentData?.weeklyTrend) ? sentimentData.weeklyTrend : [],
     [sentimentData?.weeklyTrend]
   );
 

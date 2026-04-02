@@ -20,8 +20,8 @@ const INDUSTRIES = ['sales', 'realEstate', 'insurance', 'saas', 'other'];
 const CHANNELS = ['phone', 'whatsapp'];
 const PLANS = [
   { id: 'STARTER', price: 0, highlight: false },
-  { id: 'PROFESSIONAL', price: 99, highlight: true },
-  { id: 'ENTERPRISE', price: 0, highlight: false },
+  { id: 'PROFESSIONAL', price: 297, highlight: true },
+  { id: 'ENTERPRISE', price: 697, highlight: false },
 ];
 
 export default function OnboardingPage() {
