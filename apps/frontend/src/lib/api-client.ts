@@ -2,6 +2,10 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import { toast } from 'sonner';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const isServer = typeof window === 'undefined';
+// Client-side: use Next.js rewrite proxy (same-origin, no CORS issues)
+// Server-side (SSR): use direct URL (server-to-server, no CORS)
+const API_BASE_URL = isServer ? `${API_URL}/api` : '/api/backend/api';
 
 // Reference to Clerk's getToken function - set by AuthProvider
 let clerkGetToken: (() => Promise<string | null>) | null = null;
@@ -16,7 +20,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${API_URL}/api`,
+      baseURL: API_BASE_URL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',

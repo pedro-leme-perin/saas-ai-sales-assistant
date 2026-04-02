@@ -1,9 +1,12 @@
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const isServer = typeof window === 'undefined';
+// Client-side: use Next.js rewrite proxy (same-origin, no CORS issues)
+const API_BASE = isServer ? API_URL : '/api/backend';
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
   },

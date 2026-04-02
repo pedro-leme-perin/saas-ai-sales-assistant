@@ -33,6 +33,8 @@ export interface Invoice {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Client-side: use Next.js rewrite proxy (same-origin, no CORS issues)
+const API_BASE = typeof window === 'undefined' ? API_URL : '/api/backend';
 
 export function useBilling() {
   const { getToken } = useAuth();
@@ -44,7 +46,7 @@ export function useBilling() {
 
   const authFetch = useCallback(async (path: string, options?: RequestInit) => {
     const token = await getToken();
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',

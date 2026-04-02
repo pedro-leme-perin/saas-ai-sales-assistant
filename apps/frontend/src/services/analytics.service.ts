@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:3001';
+// NOTE: This is a mock service — API_URL unused but kept for reference
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const analyticsService = {
   getDashboard: async () => {
