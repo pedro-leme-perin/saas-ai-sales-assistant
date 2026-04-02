@@ -389,10 +389,8 @@ export class WhatsappService {
 
     if (company) return company;
 
-    return this.prisma.company.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    this.logger.warn(`⚠️  No company found for WhatsApp phone number: ${phoneNumber}`);
+    return null;
   }
 
   // =====================================================

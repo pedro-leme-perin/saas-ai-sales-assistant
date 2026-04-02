@@ -10,6 +10,7 @@ import {
   Request,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '@/common/decorators/public.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
@@ -23,7 +24,10 @@ import * as twilio from 'twilio';
 export class CallsController {
   private readonly logger = new Logger(CallsController.name);
 
-  constructor(private readonly callsService: CallsService) {}
+  constructor(
+    private readonly callsService: CallsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Get(':companyId')
   @ApiOperation({
@@ -119,7 +123,10 @@ export class CallsController {
     @Body() data: { phoneNumber: string },
     @Request() req: { user: { id: string } },
   ) {
-    const webhookUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
+    const webhookUrl =
+      this.configService.get<string>('twilio.webhookUrl') ||
+      process.env.BACKEND_URL ||
+      'http://localhost:3001';
     return this.callsService.initiateCall(companyId, req.user.id, data.phoneNumber, webhookUrl);
   }
 

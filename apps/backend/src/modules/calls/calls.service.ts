@@ -153,6 +153,8 @@ export class CallsService {
 
     this.logger.log(`Initiating call to ${phoneNumber}`);
 
+    let callId: string | null = null;
+
     try {
       const call = await this.prisma.call.create({
         data: {
@@ -165,17 +167,29 @@ export class CallsService {
         },
       });
 
-      const twilioCall = await this.twilioClient.calls.create({
-        to: phoneNumber,
-        from: this.twilioPhoneNumber,
-        url: `${webhookUrl}/api/calls/webhook/voice/${call.id}`,
-        statusCallback: `${webhookUrl}/api/calls/webhook/status/${call.id}`,
-        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-        statusCallbackMethod: 'POST',
-        record: true,
-        recordingStatusCallback: `${webhookUrl}/api/calls/webhook/recording/${call.id}`,
-        recordingStatusCallbackMethod: 'POST',
-      });
+      callId = call.id;
+
+      let twilioCall;
+      try {
+        twilioCall = await this.twilioClient.calls.create({
+          to: phoneNumber,
+          from: this.twilioPhoneNumber,
+          url: `${webhookUrl}/api/calls/webhook/voice/${call.id}`,
+          statusCallback: `${webhookUrl}/api/calls/webhook/status/${call.id}`,
+          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+          statusCallbackMethod: 'POST',
+          record: true,
+          recordingStatusCallback: `${webhookUrl}/api/calls/webhook/recording/${call.id}`,
+          recordingStatusCallbackMethod: 'POST',
+        });
+      } catch (twilioError) {
+        this.logger.error(`Twilio call creation failed for call ${callId}:`, twilioError);
+        await this.prisma.call.update({
+          where: { id: callId },
+          data: { status: CallStatus.FAILED },
+        });
+        throw twilioError;
+      }
 
       await this.prisma.call.update({
         where: { id: call.id },

@@ -96,7 +96,7 @@ export class BillingService {
       {
         name: 'Starter',
         plan: Plan.STARTER,
-        price: 149,
+        price: 97,
         currency: 'BRL',
         features: [
           'Ate 5 usuarios',
@@ -111,7 +111,7 @@ export class BillingService {
       {
         name: 'Professional',
         plan: Plan.PROFESSIONAL,
-        price: 349,
+        price: 297,
         currency: 'BRL',
         features: [
           'Ate 20 usuarios',
@@ -127,7 +127,7 @@ export class BillingService {
       {
         name: 'Enterprise',
         plan: Plan.ENTERPRISE,
-        price: 749,
+        price: 697,
         currency: 'BRL',
         features: [
           'Usuarios ilimitados',
@@ -596,7 +596,15 @@ export class BillingService {
 
   async handleCheckoutCompleted(session: StripeCheckoutSession) {
     try {
+      const companyId = session.metadata?.companyId;
+      if (!companyId) {
+        this.logger.warn('⚠️  No companyId in checkout session metadata');
+        return;
+      }
+
       this.logger.log(`✅ Checkout completed: ${session.id}`);
+      this.logger.log(`   Customer: ${session.metadata?.userId || 'unknown'}`);
+      this.logger.log(`   Plan: ${session.metadata?.plan || 'unknown'}`);
     } catch (error) {
       this.logger.error('Failed to handle checkout.session.completed webhook:', error);
     }

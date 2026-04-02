@@ -83,15 +83,24 @@ export function useBilling() {
   useEffect(() => { load(); }, [load]);
 
   const startCheckout = useCallback(async (plan: string) => {
-    const data = await authFetch('/api/billing/checkout', {
-      method: 'POST',
-      body: JSON.stringify({
-        plan,
-        successUrl: `${window.location.origin}/dashboard/billing?success=true`,
-        cancelUrl: `${window.location.origin}/dashboard/billing?canceled=true`,
-      }),
-    });
-    if (data.url) window.location.href = data.url;
+    try {
+      const data = await authFetch('/api/billing/checkout', {
+        method: 'POST',
+        body: JSON.stringify({
+          plan,
+          successUrl: `${window.location.origin}/dashboard/billing?success=true`,
+          cancelUrl: `${window.location.origin}/dashboard/billing?canceled=true`,
+        }),
+      });
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError('Failed to generate checkout URL. Please try again.');
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to start checkout. Please try again.';
+      setError(errorMessage);
+    }
   }, [authFetch]);
 
   const openPortal = useCallback(async () => {
