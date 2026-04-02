@@ -1,5 +1,7 @@
 // =====================================================
 // 📝 UPDATE COMPANY DTO
+// Supports: name, slug, plan, stripeCustomerId, website,
+//           industry, logoUrl, timezone, metadata (JSON)
 // =====================================================
 
 import { IsString, IsOptional, IsEnum, IsUrl, IsObject } from 'class-validator';
