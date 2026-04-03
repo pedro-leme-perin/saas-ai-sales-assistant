@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { AuthGuard } from '@modules/auth/guards/auth.guard';
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
@@ -108,6 +109,26 @@ export class CompaniesController {
     @Body() updateCompanyDto: UpdateCompanyDto,
   ) {
     const company = await this.companiesService.update(user.companyId, updateCompanyDto);
+    return { success: true, data: company };
+  }
+
+  @Post('current/onboarding')
+  @ApiOperation({
+    summary: 'Complete onboarding',
+    description: 'Saves onboarding data and marks company as onboarded',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Onboarding completed successfully',
+  })
+  async completeOnboarding(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
+    const company = await this.companiesService.completeOnboarding(
+      user.companyId,
+      dto,
+    );
     return { success: true, data: company };
   }
 

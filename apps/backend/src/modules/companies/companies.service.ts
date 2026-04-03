@@ -6,6 +6,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -98,6 +99,30 @@ export class CompaniesService {
     return this.prisma.company.update({
       where: { id },
       data,
+    });
+  }
+
+  /**
+   * Complete onboarding — sets metadata.onboarded = true
+   * Bypasses UpdateCompanyDto to avoid DTO cache issues
+   */
+  async completeOnboarding(companyId: string, dto: CompleteOnboardingDto) {
+    await this.findOne(companyId);
+
+    return this.prisma.company.update({
+      where: { id: companyId },
+      data: {
+        name: dto.companyName.trim(),
+        industry: dto.industry || undefined,
+        metadata: {
+          onboarded: true,
+          teamSize: dto.teamSize || null,
+          industry: dto.industry || null,
+          channels: dto.channels || [],
+          selectedPlan: dto.selectedPlan || 'STARTER',
+          onboardedAt: new Date().toISOString(),
+        },
+      },
     });
   }
 

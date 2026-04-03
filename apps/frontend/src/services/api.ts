@@ -83,6 +83,16 @@ export const companiesService = {
   async update(data: Partial<Company> | Record<string, unknown>): Promise<Company> {
     return apiClient.put('/companies/current', data);
   },
+
+  async completeOnboarding(data: {
+    companyName: string;
+    teamSize?: string;
+    industry?: string;
+    channels?: string[];
+    selectedPlan?: string;
+  }): Promise<Company> {
+    return apiClient.post('/companies/current/onboarding', data);
+  },
 };
 
 // =============================================

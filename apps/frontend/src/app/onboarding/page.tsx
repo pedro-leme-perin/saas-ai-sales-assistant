@@ -60,16 +60,12 @@ export default function OnboardingPage() {
   async function handleFinish() {
     setSaving(true);
     try {
-      await companiesService.update({
-        name: data.companyName.trim(),
-        metadata: {
-          onboarded: true,
-          teamSize: data.teamSize,
-          industry: data.industry,
-          channels: data.channels,
-          selectedPlan: data.selectedPlan,
-          onboardedAt: new Date().toISOString(),
-        },
+      await companiesService.completeOnboarding({
+        companyName: data.companyName.trim(),
+        teamSize: data.teamSize,
+        industry: data.industry,
+        channels: data.channels,
+        selectedPlan: data.selectedPlan,
       });
       toast.success(t('onboarding.success'));
       router.push('/dashboard');
