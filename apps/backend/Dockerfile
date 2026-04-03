@@ -7,10 +7,9 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm
 
-# Copy dependency files (context = repo root when no Root Directory set)
-COPY apps/backend/package.json ./
-COPY apps/backend/pnpm-lock.yaml* ./
-COPY apps/backend/prisma/ ./prisma/
+# Copy dependency files
+COPY package.json pnpm-lock.yaml* ./
+COPY prisma/ ./prisma/
 
 # Install dependencies (standalone, no workspace)
 RUN pnpm install --no-frozen-lockfile --ignore-scripts
@@ -19,7 +18,7 @@ RUN pnpm install --no-frozen-lockfile --ignore-scripts
 RUN pnpm prisma generate
 
 # Copy all backend source
-COPY apps/backend/ .
+COPY . .
 
 # Build NestJS
 RUN rm -rf dist .tsbuildinfo
