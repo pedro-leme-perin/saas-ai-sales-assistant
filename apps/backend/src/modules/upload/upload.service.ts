@@ -9,7 +9,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, createHash } from 'crypto';
 
-interface PresignedUrlResult {
+export interface PresignedUrlResult {
   uploadUrl: string;
   publicUrl: string;
   key: string;
