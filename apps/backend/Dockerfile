@@ -6,22 +6,33 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY package.json pnpm-lock.yaml ./
-COPY prisma ./prisma/
+# Copy workspace config (root-level files for pnpm workspace resolution)
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
-RUN pnpm install --no-frozen-lockfile
+# Copy package.json files for dependency resolution
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/backend/package.json ./apps/backend/
 
-COPY . .
+# Install workspace dependencies (backend + shared)
+RUN pnpm install --no-frozen-lockfile --filter @saas/backend...
 
-# Force clean build — remove stale incremental build artifacts
-RUN rm -rf dist tsconfig.tsbuildinfo .tsbuildinfo
+# Copy shared package source and build it
+COPY packages/shared/ ./packages/shared/
+RUN pnpm --filter @saas/shared run build
 
-# Cache bust: 2026-04-03-force-clean
+# Copy backend source
+COPY apps/backend/ ./apps/backend/
+
+# Generate Prisma client
+WORKDIR /app/apps/backend
 RUN pnpm prisma generate
+
+# Clean build
+RUN rm -rf dist .tsbuildinfo
 RUN pnpm build
 
-# Verify build output contains onboarding endpoint
-RUN grep -r "completeOnboarding\|current/onboarding" dist/ || echo "WARNING: onboarding endpoint not found in build output"
+# Verify build contains new endpoints
+RUN grep -r "completeOnboarding" dist/ | head -3 || echo "WARNING: onboarding endpoint missing"
 
 EXPOSE 3001
 
