@@ -4,34 +4,28 @@ RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
+# Install pnpm
 RUN npm install -g pnpm
 
-# Copy workspace config (root-level files for pnpm workspace resolution)
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# Copy dependency files first (Docker layer caching)
+COPY package.json ./
+COPY prisma/ ./prisma/
 
-# Copy package.json files for dependency resolution
-COPY packages/shared/package.json ./packages/shared/
-COPY apps/backend/package.json ./apps/backend/
-
-# Install workspace dependencies (backend + shared)
-RUN pnpm install --no-frozen-lockfile --filter @saas/backend...
-
-# Copy shared package source and build it
-COPY packages/shared/ ./packages/shared/
-RUN pnpm --filter @saas/shared run build
-
-# Copy backend source
-COPY apps/backend/ ./apps/backend/
+# Install dependencies (no workspace, standalone backend)
+# --ignore-scripts prevents "prepare" from running before prisma schema is ready
+RUN pnpm install --no-frozen-lockfile --ignore-scripts
 
 # Generate Prisma client
-WORKDIR /app/apps/backend
 RUN pnpm prisma generate
 
-# Clean build
+# Copy all source code
+COPY . .
+
+# Build NestJS
 RUN rm -rf dist .tsbuildinfo
 RUN pnpm build
 
-# Verify build contains new endpoints
+# Verify build contains onboarding endpoint
 RUN grep -r "completeOnboarding" dist/ | head -3 || echo "WARNING: onboarding endpoint missing"
 
 EXPOSE 3001
