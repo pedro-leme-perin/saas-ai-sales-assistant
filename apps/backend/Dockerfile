@@ -13,9 +13,15 @@ RUN pnpm install --no-frozen-lockfile
 
 COPY . .
 
-# Cache bust: 2026-03-19-session5
+# Force clean build — remove stale incremental build artifacts
+RUN rm -rf dist tsconfig.tsbuildinfo .tsbuildinfo
+
+# Cache bust: 2026-04-03-force-clean
 RUN pnpm prisma generate
 RUN pnpm build
+
+# Verify build output contains onboarding endpoint
+RUN grep -r "completeOnboarding\|current/onboarding" dist/ || echo "WARNING: onboarding endpoint not found in build output"
 
 EXPOSE 3001
 
