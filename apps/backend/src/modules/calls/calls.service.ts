@@ -67,8 +67,8 @@ export class CallsService {
     return this.prisma.call.create({
       data: {
         phoneNumber: data.phoneNumber,
-        direction: data.direction || 'OUTBOUND',
-        status: 'INITIATED',
+        direction: (data.direction || 'OUTBOUND') as CallDirection,
+        status: 'INITIATED' as CallStatus,
         duration: 0,
         company: { connect: { id: companyId } },
         user: { connect: { id: userId } },
@@ -362,9 +362,9 @@ export class CallsService {
         return;
       }
 
-      const dgResult: {
+      const dgResult = (await dgResponse.json()) as {
         results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string }> }> };
-      } = await dgResponse.json();
+      };
       const transcript = dgResult?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
 
       if (transcript) {

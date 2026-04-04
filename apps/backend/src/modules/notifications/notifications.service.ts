@@ -71,7 +71,7 @@ export class NotificationsService {
         type: data.type,
         title: data.title,
         message: data.message,
-        data: data.data,
+        data: (data.data || null) as Prisma.InputJsonValue,
         channel: data.channel || NotificationChannel.IN_APP,
         sentAt: new Date(),
       },

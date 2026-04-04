@@ -122,7 +122,7 @@ export class EmailService {
    * Get circuit breaker status (for health check)
    */
   getCircuitBreakerStatus(): { name: string; state: string } {
-    return this.circuitBreaker.getStatus();
+    return this.circuitBreaker.getState();
   }
 
   private translateRole(role: string): string {

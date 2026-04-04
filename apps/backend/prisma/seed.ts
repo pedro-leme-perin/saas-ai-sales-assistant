@@ -336,7 +336,7 @@ async function main() {
                 : null,
             sentiment: status === CallStatus.COMPLETED ? sentiment : null,
             sentimentLabel: status === CallStatus.COMPLETED ? getSentimentLabel(sentiment) : null,
-            keywords: status === CallStatus.COMPLETED ? faker.helpers.multiple(faker.word.word, { count: 3 }) : [],
+            keywords: status === CallStatus.COMPLETED ? faker.helpers.multiple(() => faker.word.words(1)[0], { count: 3 }) : [],
             actionItems:
               status === CallStatus.COMPLETED
                 ? {
@@ -345,7 +345,7 @@ async function main() {
                       { action: 'Enviar proposta', owner: 'Inside Sales', dueDate: new Date(Date.now() + 172800000) },
                     ],
                   }
-                : null,
+                : Prisma.DbNull,
             tags: faker.helpers.multiple(() => faker.word.adjective(), { count: 2 }),
             notes: status === CallStatus.COMPLETED ? faker.lorem.paragraph() : null,
             metadata: {
@@ -365,7 +365,7 @@ async function main() {
         // Create AI Suggestions for completed calls
         if (status === CallStatus.COMPLETED && Math.random() > 0.3) {
           const suggestion = getRandomElement(aiSuggestions);
-          await prisma.aiSuggestion.create({
+          await prisma.aISuggestion.create({
             data: {
               type: suggestion.type,
               content: suggestion.content,
@@ -411,7 +411,7 @@ async function main() {
             status: getRandomElement([ChatStatus.OPEN, ChatStatus.ACTIVE, ChatStatus.RESOLVED, ChatStatus.ARCHIVED]),
             priority: getRandomElement([ChatPriority.LOW, ChatPriority.NORMAL, ChatPriority.HIGH, ChatPriority.URGENT]),
             unreadCount: Math.floor(Math.random() * 5),
-            tags: faker.helpers.multiple(faker.word.adjective, { count: 2 }),
+            tags: faker.helpers.multiple(() => faker.word.adjective(), { count: 2 }),
             lastMessageAt: generatePastDate(7),
             lastMessagePreview: faker.lorem.sentence().substring(0, 50),
             metadata: {
@@ -449,7 +449,7 @@ async function main() {
 
           // Create AI Suggestion for some outgoing messages
           if (msg.role === 'vendor' && Math.random() > 0.4) {
-            await prisma.aiSuggestion.create({
+            await prisma.aISuggestion.create({
               data: {
                 type: getRandomElement([
                   SuggestionType.GREETING,

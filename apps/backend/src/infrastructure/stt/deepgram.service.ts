@@ -150,13 +150,13 @@ export class DeepgramService {
         throw new Error(`Deepgram error: ${response.status}`);
       }
 
-      const result: {
+      const result = (await response.json()) as {
         results?: {
           channels?: Array<{
             alternatives?: Array<{ transcript?: string }>;
           }>;
         };
-      } = await response.json();
+      };
       return result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
     });
   }

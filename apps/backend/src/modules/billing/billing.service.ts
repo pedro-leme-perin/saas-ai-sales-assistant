@@ -277,8 +277,8 @@ export class BillingService {
             resource: 'subscription',
             resourceId: companyId,
             description: `Plan changed from ${oldPlan} to ${newPlan}`,
-            oldValues: { plan: oldPlan } as Prisma.JsonValue,
-            newValues: { plan: newPlan } as Prisma.JsonValue,
+            oldValues: { plan: oldPlan } as Prisma.InputJsonValue,
+            newValues: { plan: newPlan } as Prisma.InputJsonValue,
           },
         });
       });
@@ -371,22 +371,22 @@ export class BillingService {
 
     switch (event.type) {
       case 'customer.subscription.created':
-        await this.handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionCreated(event.data.object as unknown as StripeSubscription);
         break;
       case 'customer.subscription.updated':
-        await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionUpdated(event.data.object as unknown as StripeSubscription);
         break;
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionDeleted(event.data.object as unknown as StripeSubscription);
         break;
       case 'invoice.paid':
-        await this.handleInvoicePaid(event.data.object as Stripe.Invoice);
+        await this.handleInvoicePaid(event.data.object as unknown as StripeInvoice);
         break;
       case 'invoice.payment_failed':
-        await this.handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        await this.handleInvoicePaymentFailed(event.data.object as unknown as StripeInvoice);
         break;
       case 'checkout.session.completed':
-        await this.handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        await this.handleCheckoutCompleted(event.data.object as unknown as StripeCheckoutSession);
         break;
       default:
         this.logger.log(`Unhandled event type: ${event.type}`);

@@ -9,7 +9,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CompleteOnboardingDto {
   @ApiProperty({ description: 'Company name', example: 'ACME Sales Corp' })
   @IsString()
-  companyName: string;
+  companyName!: string;
 
   @ApiPropertyOptional({ description: 'Team size range', example: '6-20' })
   @IsString()

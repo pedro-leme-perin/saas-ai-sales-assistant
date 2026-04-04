@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { IncomingMessage } from 'http';
 import { Socket as NetSocket } from 'net';
+import { Request, Response, NextFunction } from 'express';
 import * as Sentry from '@sentry/node';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import compression = require('compression');
@@ -63,7 +64,7 @@ async function bootstrap() {
   // Links frontend transactions to backend transactions in the trace waterfall
   if (process.env.SENTRY_DSN) {
     // middleware function to ensure trace context is set from incoming headers
-    app.use((req, res, next) => {
+    app.use((req: Request, res: Response, next: NextFunction) => {
       // Sentry's context is automatically extracted from headers by @sentry/node
       // This middleware ensures headers are available to Sentry's context manager
       next();

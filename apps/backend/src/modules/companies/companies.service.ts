@@ -114,7 +114,7 @@ export class CompaniesService {
       data: {
         name: dto.companyName.trim(),
         industry: dto.industry || undefined,
-        metadata: {
+        settings: {
           onboarded: true,
           teamSize: dto.teamSize || null,
           industry: dto.industry || null,
