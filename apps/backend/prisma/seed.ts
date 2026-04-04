@@ -1,5 +1,6 @@
 import {
   PrismaClient,
+  Prisma,
   Plan,
   CompanySize,
   UserRole,
@@ -598,7 +599,7 @@ async function main() {
       calls: await prisma.call.count(),
       whatsappChats: await prisma.whatsappChat.count(),
       whatsappMessages: await prisma.whatsappMessage.count(),
-      aiSuggestions: await prisma.aiSuggestion.count(),
+      aiSuggestions: await prisma.aISuggestion.count(),
       notifications: await prisma.notification.count(),
       auditLogs: await prisma.auditLog.count(),
     };

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { Twilio } from 'twilio';
-import { CallStatus, SuggestionType } from '@prisma/client';
+import { CallDirection, CallStatus, SuggestionType } from '@prisma/client';
 
 @Injectable()
 export class CallsService {
