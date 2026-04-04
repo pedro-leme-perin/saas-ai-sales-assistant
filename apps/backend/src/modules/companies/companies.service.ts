@@ -121,7 +121,7 @@ export class CompaniesService {
           channels: dto.channels || [],
           selectedPlan: dto.selectedPlan || 'STARTER',
           onboardedAt: new Date().toISOString(),
-        },
+        } as Prisma.InputJsonValue,
       },
     });
   }

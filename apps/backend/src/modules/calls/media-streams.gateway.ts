@@ -103,6 +103,12 @@ export class MediaStreamsGateway {
   private async handleStreamStart(message: TwilioStreamMessage) {
     const streamSid = message.streamSid;
     const callSid = message.start?.callSid;
+
+    if (!streamSid || !callSid) {
+      this.logger.warn('Missing streamSid or callSid in stream start event');
+      return;
+    }
+
     this.logger.log(`Stream started: streamSid=${streamSid} callSid=${callSid}`);
     this.mediaChunkCount = 0;
 
@@ -216,8 +222,13 @@ export class MediaStreamsGateway {
 
   private handleMediaChunk(message: TwilioStreamMessage) {
     const streamSid = message.streamSid;
+    if (!streamSid) {
+      this.logger.warn('Missing streamSid in media chunk');
+      return;
+    }
+
     const session = this.activeSessions.get(streamSid);
-    if (!session?.deepgramSession) return;
+    if (!session?.deepgramSession || !message.media) return;
 
     this.mediaChunkCount++;
     if (this.mediaChunkCount % 100 === 1) {
@@ -232,6 +243,11 @@ export class MediaStreamsGateway {
 
   private async handleStreamStop(message: TwilioStreamMessage) {
     const streamSid = message.streamSid;
+    if (!streamSid) {
+      this.logger.warn('Missing streamSid in stream stop event');
+      return;
+    }
+
     const session = this.activeSessions.get(streamSid);
     if (!session) return;
 

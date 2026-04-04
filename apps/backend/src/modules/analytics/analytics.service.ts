@@ -84,7 +84,7 @@ export class AnalyticsService {
 
     const byDay: Record<string, { date: string; calls: number }> = {};
     for (const call of calls) {
-      const date = call.createdAt.toISOString().split('T')[0];
+      const date = (call.createdAt as Date).toISOString().split('T')[0];
       if (!byDay[date]) byDay[date] = { date, calls: 0 };
       byDay[date].calls++;
     }
@@ -160,7 +160,7 @@ export class AnalyticsService {
     // Weekly trend (avg sentiment per week)
     const weeklyMap: Record<string, { total: number; count: number }> = {};
     for (const call of calls) {
-      const weekStart = this.getWeekStart(call.createdAt);
+      const weekStart = this.getWeekStart(call.createdAt as Date);
       if (!weeklyMap[weekStart]) weeklyMap[weekStart] = { total: 0, count: 0 };
       weeklyMap[weekStart].total += call.sentiment || 0;
       weeklyMap[weekStart].count++;

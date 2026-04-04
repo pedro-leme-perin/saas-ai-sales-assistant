@@ -17,7 +17,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { PaginationDto, createPaginatedResult } from '@common/dto/pagination.dto';
-import { NotificationType, NotificationChannel } from '@prisma/client';
+import { NotificationType, NotificationChannel, Prisma } from '@prisma/client';
 
 // =====================================================
 // DTOs
@@ -338,7 +338,7 @@ export class NotificationsService {
     // Save updated settings
     await this.prisma.company.update({
       where: { id: companyId },
-      data: { settings: updatedSettings },
+      data: { settings: updatedSettings as Prisma.InputJsonValue },
     });
 
     // Return updated preferences

@@ -57,7 +57,7 @@ interface StripeCheckoutSession {
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
-  private readonly stripe: Stripe | null = null;
+  private stripe: Stripe | null = null;
   private readonly stripeSecretKey: string;
   private readonly stripePrices: Record<Plan, string>;
   readonly stripeBreaker: CircuitBreaker;
@@ -82,9 +82,7 @@ export class BillingService {
     });
 
     if (this.isStripeConfigured()) {
-      Object.assign(this, {
-        stripe: new Stripe(this.stripeSecretKey, { apiVersion: '2025-02-24.acacia' }),
-      });
+      this.stripe = new Stripe(this.stripeSecretKey, { apiVersion: '2025-02-24.acacia' });
       this.logger.log('✅ Stripe initialized');
     } else {
       this.logger.warn('⚠️  Stripe not configured - running in development mode');
