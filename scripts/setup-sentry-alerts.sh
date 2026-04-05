@@ -41,8 +41,8 @@ create_metric_alert() {
 }
 
 # ── 1. High Error Rate ──────────────────────────────────────
-create_issue_alert "[SalesAI] High Error Rate" '{
-  "name": "[SalesAI] High Error Rate",
+create_issue_alert "[TheIAdvisor] High Error Rate" '{
+  "name": "[TheIAdvisor] High Error Rate",
   "actionMatch": "all",
   "filterMatch": "all",
   "frequency": 300,
@@ -71,8 +71,8 @@ create_issue_alert "[SalesAI] High Error Rate" '{
 }'
 
 # ── 2. 5xx Error Spike ──────────────────────────────────────
-create_metric_alert "[SalesAI] 5xx Error Spike" "{
-  \"name\": \"[SalesAI] 5xx Error Spike\",
+create_metric_alert "[TheIAdvisor] 5xx Error Spike" "{
+  \"name\": \"[TheIAdvisor] 5xx Error Spike\",
   \"dataset\": \"events\",
   \"aggregate\": \"count()\",
   \"query\": \"http.status_code:5*\",
@@ -101,8 +101,8 @@ create_metric_alert "[SalesAI] 5xx Error Spike" "{
 }"
 
 # ── 3. API Latency p95 > 500ms ──────────────────────────────
-create_metric_alert "[SalesAI] High API Latency" "{
-  \"name\": \"[SalesAI] High API Latency\",
+create_metric_alert "[TheIAdvisor] High API Latency" "{
+  \"name\": \"[TheIAdvisor] High API Latency\",
   \"dataset\": \"transactions\",
   \"aggregate\": \"p95(transaction.duration)\",
   \"query\": \"transaction.op:http.server\",
@@ -131,8 +131,8 @@ create_metric_alert "[SalesAI] High API Latency" "{
 }"
 
 # ── 4. AI Provider Latency p95 > 2s ─────────────────────────
-create_metric_alert "[SalesAI] AI Provider Slow" "{
-  \"name\": \"[SalesAI] AI Provider Slow\",
+create_metric_alert "[TheIAdvisor] AI Provider Slow" "{
+  \"name\": \"[TheIAdvisor] AI Provider Slow\",
   \"dataset\": \"transactions\",
   \"aggregate\": \"p95(transaction.duration)\",
   \"query\": \"transaction:*/ai/*\",
@@ -161,8 +161,8 @@ create_metric_alert "[SalesAI] AI Provider Slow" "{
 }"
 
 # ── 5. New Unhandled Exception ───────────────────────────────
-create_issue_alert "[SalesAI] New Unhandled Exception" '{
-  "name": "[SalesAI] New Unhandled Exception",
+create_issue_alert "[TheIAdvisor] New Unhandled Exception" '{
+  "name": "[TheIAdvisor] New Unhandled Exception",
   "actionMatch": "all",
   "filterMatch": "all",
   "frequency": 60,
@@ -189,8 +189,8 @@ create_issue_alert "[SalesAI] New Unhandled Exception" '{
 }'
 
 # ── 6. LCP Regression ───────────────────────────────────────
-create_metric_alert "[SalesAI] LCP Regression" "{
-  \"name\": \"[SalesAI] LCP Regression\",
+create_metric_alert "[TheIAdvisor] LCP Regression" "{
+  \"name\": \"[TheIAdvisor] LCP Regression\",
   \"dataset\": \"transactions\",
   \"aggregate\": \"p75(measurements.lcp)\",
   \"query\": \"\",

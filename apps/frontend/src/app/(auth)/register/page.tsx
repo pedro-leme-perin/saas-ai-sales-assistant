@@ -30,7 +30,7 @@ export default function RegisterPage() {
           </ul>
           <div className="mt-8 p-4 rounded-lg bg-white/10 backdrop-blur">
             <p className="text-sm text-white/90">
-              &ldquo;O SalesAI aumentou nossas conversÃµes em 40% no primeiro mÃªs.
+              &ldquo;O TheIAdvisor aumentou nossas conversÃµes em 40% no primeiro mÃªs.
               A IA realmente entende o contexto das conversas.&rdquo;
             </p>
             <p className="text-sm font-medium mt-2">
@@ -47,7 +47,7 @@ export default function RegisterPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-xl">SalesAI</span>
+            <span className="font-bold text-xl">TheIAdvisor</span>
           </Link>
           
           <h1 className="text-2xl font-bold mb-2">Criar conta</h1>

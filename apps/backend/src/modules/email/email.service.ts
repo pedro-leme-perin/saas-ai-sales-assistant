@@ -31,7 +31,7 @@ export class EmailService {
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('RESEND_API_KEY') || '';
     this.fromEmail =
-      this.configService.get<string>('EMAIL_FROM') || 'noreply@salesai.com.br';
+      this.configService.get<string>('EMAIL_FROM') || 'noreply@theiadvisor.com';
     this.frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
 
@@ -162,7 +162,7 @@ export class EmailService {
           <tr>
             <td style="background:linear-gradient(135deg,#3b82f6,#1d4ed8); padding:32px 40px; text-align:center;">
               <h1 style="color:#ffffff; margin:0; font-size:24px; font-weight:700;">
-                SaaS AI Sales Assistant
+                TheIAdvisor
               </h1>
             </td>
           </tr>
@@ -177,7 +177,7 @@ export class EmailService {
                 <strong>${companyName}</strong> como <strong>${roleLabel}</strong>.
               </p>
               <p style="color:#52525b; font-size:14px; line-height:1.6; margin:0 0 32px;">
-                Com o SaaS AI Sales Assistant, você terá acesso a sugestões de IA em tempo real
+                Com o TheIAdvisor, você terá acesso a sugestões de IA em tempo real
                 durante ligações e conversas no WhatsApp, ajudando a fechar mais vendas.
               </p>
               <!-- CTA Button -->

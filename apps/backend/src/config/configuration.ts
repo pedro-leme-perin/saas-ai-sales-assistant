@@ -7,7 +7,7 @@
 export default () => ({
   // Application
   app: {
-    name: process.env.APP_NAME || 'SaaS AI Sales Assistant',
+    name: process.env.APP_NAME || 'TheIAdvisor',
     env: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT || '3001', 10),
     apiVersion: process.env.API_VERSION || 'v1',
@@ -82,14 +82,14 @@ export default () => ({
     accountId: process.env.R2_ACCOUNT_ID,
     accessKeyId: process.env.R2_ACCESS_KEY_ID,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    bucketName: process.env.R2_BUCKET_NAME || 'salesai-uploads',
+    bucketName: process.env.R2_BUCKET_NAME || 'theiadvisor-uploads',
     publicUrl: process.env.R2_PUBLIC_URL,
   },
 
   // Email (Resend)
   email: {
     resendApiKey: process.env.RESEND_API_KEY,
-    from: process.env.EMAIL_FROM || 'noreply@salesai.com.br',
+    from: process.env.EMAIL_FROM || 'noreply@theiadvisor.com',
   },
 
   // Rate Limiting

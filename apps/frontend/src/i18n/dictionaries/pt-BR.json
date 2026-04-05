@@ -428,10 +428,10 @@
     "next": "Próximo",
     "finish": "Começar a usar",
     "skip": "Pular",
-    "success": "Configuração concluída! Bem-vindo ao SalesAI.",
+    "success": "Configuração concluída! Bem-vindo ao TheIAdvisor.",
     "error": "Erro ao salvar configuração. Tente novamente.",
     "welcome": {
-      "title": "Bem-vindo ao SalesAI!",
+      "title": "Bem-vindo ao TheIAdvisor!",
       "subtitle": "Vamos configurar sua conta em poucos passos.",
       "companyLabel": "Nome da sua empresa",
       "companyPlaceholder": "Ex: Acme Vendas"

@@ -1,6 +1,6 @@
 {
-  "name": "SalesAI — Assistente de Vendas com IA",
-  "short_name": "SalesAI",
+  "name": "TheIAdvisor — Assistente de Vendas com IA",
+  "short_name": "TheIAdvisor",
   "description": "Sugestões em tempo real durante ligações e WhatsApp. Sua equipe vende mais com menos esforço.",
   "start_url": "/dashboard",
   "display": "standalone",

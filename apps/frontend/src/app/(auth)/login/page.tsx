@@ -14,7 +14,7 @@ export default function LoginPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-xl">SalesAI</span>
+            <span className="font-bold text-xl">TheIAdvisor</span>
           </Link>
           
           <h1 className="text-2xl font-bold mb-2">Bem-vindo de volta</h1>

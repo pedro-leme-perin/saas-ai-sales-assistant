@@ -59,7 +59,7 @@ export default function Home() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <Sparkles className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg">SalesAI</span>
+            <span className="font-bold text-lg">TheIAdvisor</span>
           </Link>
           <div className="flex items-center gap-3">
             <SignedOut>
@@ -216,10 +216,10 @@ export default function Home() {
             <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
               <Sparkles className="h-3 w-3 text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold">SalesAI</span>
+            <span className="text-sm font-semibold">TheIAdvisor</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} SalesAI. {t('landing.footerRights')}
+            &copy; {new Date().getFullYear()} TheIAdvisor. {t('landing.footerRights')}
           </p>
         </div>
       </footer>

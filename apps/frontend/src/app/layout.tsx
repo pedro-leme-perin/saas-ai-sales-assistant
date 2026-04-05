@@ -21,8 +21,8 @@ const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
   title: {
-    default: 'SalesAI — Assistente de Vendas com IA',
-    template: '%s | SalesAI',
+    default: 'TheIAdvisor — Assistente de Vendas com IA',
+    template: '%s | TheIAdvisor',
   },
   description:
     'Aumente suas vendas com inteligência artificial. Sugestões em tempo real durante ligações e WhatsApp para sua equipe fechar mais negócios.',
@@ -31,22 +31,22 @@ export const metadata: Metadata = {
     'WhatsApp Business', 'assistente de vendas', 'SaaS',
     'ligações', 'sales AI', 'produtividade',
   ],
-  authors: [{ name: 'SalesAI' }],
-  creator: 'SalesAI',
+  authors: [{ name: 'TheIAdvisor' }],
+  creator: 'TheIAdvisor',
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || 'https://www.theiadvisor.com'
   ),
   openGraph: {
     type: 'website',
     locale: 'pt_BR',
-    siteName: 'SalesAI',
-    title: 'SalesAI — Assistente de Vendas com IA',
+    siteName: 'TheIAdvisor',
+    title: 'TheIAdvisor — Assistente de Vendas com IA',
     description:
       'Sugestões em tempo real durante ligações e WhatsApp. Sua equipe vende mais com menos esforço.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SalesAI — Assistente de Vendas com IA',
+    title: 'TheIAdvisor — Assistente de Vendas com IA',
     description:
       'Sugestões em tempo real durante ligações e WhatsApp. Sua equipe vende mais com menos esforço.',
   },

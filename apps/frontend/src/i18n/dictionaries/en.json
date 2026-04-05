@@ -428,10 +428,10 @@
     "next": "Next",
     "finish": "Get Started",
     "skip": "Skip",
-    "success": "Setup complete! Welcome to SalesAI.",
+    "success": "Setup complete! Welcome to TheIAdvisor.",
     "error": "Error saving configuration. Please try again.",
     "welcome": {
-      "title": "Welcome to SalesAI!",
+      "title": "Welcome to TheIAdvisor!",
       "subtitle": "Let's set up your account in a few steps.",
       "companyLabel": "Your company name",
       "companyPlaceholder": "E.g. Acme Sales"

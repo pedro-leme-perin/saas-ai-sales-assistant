@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Landing Page', () => {
   test('should render hero section with CTA', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('h1')).toContainText(/SalesAI|vendas|sales/i, { timeout: 10_000 });
+    await expect(page.locator('h1')).toContainText(/TheIAdvisor|vendas|sales/i, { timeout: 10_000 });
     await expect(page.getByRole('link', { name: /começar|start/i }).first()).toBeVisible();
   });
 
@@ -25,7 +25,7 @@ test.describe('Landing Page', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('title', { state: 'attached', timeout: 10_000 });
     const title = await page.title();
-    expect(title).toContain('SalesAI');
+    expect(title).toContain('TheIAdvisor');
 
     const description = await page.locator('meta[name="description"]').getAttribute('content');
     expect(description).toBeTruthy();

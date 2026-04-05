@@ -84,7 +84,7 @@ export default function DashboardLayout({
               <Sparkles className="h-4 w-4 text-primary-foreground" />
             </div>
             {!collapsed && (
-              <span className="font-bold text-sidebar-foreground">SalesAI</span>
+              <span className="font-bold text-sidebar-foreground">TheIAdvisor</span>
             )}
           </Link>
           <Button

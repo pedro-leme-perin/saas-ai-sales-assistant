@@ -121,14 +121,14 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('SaaS AI Sales Assistant API')
+    .setTitle('TheIAdvisor API')
     .setDescription(
       'Enterprise-grade SaaS API for AI-powered sales assistance via phone calls and WhatsApp Business. ' +
         'Integrate with Twilio for real-time call transcription and WhatsApp for messaging suggestions. ' +
         'All endpoints require JWT authentication from Clerk.',
     )
     .setVersion('1.0.0')
-    .setContact('Sales AI Team', 'https://www.theiadvisor.com', 'team@theiadvisor.com')
+    .setContact('TheIAdvisor Team', 'https://www.theiadvisor.com', 'team@theiadvisor.com')
     .setLicense('UNLICENSED', '')
     // ── Authentication ──
     .addBearerAuth(
@@ -160,7 +160,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document, {
-    customSiteTitle: 'SaaS AI Sales Assistant - API Documentation',
+    customSiteTitle: 'TheIAdvisor - API Documentation',
     swaggerOptions: {
       persistAuthorization: true,
       displayRequestDuration: true,
