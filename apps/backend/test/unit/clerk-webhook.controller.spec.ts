@@ -110,11 +110,11 @@ describe('ClerkWebhookController', () => {
 
       const userData: ClerkUserData = {
         id: 'clerk-user-123',
-        email_addresses: [{ email_address: 'newuser@example.com' }],
+        email_addresses: [{ email_address: 'newuser@example.com' } as any],
         first_name: 'John',
         last_name: 'Doe',
         image_url: 'https://example.com/avatar.jpg',
-      };
+      } as any;
 
       const event = {
         type: 'user.created',
@@ -155,11 +155,11 @@ describe('ClerkWebhookController', () => {
 
       const userData: ClerkUserData = {
         id: 'clerk-user-456',
-        email_addresses: [{ email_address: 'another@example.com' }],
+        email_addresses: [{ email_address: 'another@example.com' } as any],
         first_name: 'Jane',
         last_name: 'Smith',
         image_url: 'https://example.com/jane.jpg',
-      };
+      } as any;
 
       const event = {
         type: 'user.created',
@@ -195,11 +195,11 @@ describe('ClerkWebhookController', () => {
 
       const userData: ClerkUserData = {
         id: 'clerk-user-789',
-        email_addresses: [{ email_address: 'updated@example.com' }],
+        email_addresses: [{ email_address: 'updated@example.com' } as any],
         first_name: 'John',
         last_name: 'Updated',
         image_url: 'https://example.com/updated.jpg',
-      };
+      } as any;
 
       const event = {
         type: 'user.updated',
@@ -240,11 +240,11 @@ describe('ClerkWebhookController', () => {
 
       const userData: ClerkUserData = {
         id: 'clerk-user-notfound',
-        email_addresses: [{ email_address: 'notfound@example.com' }],
+        email_addresses: [{ email_address: 'notfound@example.com' } as any],
         first_name: 'Not',
         last_name: 'Found',
         image_url: 'https://example.com/notfound.jpg',
-      };
+      } as any;
 
       const event = {
         type: 'user.updated',
@@ -279,7 +279,7 @@ describe('ClerkWebhookController', () => {
 
       const userData: ClerkUserData = {
         id: 'clerk-user-todelete',
-      };
+      } as any;
 
       const event = {
         type: 'user.deleted',
@@ -313,7 +313,7 @@ describe('ClerkWebhookController', () => {
       const clerkId = 'clerk-user-delete-456';
       const userData: ClerkUserData = {
         id: clerkId,
-      };
+      } as any;
 
       const event = {
         type: 'user.deleted',
@@ -342,11 +342,11 @@ describe('ClerkWebhookController', () => {
 
       const userData: ClerkUserData = {
         id: 'clerk-user-error',
-        email_addresses: [{ email_address: 'error@example.com' }],
+        email_addresses: [{ email_address: 'error@example.com' } as any],
         first_name: 'Error',
         last_name: 'User',
         image_url: 'https://example.com/error.jpg',
-      };
+      } as any;
 
       const event = {
         type: 'user.created',
@@ -411,7 +411,7 @@ describe('ClerkWebhookController', () => {
 
       const userData: ClerkUserData = {
         id: 'clerk-user-minimal',
-      };
+      } as any;
 
       const event = {
         type: 'user.created',

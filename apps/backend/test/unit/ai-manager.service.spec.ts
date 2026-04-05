@@ -232,19 +232,15 @@ describe('AIManagerService', () => {
 
     it('should handle error instanceof check correctly', async () => {
       const openaiProvider = service['providers'].get('openai')!;
-      jest
-        .spyOn(openaiProvider, 'generateSuggestion')
-        .mockRejectedValue(new Error('Network error'));
+      jest.spyOn(openaiProvider, 'generateSuggestion').mockRejectedValue(new Error('Network error'));
 
       const geminiProvider = service['providers'].get('gemini')!;
-      const geminiSpy = jest
-        .spyOn(geminiProvider, 'generateSuggestion')
-        .mockResolvedValue({
-          text: 'Success',
-          confidence: 0.8,
-          provider: 'gemini',
-          latencyMs: 100,
-        });
+      const geminiSpy = jest.spyOn(geminiProvider, 'generateSuggestion').mockResolvedValue({
+        text: 'Success',
+        confidence: 0.8,
+        provider: 'gemini',
+        latencyMs: 100,
+      });
 
       const result = await service.generateSuggestion('test', {}, 'openai');
 

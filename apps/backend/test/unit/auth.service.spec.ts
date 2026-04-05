@@ -131,11 +131,11 @@ describe('AuthService', () => {
         type: 'user.created',
         data: {
           id: 'clerk-user-123',
-          email_addresses: [{ email_address: 'user@example.com' }],
+          email_addresses: [{ email_address: 'user@example.com' } as any],
           first_name: 'Jane',
           last_name: 'Smith',
           image_url: 'https://example.com/avatar.jpg',
-        },
+        } as any,
       };
 
       const result = await service.handleClerkWebhook(payload);
@@ -149,11 +149,11 @@ describe('AuthService', () => {
         type: 'user.updated',
         data: {
           id: clerkId,
-          email_addresses: [{ email_address: 'updated@example.com' }],
+          email_addresses: [{ email_address: 'updated@example.com' } as any],
           first_name: 'John',
           last_name: 'Updated',
           image_url: 'https://example.com/new-avatar.jpg',
-        },
+        } as any,
       };
 
       const existingUser = {
@@ -195,11 +195,11 @@ describe('AuthService', () => {
         type: 'user.updated',
         data: {
           id: clerkId,
-          email_addresses: [{ email_address: 'notfound@example.com' }],
+          email_addresses: [{ email_address: 'notfound@example.com' } as any],
           first_name: 'Not',
           last_name: 'Found',
           image_url: 'https://example.com/avatar.jpg',
-        },
+        } as any,
       };
 
       (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(null);
@@ -217,7 +217,7 @@ describe('AuthService', () => {
         type: 'user.deleted',
         data: {
           id: clerkId,
-        },
+        } as any,
       };
 
       const userToDelete = {
@@ -259,7 +259,7 @@ describe('AuthService', () => {
         type: 'user.deleted',
         data: {
           id: clerkId,
-        },
+        } as any,
       };
 
       (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(null);
@@ -277,7 +277,7 @@ describe('AuthService', () => {
         type: 'user.unknown_event',
         data: {
           id: 'clerk-user-123',
-        },
+        } as any,
       };
 
       const result = await service.handleClerkWebhook(payload);
@@ -296,13 +296,13 @@ describe('AuthService', () => {
         data: {
           id: clerkId,
           email_addresses: [
-            { email_address: 'primary@example.com' },
-            { email_address: 'secondary@example.com' },
+            { email_address: 'primary@example.com' } as any,
+            { email_address: 'secondary@example.com' } as any,
           ],
           first_name: 'Multi',
           last_name: 'Email',
           image_url: 'https://example.com/avatar.jpg',
-        },
+        } as any,
       };
 
       const existingUser = {
@@ -341,7 +341,7 @@ describe('AuthService', () => {
           first_name: 'No',
           last_name: 'Email',
           image_url: 'https://example.com/avatar.jpg',
-        },
+        } as any,
       };
 
       const existingUser = {
@@ -376,11 +376,11 @@ describe('AuthService', () => {
         type: 'user.updated',
         data: {
           id: clerkId,
-          email_addresses: [{ email_address: 'user@example.com' }],
+          email_addresses: [{ email_address: 'user@example.com' } as any],
           first_name: 'Jane',
           last_name: 'Doe',
           image_url: 'https://example.com/avatar.jpg',
-        },
+        } as any,
       };
 
       const existingUser = {
@@ -415,11 +415,11 @@ describe('AuthService', () => {
         type: 'user.updated',
         data: {
           id: clerkId,
-          email_addresses: [{ email_address: 'user@example.com' }],
+          email_addresses: [{ email_address: 'user@example.com' } as any],
           first_name: '',
           last_name: '',
           image_url: 'https://example.com/avatar.jpg',
-        },
+        } as any,
       };
 
       const existingUser = {
@@ -455,7 +455,7 @@ describe('AuthService', () => {
         type: 'user.deleted',
         data: {
           id: clerkId,
-        },
+        } as any,
       };
 
       const userToSoftDelete = {
@@ -495,7 +495,7 @@ describe('AuthService', () => {
         type: 'user.created',
         data: {
           id: 'minimal-clerk-user',
-        },
+        } as any,
       };
 
       const result = await service.handleClerkWebhook(payload);
@@ -518,11 +518,11 @@ describe('AuthService', () => {
         type: 'user.updated',
         data: {
           id: clerkId,
-          email_addresses: [{ email_address: 'seq1@example.com' }],
+          email_addresses: [{ email_address: 'seq1@example.com' } as any],
           first_name: 'Updated',
           last_name: 'User',
           image_url: 'https://example.com/avatar1.jpg',
-        },
+        } as any,
       };
 
       (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue(existingUser);
@@ -541,11 +541,11 @@ describe('AuthService', () => {
         type: 'user.updated',
         data: {
           id: clerkId,
-          email_addresses: [{ email_address: 'seq2@example.com' }],
+          email_addresses: [{ email_address: 'seq2@example.com' } as any],
           first_name: 'Final',
           last_name: 'User',
           image_url: 'https://example.com/avatar2.jpg',
-        },
+        } as any,
       };
 
       (mockPrismaService.user.findUnique as jest.Mock).mockResolvedValue({
