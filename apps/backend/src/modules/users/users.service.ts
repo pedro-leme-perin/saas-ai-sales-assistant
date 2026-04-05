@@ -1,6 +1,12 @@
 // src/modules/users/users.service.ts
 
-import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { User, Company, UserRole, Plan, UserStatus, Prisma, AuditAction } from '@prisma/client';
 import {
@@ -478,11 +484,7 @@ export class UsersService {
     };
   }
 
-  async updateUserRole(
-    userId: string,
-    companyId: string,
-    newRole: UserRole,
-  ): Promise<User> {
+  async updateUserRole(userId: string, companyId: string, newRole: UserRole): Promise<User> {
     this.logger.log(`Updating role for user ${userId} to ${newRole}`);
 
     const user = await this.prisma.user.findFirst({

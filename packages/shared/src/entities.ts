@@ -43,6 +43,7 @@ export interface Company {
   maxCallsPerMonth: number;
   maxChatsPerMonth: number;
   stripeCustomerId?: string;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
   _count?: {

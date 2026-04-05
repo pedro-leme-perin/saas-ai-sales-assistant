@@ -75,9 +75,7 @@ export class EmailService {
         html,
       });
 
-      this.logger.log(
-        `Invite email sent to ${recipientEmail} (messageId: ${result?.id})`,
-      );
+      this.logger.log(`Invite email sent to ${recipientEmail} (messageId: ${result?.id})`);
 
       return { success: true, messageId: result?.id };
     } catch (error: unknown) {

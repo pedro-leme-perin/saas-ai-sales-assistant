@@ -325,7 +325,6 @@ export class CallsService {
 
     // Transcribe using Deepgram (post-call)
     try {
-      const { DeepgramService } = await import('../../infrastructure/stt/deepgram.service');
       // Use injected service if available, otherwise skip
       this.logger.log(`Starting post-call transcription for ${callId}`);
 

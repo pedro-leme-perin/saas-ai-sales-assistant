@@ -1,6 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { AIManagerService, AIProviderType } from '../../src/infrastructure/ai/ai-manager.service';
-import { AIProvider, AISuggestion, AIAnalysis } from '../../src/infrastructure/ai/providers/ai-provider.interface';
+import {
+  AIProvider,
+  AISuggestion,
+  AIAnalysis,
+} from '../../src/infrastructure/ai/providers/ai-provider.interface';
 import { CircuitBreaker, CircuitState } from '../../src/common/resilience/circuit-breaker';
 
 jest.setTimeout(15000);

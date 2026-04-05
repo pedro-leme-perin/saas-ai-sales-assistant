@@ -106,7 +106,7 @@ export class DeepgramService {
       onError?.(error);
     });
 
-    ws.on('close', (code: number, reason: Buffer) => {
+    ws.on('close', (code: number, _reason: Buffer) => {
       this.logger.log(`🎙️ Deepgram live session closed: code=${code}`);
       isOpen = false;
     });

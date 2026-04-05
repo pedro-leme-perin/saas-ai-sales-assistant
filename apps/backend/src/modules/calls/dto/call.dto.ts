@@ -10,7 +10,7 @@ import {
   IsNumber,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { CallStatus, CallDirection, SentimentLabel } from '@prisma/client';
+import { CallStatus, CallDirection } from '@prisma/client';
 
 export class CreateCallDto {
   @ApiProperty({ example: '+5511999999999' })
@@ -30,7 +30,7 @@ export class CreateCallDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export class UpdateCallDto extends PartialType(CreateCallDto) {

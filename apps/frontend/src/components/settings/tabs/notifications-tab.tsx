@@ -66,7 +66,13 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
       try {
         setLoading(true);
         const prefs = await notificationsService.getPreferences();
-        setPreferences(prefs);
+        setPreferences({
+          emailCalls: prefs.emailCalls ?? true,
+          emailMessages: prefs.emailMessages ?? true,
+          pushSuggestions: prefs.pushSuggestions ?? true,
+          emailReports: prefs.emailReports ?? true,
+          emailBilling: prefs.emailBilling ?? true,
+        });
       } catch (error) {
         console.error('Failed to load notification preferences:', error);
         toast.error(t('common.error'));

@@ -314,13 +314,13 @@ export default function AuditLogsPage() {
               <Shield className="h-12 w-12 text-muted-foreground mx-auto opacity-50 mb-4" />
               <p className="text-muted-foreground">{t('auditLogs.noResults')}</p>
             </div>
-          ) : (
+          ) : data?.data ? (
             <div className="space-y-2">
               {data.data.map((log: AuditLog) => (
                 <AuditLogRow key={log.id} log={log} t={t} />
               ))}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 

@@ -216,7 +216,8 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Update notification preferences' })
   @ApiResponse({ status: 200, description: 'Preferences updated successfully' })
   async updatePreferences(
-    @Body() data: {
+    @Body()
+    data: {
       emailCalls?: boolean;
       emailMessages?: boolean;
       pushSuggestions?: boolean;

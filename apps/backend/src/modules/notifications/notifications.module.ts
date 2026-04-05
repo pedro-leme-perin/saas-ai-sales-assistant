@@ -19,10 +19,7 @@ import { NotificationsController } from './notifications.controller';
 import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
-  imports: [
-    ConfigModule,
-    AuthModule,
-  ],
+  imports: [ConfigModule, AuthModule],
   controllers: [NotificationsController],
   providers: [NotificationsGateway, NotificationsService],
   exports: [NotificationsGateway, NotificationsService], // ✅ Export for use in other modules

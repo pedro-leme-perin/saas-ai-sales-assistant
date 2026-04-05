@@ -89,19 +89,19 @@ export class NotificationsGateway
     return { pong: true, timestamp: new Date() };
   }
 
-  sendAISuggestion(userId: string, payload: any) {
+  sendAISuggestion(userId: string, payload: unknown) {
     this.server.to(`user:${userId}`).emit('ai:suggestion', payload);
   }
 
-  sendCallStatusUpdate(userId: string, payload: any) {
+  sendCallStatusUpdate(userId: string, payload: unknown) {
     this.server.to(`user:${userId}`).emit('call:status', payload);
   }
 
-  sendWhatsAppMessage(userId: string, payload: any) {
+  sendWhatsAppMessage(userId: string, payload: unknown) {
     this.server.to(`user:${userId}`).emit('whatsapp:message', payload);
   }
 
-  sendNotification(userId: string, notification: any) {
+  sendNotification(userId: string, notification: unknown) {
     this.server.to(`user:${userId}`).emit('notification', notification);
   }
 }

@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCompany(user.company);
 
           // Redirect to onboarding if not completed
-          const metadata = user.company.metadata as Record<string, unknown> | null;
+          const metadata = user.company.metadata;
           const isOnboarded = metadata?.onboarded === true;
           if (!isOnboarded && !pathname.startsWith('/onboarding')) {
             router.push('/onboarding');
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       wsClient.disconnect();
     };
-  }, [isLoaded, isSignedIn, getToken, setUser, setCompany, setLoading, clear, addNotification, addSuggestion]);
+  }, [isLoaded, isSignedIn, getToken, setUser, setCompany, setLoading, clear, addNotification, addSuggestion, addTranscriptEntry, pathname, router]);
 
   return <>{children}</>;
 }
