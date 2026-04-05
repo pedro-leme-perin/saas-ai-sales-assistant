@@ -29,7 +29,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | `643bcbc` (31/03/2026) | CLAUDE.md Session 29 update |
+| Último commit | `89027b8` (05/04/2026) | rebrand: SalesAI → TheIAdvisor |
 | Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 39 test suites, 36 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
@@ -71,17 +71,36 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 ### 2.4 Pendente / Próximos Passos
 
-**Requer CNPJ/MEI (Pedro):**
+**Requer ação do Pedro:**
 - [ ] Abrir MEI (CNAE 6201-5/01 — Desenvolvimento de programas de computador sob encomenda)
 - [ ] WhatsApp Business API: Meta Business Manager → verificar empresa → configurar número BR → Access Token + Phone Number ID → Railway
 - [ ] Stripe: migrar CPF → CNPJ (opcional, recomendado)
 - [ ] Twilio: comprar número BR +55 (opcional)
+- [ ] Clerk Dashboard: renomear aplicação "Sales AI" → "TheIAdvisor" (Settings → Application name)
 
 **Itens técnicos futuros:**
 - [ ] Sentry: migrar para plano pago quando tráfego crescer
 - [ ] Axiom (logs) + OpenTelemetry (traces) — observabilidade completa
 - [ ] Load testing real com k6 contra produção (scripts prontos em `k6/`)
 - [ ] CI/CD pipeline para staging environment
+
+### 2.5 Sessão 30 — 05/04/2026
+
+**Commits desta sessão:**
+- `d2ab386` — fix: import AuthModule in UploadModule and NotificationsModule (runtime crash fix)
+- `89027b8` — rebrand: SalesAI → TheIAdvisor across entire codebase (16 arquivos)
+
+**Problemas resolvidos:**
+1. Railway deploy crashava no startup: `AuthGuard` dependia de `ClerkStrategy` não disponível no contexto de `UploadModule` e `NotificationsModule`. Fix: `imports: [AuthModule]` nos 2 módulos.
+2. Branding "SalesAI" aparecia em todo o produto. Rebrand completo para "TheIAdvisor" em: frontend (metadata, OG, landing, auth, dashboard, i18n pt-BR/en), backend (Swagger, emails, config), PWA manifest, E2E tests, Sentry scripts, .env defaults.
+
+**Estado ao final da sessão:**
+- Backend Railway: ✅ Online, commit `89027b8` deployed
+- Frontend Vercel: ✅ Deploy triggered, aguardando CI pipeline
+- API Swagger: ✅ 64 endpoints acessíveis em `/api/docs`
+- Onboarding endpoint: ✅ `POST /api/companies/current/onboarding` disponível
+- Sign-up/Sign-in: ✅ Clerk Production funcionando (Google OAuth + email)
+- Branding pendente: Clerk Dashboard app name (requer ação manual do Pedro)
 
 ---
 
