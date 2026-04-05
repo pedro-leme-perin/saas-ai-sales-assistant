@@ -16,10 +16,12 @@ import { ConfigModule } from '@nestjs/config';
 import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
+import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
   imports: [
-    ConfigModule, // ✅ Import ConfigModule for environment variables
+    ConfigModule,
+    AuthModule,
   ],
   controllers: [NotificationsController],
   providers: [NotificationsGateway, NotificationsService],
