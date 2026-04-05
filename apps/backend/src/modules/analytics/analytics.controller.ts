@@ -11,7 +11,8 @@ export class AnalyticsController {
   @Get('dashboard/:companyId')
   @ApiOperation({
     summary: 'Get dashboard KPIs',
-    description: 'Returns high-level KPIs for dashboard: total calls, chats, completion rates, avg sentiment',
+    description:
+      'Returns high-level KPIs for dashboard: total calls, chats, completion rates, avg sentiment',
   })
   @ApiResponse({
     status: 200,
@@ -78,7 +79,8 @@ export class AnalyticsController {
   @Get('audit-logs/:companyId')
   @ApiOperation({
     summary: 'Get audit logs',
-    description: 'Paginated list of audit logs with filtering by action, resource, userId, and date range',
+    description:
+      'Paginated list of audit logs with filtering by action, resource, userId, and date range',
   })
   @ApiResponse({
     status: 200,

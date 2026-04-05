@@ -395,7 +395,15 @@ export class CallsService {
     });
 
     // Build CSV header
-    const headers = ['Date', 'Phone', 'Direction', 'Status', 'Duration (sec)', 'Sentiment', 'AI Suggestions Count'];
+    const headers = [
+      'Date',
+      'Phone',
+      'Direction',
+      'Status',
+      'Duration (sec)',
+      'Sentiment',
+      'AI Suggestions Count',
+    ];
     const rows: string[] = [headers.join(',')];
 
     // Build CSV rows

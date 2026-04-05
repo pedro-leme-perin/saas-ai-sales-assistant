@@ -242,7 +242,7 @@ export class CacheService implements OnModuleDestroy {
         allowed: true,
         remaining: maxRequests - count - 1,
       };
-    } catch (error) {
+    } catch {
       // Graceful degradation - allow request if Redis fails
       this.logger.error('Rate limit check failed, allowing request');
       return { allowed: true, remaining: maxRequests };

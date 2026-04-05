@@ -125,10 +125,7 @@ export class CompaniesController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() dto: CompleteOnboardingDto,
   ) {
-    const company = await this.companiesService.completeOnboarding(
-      user.companyId,
-      dto,
-    );
+    const company = await this.companiesService.completeOnboarding(user.companyId, dto);
     return { success: true, data: company };
   }
 

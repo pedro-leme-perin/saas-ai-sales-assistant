@@ -222,7 +222,7 @@ export class AIManagerService {
     return status;
   }
 
-  private getMockSuggestion(transcript: string): AISuggestion {
+  private getMockSuggestion(_transcript: string): AISuggestion {
     return {
       text: 'Continue ouvindo ativamente e faça perguntas para entender melhor as necessidades do cliente.',
       confidence: 0.5,

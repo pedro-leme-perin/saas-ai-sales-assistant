@@ -148,7 +148,7 @@ export default function AuditLogsPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['audit-logs', page, limit, action, resource, searchUser, dateRange],
     queryFn: async () => {
-      return analyticsService.getAuditLogs({
+      const res = await analyticsService.getAuditLogs({
         page,
         limit,
         action: action || undefined,
@@ -157,6 +157,7 @@ export default function AuditLogsPage() {
         startDate: dateRange.start || undefined,
         endDate: dateRange.end || undefined,
       });
+      return res as { data: AuditLog[]; meta: { total: number; totalPages: number } };
     },
   });
 

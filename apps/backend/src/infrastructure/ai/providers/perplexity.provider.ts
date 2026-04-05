@@ -54,7 +54,7 @@ export class PerplexityProvider extends AIProvider {
 
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, unknown>,
+    _context?: Record<string, unknown>,
   ): Promise<AIAnalysis> {
     try {
       const response = await this.client.chat.completions.create({

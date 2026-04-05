@@ -87,7 +87,7 @@ test.describe('WhatsApp Page (authenticated)', () => {
 
     // Toggle back
     await themeButton.click();
-    const finalDarkMode = await html.evaluate((el) => html.classList.contains('dark'));
+    const finalDarkMode = await html.evaluate((el) => el.classList.contains('dark'));
     expect(finalDarkMode).toBe(initialDarkMode);
   });
 

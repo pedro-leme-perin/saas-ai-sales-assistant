@@ -59,7 +59,7 @@ export class GeminiProvider extends AIProvider {
 
   async analyzeConversation(
     transcript: string,
-    context?: Record<string, unknown>,
+    _context?: Record<string, unknown>,
   ): Promise<AIAnalysis> {
     try {
       const model = this.client.getGenerativeModel({

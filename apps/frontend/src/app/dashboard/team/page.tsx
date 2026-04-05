@@ -125,7 +125,10 @@ export default function TeamPage() {
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersService.getAll({ limit: 50 }),
+    queryFn: async () => {
+      const res = await usersService.getAll({ limit: 50 });
+      return res as { data: UserType[]; meta: { total: number } };
+    },
   });
 
   const { data: usage } = useQuery({

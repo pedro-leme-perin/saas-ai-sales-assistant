@@ -72,7 +72,9 @@ export class DeepgramService {
         for (const chunk of audioBuffer) {
           try {
             ws.send(chunk);
-          } catch (_) {}
+          } catch {
+            // Silently ignore send errors during buffer flush
+          }
         }
         audioBuffer.length = 0;
       }
@@ -93,7 +95,9 @@ export class DeepgramService {
             words: alt.words,
           });
         }
-      } catch (_) {}
+      } catch {
+        // Silently ignore JSON parsing errors
+      }
     });
 
     ws.on('error', (error: Error) => {
@@ -112,7 +116,9 @@ export class DeepgramService {
         if (isOpen && ws.readyState === WebSocket.OPEN) {
           try {
             ws.send(audio);
-          } catch (_) {}
+          } catch {
+            // Silently ignore send errors
+          }
         } else if (audioBuffer.length < 200) {
           audioBuffer.push(audio);
         }
@@ -122,7 +128,9 @@ export class DeepgramService {
           if (ws.readyState === WebSocket.OPEN) {
             ws.close();
           }
-        } catch (_) {}
+        } catch {
+          // Silently ignore close errors
+        }
       },
       isReady: () => isOpen,
     };

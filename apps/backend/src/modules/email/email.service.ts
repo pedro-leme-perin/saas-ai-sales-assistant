@@ -30,10 +30,8 @@ export class EmailService {
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('RESEND_API_KEY') || '';
-    this.fromEmail =
-      this.configService.get<string>('EMAIL_FROM') || 'noreply@theiadvisor.com';
-    this.frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    this.fromEmail = this.configService.get<string>('EMAIL_FROM') || 'noreply@theiadvisor.com';
+    this.frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
 
     this.circuitBreaker = new CircuitBreaker({
       name: 'Resend',

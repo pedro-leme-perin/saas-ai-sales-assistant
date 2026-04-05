@@ -438,15 +438,11 @@ export const uploadService = {
     contentType: string;
     category: 'logos' | 'avatars' | 'attachments';
   }): Promise<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }> {
-    const res = await apiClient.post<{
-      data: { uploadUrl: string; publicUrl: string; key: string; expiresIn: number };
-    }>('/upload/presigned-url', params);
-    return (res as Record<string, unknown>).data as {
-      uploadUrl: string;
-      publicUrl: string;
-      key: string;
-      expiresIn: number;
-    };
+    const res = await apiClient.post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
+      '/upload/presigned-url',
+      params
+    );
+    return res;
   },
 
   async uploadFile(

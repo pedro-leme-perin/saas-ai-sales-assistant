@@ -13,7 +13,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '@/common/decorators/public.decorator';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { CallsService } from './calls.service';
 import { Response } from 'express';
 import * as twilio from 'twilio';
@@ -282,7 +288,8 @@ export class CallsController {
   @Post(':companyId/:id/analyze')
   @ApiOperation({
     summary: 'Analyze call transcript with AI',
-    description: 'Performs sentiment analysis and generates actionable insights from call transcript',
+    description:
+      'Performs sentiment analysis and generates actionable insights from call transcript',
   })
   @ApiResponse({
     status: 200,
@@ -299,7 +306,8 @@ export class CallsController {
   @Get(':companyId/export')
   @ApiOperation({
     summary: 'Export all calls as CSV',
-    description: 'Returns CSV export of all calls including date, phone, direction, status, duration, sentiment, and AI suggestions count',
+    description:
+      'Returns CSV export of all calls including date, phone, direction, status, duration, sentiment, and AI suggestions count',
   })
   @ApiResponse({
     status: 200,

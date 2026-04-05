@@ -176,13 +176,15 @@ export default function CallsPage() {
   const { data: callsData, isLoading } = useQuery({
     queryKey: ['calls', { status: statusFilter, direction: directionFilter, search: searchQuery }],
     enabled: !authLoading && !!user,
-    queryFn: () =>
-      callsService.getAll({
+    queryFn: async () => {
+      const res = await callsService.getAll({
         status: statusFilter !== 'all' ? statusFilter : undefined,
         direction: directionFilter !== 'all' ? directionFilter : undefined,
         search: searchQuery || undefined,
         limit: 20,
-      }),
+      });
+      return res as { data: Call[]; meta: { total: number } };
+    },
   });
 
   const { data: stats } = useQuery({
