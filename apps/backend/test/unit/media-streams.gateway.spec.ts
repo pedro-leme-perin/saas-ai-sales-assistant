@@ -91,11 +91,12 @@ describe('MediaStreamsGateway', () => {
     });
 
     it('should setup connection listener on wss', () => {
-      const onSpy = jest.spyOn(Object.getPrototypeOf(Object.getPrototypeOf({})), 'on');
       gateway.initWss();
 
-      // Verify wss was created and has event handlers attached
+      // Verify wss was created with proper event handling
       expect(gateway['wss']).toBeDefined();
+      // Verify the wss instance is a WebSocket.Server
+      expect(gateway['wss']!.on).toBeDefined();
     });
   });
 
@@ -118,14 +119,22 @@ describe('MediaStreamsGateway', () => {
       const mockSocket = {
         destroy: jest.fn(),
       } as any;
-      const mockRequest = {} as any;
+      const mockRequest = { url: '/ws/media' } as any;
       const mockHead = Buffer.from('');
 
-      const handleUpgradeSpy = jest.spyOn(gateway['wss']!, 'handleUpgrade');
+      const wss = gateway['wss']!;
+      const handleUpgradeSpy = jest.spyOn(wss, 'handleUpgrade');
 
       gateway.handleUpgrade(mockRequest, mockSocket, mockHead);
 
-      expect(handleUpgradeSpy).toHaveBeenCalled();
+      expect(handleUpgradeSpy).toHaveBeenCalledWith(
+        mockRequest,
+        mockSocket,
+        mockHead,
+        expect.any(Function),
+      );
+
+      handleUpgradeSpy.mockRestore();
     });
   });
 
@@ -395,6 +404,7 @@ describe('MediaStreamsGateway', () => {
         latencyMs: 100,
       };
       aiService.generateSuggestion.mockResolvedValue(mockSuggestion);
+      prismaService.aISuggestion.create.mockResolvedValue({} as any);
 
       const session = {
         callId: mockCallId,
@@ -420,6 +430,7 @@ describe('MediaStreamsGateway', () => {
         latencyMs: 150,
       };
       aiService.generateSuggestion.mockResolvedValue(mockSuggestion);
+      prismaService.aISuggestion.create.mockResolvedValue({} as any);
 
       const session = {
         callId: mockCallId,
@@ -475,7 +486,7 @@ describe('MediaStreamsGateway', () => {
     it('should use default confidence when not provided', async () => {
       const mockSuggestion = {
         text: 'Suggest product',
-        confidence: undefined as any,
+        confidence: undefined,
         provider: 'openai',
         latencyMs: 100,
       };
@@ -504,6 +515,7 @@ describe('MediaStreamsGateway', () => {
         provider: 'openai',
         latencyMs: 100,
       });
+      prismaService.aISuggestion.create.mockResolvedValue({} as any);
 
       const session = {
         callId: mockCallId,
@@ -526,11 +538,12 @@ describe('MediaStreamsGateway', () => {
 
     it('should handle missing suggestion text gracefully', async () => {
       aiService.generateSuggestion.mockResolvedValue({
-        text: undefined as any,
+        text: undefined,
         confidence: 0.8,
         provider: 'openai',
         latencyMs: 100,
       });
+      prismaService.aISuggestion.create.mockResolvedValue({} as any);
 
       const session = {
         callId: mockCallId,

@@ -12,12 +12,24 @@ jest.setTimeout(15000);
 
 // Mock WebSocket
 jest.mock('ws', () => {
-  return jest.fn(() => ({
-    on: jest.fn(),
-    send: jest.fn(),
-    close: jest.fn(),
-    readyState: 1,
-  }));
+  const mockConstructor = jest.fn(() => {
+    const mockWs = {
+      on: jest.fn(function(this: any, event: string, handler: Function) {
+        // Simulate 'open' event for live session tests
+        if (event === 'open') {
+          setTimeout(() => handler(), 0);
+        }
+        return this;
+      }),
+      send: jest.fn(),
+      close: jest.fn(),
+      readyState: 1, // WebSocket.OPEN
+    };
+    return mockWs;
+  });
+  // Add WebSocket.OPEN constant for use in service
+  (mockConstructor as any).OPEN = 1;
+  return mockConstructor;
 });
 
 describe('DeepgramService', () => {

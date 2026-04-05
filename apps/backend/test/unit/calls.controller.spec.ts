@@ -47,6 +47,7 @@ describe('CallsController', () => {
       handleStatusWebhook: jest.fn().mockResolvedValue(undefined),
       handleStatusWebhookBySid: jest.fn().mockResolvedValue(undefined),
       analyzeCall: jest.fn().mockResolvedValue({ sentiment: 0.8, suggestions: [] }),
+      exportCallsAsCsv: jest.fn().mockResolvedValue('Date,Phone,Direction,Status,Duration (sec),Sentiment,AI Suggestions Count\n'),
     };
 
     const module: TestingModule = await Test.createTestingModule({

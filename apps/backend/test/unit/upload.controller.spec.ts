@@ -27,14 +27,17 @@ describe('UploadController', () => {
   };
 
   beforeEach(async () => {
+    const mockUploadService = {
+      generatePresignedUrl: jest.fn().mockResolvedValue(mockPresignedResult),
+      isValidUploadUrl: jest.fn().mockReturnValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UploadController],
       providers: [
         {
           provide: UploadService,
-          useValue: {
-            generatePresignedUrl: jest.fn().mockResolvedValue(mockPresignedResult),
-          },
+          useValue: mockUploadService,
         },
         Reflector,
       ],
@@ -42,6 +45,10 @@ describe('UploadController', () => {
 
     controller = module.get<UploadController>(UploadController);
     uploadService = module.get<UploadService>(UploadService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('generatePresignedUrl', () => {

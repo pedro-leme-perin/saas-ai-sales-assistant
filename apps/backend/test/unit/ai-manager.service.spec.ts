@@ -69,9 +69,7 @@ describe('AIManagerService', () => {
     it('should warn when no providers are configured', () => {
       configService.get.mockReturnValue(undefined);
 
-      const consoleWarnSpy = jest
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {});
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       const noProviderService = new AIManagerService(configService);
 
@@ -151,9 +149,7 @@ describe('AIManagerService', () => {
 
       // Make OpenAI fail
       const openaiProvider = service['providers'].get('openai')!;
-      jest
-        .spyOn(openaiProvider, 'generateSuggestion')
-        .mockRejectedValue(new Error('OpenAI failed'));
+      jest.spyOn(openaiProvider, 'generateSuggestion').mockRejectedValue(new Error('OpenAI failed'));
 
       // Make Gemini succeed
       const geminiProvider = service['providers'].get('gemini')!;
@@ -206,9 +202,7 @@ describe('AIManagerService', () => {
       };
 
       const provider = service['providers'].get('openai')!;
-      const spy = jest
-        .spyOn(provider, 'generateSuggestion')
-        .mockResolvedValue(mockSuggestion);
+      const spy = jest.spyOn(provider, 'generateSuggestion').mockResolvedValue(mockSuggestion);
 
       const context = { sentiment: 'positive', type: 'sales' };
       await service.generateSuggestion('test transcript', context, 'openai');
@@ -235,12 +229,14 @@ describe('AIManagerService', () => {
       jest.spyOn(openaiProvider, 'generateSuggestion').mockRejectedValue(new Error('Network error'));
 
       const geminiProvider = service['providers'].get('gemini')!;
-      const geminiSpy = jest.spyOn(geminiProvider, 'generateSuggestion').mockResolvedValue({
-        text: 'Success',
-        confidence: 0.8,
-        provider: 'gemini',
-        latencyMs: 100,
-      });
+      const geminiSpy = jest
+        .spyOn(geminiProvider, 'generateSuggestion')
+        .mockResolvedValue({
+          text: 'Success',
+          confidence: 0.8,
+          provider: 'gemini',
+          latencyMs: 100,
+        });
 
       const result = await service.generateSuggestion('test', {}, 'openai');
 

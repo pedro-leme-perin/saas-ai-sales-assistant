@@ -17,8 +17,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CurrentUser, CompanyId, UserId } from '@/modules/auth/decorators/current-user.decorator';
-import { UserWithCompany } from './users.service';
+import { CompanyId } from '@/modules/auth/decorators/current-user.decorator';
 import { InviteUserDto, UpdateUserRoleDto } from './dto/user.dto';
 
 // Interface for authenticated requests

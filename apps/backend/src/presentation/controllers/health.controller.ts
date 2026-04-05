@@ -38,8 +38,6 @@ export class HealthController {
   @ApiResponse({ status: 200, description: 'System is healthy' })
   @ApiResponse({ status: 503, description: 'System is unhealthy' })
   async check(): Promise<HealthStatus> {
-    const start = Date.now();
-
     // Check database
     let dbStatus: 'healthy' | 'unhealthy' = 'healthy';
     let dbLatency = 0;
@@ -47,7 +45,7 @@ export class HealthController {
       const dbStart = Date.now();
       await this.prisma.$queryRaw`SELECT 1`;
       dbLatency = Date.now() - dbStart;
-    } catch (error) {
+    } catch (_error) {
       dbStatus = 'unhealthy';
     }
 

@@ -106,7 +106,8 @@ export class WhatsappController {
   @Post('chats/:companyId/:chatId/messages')
   @ApiOperation({
     summary: 'Send WhatsApp message to customer',
-    description: 'Sends message via Twilio WhatsApp Business API. Tracks if AI suggestion was used.',
+    description:
+      'Sends message via Twilio WhatsApp Business API. Tracks if AI suggestion was used.',
   })
   @ApiResponse({
     status: 200,

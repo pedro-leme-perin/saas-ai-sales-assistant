@@ -41,6 +41,11 @@ describe('NotificationsService', () => {
       updateMany: jest.fn(),
       delete: jest.fn(),
       deleteMany: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    company: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -92,7 +97,7 @@ describe('NotificationsService', () => {
           type: createDto.type,
           title: createDto.title,
           message: createDto.message,
-          data: undefined,
+          data: null,
           channel: NotificationChannel.IN_APP,
           sentAt: expect.any(Date),
         },
@@ -662,6 +667,137 @@ describe('NotificationsService', () => {
 
       await expect(
         service.findById(mockNotificationId, mockUserId, 'different-company'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // =====================================================
+  // GET PREFERENCES METHOD TESTS
+  // =====================================================
+
+  describe('getPreferences', () => {
+    it('should get notification preferences with defaults', async () => {
+      const mockCompany = {
+        settings: {
+          notificationPreferences: {
+            emailCalls: true,
+            emailMessages: false,
+          },
+        },
+      };
+
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+
+      const result = await service.getPreferences(mockUserId, mockCompanyId);
+
+      expect(result).toBeDefined();
+      expect(result.emailCalls).toBe(true);
+      expect(result.emailMessages).toBe(false);
+      expect(result.pushSuggestions).toBe(true); // default
+      expect(mockPrismaService.company.findUnique).toHaveBeenCalledWith({
+        where: { id: mockCompanyId },
+        select: { settings: true },
+      });
+    });
+
+    it('should return all defaults when no preferences exist', async () => {
+      const mockCompany = {
+        settings: {},
+      };
+
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+
+      const result = await service.getPreferences(mockUserId, mockCompanyId);
+
+      expect(result).toEqual({
+        emailCalls: true,
+        emailMessages: true,
+        pushSuggestions: true,
+        emailReports: true,
+        emailBilling: true,
+      });
+    });
+
+    it('should throw error when companyId is missing in getPreferences', async () => {
+      await expect(service.getPreferences(mockUserId, '')).rejects.toThrow(
+        'companyId is required for tenant isolation',
+      );
+
+      expect(mockPrismaService.company.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when company not found', async () => {
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.getPreferences(mockUserId, mockCompanyId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  // =====================================================
+  // UPDATE PREFERENCES METHOD TESTS
+  // =====================================================
+
+  describe('updatePreferences', () => {
+    it('should update notification preferences', async () => {
+      const mockCompany = {
+        settings: {
+          notificationPreferences: {
+            emailCalls: true,
+          },
+        },
+      };
+
+      const updatedPreferences = {
+        emailCalls: false,
+        emailMessages: true,
+      };
+
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(mockCompany);
+      (mockPrismaService.company.update as jest.Mock).mockResolvedValue({
+        settings: {
+          notificationPreferences: {
+            emailCalls: false,
+            emailMessages: true,
+            pushSuggestions: true,
+            emailReports: true,
+            emailBilling: true,
+          },
+        },
+      });
+
+      const result = await service.updatePreferences(
+        mockUserId,
+        mockCompanyId,
+        updatedPreferences,
+      );
+
+      expect(result).toBeDefined();
+      expect(mockPrismaService.company.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: mockCompanyId },
+        }),
+      );
+    });
+
+    it('should throw error when companyId is missing in updatePreferences', async () => {
+      const preferences = { emailCalls: false };
+
+      await expect(service.updatePreferences(mockUserId, '', preferences)).rejects.toThrow(
+        'companyId is required for tenant isolation',
+      );
+
+      expect(mockPrismaService.company.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when company not found during update', async () => {
+      (mockPrismaService.company.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const preferences = { emailCalls: false };
+
+      await expect(
+        service.updatePreferences(mockUserId, mockCompanyId, preferences),
       ).rejects.toThrow(NotFoundException);
     });
   });

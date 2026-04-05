@@ -61,7 +61,7 @@ export class NotificationsService {
     type: NotificationType;
     title: string;
     message: string;
-    data?: any;
+    data?: unknown;
     channel?: NotificationChannel;
   }) {
     return this.prisma.notification.create({

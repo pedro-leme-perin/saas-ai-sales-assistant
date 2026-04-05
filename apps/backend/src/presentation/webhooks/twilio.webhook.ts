@@ -34,7 +34,7 @@ export class TwilioWebhookController {
   @ApiOperation({ summary: 'Twilio voice callback webhook (internal)' })
   async handleVoiceWebhook(
     @Body() body: TwilioVoiceBody,
-    @Headers('x-twilio-signature') signature: string,
+    @Headers('x-twilio-signature') _signature: string,
   ) {
     this.logger.log(`Twilio voice webhook: ${body?.CallStatus}`);
 

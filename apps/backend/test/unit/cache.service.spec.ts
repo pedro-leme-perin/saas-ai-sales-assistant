@@ -8,6 +8,7 @@ jest.setTimeout(10000);
 describe('CacheService', () => {
   let service: CacheService;
   let configService: ConfigService;
+  let dateNowSpy: jest.SpyInstance;
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
@@ -18,7 +19,10 @@ describe('CacheService', () => {
   };
 
   beforeEach(async () => {
-    // Mock global fetch
+    // Save original Date.now and spy on it
+    dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000000);
+
+    // Mock global fetch with proper Response-like objects
     global.fetch = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -42,6 +46,7 @@ describe('CacheService', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    dateNowSpy.mockRestore();
   });
 
   describe('initialization', () => {
@@ -79,7 +84,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 'cached-value' }),
+        json: jest.fn(async () => ({ result: 'cached-value' })),
       });
 
       const result = await service.get('test-key');
@@ -123,7 +128,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 'OK' }),
+        json: jest.fn(async () => ({ result: 'OK' })),
       });
 
       const result = await service.set('test-key', 'test-value', 3600);
@@ -142,7 +147,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 'OK' }),
+        json: jest.fn(async () => ({ result: 'OK' })),
       });
 
       const result = await service.set('test-key', 'test-value');
@@ -162,7 +167,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 1 }),
+        json: jest.fn(async () => ({ result: 1 })),
       });
 
       const result = await service.delete('test-key');
@@ -182,7 +187,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 1 }),
+        json: jest.fn(async () => ({ result: 1 })),
       });
 
       const result = await service.exists('test-key');
@@ -194,7 +199,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 0 }),
+        json: jest.fn(async () => ({ result: 0 })),
       });
 
       const result = await service.exists('nonexistent-key');
@@ -209,7 +214,7 @@ describe('CacheService', () => {
       const jsonData = { user: 'john', email: 'john@example.com' };
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: JSON.stringify(jsonData) }),
+        json: jest.fn(async () => ({ result: JSON.stringify(jsonData) })),
       });
 
       const result = await service.getJson('user-data');
@@ -221,7 +226,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 'invalid-json-{' }),
+        json: jest.fn(async () => ({ result: 'invalid-json-{' })),
       });
 
       const result = await service.getJson('invalid-key');
@@ -233,9 +238,11 @@ describe('CacheService', () => {
   describe('healthCheck()', () => {
     it('should return healthy with PONG', async () => {
       const mockFetch = global.fetch as jest.Mock;
+      dateNowSpy.mockReturnValue(1000000);
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 'PONG' }),
+        json: jest.fn(async () => ({ result: 'PONG' })),
       });
 
       const result = await service.healthCheck();
@@ -271,49 +278,75 @@ describe('CacheService', () => {
 
   describe('circuit breaker', () => {
     it('should open circuit breaker after 3 consecutive failures', async () => {
+      // Create a fresh service instance for this test
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          CacheService,
+          {
+            provide: ConfigService,
+            useValue: mockConfigService,
+          },
+        ],
+      }).compile();
+
+      const freshService = module.get<CacheService>(CacheService);
       const mockFetch = global.fetch as jest.Mock;
 
-      // First 3 failures
+      // First 3 failures with proper Response-like objects
       for (let i = 0; i < 3; i++) {
         mockFetch.mockResolvedValueOnce({
           ok: false,
           status: 500,
+          json: async () => ({}),
         });
       }
 
       // Attempt 3 calls that will fail
-      await service.get('key1');
-      await service.get('key2');
-      await service.get('key3');
+      await freshService.get('key1');
+      await freshService.get('key2');
+      await freshService.get('key3');
 
       // Fourth call should return null immediately (circuit open)
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 'should-not-be-called' }),
+        json: jest.fn(async () => ({ result: 'should-not-be-called' })),
       });
 
-      const result = await service.get('key4');
+      const result = await freshService.get('key4');
 
       expect(result).toBeNull();
     });
 
     it('should return null when circuit is open', async () => {
+      // Create a fresh service instance for this test
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          CacheService,
+          {
+            provide: ConfigService,
+            useValue: mockConfigService,
+          },
+        ],
+      }).compile();
+
+      const freshService = module.get<CacheService>(CacheService);
       const mockFetch = global.fetch as jest.Mock;
 
-      // Trigger circuit breaker to open
+      // Trigger circuit breaker to open with proper Response-like objects
       for (let i = 0; i < 3; i++) {
         mockFetch.mockResolvedValueOnce({
           ok: false,
           status: 500,
+          json: async () => ({}),
         });
       }
 
-      await service.get('key1');
-      await service.get('key2');
-      await service.get('key3');
+      await freshService.get('key1');
+      await freshService.get('key2');
+      await freshService.get('key3');
 
       // Circuit should be open now
-      const result = await service.get('key4');
+      const result = await freshService.get('key4');
 
       expect(result).toBeNull();
     });
@@ -323,28 +356,31 @@ describe('CacheService', () => {
     it('should allow when under limit', async () => {
       const mockFetch = global.fetch as jest.Mock;
 
+      // Reset Date.now spy to use a fixed value
+      dateNowSpy.mockReturnValue(1000000);
+
       // Mock for ZREMRANGEBYSCORE
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 0 }),
+        json: jest.fn(async () => ({ result: 0 })),
       });
 
       // Mock for ZCARD
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 0 }),
+        json: jest.fn(async () => ({ result: 0 })),
       });
 
       // Mock for ZADD
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 1 }),
+        json: jest.fn(async () => ({ result: 1 })),
       });
 
       // Mock for EXPIRE
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 1 }),
+        json: jest.fn(async () => ({ result: 1 })),
       });
 
       const result = await service.checkRateLimit('rate:user:123', 10, 60);
@@ -356,16 +392,19 @@ describe('CacheService', () => {
     it('should block when over limit', async () => {
       const mockFetch = global.fetch as jest.Mock;
 
+      // Reset Date.now spy to use a fixed value
+      dateNowSpy.mockReturnValue(1000000);
+
       // Mock for ZREMRANGEBYSCORE
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 0 }),
+        json: jest.fn(async () => ({ result: 0 })),
       });
 
       // Mock for ZCARD returning maxRequests
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 10 }),
+        json: jest.fn(async () => ({ result: 10 })),
       });
 
       const result = await service.checkRateLimit('rate:user:456', 10, 60);
@@ -380,7 +419,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 'OK' }),
+        json: jest.fn(async () => ({ result: 'OK' })),
       });
 
       const sessionData = { userId: 'user-123', role: 'VENDOR' };
@@ -396,7 +435,7 @@ describe('CacheService', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: JSON.stringify(sessionData) }),
+        json: jest.fn(async () => ({ result: JSON.stringify(sessionData) })),
       });
 
       const result = await service.getSession('session-xyz');
@@ -408,7 +447,7 @@ describe('CacheService', () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ result: 1 }),
+        json: jest.fn(async () => ({ result: 1 })),
       });
 
       const result = await service.deleteSession('session-delete');

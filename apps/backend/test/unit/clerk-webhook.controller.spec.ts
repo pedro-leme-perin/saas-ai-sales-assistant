@@ -8,12 +8,16 @@ import { Request } from 'express';
 
 jest.setTimeout(10000);
 
-// Mock svix webhook verification
-jest.mock('svix', () => ({
-  Webhook: jest.fn().mockImplementation(() => ({
-    verify: jest.fn(),
-  })),
-}));
+// Mock svix webhook verification - properly set up the mock
+const mockWebhookVerify = jest.fn();
+
+jest.mock('svix', () => {
+  return {
+    Webhook: jest.fn().mockImplementation(() => ({
+      verify: mockWebhookVerify,
+    })),
+  };
+});
 
 describe('ClerkWebhookController', () => {
   let controller: ClerkWebhookController;
@@ -40,6 +44,7 @@ describe('ClerkWebhookController', () => {
     usersService = module.get<UsersService>(UsersService);
 
     jest.clearAllMocks();
+    mockWebhookVerify.mockClear();
   });
 
   afterEach(() => {
@@ -81,9 +86,7 @@ describe('ClerkWebhookController', () => {
     it('should throw BadRequestException when webhook signature verification fails', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-      mockWebhook.verify.mockImplementation(() => {
+      mockWebhookVerify.mockImplementation(() => {
         throw new Error('Signature verification failed');
       });
 
@@ -105,23 +108,47 @@ describe('ClerkWebhookController', () => {
     it('should handle user.created event successfully', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const userData: ClerkUserData = {
         id: 'clerk-user-123',
-        email_addresses: [{ email_address: 'newuser@example.com' } as any],
+        object: 'user',
+        username: null,
+        email_addresses: [
+          {
+            id: 'email_1',
+            object: 'email_address',
+            email_address: 'newuser@example.com',
+            verification: { status: 'verified', strategy: 'email_code' },
+            linked_to: [],
+          },
+        ],
         first_name: 'John',
         last_name: 'Doe',
         image_url: 'https://example.com/avatar.jpg',
-      } as any;
-
-      const event = {
-        type: 'user.created',
-        data: userData,
+        has_image: true,
+        primary_email_address_id: 'email_1',
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: true,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: null,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.created' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
 
       const createdUser = {
         id: 'user-123',
@@ -150,23 +177,47 @@ describe('ClerkWebhookController', () => {
     it('should call createFromWebhook with correct data', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const userData: ClerkUserData = {
         id: 'clerk-user-456',
-        email_addresses: [{ email_address: 'another@example.com' } as any],
+        object: 'user',
+        username: null,
+        email_addresses: [
+          {
+            id: 'email_1',
+            object: 'email_address',
+            email_address: 'another@example.com',
+            verification: { status: 'verified', strategy: 'email_code' },
+            linked_to: [],
+          },
+        ],
         first_name: 'Jane',
         last_name: 'Smith',
         image_url: 'https://example.com/jane.jpg',
-      } as any;
-
-      const event = {
-        type: 'user.created',
-        data: userData,
+        has_image: true,
+        primary_email_address_id: 'email_1',
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: true,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: null,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.created' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.createFromWebhook.mockResolvedValue({ id: 'user-456' });
 
       const req = {
@@ -190,23 +241,47 @@ describe('ClerkWebhookController', () => {
     it('should handle user.updated event successfully', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const userData: ClerkUserData = {
         id: 'clerk-user-789',
-        email_addresses: [{ email_address: 'updated@example.com' } as any],
+        object: 'user',
+        username: null,
+        email_addresses: [
+          {
+            id: 'email_1',
+            object: 'email_address',
+            email_address: 'updated@example.com',
+            verification: { status: 'verified', strategy: 'email_code' },
+            linked_to: [],
+          },
+        ],
         first_name: 'John',
         last_name: 'Updated',
         image_url: 'https://example.com/updated.jpg',
-      } as any;
-
-      const event = {
-        type: 'user.updated',
-        data: userData,
+        has_image: true,
+        primary_email_address_id: 'email_1',
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: true,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: Date.now(),
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.updated' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
 
       const updatedUser = {
         id: 'user-789',
@@ -235,23 +310,47 @@ describe('ClerkWebhookController', () => {
     it('should handle user.updated when user not found', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const userData: ClerkUserData = {
         id: 'clerk-user-notfound',
-        email_addresses: [{ email_address: 'notfound@example.com' } as any],
+        object: 'user',
+        username: null,
+        email_addresses: [
+          {
+            id: 'email_1',
+            object: 'email_address',
+            email_address: 'notfound@example.com',
+            verification: { status: 'verified', strategy: 'email_code' },
+            linked_to: [],
+          },
+        ],
         first_name: 'Not',
         last_name: 'Found',
         image_url: 'https://example.com/notfound.jpg',
-      } as any;
-
-      const event = {
-        type: 'user.updated',
-        data: userData,
+        has_image: true,
+        primary_email_address_id: 'email_1',
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: true,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: null,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.updated' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.updateFromWebhook.mockResolvedValue(null);
 
       const req = {
@@ -274,19 +373,39 @@ describe('ClerkWebhookController', () => {
     it('should handle user.deleted event successfully', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const userData: ClerkUserData = {
         id: 'clerk-user-todelete',
-      } as any;
-
-      const event = {
-        type: 'user.deleted',
-        data: userData,
+        object: 'user',
+        username: null,
+        first_name: null,
+        last_name: null,
+        image_url: '',
+        has_image: false,
+        primary_email_address_id: null,
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: false,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        email_addresses: [],
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: null,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.deleted' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.softDeleteByClerkId.mockResolvedValue(undefined);
 
       const req = {
@@ -307,20 +426,40 @@ describe('ClerkWebhookController', () => {
     it('should soft delete user via clerkId', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const clerkId = 'clerk-user-delete-456';
       const userData: ClerkUserData = {
         id: clerkId,
-      } as any;
-
-      const event = {
-        type: 'user.deleted',
-        data: userData,
+        object: 'user',
+        username: null,
+        first_name: null,
+        last_name: null,
+        image_url: '',
+        has_image: false,
+        primary_email_address_id: null,
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: false,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        email_addresses: [],
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: null,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.deleted' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.softDeleteByClerkId.mockResolvedValue(undefined);
 
       const req = {
@@ -337,23 +476,47 @@ describe('ClerkWebhookController', () => {
     it('should handle error during user creation gracefully', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const userData: ClerkUserData = {
         id: 'clerk-user-error',
-        email_addresses: [{ email_address: 'error@example.com' } as any],
+        object: 'user',
+        username: null,
+        email_addresses: [
+          {
+            id: 'email_1',
+            object: 'email_address',
+            email_address: 'error@example.com',
+            verification: { status: 'verified', strategy: 'email_code' },
+            linked_to: [],
+          },
+        ],
         first_name: 'Error',
         last_name: 'User',
         image_url: 'https://example.com/error.jpg',
-      } as any;
-
-      const event = {
-        type: 'user.created',
-        data: userData,
+        has_image: true,
+        primary_email_address_id: 'email_1',
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: true,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: null,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.created' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.createFromWebhook.mockRejectedValue(new Error('Database error'));
 
       const req = {
@@ -374,15 +537,37 @@ describe('ClerkWebhookController', () => {
     it('should handle unknown event type', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const event = {
         type: 'user.unknown_event',
-        data: { id: 'clerk-user-unknown' },
+        data: {
+          id: 'clerk-user-unknown',
+          object: 'user',
+          username: null,
+          first_name: null,
+          last_name: null,
+          image_url: '',
+          has_image: false,
+          primary_email_address_id: null,
+          primary_phone_number_id: null,
+          primary_web3_wallet_id: null,
+          password_enabled: false,
+          two_factor_enabled: false,
+          totp_enabled: false,
+          backup_code_enabled: false,
+          email_addresses: [],
+          phone_numbers: [],
+          external_accounts: [],
+          public_metadata: {},
+          private_metadata: {},
+          unsafe_metadata: {},
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          last_sign_in_at: null,
+        },
+        object: 'event',
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      mockWebhookVerify.mockReturnValue(event);
 
       const req = {
         rawBody: Buffer.from(JSON.stringify(event)),
@@ -406,19 +591,39 @@ describe('ClerkWebhookController', () => {
     it('should process webhook with minimal data', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const userData: ClerkUserData = {
         id: 'clerk-user-minimal',
-      } as any;
-
-      const event = {
-        type: 'user.created',
-        data: userData,
+        object: 'user',
+        username: null,
+        first_name: null,
+        last_name: null,
+        image_url: '',
+        has_image: false,
+        primary_email_address_id: null,
+        primary_phone_number_id: null,
+        primary_web3_wallet_id: null,
+        password_enabled: false,
+        two_factor_enabled: false,
+        totp_enabled: false,
+        backup_code_enabled: false,
+        email_addresses: [],
+        phone_numbers: [],
+        external_accounts: [],
+        public_metadata: {},
+        private_metadata: {},
+        unsafe_metadata: {},
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_sign_in_at: null,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      const event = {
+        type: 'user.created' as const,
+        data: userData,
+        object: 'event' as const,
+      };
+
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.createFromWebhook.mockResolvedValue({ id: 'user-minimal' });
 
       const req = {
@@ -462,15 +667,37 @@ describe('ClerkWebhookController', () => {
     it('should verify webhook using svix library', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
-
       const event = {
-        type: 'user.created',
-        data: { id: 'clerk-user-123' },
+        type: 'user.created' as const,
+        data: {
+          id: 'clerk-user-123',
+          object: 'user' as const,
+          username: null,
+          first_name: null,
+          last_name: null,
+          image_url: '',
+          has_image: false,
+          primary_email_address_id: null,
+          primary_phone_number_id: null,
+          primary_web3_wallet_id: null,
+          password_enabled: false,
+          two_factor_enabled: false,
+          totp_enabled: false,
+          backup_code_enabled: false,
+          email_addresses: [],
+          phone_numbers: [],
+          external_accounts: [],
+          public_metadata: {},
+          private_metadata: {},
+          unsafe_metadata: {},
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          last_sign_in_at: null,
+        },
+        object: 'event' as const,
       };
 
-      mockWebhook.verify.mockReturnValue(event);
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.createFromWebhook.mockResolvedValue({ id: 'user-123' });
 
       const req = {
@@ -494,13 +721,39 @@ describe('ClerkWebhookController', () => {
     it('should use rawBody from request', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
+      const event = {
+        type: 'user.created' as const,
+        data: {
+          id: 'test',
+          object: 'user' as const,
+          username: null,
+          first_name: null,
+          last_name: null,
+          image_url: '',
+          has_image: false,
+          primary_email_address_id: null,
+          primary_phone_number_id: null,
+          primary_web3_wallet_id: null,
+          password_enabled: false,
+          two_factor_enabled: false,
+          totp_enabled: false,
+          backup_code_enabled: false,
+          email_addresses: [],
+          phone_numbers: [],
+          external_accounts: [],
+          public_metadata: {},
+          private_metadata: {},
+          unsafe_metadata: {},
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          last_sign_in_at: null,
+        },
+        object: 'event' as const,
+      };
 
       const rawData = Buffer.from(JSON.stringify({ type: 'user.created', data: { id: 'test' } }));
-      const event = { type: 'user.created', data: { id: 'test' } };
 
-      mockWebhook.verify.mockReturnValue(event);
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.createFromWebhook.mockResolvedValue({ id: 'user-test' });
 
       const req = {
@@ -509,19 +762,45 @@ describe('ClerkWebhookController', () => {
 
       await controller.handleWebhook(req, 'id-123', 'timestamp-456', 'signature-789');
 
-      expect(mockWebhook.verify).toHaveBeenCalledWith(rawData.toString(), expect.any(Object));
+      expect(mockWebhookVerify).toHaveBeenCalledWith(rawData.toString(), expect.any(Object));
     });
 
     it('should fallback to JSON stringified body if rawBody missing', async () => {
       process.env.CLERK_WEBHOOK_SECRET = 'test-secret';
 
-      const { Webhook } = require('svix');
-      const mockWebhook = Webhook.mock.results[0].value;
+      const event = {
+        type: 'user.created' as const,
+        data: {
+          id: 'test',
+          object: 'user' as const,
+          username: null,
+          first_name: null,
+          last_name: null,
+          image_url: '',
+          has_image: false,
+          primary_email_address_id: null,
+          primary_phone_number_id: null,
+          primary_web3_wallet_id: null,
+          password_enabled: false,
+          two_factor_enabled: false,
+          totp_enabled: false,
+          backup_code_enabled: false,
+          email_addresses: [],
+          phone_numbers: [],
+          external_accounts: [],
+          public_metadata: {},
+          private_metadata: {},
+          unsafe_metadata: {},
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          last_sign_in_at: null,
+        },
+        object: 'event' as const,
+      };
 
       const bodyData = { type: 'user.created', data: { id: 'test' } };
-      const event = { type: 'user.created', data: { id: 'test' } };
 
-      mockWebhook.verify.mockReturnValue(event);
+      mockWebhookVerify.mockReturnValue(event);
       mockUsersService.createFromWebhook.mockResolvedValue({ id: 'user-test' });
 
       const req = {
@@ -530,7 +809,7 @@ describe('ClerkWebhookController', () => {
 
       await controller.handleWebhook(req, 'id-123', 'timestamp-456', 'signature-789');
 
-      expect(mockWebhook.verify).toHaveBeenCalledWith(JSON.stringify(bodyData), expect.any(Object));
+      expect(mockWebhookVerify).toHaveBeenCalledWith(JSON.stringify(bodyData), expect.any(Object));
     });
   });
 });

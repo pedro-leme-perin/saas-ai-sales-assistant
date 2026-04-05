@@ -112,9 +112,7 @@ describe('AuthGuard', () => {
 
   describe('canActivate', () => {
     it('should allow access to /health endpoint without authentication', async () => {
-      const context = createMockExecutionContext(
-        createMockRequest({ path: '/health' }),
-      );
+      const context = createMockExecutionContext(createMockRequest({ path: '/health' }));
       (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
 
       const result = await guard.canActivate(context);
@@ -148,9 +146,7 @@ describe('AuthGuard', () => {
     });
 
     it('should allow access to webhooks/clerk endpoint without authentication', async () => {
-      const context = createMockExecutionContext(
-        createMockRequest({ path: '/webhooks/clerk' }),
-      );
+      const context = createMockExecutionContext(createMockRequest({ path: '/webhooks/clerk' }));
       (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
 
       const result = await guard.canActivate(context);
@@ -191,16 +187,10 @@ describe('AuthGuard', () => {
       const context = createMockExecutionContext(request);
 
       (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-      (mockClerkStrategy.validate as jest.Mock).mockRejectedValue(
-        new Error('Invalid token'),
-      );
+      (mockClerkStrategy.validate as jest.Mock).mockRejectedValue(new Error('Invalid token'));
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'No authentication token provided',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('No authentication token provided');
     });
 
     it('should throw UnauthorizedException when strategy throws non-Error object', async () => {

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { UsersService } from '../../src/modules/users/users.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
+import { EmailService } from '../../src/modules/email/email.service';
 
 // Aumentar timeout para ambientes lentos (CI, VM)
 jest.setTimeout(15000);
@@ -44,18 +45,31 @@ describe('UsersService', () => {
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
       count: jest.fn(),
     },
     company: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+    auditLog: {
       create: jest.fn(),
     },
     $transaction: jest.fn(),
   };
 
+  const mockEmailService = {
+    sendInviteEmail: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UsersService, { provide: PrismaService, useValue: mockPrismaService }],
+      providers: [
+        UsersService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: EmailService, useValue: mockEmailService },
+      ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);

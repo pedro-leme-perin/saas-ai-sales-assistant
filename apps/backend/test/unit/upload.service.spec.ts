@@ -9,6 +9,7 @@ import { UploadService } from '../../src/modules/upload/upload.service';
 
 describe('UploadService', () => {
   let service: UploadService;
+  let configService: ConfigService;
 
   const mockConfigValues: Record<string, string> = {
     R2_ACCOUNT_ID: 'test-account-id',
@@ -26,19 +27,22 @@ describe('UploadService', () => {
   };
 
   beforeEach(async () => {
+    const mockConfigService = {
+      get: jest.fn((key: string) => mockConfigValues[key] || undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UploadService,
         {
           provide: ConfigService,
-          useValue: {
-            get: jest.fn((key: string) => mockConfigValues[key]),
-          },
+          useValue: mockConfigService,
         },
       ],
     }).compile();
 
     service = module.get<UploadService>(UploadService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   describe('generatePresignedUrl', () => {
@@ -170,18 +174,20 @@ describe('UploadService', () => {
     let noCredService: UploadService;
 
     beforeEach(async () => {
+      const mockConfigServiceNoAuth = {
+        get: jest.fn((key: string) => {
+          if (key === 'R2_ACCESS_KEY_ID') return '';
+          if (key === 'R2_SECRET_ACCESS_KEY') return '';
+          return mockConfigValues[key] || undefined;
+        }),
+      };
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           UploadService,
           {
             provide: ConfigService,
-            useValue: {
-              get: jest.fn((key: string) => {
-                if (key === 'R2_ACCESS_KEY_ID') return '';
-                if (key === 'R2_SECRET_ACCESS_KEY') return '';
-                return mockConfigValues[key];
-              }),
-            },
+            useValue: mockConfigServiceNoAuth,
           },
         ],
       }).compile();
@@ -253,16 +259,21 @@ describe('UploadService', () => {
   });
 
   describe('S3 V4 signature internals', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('should produce consistent signatures for same input', async () => {
-      // Mock Date.now to get deterministic results
+      // Mock Date and Math.random to get deterministic results
       const mockDate = new Date('2026-03-20T12:00:00Z');
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
-      jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
+      const dateSpy = jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
 
       const result1 = await service.generatePresignedUrl(baseParams);
 
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
-      jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
+      // Restore and re-apply mocks to ensure consistent state
+      dateSpy.mockImplementation(() => mockDate as unknown as Date);
+      randomSpy.mockReturnValue(0.123456789);
 
       const result2 = await service.generatePresignedUrl(baseParams);
 
@@ -272,8 +283,6 @@ describe('UploadService', () => {
 
       expect(sig1).toBeTruthy();
       expect(sig1).toBe(sig2);
-
-      jest.restoreAllMocks();
     });
 
     it('should produce different signatures for different keys', async () => {

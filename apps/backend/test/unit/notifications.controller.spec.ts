@@ -34,6 +34,8 @@ describe('NotificationsController', () => {
     delete: jest.fn(),
     deleteAllRead: jest.fn(),
     findById: jest.fn(),
+    getPreferences: jest.fn(),
+    updatePreferences: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -150,12 +152,12 @@ describe('NotificationsController', () => {
 
   describe('getUnreadCount', () => {
     it('should return unread notification count', async () => {
-      (service.getUnreadCount as jest.Mock).mockResolvedValue(5);
+      (service.getUnreadCount as jest.Mock).mockResolvedValue({ unread: 5 });
 
       const result = await controller.getUnreadCount(mockRequest as any);
 
       expect(service.getUnreadCount).toHaveBeenCalledWith('test-user-id', 'test-company-id');
-      expect(result).toBe(5);
+      expect(result).toEqual({ unread: 5 });
     });
 
     it('should throw error if userId is missing', async () => {
@@ -335,6 +337,93 @@ describe('NotificationsController', () => {
 
       await expect(controller.findById('notif-1', invalidRequest as any)).rejects.toThrow();
       expect(service.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getPreferences', () => {
+    it('should return notification preferences', async () => {
+      const mockPreferences = {
+        emailCalls: true,
+        emailMessages: false,
+        pushSuggestions: true,
+        emailReports: true,
+        emailBilling: false,
+      };
+      (service.getPreferences as jest.Mock).mockResolvedValue(mockPreferences);
+
+      const result = await controller.getPreferences(mockRequest as any);
+
+      expect(service.getPreferences).toHaveBeenCalledWith('test-user-id', 'test-company-id');
+      expect(result).toEqual(mockPreferences);
+    });
+
+    it('should throw error if userId is missing', async () => {
+      const invalidRequest = {
+        user: { companyId: 'test-company-id' },
+      };
+
+      await expect(controller.getPreferences(invalidRequest as any)).rejects.toThrow();
+      expect(service.getPreferences).not.toHaveBeenCalled();
+    });
+
+    it('should throw error if companyId is missing', async () => {
+      const invalidRequest = {
+        user: { id: 'test-user-id' },
+      };
+
+      await expect(controller.getPreferences(invalidRequest as any)).rejects.toThrow();
+      expect(service.getPreferences).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updatePreferences', () => {
+    it('should update notification preferences', async () => {
+      const updatedPreferences = {
+        emailCalls: false,
+        pushSuggestions: false,
+      };
+      const mockUpdatedResult = {
+        emailCalls: false,
+        emailMessages: true,
+        pushSuggestions: false,
+        emailReports: true,
+        emailBilling: true,
+      };
+
+      (service.updatePreferences as jest.Mock).mockResolvedValue(mockUpdatedResult);
+
+      const result = await controller.updatePreferences(updatedPreferences, mockRequest as any);
+
+      expect(service.updatePreferences).toHaveBeenCalledWith(
+        'test-user-id',
+        'test-company-id',
+        updatedPreferences,
+      );
+      expect(result).toEqual(mockUpdatedResult);
+    });
+
+    it('should throw error if userId is missing', async () => {
+      const invalidRequest = {
+        user: { companyId: 'test-company-id' },
+      };
+      const preferences = { emailCalls: false };
+
+      await expect(
+        controller.updatePreferences(preferences, invalidRequest as any),
+      ).rejects.toThrow();
+      expect(service.updatePreferences).not.toHaveBeenCalled();
+    });
+
+    it('should throw error if companyId is missing', async () => {
+      const invalidRequest = {
+        user: { id: 'test-user-id' },
+      };
+      const preferences = { emailCalls: false };
+
+      await expect(
+        controller.updatePreferences(preferences, invalidRequest as any),
+      ).rejects.toThrow();
+      expect(service.updatePreferences).not.toHaveBeenCalled();
     });
   });
 });
