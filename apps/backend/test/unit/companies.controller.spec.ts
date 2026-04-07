@@ -121,7 +121,7 @@ describe('CompaniesController', () => {
   describe('create', () => {
     it('should create company', async () => {
       const dto = { name: 'New Company', plan: 'STARTER' };
-      const result = await controller.create(dto as any);
+      const result = await controller.create(dto as unknown as Record<string, unknown>);
       expect(result).toEqual({ success: true, data: mockCompany });
       expect(companiesService.create).toHaveBeenCalledWith(dto);
     });
@@ -146,7 +146,7 @@ describe('CompaniesController', () => {
   describe('update', () => {
     it('should update company', async () => {
       const dto = { name: 'Acme Corp Updated' };
-      const result = await controller.update('company-123', dto as any);
+      const result = await controller.update('company-123', dto as unknown as Record<string, unknown>);
       expect(result.success).toBe(true);
       expect(result.data.name).toBe('Acme Corp Updated');
       expect(companiesService.update).toHaveBeenCalledWith('company-123', dto);

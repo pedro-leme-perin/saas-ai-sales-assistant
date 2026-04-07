@@ -135,8 +135,8 @@ describe('BillingController', () => {
 
   describe('createCheckout', () => {
     it('should create checkout session and return URL', async () => {
-      const dto = { plan: 'PROFESSIONAL' as any };
-      const result = await controller.createCheckout(dto, 'company-123', mockUser as any);
+      const dto = { plan: 'PROFESSIONAL' as unknown };
+      const result = await controller.createCheckout(dto, 'company-123', mockUser as unknown as typeof mockUser);
       expect(result).toEqual({ url: 'https://checkout.stripe.com/test' });
       expect(billingService.createCheckoutSession).toHaveBeenCalledWith(
         'PROFESSIONAL',
@@ -146,8 +146,8 @@ describe('BillingController', () => {
     });
 
     it('should pass correct companyId from decorator', async () => {
-      const dto = { plan: 'ENTERPRISE' as any };
-      await controller.createCheckout(dto, 'company-999', mockUser as any);
+      const dto = { plan: 'ENTERPRISE' as unknown };
+      await controller.createCheckout(dto, 'company-999', mockUser as unknown as typeof mockUser);
       expect(billingService.createCheckoutSession).toHaveBeenCalledWith(
         'ENTERPRISE',
         'company-999',
@@ -162,8 +162,8 @@ describe('BillingController', () => {
 
   describe('changePlan', () => {
     it('should change plan and return result', async () => {
-      const dto = { plan: 'PROFESSIONAL' as any };
-      const result = await controller.changePlan(dto, 'company-123', mockUser as any);
+      const dto = { plan: 'PROFESSIONAL' as unknown };
+      const result = await controller.changePlan(dto, 'company-123', mockUser as unknown as typeof mockUser);
       expect(result).toEqual({ success: true, message: 'Plan changed', plan: mockPlans[1] });
       expect(billingService.changePlan).toHaveBeenCalledWith(
         'PROFESSIONAL',
@@ -179,7 +179,7 @@ describe('BillingController', () => {
 
   describe('cancelSubscription', () => {
     it('should cancel subscription', async () => {
-      const result = await controller.cancelSubscription('company-123', mockUser as any);
+      const result = await controller.cancelSubscription('company-123', mockUser as unknown as typeof mockUser);
       expect(result).toEqual({ success: true, message: 'Cancelled' });
       expect(billingService.cancelSubscription).toHaveBeenCalledWith('company-123', mockUser);
     });

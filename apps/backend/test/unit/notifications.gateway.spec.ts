@@ -43,7 +43,7 @@ describe('NotificationsGateway', () => {
       off: jest.fn(),
       once: jest.fn(),
       removeAllListeners: jest.fn(),
-    } as any;
+    } as unknown;
   };
 
   const createMockServer = (): jest.Mocked<Server> => {
@@ -52,7 +52,7 @@ describe('NotificationsGateway', () => {
         emit: jest.fn(),
       }),
       emit: jest.fn(),
-    } as any;
+    } as unknown;
   };
 
   beforeEach(async () => {

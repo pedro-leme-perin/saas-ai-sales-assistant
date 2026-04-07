@@ -34,7 +34,7 @@ describe('AuthController', () => {
 
   describe('getMe', () => {
     it('should return formatted user profile', async () => {
-      const result = await controller.getMe(mockUser as any);
+      const result = await controller.getMe(mockUser as unknown as typeof mockUser);
       expect(result).toEqual({
         id: 'user-123',
         email: 'admin@acme.com',
@@ -51,12 +51,12 @@ describe('AuthController', () => {
     });
 
     it('should include companyId for frontend', async () => {
-      const result = await controller.getMe(mockUser as any);
+      const result = await controller.getMe(mockUser as unknown as typeof mockUser);
       expect(result).toHaveProperty('companyId', 'company-123');
     });
 
     it('should include nested company object', async () => {
-      const result = await controller.getMe(mockUser as any);
+      const result = await controller.getMe(mockUser as unknown as typeof mockUser);
       expect(result.company).toEqual({
         id: 'company-123',
         name: 'Acme Corp',
@@ -71,7 +71,7 @@ describe('AuthController', () => {
 
   describe('checkSession', () => {
     it('should return valid session info', async () => {
-      const result = await controller.checkSession(mockUser as any);
+      const result = await controller.checkSession(mockUser as unknown as typeof mockUser);
       expect(result).toEqual({
         valid: true,
         userId: 'user-123',
@@ -81,7 +81,7 @@ describe('AuthController', () => {
     });
 
     it('should always return valid: true for authenticated users', async () => {
-      const result = await controller.checkSession(mockUser as any);
+      const result = await controller.checkSession(mockUser as unknown as typeof mockUser);
       expect(result.valid).toBe(true);
     });
   });

@@ -37,8 +37,8 @@ function createMockRequest(
     ip: '127.0.0.1',
     connection: {
       remoteAddress: '127.0.0.1',
-    } as any,
-    get: jest.fn((header: string) => ''),
+    } as unknown,
+    get: jest.fn((_header: string) => ''),
   } as unknown as ExtendedRequest;
 }
 

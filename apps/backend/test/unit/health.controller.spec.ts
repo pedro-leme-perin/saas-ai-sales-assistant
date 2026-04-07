@@ -107,7 +107,7 @@ describe('HealthController', () => {
     it('should include database latency in response', async () => {
       prismaService.$queryRaw.mockImplementation(
         () =>
-          new Promise(resolve => {
+          new Promise((resolve) => {
             setTimeout(() => resolve([]), 10);
           }),
       );
@@ -395,7 +395,7 @@ describe('HealthController', () => {
     it('should handle slow database response', async () => {
       prismaService.$queryRaw.mockImplementation(
         () =>
-          new Promise(resolve => {
+          new Promise((resolve) => {
             setTimeout(() => resolve([]), 500);
           }),
       );

@@ -59,10 +59,10 @@ describe('CompanyThrottlerGuard', () => {
     };
 
     guard = new CompanyThrottlerGuard(
-      mockOptions as any,
-      mockStorage as any,
+      mockOptions as unknown as unknown[],
+      mockStorage as unknown as unknown,
       reflector,
-      cacheService as any,
+      cacheService as unknown as unknown,
     );
 
     // Mock super.canActivate to avoid ThrottlerGuard internals

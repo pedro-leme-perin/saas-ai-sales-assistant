@@ -14,7 +14,7 @@ jest.setTimeout(15000);
 jest.mock('ws', () => {
   const mockConstructor = jest.fn(() => {
     const mockWs = {
-      on: jest.fn(function(this: any, event: string, handler: Function) {
+      on: jest.fn(function(this: unknown, event: string, handler: Function) {
         // Simulate 'open' event for live session tests
         if (event === 'open') {
           setTimeout(() => handler(), 0);
@@ -28,7 +28,7 @@ jest.mock('ws', () => {
     return mockWs;
   });
   // Add WebSocket.OPEN constant for use in service
-  (mockConstructor as any).OPEN = 1;
+  (mockConstructor as unknown).OPEN = 1;
   return mockConstructor;
 });
 

@@ -51,7 +51,7 @@ function createMockResponse(): MockResponse & Response {
   statusMethod.mockReturnValue(response);
   jsonMethod.mockReturnValue(response);
 
-  return response as MockResponse & Response;
+  return response as unknown as MockResponse & Response;
 }
 
 function createMockArgumentsHost(
@@ -743,7 +743,7 @@ describe('GlobalExceptionFilter', () => {
     it('should log server errors (5xx) with error level', () => {
       const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation();
       // Spy on private field via filter instance
-      const filterInstance = filter as any;
+      const filterInstance = filter as unknown as Record<string, unknown>;
       filterInstance.logger = logger;
 
       const request = createMockRequest();
@@ -761,7 +761,7 @@ describe('GlobalExceptionFilter', () => {
 
     it('should log client errors (4xx) with warn level', () => {
       const loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation();
-      const filterInstance = filter as any;
+      const filterInstance = filter as unknown as Record<string, unknown>;
       filterInstance.logger = logger;
 
       const request = createMockRequest();
@@ -779,7 +779,7 @@ describe('GlobalExceptionFilter', () => {
 
     it('should include structured log data with requestId', () => {
       const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation();
-      const filterInstance = filter as any;
+      const filterInstance = filter as unknown as Record<string, unknown>;
       filterInstance.logger = logger;
 
       const request = createMockRequest({
@@ -805,7 +805,7 @@ describe('GlobalExceptionFilter', () => {
 
     it('should include stack trace in server error logs', () => {
       const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation();
-      const filterInstance = filter as any;
+      const filterInstance = filter as unknown as Record<string, unknown>;
       filterInstance.logger = logger;
 
       const request = createMockRequest();
@@ -977,8 +977,8 @@ describe('GlobalExceptionFilter', () => {
       const response = createMockResponse();
       const host = createMockArgumentsHost(request, response);
 
-      const circularError: any = new Error('Circular');
-      circularError.self = circularError;
+      const circularError: unknown = new Error('Circular');
+      (circularError as Record<string, unknown>).self = circularError;
 
       expect(() => {
         filter.catch(circularError, host);
@@ -1010,7 +1010,7 @@ describe('GlobalExceptionFilter', () => {
       // The actual implementation will throw because it tries to access headers['x-request-id']
       // This test verifies the limitation of the implementation
       const request = createMockRequest();
-      (request as any).headers = undefined;
+      (request as unknown as Record<string, unknown>).headers = undefined;
       const response = createMockResponse();
       const host = createMockArgumentsHost(request, response);
 

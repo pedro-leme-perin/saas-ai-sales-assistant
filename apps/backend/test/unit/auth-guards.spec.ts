@@ -73,8 +73,6 @@ function createAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
-  let reflector: Reflector;
-  let clerkStrategy: ClerkStrategy;
 
   const mockClerkStrategy = {
     validate: jest.fn(),
@@ -100,8 +98,6 @@ describe('AuthGuard', () => {
     }).compile();
 
     guard = module.get<AuthGuard>(AuthGuard);
-    reflector = module.get<Reflector>(Reflector);
-    clerkStrategy = module.get<ClerkStrategy>(ClerkStrategy);
 
     jest.clearAllMocks();
   });
@@ -200,9 +196,7 @@ describe('AuthGuard', () => {
       (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
       (mockClerkStrategy.validate as jest.Mock).mockRejectedValue('Unknown error');
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should use url fallback when path is not set', async () => {
@@ -237,7 +231,6 @@ describe('AuthGuard', () => {
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;
-  let reflector: Reflector;
 
   const mockReflector = {
     getAllAndOverride: jest.fn(),
@@ -255,7 +248,6 @@ describe('RolesGuard', () => {
     }).compile();
 
     guard = module.get<RolesGuard>(RolesGuard);
-    reflector = module.get<Reflector>(Reflector);
 
     jest.clearAllMocks();
   });
@@ -282,9 +274,7 @@ describe('RolesGuard', () => {
       const request = createMockRequest({ user });
       const context = createMockExecutionContext(request);
 
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([
-        UserRole.ADMIN,
-      ]);
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([UserRole.ADMIN]);
 
       const result = guard.canActivate(context);
 
@@ -311,9 +301,7 @@ describe('RolesGuard', () => {
       const request = createMockRequest({ user });
       const context = createMockExecutionContext(request);
 
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([
-        UserRole.ADMIN,
-      ]);
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([UserRole.ADMIN]);
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
       expect(() => guard.canActivate(context)).toThrow(
@@ -339,14 +327,10 @@ describe('RolesGuard', () => {
       const request = createMockRequest({ user: undefined });
       const context = createMockExecutionContext(request);
 
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([
-        UserRole.ADMIN,
-      ]);
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([UserRole.ADMIN]);
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow(
-        'User not authenticated',
-      );
+      expect(() => guard.canActivate(context)).toThrow('User not authenticated');
     });
 
     it('should allow access with empty roles array', () => {
@@ -369,9 +353,7 @@ describe('RolesGuard', () => {
       const request = createMockRequest({ user });
       const context = createMockExecutionContext(request);
 
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([
-        UserRole.ADMIN,
-      ]);
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([UserRole.ADMIN]);
 
       const result = guard.canActivate(context);
 
@@ -386,9 +368,7 @@ describe('RolesGuard', () => {
       const request = createMockRequest({ user });
       const context = createMockExecutionContext(request);
 
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([
-        UserRole.ADMIN,
-      ]);
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([UserRole.ADMIN]);
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     });
@@ -398,9 +378,7 @@ describe('RolesGuard', () => {
       const request = createMockRequest({ user });
       const context = createMockExecutionContext(request);
 
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([
-        UserRole.MANAGER,
-      ]);
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([UserRole.MANAGER]);
 
       const result = guard.canActivate(context);
 
@@ -485,9 +463,7 @@ describe('TenantGuard', () => {
       const context = createMockExecutionContext(request);
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow(
-        'User not authenticated',
-      );
+      expect(() => guard.canActivate(context)).toThrow('User not authenticated');
     });
 
     it('should throw ForbiddenException when user has no companyId', () => {
@@ -504,7 +480,7 @@ describe('TenantGuard', () => {
     it('should throw ForbiddenException when user.companyId is null/undefined', () => {
       const user = createAuthUser();
       const request = createMockRequest({
-        user: { ...user, companyId: '' }
+        user: { ...user, companyId: '' },
       });
       const context = createMockExecutionContext(request);
 
@@ -603,8 +579,6 @@ describe('Auth Guards Integration', () => {
   let authGuard: AuthGuard;
   let rolesGuard: RolesGuard;
   let tenantGuard: TenantGuard;
-  let reflector: Reflector;
-  let clerkStrategy: ClerkStrategy;
 
   const mockClerkStrategy = {
     validate: jest.fn(),
@@ -634,13 +608,11 @@ describe('Auth Guards Integration', () => {
     authGuard = module.get<AuthGuard>(AuthGuard);
     rolesGuard = module.get<RolesGuard>(RolesGuard);
     tenantGuard = module.get<TenantGuard>(TenantGuard);
-    reflector = module.get<Reflector>(Reflector);
-    clerkStrategy = module.get<ClerkStrategy>(ClerkStrategy);
 
     jest.clearAllMocks();
   });
 
-  it('should allow authenticated admin user to access protected endpoint with TenantGuard', async () => {
+  it('should allow authenticated admin user with TenantGuard', async () => {
     const user = createAuthUser({
       role: UserRole.ADMIN,
       companyId: 'company-x',
@@ -671,9 +643,7 @@ describe('Auth Guards Integration', () => {
     const request = createMockRequest({ user });
     const context = createMockExecutionContext(request);
 
-    (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([
-      UserRole.ADMIN,
-    ]);
+    (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue([UserRole.ADMIN]);
 
     expect(() => rolesGuard.canActivate(context)).toThrow(ForbiddenException);
   });

@@ -98,9 +98,7 @@ describe('EmailService', () => {
       await service.sendInviteEmail(validParams);
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(body.html).toContain(
-        encodeURIComponent('joao@empresa.com'),
-      );
+      expect(body.html).toContain(encodeURIComponent('joao@empresa.com'));
       expect(body.html).toContain('https://app.salesai.com.br/sign-up');
     });
 

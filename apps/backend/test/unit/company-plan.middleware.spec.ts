@@ -96,7 +96,7 @@ describe('CompanyPlanMiddleware', () => {
 
   describe('when plan is already loaded in request', () => {
     it('should call next() without loading plan when already in request', async () => {
-      (mockRequest.user as any).company = { plan: 'PROFESSIONAL' };
+      (mockRequest.user as unknown as Record<string, unknown>).company = { plan: 'PROFESSIONAL' };
 
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
@@ -106,7 +106,7 @@ describe('CompanyPlanMiddleware', () => {
     });
 
     it('should call next() when plan already exists on company object', async () => {
-      (mockRequest.user as any).company = { plan: 'ENTERPRISE' };
+      (mockRequest.user as unknown as Record<string, unknown>).company = { plan: 'ENTERPRISE' };
 
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
@@ -125,7 +125,7 @@ describe('CompanyPlanMiddleware', () => {
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockCacheService.get).toHaveBeenCalledWith(`company:plan:${mockCompanyId}`);
-      expect((mockRequest.user as any).company.plan).toBe('STARTER');
+      expect(((mockRequest.user as unknown as Record<string, unknown>).company as Record<string, unknown>).plan).toBe('STARTER');
       expect(mockPrismaService.company.findUnique).not.toHaveBeenCalled();
       expect(mockNext).toHaveBeenCalled();
     });
@@ -135,8 +135,8 @@ describe('CompanyPlanMiddleware', () => {
 
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect((mockRequest.user as any).company).toBeDefined();
-      expect((mockRequest.user as any).company.plan).toBe('PROFESSIONAL');
+      expect(((mockRequest.user as unknown as Record<string, unknown>) as Record<string, unknown>).company).toBeDefined();
+      expect(((mockRequest.user as unknown as Record<string, unknown>).company as Record<string, unknown>).plan).toBe('PROFESSIONAL');
     });
 
     it('should skip database query on cache hit', async () => {
@@ -165,7 +165,7 @@ describe('CompanyPlanMiddleware', () => {
         where: { id: mockCompanyId },
         select: { plan: true },
       });
-      expect((mockRequest.user as any).company.plan).toBe('PROFESSIONAL');
+      expect(((mockRequest.user as unknown as Record<string, unknown>).company as Record<string, unknown>).plan).toBe('PROFESSIONAL');
     });
 
     it('should query database only when cache returns null', async () => {
@@ -202,8 +202,8 @@ describe('CompanyPlanMiddleware', () => {
 
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect((mockRequest.user as any).company).toBeDefined();
-      expect((mockRequest.user as any).company.plan).toBe('PROFESSIONAL');
+      expect(((mockRequest.user as unknown as Record<string, unknown>) as Record<string, unknown>).company).toBeDefined();
+      expect(((mockRequest.user as unknown as Record<string, unknown>).company as Record<string, unknown>).plan).toBe('PROFESSIONAL');
     });
   });
 
@@ -336,7 +336,7 @@ describe('CompanyPlanMiddleware', () => {
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
       // Company object should not be created
-      expect((mockRequest.user as any).company).toBeUndefined();
+      expect(((mockRequest.user as unknown as Record<string, unknown>) as Record<string, unknown>).company).toBeUndefined();
     });
 
     it('should call next() when company not found', async () => {
@@ -392,7 +392,7 @@ describe('CompanyPlanMiddleware', () => {
 
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect((mockRequest.user as any).company.plan).toBe('STARTER');
+      expect(((mockRequest.user as unknown as Record<string, unknown>).company as Record<string, unknown>).plan).toBe('STARTER');
     });
 
     it('should handle PROFESSIONAL plan', async () => {
@@ -400,7 +400,7 @@ describe('CompanyPlanMiddleware', () => {
 
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect((mockRequest.user as any).company.plan).toBe('PROFESSIONAL');
+      expect(((mockRequest.user as unknown as Record<string, unknown>).company as Record<string, unknown>).plan).toBe('PROFESSIONAL');
     });
 
     it('should handle ENTERPRISE plan', async () => {
@@ -408,7 +408,7 @@ describe('CompanyPlanMiddleware', () => {
 
       await middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect((mockRequest.user as any).company.plan).toBe('ENTERPRISE');
+      expect(((mockRequest.user as unknown as Record<string, unknown>).company as Record<string, unknown>).plan).toBe('ENTERPRISE');
     });
 
     it('should cache different plans independently', async () => {

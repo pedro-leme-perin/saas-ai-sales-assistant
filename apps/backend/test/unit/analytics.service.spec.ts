@@ -6,7 +6,7 @@ jest.setTimeout(15000);
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
-  let prisma: any;
+  let prisma: unknown;
 
   const COMPANY_ID = 'company-123';
 
@@ -143,8 +143,8 @@ describe('AnalyticsService', () => {
       ]);
       const result = await service.getSentimentAnalytics(COMPANY_ID);
       expect(result.avgSentiment).toBeCloseTo(0.77, 1);
-      expect((result.distribution as any)['POSITIVE']).toBe(2);
-      expect((result.distribution as any)['NEUTRAL']).toBe(1);
+      expect((result.distribution as unknown as Record<string, number>)['POSITIVE']).toBe(2);
+      expect((result.distribution as unknown as Record<string, number>)['NEUTRAL']).toBe(1);
       expect(result.totalAnalyzed).toBe(3);
     });
 
@@ -197,8 +197,8 @@ describe('AnalyticsService', () => {
       expect(result.adoptionRate).toBe(67);
       expect(result.helpfulRate).toBe(50); // 1 helpful / 2 with feedback
       expect(result.avgLatency).toBe(533);
-      expect((result.byProvider as any)['gpt-4o'].count).toBe(2);
-      expect((result.byProvider as any)['claude'].count).toBe(1);
+      expect((result.byProvider as unknown as Record<string, unknown>)['gpt-4o']).toHaveProperty('count', 2);
+      expect((result.byProvider as unknown as Record<string, unknown>)['claude']).toHaveProperty('count', 1);
     });
 
     it('should handle empty AI data', async () => {

@@ -118,7 +118,7 @@ describe('Transactions (Integration)', () => {
       ]);
       // Should not reach here
       fail('Transaction should have failed');
-    } catch (_error) {
+    } catch {
       // Expected: foreign key constraint violation
     }
 
