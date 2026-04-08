@@ -77,6 +77,7 @@ describe('DeepgramService', () => {
 
     it('should warn when API key not configured', async () => {
       mockConfigService.get.mockReturnValue(undefined);
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -88,13 +89,10 @@ describe('DeepgramService', () => {
         ],
       }).compile();
 
-      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
       const serviceWithoutKey = module.get<DeepgramService>(DeepgramService);
 
       expect(serviceWithoutKey).toBeDefined();
       expect(warnSpy).toHaveBeenCalledWith('⚠️ Deepgram API key not configured');
-
-      warnSpy.mockRestore();
     });
   });
 

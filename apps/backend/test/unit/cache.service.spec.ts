@@ -57,6 +57,7 @@ describe('CacheService', () => {
 
     it('should warn when credentials not configured', async () => {
       mockConfigService.get.mockReturnValue(undefined);
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -68,15 +69,12 @@ describe('CacheService', () => {
         ],
       }).compile();
 
-      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
       const serviceWithoutCreds = module.get<CacheService>(CacheService);
 
       expect(serviceWithoutCreds).toBeDefined();
       expect(warnSpy).toHaveBeenCalledWith(
         '⚠️ Redis credentials not configured - using mock cache',
       );
-
-      warnSpy.mockRestore();
     });
   });
 
