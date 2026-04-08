@@ -123,9 +123,9 @@ describe('UploadController', () => {
         category: 'logos' as const,
       };
 
-      await expect(
-        controller.generatePresignedUrl(mockUser, dto),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.generatePresignedUrl(mockUser, dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should handle different users/companies', async () => {

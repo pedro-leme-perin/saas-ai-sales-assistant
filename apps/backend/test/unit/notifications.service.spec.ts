@@ -767,11 +767,7 @@ describe('NotificationsService', () => {
         },
       });
 
-      const result = await service.updatePreferences(
-        mockUserId,
-        mockCompanyId,
-        updatedPreferences,
-      );
+      const result = await service.updatePreferences(mockUserId, mockCompanyId, updatedPreferences);
 
       expect(result).toBeDefined();
       expect(mockPrismaService.company.update).toHaveBeenCalledWith(

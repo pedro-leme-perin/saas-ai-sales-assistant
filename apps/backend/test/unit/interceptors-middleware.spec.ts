@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ExecutionContext,
-  CallHandler,
-  Logger,
-} from '@nestjs/common';
+import { ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { of, throwError } from 'rxjs';
 import { LoggingInterceptor } from '../../src/common/interceptors/logging.interceptor';
@@ -50,10 +46,7 @@ function createMockResponse(statusCode = 200): Response & { statusCode?: number 
   } as unknown as Response & { statusCode?: number };
 }
 
-function createMockExecutionContext(
-  request: Request,
-  response: Response,
-): ExecutionContext {
+function createMockExecutionContext(request: Request, response: Response): ExecutionContext {
   return {
     switchToHttp: () => ({
       getRequest: () => request,
@@ -103,10 +96,7 @@ describe('LoggingInterceptor', () => {
 
       interceptor.intercept(context, handler).subscribe(() => {
         expect(request.requestId).toBe('req-12345');
-        expect(response.setHeader).toHaveBeenCalledWith(
-          'X-Request-ID',
-          'req-12345',
-        );
+        expect(response.setHeader).toHaveBeenCalledWith('X-Request-ID', 'req-12345');
         done();
       });
     });
@@ -348,9 +338,7 @@ describe('TransformInterceptor', () => {
 
       interceptor.intercept(context, handler).subscribe((result: unknown) => {
         const apiResponse = result as Record<string, unknown>;
-        expect(apiResponse.timestamp).toMatch(
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
-        );
+        expect(apiResponse.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
         done();
       });
     });
@@ -601,9 +589,7 @@ describe('RequestLoggerMiddleware', () => {
         finishCallback();
       }
 
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/GET \/api\/calls 200/),
-      );
+      expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/GET \/api\/calls 200/));
 
       logSpy.mockRestore();
     });
@@ -624,9 +610,7 @@ describe('RequestLoggerMiddleware', () => {
         finishCallback();
       }
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/POST \/api\/users 400/),
-      );
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/POST \/api\/users 400/));
 
       warnSpy.mockRestore();
     });
@@ -647,9 +631,7 @@ describe('RequestLoggerMiddleware', () => {
         finishCallback();
       }
 
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/GET \/api\/data 500/),
-      );
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/GET \/api\/data 500/));
 
       errorSpy.mockRestore();
     });
@@ -672,9 +654,7 @@ describe('RequestLoggerMiddleware', () => {
         finishCallback();
       }
 
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('PATCH'),
-      );
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('PATCH'));
 
       logSpy.mockRestore();
     });
@@ -695,9 +675,7 @@ describe('RequestLoggerMiddleware', () => {
         finishCallback();
       }
 
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('201'),
-      );
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('201'));
 
       logSpy.mockRestore();
     });

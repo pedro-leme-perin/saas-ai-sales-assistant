@@ -1,7 +1,12 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
-import { RolesGuard, ROLE_HIERARCHY, hasHigherOrEqualRole, canManageUser } from '../../src/common/guards/roles.guard';
+import {
+  RolesGuard,
+  ROLE_HIERARCHY,
+  hasHigherOrEqualRole,
+  canManageUser,
+} from '../../src/common/guards/roles.guard';
 import { ROLES_KEY, AuthenticatedUser } from '../../src/common/decorators';
 
 jest.setTimeout(15000);
@@ -10,10 +15,12 @@ describe('RolesGuard', () => {
   let guard: RolesGuard;
   let reflector: Reflector;
 
-  const createMockContext = (overrides: {
-    requiredRoles?: UserRole[];
-    user?: AuthenticatedUser | null;
-  } = {}): ExecutionContext => {
+  const createMockContext = (
+    overrides: {
+      requiredRoles?: UserRole[];
+      user?: AuthenticatedUser | null;
+    } = {},
+  ): ExecutionContext => {
     const request: Record<string, unknown> = {};
 
     if (overrides.user !== null) {
@@ -156,7 +163,9 @@ describe('RolesGuard', () => {
 
   describe('when @Roles(ADMIN, MANAGER) is required', () => {
     beforeEach(() => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN, UserRole.MANAGER]);
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
+        .mockReturnValue([UserRole.ADMIN, UserRole.MANAGER]);
     });
 
     it('should allow ADMIN user', () => {
@@ -267,7 +276,7 @@ describe('RolesGuard', () => {
     it('should deny non-OWNER users', () => {
       const roles = [UserRole.ADMIN, UserRole.MANAGER, UserRole.VENDOR];
 
-      roles.forEach(role => {
+      roles.forEach((role) => {
         const context = createMockContext({
           user: {
             role,
@@ -323,7 +332,9 @@ describe('RolesGuard', () => {
   describe('reflector integration', () => {
     it('should call getAllAndOverride with correct keys and contexts', () => {
       const mockReflector = new Reflector();
-      const spyGetAllAndOverride = jest.spyOn(mockReflector, 'getAllAndOverride').mockReturnValue([UserRole.VENDOR]);
+      const spyGetAllAndOverride = jest
+        .spyOn(mockReflector, 'getAllAndOverride')
+        .mockReturnValue([UserRole.VENDOR]);
 
       const guard = new RolesGuard(mockReflector);
       const context = createMockContext({
@@ -340,14 +351,19 @@ describe('RolesGuard', () => {
 
       guard.canActivate(context);
 
-      expect(spyGetAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, [context.getHandler(), context.getClass()]);
+      expect(spyGetAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
     });
 
     it('should check handler and class metadata', () => {
       const handler = { metadata: 'handler' };
       const classRef = { metadata: 'class' };
       const mockReflector = new Reflector();
-      const spyGetAllAndOverride = jest.spyOn(mockReflector, 'getAllAndOverride').mockReturnValue([UserRole.VENDOR]);
+      const spyGetAllAndOverride = jest
+        .spyOn(mockReflector, 'getAllAndOverride')
+        .mockReturnValue([UserRole.VENDOR]);
 
       const guard = new RolesGuard(mockReflector);
       const context = {
@@ -547,8 +563,8 @@ describe('canManageUser', () => {
   describe('hierarchy enforcement', () => {
     it('should only allow managing strictly lower roles', () => {
       // A user can only manage users with strictly lower role value
-      Object.values(UserRole).forEach(managerRole => {
-        Object.values(UserRole).forEach(targetRole => {
+      Object.values(UserRole).forEach((managerRole) => {
+        Object.values(UserRole).forEach((targetRole) => {
           const canManage = canManageUser(managerRole, targetRole);
           const managerHierarchy = ROLE_HIERARCHY[managerRole];
           const targetHierarchy = ROLE_HIERARCHY[targetRole];

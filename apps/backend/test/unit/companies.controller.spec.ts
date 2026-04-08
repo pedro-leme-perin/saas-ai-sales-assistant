@@ -146,7 +146,8 @@ describe('CompaniesController', () => {
   describe('update', () => {
     it('should update company', async () => {
       const dto = { name: 'Acme Corp Updated' };
-      const result = await controller.update('company-123', dto as unknown as Record<string, unknown>);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await controller.update('company-123', dto as any);
       expect(result.success).toBe(true);
       expect(result.data.name).toBe('Acme Corp Updated');
       expect(companiesService.update).toHaveBeenCalledWith('company-123', dto);

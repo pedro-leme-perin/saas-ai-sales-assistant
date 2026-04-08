@@ -294,10 +294,7 @@ describe('MediaStreamsGateway', () => {
 
       await gateway['handleStreamStart'](message);
 
-      expect(errorSpy).toHaveBeenCalledWith(
-        'Error creating Deepgram session:',
-        expect.any(Error),
-      );
+      expect(errorSpy).toHaveBeenCalledWith('Error creating Deepgram session:', expect.any(Error));
       // Should still create session entry with null deepgramSession
       expect(gateway['activeSessions'].get(mockStreamSid)?.deepgramSession).toBeNull();
     });
@@ -682,9 +679,7 @@ describe('MediaStreamsGateway', () => {
 
       gateway['handleMediaChunk'](message);
 
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Media chunk #100'),
-      );
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Media chunk #100'));
     });
   });
 
@@ -796,9 +791,7 @@ describe('MediaStreamsGateway', () => {
 
       await gateway['handleStreamStop'](message);
 
-      expect(logSpy).toHaveBeenCalledWith(
-        `Saved real-time transcript for call: ${mockCallId}`,
-      );
+      expect(logSpy).toHaveBeenCalledWith(`Saved real-time transcript for call: ${mockCallId}`);
     });
   });
 });

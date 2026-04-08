@@ -223,17 +223,13 @@ describe('UploadService', () => {
     });
 
     it('should validate public CDN URLs', () => {
-      expect(
-        service.isValidUploadUrl('https://cdn.salesai.com.br/logos/test.png'),
-      ).toBe(true);
+      expect(service.isValidUploadUrl('https://cdn.salesai.com.br/logos/test.png')).toBe(true);
     });
 
     it('should validate URLs containing bucket name', () => {
-      expect(
-        service.isValidUploadUrl(
-          'https://salesai-uploads.example.com/logos/test.png',
-        ),
-      ).toBe(true);
+      expect(service.isValidUploadUrl('https://salesai-uploads.example.com/logos/test.png')).toBe(
+        true,
+      );
     });
 
     it('should reject empty strings', () => {
@@ -266,7 +262,9 @@ describe('UploadService', () => {
     it('should produce consistent signatures for same input', async () => {
       // Mock Date and Math.random to get deterministic results
       const mockDate = new Date('2026-03-20T12:00:00Z');
-      const dateSpy = jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
+      const dateSpy = jest
+        .spyOn(global, 'Date')
+        .mockImplementation(() => mockDate as unknown as Date);
       const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
 
       const result1 = await service.generatePresignedUrl(baseParams);

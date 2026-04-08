@@ -54,10 +54,7 @@ function createMockResponse(): MockResponse & Response {
   return response as unknown as MockResponse & Response;
 }
 
-function createMockArgumentsHost(
-  request: Request,
-  response: Response,
-): ArgumentsHost {
+function createMockArgumentsHost(request: Request, response: Response): ArgumentsHost {
   return {
     switchToHttp: () => ({
       getRequest: () => request,
@@ -359,10 +356,13 @@ describe('GlobalExceptionFilter', () => {
       const response = createMockResponse();
       const host = createMockArgumentsHost(request, response);
 
-      const exception = new Prisma.PrismaClientKnownRequestError('An operation failed because it depends on one or more records that were required but not found', {
-        code: 'P2025',
-        clientVersion: '5.0.0',
-      });
+      const exception = new Prisma.PrismaClientKnownRequestError(
+        'An operation failed because it depends on one or more records that were required but not found',
+        {
+          code: 'P2025',
+          clientVersion: '5.0.0',
+        },
+      );
 
       filter.catch(exception, host);
 
@@ -451,10 +451,9 @@ describe('GlobalExceptionFilter', () => {
       const response = createMockResponse();
       const host = createMockArgumentsHost(request, response);
 
-      const exception = new Prisma.PrismaClientValidationError(
-        'Invalid scalar value',
-        { clientVersion: '5.0.0' },
-      );
+      const exception = new Prisma.PrismaClientValidationError('Invalid scalar value', {
+        clientVersion: '5.0.0',
+      });
 
       filter.catch(exception, host);
 
