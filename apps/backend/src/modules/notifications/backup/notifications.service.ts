@@ -5,7 +5,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { PaginationDto, createPaginatedResult } from '@common/dto/pagination.dto';
-import { NotificationType, NotificationChannel } from '@prisma/client';
+import { NotificationType, NotificationChannel, Prisma } from '@prisma/client';
 
 @Injectable()
 export class NotificationsService {
@@ -61,7 +61,7 @@ export class NotificationsService {
     type: NotificationType;
     title: string;
     message: string;
-    data?: unknown;
+    data?: Prisma.InputJsonValue;
     channel?: NotificationChannel;
   }) {
     return this.prisma.notification.create({
