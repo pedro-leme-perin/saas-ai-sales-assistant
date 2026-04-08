@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsController } from '../../src/modules/notifications/notifications.controller';
 import { NotificationsService } from '../../src/modules/notifications/notifications.service';
+import { AuthGuard } from '../../src/modules/auth/guards/auth.guard';
+import { TenantGuard } from '../../src/modules/auth/guards/tenant.guard';
 
 jest.setTimeout(15000);
 
@@ -47,7 +49,12 @@ describe('NotificationsController', () => {
           useValue: mockNotificationsService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(TenantGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<NotificationsController>(NotificationsController);
     service = module.get<NotificationsService>(NotificationsService);

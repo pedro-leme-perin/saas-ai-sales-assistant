@@ -7,6 +7,9 @@ import { BadRequestException } from '@nestjs/common';
 import { UploadController } from '../../src/modules/upload/upload.controller';
 import { UploadService } from '../../src/modules/upload/upload.service';
 import { Reflector } from '@nestjs/core';
+import { AuthGuard } from '../../src/modules/auth/guards/auth.guard';
+import { TenantGuard } from '../../src/modules/auth/guards/tenant.guard';
+import { RolesGuard } from '../../src/modules/auth/guards/roles.guard';
 
 describe('UploadController', () => {
   let controller: UploadController;
@@ -41,7 +44,14 @@ describe('UploadController', () => {
         },
         Reflector,
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(TenantGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<UploadController>(UploadController);
     uploadService = module.get<UploadService>(UploadService);

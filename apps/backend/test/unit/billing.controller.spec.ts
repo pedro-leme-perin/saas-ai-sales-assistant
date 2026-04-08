@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BillingController } from '../../src/modules/billing/billing.controller';
 import { BillingService } from '../../src/modules/billing/billing.service';
+import { RolesGuard } from '../../src/modules/auth/guards/roles.guard';
 
 jest.setTimeout(15000);
 
@@ -72,7 +73,10 @@ describe('BillingController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BillingController],
       providers: [{ provide: BillingService, useValue: billingService }],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<BillingController>(BillingController);
   });
