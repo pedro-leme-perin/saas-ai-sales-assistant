@@ -57,7 +57,10 @@ describe('CallsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CallsController],
       providers: [{ provide: CallsService, useValue: callsService }],
-    }).compile();
+    })
+      .overrideGuard('AuthGuard')
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<CallsController>(CallsController);
   });

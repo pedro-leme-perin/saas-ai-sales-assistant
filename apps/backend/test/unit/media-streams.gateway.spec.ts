@@ -62,6 +62,11 @@ describe('MediaStreamsGateway', () => {
     );
 
     jest.clearAllMocks();
+
+    // Mock the logger after instantiation
+    jest.spyOn(gateway['logger'], 'log').mockImplementation();
+    jest.spyOn(gateway['logger'], 'warn').mockImplementation();
+    jest.spyOn(gateway['logger'], 'error').mockImplementation();
   });
 
   describe('initialization', () => {

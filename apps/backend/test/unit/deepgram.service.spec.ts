@@ -14,10 +14,10 @@ jest.setTimeout(15000);
 jest.mock('ws', () => {
   const mockConstructor = jest.fn(() => {
     const mockWs = {
-      on: jest.fn(function (this: unknown, event: string, handler: (...args: unknown[]) => void) {
+      on: jest.fn(function (this: unknown, event: string, handler: unknown) {
         // Simulate 'open' event for live session tests
-        if (event === 'open') {
-          setTimeout(() => handler(), 0);
+        if (event === 'open' && typeof handler === 'function') {
+          setTimeout(() => (handler as () => void)(), 0);
         }
         return this;
       }),

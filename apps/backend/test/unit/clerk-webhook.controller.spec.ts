@@ -706,7 +706,7 @@ describe('ClerkWebhookController', () => {
 
       await controller.handleWebhook(req, 'id-123', 'timestamp-456', 'signature-789');
 
-      expect(mockWebhook.verify).toHaveBeenCalledWith(
+      expect(mockWebhookVerify).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           'svix-id': 'id-123',

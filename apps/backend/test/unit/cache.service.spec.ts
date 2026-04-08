@@ -19,9 +19,6 @@ describe('CacheService', () => {
   };
 
   beforeEach(async () => {
-    // Save original Date.now and spy on it
-    dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000000);
-
     // Mock global fetch with proper Response-like objects
     global.fetch = jest.fn();
 
@@ -42,11 +39,13 @@ describe('CacheService', () => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+    // Save original Date.now and spy on it AFTER module setup
+    dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000000);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
-    dateNowSpy.mockRestore();
   });
 
   describe('initialization', () => {
