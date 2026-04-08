@@ -197,8 +197,14 @@ describe('AnalyticsService', () => {
       expect(result.adoptionRate).toBe(67);
       expect(result.helpfulRate).toBe(50); // 1 helpful / 2 with feedback
       expect(result.avgLatency).toBe(533);
-      expect((result.byProvider as unknown as Record<string, unknown>)['gpt-4o']).toHaveProperty('count', 2);
-      expect((result.byProvider as unknown as Record<string, unknown>)['claude']).toHaveProperty('count', 1);
+      expect((result.byProvider as unknown as Record<string, unknown>)['gpt-4o']).toHaveProperty(
+        'count',
+        2,
+      );
+      expect((result.byProvider as unknown as Record<string, unknown>)['claude']).toHaveProperty(
+        'count',
+        1,
+      );
     });
 
     it('should handle empty AI data', async () => {

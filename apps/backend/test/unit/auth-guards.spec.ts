@@ -472,9 +472,7 @@ describe('TenantGuard', () => {
       const context = createMockExecutionContext(request);
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow(
-        'User not associated with a company',
-      );
+      expect(() => guard.canActivate(context)).toThrow('User not associated with a company');
     });
 
     it('should throw ForbiddenException when user.companyId is null/undefined', () => {
@@ -485,9 +483,7 @@ describe('TenantGuard', () => {
       const context = createMockExecutionContext(request);
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow(
-        'User not associated with a company',
-      );
+      expect(() => guard.canActivate(context)).toThrow('User not associated with a company');
     });
 
     it('should preserve existing request properties when injecting companyId', () => {

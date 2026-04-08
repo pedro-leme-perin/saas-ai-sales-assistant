@@ -165,10 +165,8 @@ describe('AIManagerService', () => {
 
     it('should return mock suggestion when all providers fail', async () => {
       // Mock all providers to fail
-      for (const [_key, provider] of service['providers']) {
-        jest
-          .spyOn(provider, 'generateSuggestion')
-          .mockRejectedValue(new Error('Provider failed'));
+      for (const [, provider] of service['providers']) {
+        jest.spyOn(provider, 'generateSuggestion').mockRejectedValue(new Error('Provider failed'));
       }
 
       const result = await service.generateSuggestion('test');
@@ -281,9 +279,7 @@ describe('AIManagerService', () => {
         .mockRejectedValue(new Error('OpenAI failed'));
 
       const geminiProvider = service['providers'].get('gemini')!;
-      jest
-        .spyOn(geminiProvider, 'analyzeConversation')
-        .mockResolvedValue(mockAnalysis);
+      jest.spyOn(geminiProvider, 'analyzeConversation').mockResolvedValue(mockAnalysis);
 
       const result = await service.analyzeConversation('test', {}, 'openai');
 
@@ -292,10 +288,8 @@ describe('AIManagerService', () => {
     });
 
     it('should return mock analysis when all providers fail', async () => {
-      for (const [_key, provider] of service['providers']) {
-        jest
-          .spyOn(provider, 'analyzeConversation')
-          .mockRejectedValue(new Error('Failed'));
+      for (const [, provider] of service['providers']) {
+        jest.spyOn(provider, 'analyzeConversation').mockRejectedValue(new Error('Failed'));
       }
 
       const result = await service.analyzeConversation('test');
@@ -409,7 +403,7 @@ describe('AIManagerService', () => {
 
   describe('healthCheckAll', () => {
     it('should return health status for all providers', async () => {
-      for (const [_key, provider] of service['providers']) {
+      for (const [, provider] of service['providers']) {
         jest.spyOn(provider, 'healthCheck').mockResolvedValue(true);
       }
 
@@ -433,7 +427,7 @@ describe('AIManagerService', () => {
     });
 
     it('should handle all providers failing', async () => {
-      for (const [_key, provider] of service['providers']) {
+      for (const [, provider] of service['providers']) {
         jest.spyOn(provider, 'healthCheck').mockRejectedValue(new Error('Failed'));
       }
 
@@ -503,7 +497,7 @@ describe('AIManagerService', () => {
     it('should include health info from breakers', () => {
       const status = service.getCircuitBreakerStatus();
 
-      for (const [name, _breaker] of service['breakers']) {
+      for (const [name] of service['breakers']) {
         expect(status[name]).toBeDefined();
       }
     });
@@ -512,7 +506,7 @@ describe('AIManagerService', () => {
       const status = service.getCircuitBreakerStatus();
 
       // All breakers should start in CLOSED state
-      for (const [_key, healthInfo] of Object.entries(status)) {
+      for (const [, healthInfo] of Object.entries(status)) {
         expect((healthInfo as unknown as { state: string }).state).toBe('CLOSED');
       }
     });
@@ -529,7 +523,7 @@ describe('AIManagerService', () => {
 
   describe('mock suggestions and analysis', () => {
     it('should provide valid mock suggestion structure', async () => {
-      for (const [_key, provider] of service['providers']) {
+      for (const [, provider] of service['providers']) {
         jest.spyOn(provider, 'generateSuggestion').mockRejectedValue(new Error('Failed'));
       }
 
@@ -543,7 +537,7 @@ describe('AIManagerService', () => {
     });
 
     it('should provide valid mock analysis structure', async () => {
-      for (const [_key, provider] of service['providers']) {
+      for (const [, provider] of service['providers']) {
         jest.spyOn(provider, 'analyzeConversation').mockRejectedValue(new Error('Failed'));
       }
 
@@ -583,12 +577,12 @@ describe('AIManagerService', () => {
     it('should handle circuit breaker timeout', async () => {
       const provider = service['providers'].get('openai')!;
       // Simulate a timeout by rejecting with timeout error
-      jest.spyOn(provider, 'generateSuggestion').mockImplementation(
-        () =>
-          new Promise((_resolve, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 100),
-          ),
-      );
+      jest
+        .spyOn(provider, 'generateSuggestion')
+        .mockImplementation(
+          () =>
+            new Promise((_resolve, reject) => setTimeout(() => reject(new Error('Timeout')), 100)),
+        );
 
       const geminiProvider = service['providers'].get('gemini')!;
       jest.spyOn(geminiProvider, 'generateSuggestion').mockResolvedValue({

@@ -45,7 +45,7 @@ export class HealthController {
       const dbStart = Date.now();
       await this.prisma.$queryRaw`SELECT 1`;
       dbLatency = Date.now() - dbStart;
-    } catch (_error) {
+    } catch {
       dbStatus = 'unhealthy';
     }
 

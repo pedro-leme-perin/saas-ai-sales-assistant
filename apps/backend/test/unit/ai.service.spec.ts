@@ -5,7 +5,6 @@ import { AIManagerService } from '../../src/infrastructure/ai/ai-manager.service
 
 describe('AiService', () => {
   let service: AiService;
-  let aiManager: AIManagerService;
 
   const mockAIManagerService = {
     generateSuggestion: jest.fn(),
@@ -35,7 +34,6 @@ describe('AiService', () => {
     }).compile();
 
     service = module.get<AiService>(AiService);
-    aiManager = module.get<AIManagerService>(AIManagerService);
 
     jest.clearAllMocks();
   });
