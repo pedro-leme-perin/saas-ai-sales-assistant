@@ -72,7 +72,9 @@ describe('CacheService', () => {
       const serviceWithoutCreds = module.get<CacheService>(CacheService);
 
       expect(serviceWithoutCreds).toBeDefined();
-      expect(warnSpy).toHaveBeenCalledWith('Redis credentials not configured - using mock cache');
+      expect(warnSpy).toHaveBeenCalledWith(
+        '⚠️ Redis credentials not configured - using mock cache',
+      );
 
       warnSpy.mockRestore();
     });

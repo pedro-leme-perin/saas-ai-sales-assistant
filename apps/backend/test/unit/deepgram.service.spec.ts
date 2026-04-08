@@ -92,7 +92,7 @@ describe('DeepgramService', () => {
       const serviceWithoutKey = module.get<DeepgramService>(DeepgramService);
 
       expect(serviceWithoutKey).toBeDefined();
-      expect(warnSpy).toHaveBeenCalledWith('Deepgram API key not configured');
+      expect(warnSpy).toHaveBeenCalledWith('⚠️ Deepgram API key not configured');
 
       warnSpy.mockRestore();
     });

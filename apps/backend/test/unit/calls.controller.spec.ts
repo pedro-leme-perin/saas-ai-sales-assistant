@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { CallsController } from '../../src/modules/calls/calls.controller';
 import { CallsService } from '../../src/modules/calls/calls.service';
 
@@ -56,11 +57,18 @@ describe('CallsController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CallsController],
-      providers: [{ provide: CallsService, useValue: callsService }],
-    })
-      .overrideGuard('AuthGuard')
-      .useValue({ canActivate: jest.fn(() => true) })
-      .compile();
+      providers: [
+        { provide: CallsService, useValue: callsService },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) =>
+              key === 'TWILIO_WEBHOOK_URL' ? 'https://test.com/webhooks' : undefined,
+            ),
+          },
+        },
+      ],
+    }).compile();
 
     controller = module.get<CallsController>(CallsController);
   });
