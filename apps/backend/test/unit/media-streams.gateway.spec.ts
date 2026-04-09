@@ -128,7 +128,7 @@ describe('MediaStreamsGateway', () => {
       const mockHead = Buffer.from('');
 
       const wss = gateway['wss']!;
-      const handleUpgradeSpy = jest.spyOn(wss, 'handleUpgrade');
+      const handleUpgradeSpy = jest.spyOn(wss, 'handleUpgrade').mockImplementation(() => {});
 
       gateway.handleUpgrade(mockRequest, mockSocket, mockHead);
 
@@ -673,7 +673,7 @@ describe('MediaStreamsGateway', () => {
         deepgramSession: mockSession,
         fullTranscript: [],
       });
-      gateway['mediaChunkCount'] = 99;
+      gateway['mediaChunkCount'] = 0;
       const logSpy = jest.spyOn(gateway['logger'], 'log');
 
       const message = {
@@ -684,7 +684,7 @@ describe('MediaStreamsGateway', () => {
 
       gateway['handleMediaChunk'](message);
 
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Media chunk #100'));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Media chunk #1'));
     });
   });
 

@@ -46,6 +46,17 @@ describe('DeepgramService', () => {
   beforeEach(async () => {
     global.fetch = jest.fn();
 
+    // Reset mock config to defaults (mockReturnValue from "not configured" tests persists through clearAllMocks)
+    mockConfigService.get.mockReset();
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'DEEPGRAM_API_KEY') return 'test-deepgram-key';
+      return undefined;
+    });
+
+    jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DeepgramService,
@@ -58,11 +69,6 @@ describe('DeepgramService', () => {
 
     service = module.get<DeepgramService>(DeepgramService);
     configService = module.get<ConfigService>(ConfigService);
-
-    jest.clearAllMocks();
-    jest.spyOn(Logger.prototype, 'log').mockImplementation();
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-    jest.spyOn(Logger.prototype, 'error').mockImplementation();
   });
 
   afterEach(() => {

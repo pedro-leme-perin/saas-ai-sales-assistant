@@ -22,6 +22,18 @@ describe('CacheService', () => {
     // Mock global fetch with proper Response-like objects
     global.fetch = jest.fn();
 
+    // Reset mock config to defaults (mockReturnValue from "not configured" tests persists through clearAllMocks)
+    mockConfigService.get.mockReset();
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'UPSTASH_REDIS_REST_URL') return 'https://redis.example.com';
+      if (key === 'UPSTASH_REDIS_REST_TOKEN') return 'test-token-123';
+      return undefined;
+    });
+
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CacheService,
@@ -34,11 +46,6 @@ describe('CacheService', () => {
 
     service = module.get<CacheService>(CacheService);
     configService = module.get<ConfigService>(ConfigService);
-
-    jest.clearAllMocks();
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-    jest.spyOn(Logger.prototype, 'log').mockImplementation();
-    jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
     // Save original Date.now and spy on it AFTER module setup
     dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000000);
