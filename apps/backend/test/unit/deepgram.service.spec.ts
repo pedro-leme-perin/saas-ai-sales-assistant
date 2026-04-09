@@ -284,7 +284,7 @@ describe('DeepgramService', () => {
 
       expect(status).toBeDefined();
       expect(typeof status).toBe('object');
-      expect(['closed', 'open', 'half-open']).toContain(status.state);
+      expect(['CLOSED', 'OPEN', 'HALF_OPEN']).toContain(status.state);
     });
   });
 
