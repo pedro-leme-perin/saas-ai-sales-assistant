@@ -137,11 +137,10 @@ export class AiController {
   }
 
   @Get('test')
-  @Public()
   @ApiOperation({
     summary: 'Test AI suggestion generation',
     description:
-      'Test endpoint that generates a sample suggestion. Useful for verifying AI integration works.',
+      'Test endpoint that generates a sample suggestion. Requires authentication to prevent abuse.',
   })
   @ApiResponse({
     status: 200,

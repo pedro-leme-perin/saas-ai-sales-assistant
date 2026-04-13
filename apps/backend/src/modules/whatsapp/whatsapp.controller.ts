@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +20,8 @@ import {
 import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
+import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
+import { TwilioSignatureGuard } from '@/common/guards/twilio-signature.guard';
 import { WhatsappService, TwilioWebhookPayload, TwilioStatusPayload } from './whatsapp.service';
 import { AiService } from '../ai/ai.service';
 
@@ -32,6 +35,7 @@ export class WhatsappController {
   ) {}
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle() // Twilio webhooks are server-to-server
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
@@ -45,6 +49,7 @@ export class WhatsappController {
   }
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle() // Twilio status callbacks are server-to-server
   @Post('webhook/status')
   @HttpCode(HttpStatus.OK)
@@ -65,6 +70,7 @@ export class WhatsappController {
   }
 
   @Get('chats/:companyId')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'List all WhatsApp chats',
     description: 'Returns paginated list of all customer chats with message counts',
@@ -78,6 +84,7 @@ export class WhatsappController {
   }
 
   @Get('chats/:companyId/:id')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Get chat details',
     description: 'Retrieve metadata and stats for a specific WhatsApp chat',
@@ -91,6 +98,7 @@ export class WhatsappController {
   }
 
   @Get('chats/:companyId/:chatId/messages')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Get chat message history',
     description: 'Returns all messages in chat ordered by timestamp',
@@ -104,6 +112,7 @@ export class WhatsappController {
   }
 
   @Post('chats/:companyId/:chatId/messages')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Send WhatsApp message to customer',
     description:
@@ -128,6 +137,7 @@ export class WhatsappController {
   }
 
   @Get('chats/:companyId/:chatId/suggestion')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Get AI suggestion for chat',
     description: 'Generates contextual AI response suggestion based on last customer message',
@@ -173,6 +183,7 @@ export class WhatsappController {
   }
 
   @Patch('chats/:companyId/:chatId/read')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Mark chat as read',
     description: 'Marks all unread messages in chat as read',

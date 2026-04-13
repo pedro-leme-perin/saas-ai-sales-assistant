@@ -77,6 +77,17 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException('User not associated with a company');
     }
 
+    // ✅ Cross-tenant protection: validate URL companyId matches user's company
+    // Prevents authenticated users from accessing other tenants' data via URL manipulation
+    const params = request.params || {};
+    const urlCompanyId = params.companyId;
+    if (urlCompanyId && urlCompanyId !== user.companyId) {
+      this.logger.warn(
+        `⚠️ Cross-tenant access attempt: User ${user.email} (company ${user.companyId}) tried to access company ${urlCompanyId}`,
+      );
+      throw new ForbiddenException('Access denied: tenant mismatch');
+    }
+
     // ✅ Inject companyId into request for easy access
     // Services can now access request.companyId
     request.companyId = user.companyId;

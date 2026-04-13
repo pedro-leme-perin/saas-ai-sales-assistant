@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
+import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
 
 @ApiTags('analytics')
 @ApiBearerAuth('JWT')
+@UseGuards(TenantGuard)
 @Controller('analytics')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}

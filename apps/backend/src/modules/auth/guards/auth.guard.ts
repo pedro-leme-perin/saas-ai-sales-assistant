@@ -19,19 +19,8 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const path = request.path || request.url || '';
-
-    // Whitelist: qualquer path contendo whatsapp/webhook
-    if (
-      path.includes('whatsapp/webhook') ||
-      path.includes('billing/webhook') ||
-      path.includes('webhooks/clerk') ||
-      path === '/health'
-    ) {
-      return true;
-    }
-
+    // Use @Public() decorator exclusively — no fragile path-based whitelist
+    // All webhook endpoints (Twilio, Clerk, Stripe, WhatsApp) must use @Public()
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),

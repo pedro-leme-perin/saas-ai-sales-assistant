@@ -10,10 +10,12 @@
 import { Controller, Get, Inject, Optional } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Public } from '@/common/decorators/public.decorator';
 import { PrismaService } from '../infrastructure/database/prisma.service';
 import { AIManagerService } from '../infrastructure/ai/ai-manager.service';
 
 @ApiTags('health')
+@Public()
 @SkipThrottle() // Health checks must never be rate-limited (load balancers poll frequently)
 @Controller('health')
 export class HealthController {

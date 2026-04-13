@@ -8,7 +8,10 @@ import {
   Res,
   HttpCode,
   Request,
+  Headers,
   Logger,
+  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -21,6 +24,8 @@ import {
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
+import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
+import { TwilioSignatureGuard } from '@/common/guards/twilio-signature.guard';
 import { Response } from 'express';
 import * as twilio from 'twilio';
 
@@ -36,6 +41,7 @@ export class CallsController {
   ) {}
 
   @Get(':companyId')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'List all calls for company',
     description: 'Returns paginated list of calls with transcripts, duration, status',
@@ -49,6 +55,7 @@ export class CallsController {
   }
 
   @Get(':companyId/stats')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Get call statistics',
     description: 'Returns aggregated call stats: count, avg duration, status breakdown',
@@ -62,6 +69,7 @@ export class CallsController {
   }
 
   @Get(':companyId/:id')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Get call details',
     description: 'Retrieve full details for specific call including transcript and metadata',
@@ -75,6 +83,7 @@ export class CallsController {
   }
 
   @Post(':companyId')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Create a call record',
     description: 'Creates a new call record for tracking',
@@ -92,6 +101,7 @@ export class CallsController {
   }
 
   @Put(':companyId/:id')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Update call details',
     description: 'Updates call transcript, status, duration, or other metadata',
@@ -116,6 +126,7 @@ export class CallsController {
   }
 
   @Post(':companyId/initiate')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Initiate outbound call',
     description: 'Starts an outbound call to specified phone number via Twilio Media Streams',
@@ -137,6 +148,7 @@ export class CallsController {
   }
 
   @Post(':companyId/:id/end')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'End active call',
     description: 'Terminates an active call and saves final transcript',
@@ -154,6 +166,7 @@ export class CallsController {
   // =====================================================
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle() // Twilio webhooks are server-to-server
   @Post('webhook/voice/:callId')
   @HttpCode(200)
@@ -191,6 +204,7 @@ export class CallsController {
   }
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle()
   @Post('webhook/voice')
   @HttpCode(200)
@@ -218,6 +232,7 @@ export class CallsController {
   }
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle()
   @Post('webhook/recording/:callId')
   @HttpCode(200)
@@ -244,6 +259,7 @@ export class CallsController {
   }
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle()
   @Post('webhook/status/:callId')
   @HttpCode(200)
@@ -258,6 +274,7 @@ export class CallsController {
   }
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle()
   @Post('webhook/status')
   @HttpCode(200)
@@ -271,6 +288,7 @@ export class CallsController {
   }
 
   @Public()
+  @UseGuards(TwilioSignatureGuard)
   @SkipThrottle()
   @Post('webhook/transcription/:callId')
   @HttpCode(200)
@@ -286,6 +304,7 @@ export class CallsController {
   }
 
   @Post(':companyId/:id/analyze')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Analyze call transcript with AI',
     description:
@@ -304,6 +323,7 @@ export class CallsController {
   }
 
   @Get(':companyId/export')
+  @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Export all calls as CSV',
     description:
