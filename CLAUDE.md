@@ -22,14 +22,14 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 13/04/2026 (sessão 35)
+> Última atualização: 13/04/2026 (sessão 36)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | `deac4c8` (13/04/2026) | OTel semantic-conventions fix + Axiom verified |
+| Último commit | `c97edcd` (13/04/2026) | CI green — test fixes (session 36) |
 | Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
@@ -43,7 +43,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
 | CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview deploys + smoke tests) |
-| Testes | ✅ 46 suites + k6 | 37 backend + 9 E2E + 3 k6 load tests, ~853 tests |
+| Testes | ✅ 46 suites + k6 | 37 backend + 9 E2E + 3 k6 load tests, ~853 tests, CI #118 ✅ |
 | Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP, 16 traces verificados |
 
 ### 2.2 Infraestrutura de Produção
@@ -82,7 +82,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - [x] ~~Railway: pagar fatura pendente de $5~~ (pago em 13/04)
 
 **Itens técnicos futuros:**
-- [ ] Verificar CI green após push da sessão 35 (commits `6fe5bed`..`deac4c8`)
+- [x] ~~Verificar CI green após push da sessão 35~~ (sessão 36: CI #118 green — commits `6e175e7`..`c97edcd`, 5 fix commits)
 - [ ] Sentry: migrar para plano pago quando tráfego crescer
 - [x] ~~Axiom (logs) + OpenTelemetry (traces) — observabilidade completa~~ (sessão 34-35: OTel SDK + TelemetryModule + Axiom OTLP — verificado em produção)
 - [x] ~~Load testing real com k6 contra produção~~ (sessão 34: 3 scripts criados — load, stress, ai-latency)
@@ -316,6 +316,34 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - Railway: ✅ 40 env vars (36 anteriores + 4 Axiom/OTel)
 - Build: ✅ semantic-conventions fix deployed
 - CI Pipeline: ⏳ Pendente verificação
+
+### 2.11 Sessão 36 — 13/04/2026
+
+**Objetivo:** CI pipeline genuinamente green — corrigir todos os test suites quebrados pelas mudanças da sessão 33 (security hardening + performance).
+
+**Commits desta sessão (5 commits):**
+- `6e175e7` — fix: CI prettier errors + security/architecture fixes (9 files)
+- `371697a` — fix: add jest.clearAllMocks() to prevent mock state leaking between tests
+- `b6314e5` — fix: align auth-guards tests with @Public()-only AuthGuard (sessão 33 refactor)
+- `00074ab` — fix: align test mocks with session 33 changes (CacheService, SQL aggregations, unused imports)
+- `c97edcd` — fix: resolve 3 failing test suites (TwilioSignatureGuard DI, TenantGuard reflector mock, health timing)
+
+**Problemas resolvidos (7 root causes):**
+1. **`analytics.service.spec.ts` — missing CacheService mock:** Sessão 33 adicionou `CacheService` ao constructor de `AnalyticsService` (cache de dashboard KPIs) mas test não fornecia o provider. Fix: mock `{ getJson, set }` adicionado.
+2. **`calls.service.spec.ts` — stale Prisma mocks:** Sessão 33 mudou `getCallStats` de `findMany` + JS filter para `prisma.call.count()` + `prisma.call.aggregate()` (SQL aggregations). Tests ainda mockavam `findMany`. Fix: adicionados mocks `count`, `aggregate`, `findUnique`, `upsert`; reescritos 3 tests de getCallStats.
+3. **`whatsapp.controller.spec.ts` — TwilioSignatureGuard DI crash:** Sessão 33 adicionou `@UseGuards(TwilioSignatureGuard)` ao controller. Guard injetava `ConfigService` no constructor, mas test não fornecia. Fix: `{ provide: ConfigService, useValue: { get: jest.fn() } }`.
+4. **`auth-guards.spec.ts` — TenantGuard Reflector mock incompleto:** Sessão 33 tornou TenantGuard `@Public()-aware` via `reflector.getAllAndOverride(IS_PUBLIC_KEY)`. Integration test com guard chain (AuthGuard → RolesGuard → TenantGuard) tinha apenas 2 `mockReturnValueOnce` — faltava o 3º para TenantGuard. Fix: adicionado `mockReturnValueOnce(false)`.
+5. **`auth-guards.spec.ts` — @Public()-only AuthGuard refactor:** Sessão 33 removeu path whitelist do AuthGuard, substituindo por `@Public()` decorator exclusivamente. Tests referenciavam whitelist removida. Fix: reescritos para testar `IS_PUBLIC_KEY` via Reflector.
+6. **`health.controller.spec.ts` — flaky timing test:** `setTimeout(10ms)` medido como 9ms em CI (timer imprecision). Fix: threshold relaxado de `>= 10` para `>= 8`.
+7. **Mock state leaking:** Vários tests sem `afterEach(() => jest.clearAllMocks())`. Fix: adicionado em todos os spec files afetados.
+
+**Análise root cause:**
+Sessão 33 fez 5 mudanças de código fonte (CacheService dependency, SQL aggregations, TwilioSignatureGuard, TenantGuard @Public()-aware, AuthGuard @Public()-only) sem atualizar os testes correspondentes. Nunca detectado porque CI já falhava em steps anteriores (prettier, lint). Sessão 36 alinhou todos os 37 test suites com o código atual.
+
+**Estado ao final da sessão:**
+- CI Pipeline: ✅ Green (CI #118 — commit `c97edcd`, 3m01s, zero failures)
+- Testes: ✅ 37 suites backend, ~853 tests, zero continue-on-error
+- CI Runs na sessão: #114 ❌ → #115 ❌ → #116 ❌ → #117 ❌ → #118 ✅
 
 ---
 
