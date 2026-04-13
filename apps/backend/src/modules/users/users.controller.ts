@@ -11,6 +11,7 @@ import {
   Logger,
   Query,
   Request,
+  UseGuards,
   UnauthorizedException,
   HttpCode,
   HttpStatus,
@@ -18,6 +19,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CompanyId } from '@/modules/auth/decorators/current-user.decorator';
+import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
 import { InviteUserDto, UpdateUserRoleDto } from './dto/user.dto';
 
 // Interface for authenticated requests
@@ -30,6 +32,7 @@ interface AuthenticatedRequest {
 
 @ApiTags('users')
 @ApiBearerAuth('JWT')
+@UseGuards(TenantGuard)
 @Controller('users')
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);

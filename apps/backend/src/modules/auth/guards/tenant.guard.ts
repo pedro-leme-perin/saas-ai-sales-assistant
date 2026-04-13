@@ -24,6 +24,8 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
 import { AuthUser } from '../interfaces/auth-user.interface';
 
 /**
@@ -52,15 +54,29 @@ import { AuthUser } from '../interfaces/auth-user.interface';
 @Injectable()
 export class TenantGuard implements CanActivate {
   private readonly logger = new Logger(TenantGuard.name);
+  private readonly reflector: Reflector;
+
+  constructor(reflector: Reflector) {
+    this.reflector = reflector;
+  }
 
   /**
    * Validate tenant context
+   *
+   * Skips validation for @Public() endpoints (webhooks, health checks).
    *
    * @param context - Execution context
    * @returns true if user has valid tenant context
    * @throws ForbiddenException if tenant validation fails
    */
   canActivate(context: ExecutionContext): boolean {
+    // Skip tenant validation for @Public() endpoints (webhooks, health checks)
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthUser;
 

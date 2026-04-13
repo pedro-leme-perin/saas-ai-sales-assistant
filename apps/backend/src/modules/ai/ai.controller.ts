@@ -1,14 +1,16 @@
-import { Controller, Post, Get, Body } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AiService } from './ai.service';
 import { Public } from '@/common/decorators/public.decorator';
+import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
 import { AIProviderType } from '@/infrastructure/ai/ai-manager.service';
 
 // Rate limit AI endpoints more strictly (System Design Interview - Cap. 4)
 // AI calls are expensive — 20 req/min vs 100 req/min default
 @ApiTags('ai')
 @ApiBearerAuth('JWT')
+@UseGuards(TenantGuard)
 @Throttle({ strict: { ttl: 60000, limit: 20 } })
 @Controller('ai')
 export class AiController {

@@ -23,6 +23,7 @@ import { Public } from '@/common/decorators/public.decorator';
 import { BillingService, PlanDetails } from './billing.service';
 import { CurrentUser, AuthenticatedUser, Roles, CompanyId } from '@common/decorators';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
 import { UserRole } from '@prisma/client';
 import { CreateCheckoutDto, ChangePlanDto } from './dto/billing.dto';
 
@@ -46,10 +47,11 @@ import { CreateCheckoutDto, ChangePlanDto } from './dto/billing.dto';
  * Security:
  * - All endpoints require JWT authentication
  * - Critical operations (checkout, cancel) require OWNER/ADMIN roles
- * - Tenant isolation via @CompanyId() decorator
+ * - Tenant isolation via TenantGuard + @CompanyId() decorator
  */
 @ApiTags('billing')
 @ApiBearerAuth('JWT')
+@UseGuards(TenantGuard)
 @Controller('billing')
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}

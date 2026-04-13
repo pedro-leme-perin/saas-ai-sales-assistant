@@ -21,6 +21,7 @@ interface MockRequest {
   user?: AuthUser;
   companyId?: string;
   headers?: Record<string, unknown>;
+  params?: Record<string, string>;
 }
 
 interface MockExecutionContext {
@@ -563,6 +564,39 @@ describe('TenantGuard', () => {
 
       expect(result).toBe(true);
       expect(request.companyId).toBe(user.companyId);
+    });
+
+    it('should skip validation for @Public() endpoints', () => {
+      // Request with no user — would normally fail TenantGuard
+      const request = createMockRequest({ user: undefined });
+
+      // Create context where @Public() metadata is set on handler
+      const handler = () => ({});
+      Reflect.defineMetadata('isPublic', true, handler);
+
+      const context = {
+        switchToHttp: () => ({
+          getRequest: () => request,
+        }),
+        getHandler: () => handler,
+        getClass: () => ({}),
+      } as unknown as ExecutionContext;
+
+      // Should pass because @Public() skips tenant validation
+      const result = guard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
+    it('should block cross-tenant URL access attempt', () => {
+      const user = createAuthUser({ companyId: 'company-alice' });
+      const request = createMockRequest({
+        user,
+        params: { companyId: 'company-bob' },
+      });
+      const context = createMockExecutionContext(request);
+
+      expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+      expect(() => guard.canActivate(context)).toThrow('Access denied: tenant mismatch');
     });
   });
 });
