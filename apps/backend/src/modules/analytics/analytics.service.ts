@@ -1,11 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CacheService } from '../../infrastructure/cache/cache.service';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(AnalyticsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async getDashboardKPIs(companyId: string) {
+    // Cache dashboard KPIs for 5 minutes (System Design Interview Cap. 4)
+    const cacheKey = `analytics:dashboard:${companyId}`;
+    const cached = await this.cache.getJson<Record<string, unknown>>(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -51,7 +62,7 @@ export class AnalyticsService {
         ? Math.round(((chatsThisMonth - chatsLastMonth) / chatsLastMonth) * 100)
         : 0;
 
-    return {
+    const result = {
       calls: {
         total: totalCalls,
         thisMonth: callsThisMonth,
@@ -71,6 +82,9 @@ export class AnalyticsService {
           totalSuggestions > 0 ? Math.round((suggestionsUsed / totalSuggestions) * 100) : 0,
       },
     };
+
+    await this.cache.set(cacheKey, result, 300); // 5 min TTL
+    return result;
   }
 
   async getCallsAnalytics(companyId: string) {
@@ -80,6 +94,7 @@ export class AnalyticsService {
       where: { companyId, createdAt: { gte: thirtyDaysAgo } },
       select: { id: true, duration: true, status: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+      take: 10000, // Prevent memory exhaustion (Release It! — Fail Fast)
     });
 
     const byDay: Record<string, { date: string; calls: number }> = {};
@@ -141,6 +156,7 @@ export class AnalyticsService {
       },
       select: { sentiment: true, sentimentLabel: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+      take: 10000,
     });
 
     if (calls.length === 0) {
@@ -204,6 +220,7 @@ export class AnalyticsService {
         confidence: true,
         createdAt: true,
       },
+      take: 10000,
     });
 
     if (suggestions.length === 0) {

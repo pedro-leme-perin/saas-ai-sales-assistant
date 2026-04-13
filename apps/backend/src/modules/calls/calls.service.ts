@@ -113,32 +113,39 @@ export class CallsService {
       sentences.slice(third * 2).join('. '),
     ].filter((c: string) => c.length > 20);
 
-    const suggestions = [];
-
-    for (const chunk of chunks) {
-      try {
-        const suggestion = await this.aiService.generateSuggestion(chunk, {
+    // Parallelize AI calls for 3x latency reduction (HPBN — concurrency)
+    const aiResults = await Promise.allSettled(
+      chunks.map((chunk) =>
+        this.aiService.generateSuggestion(chunk, {
           fullTranscript: call.transcript,
           type: 'post_call_analysis',
-        });
+        }),
+      ),
+    );
 
-        if (suggestion?.text) {
+    const suggestions = [];
+    for (let i = 0; i < aiResults.length; i++) {
+      const result = aiResults[i];
+      if (result.status === 'fulfilled' && result.value?.text) {
+        try {
           const saved = await this.prisma.aISuggestion.create({
             data: {
               callId: id,
               userId,
               type: SuggestionType.GENERAL,
-              content: suggestion.text,
-              confidence: suggestion.confidence ?? 0.8,
-              triggerText: chunk.substring(0, 200),
-              model: suggestion.provider,
-              latencyMs: suggestion.latencyMs,
+              content: result.value.text,
+              confidence: result.value.confidence ?? 0.8,
+              triggerText: chunks[i].substring(0, 200),
+              model: result.value.provider,
+              latencyMs: result.value.latencyMs,
             },
           });
           suggestions.push(saved);
+        } catch (error) {
+          this.logger.error(`Error saving suggestion: ${error}`);
         }
-      } catch (error) {
-        this.logger.error(`Error generating suggestion for chunk: ${error}`);
+      } else if (result.status === 'rejected') {
+        this.logger.error(`Error generating suggestion for chunk: ${result.reason}`);
       }
     }
 
@@ -296,18 +303,20 @@ export class CallsService {
   }
 
   async getCallStats(companyId: string) {
-    const calls = await this.prisma.call.findMany({
-      where: { companyId },
-    });
-
-    const total = calls.length;
-    const completed = calls.filter((c) => c.status === CallStatus.COMPLETED).length;
-    const totalDuration = calls.reduce((sum, c) => sum + (c.duration || 0), 0);
+    // Use SQL aggregations instead of loading all calls into memory (DDIA Cap. 3)
+    const [total, completed, avgResult] = await Promise.all([
+      this.prisma.call.count({ where: { companyId } }),
+      this.prisma.call.count({ where: { companyId, status: CallStatus.COMPLETED } }),
+      this.prisma.call.aggregate({
+        where: { companyId },
+        _avg: { duration: true },
+      }),
+    ]);
 
     return {
       total,
       completed,
-      avgDuration: total > 0 ? Math.round(totalDuration / total) : 0,
+      avgDuration: Math.round(avgResult._avg.duration || 0),
       successRate: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
   }
@@ -382,7 +391,7 @@ export class CallsService {
   // EXPORT CALLS AS CSV
   // =====================================================
   async exportCallsAsCsv(companyId: string): Promise<string> {
-    // ✅ Fetch all calls with related suggestions
+    // Fetch calls with limit to prevent memory exhaustion (Release It! — Fail Fast)
     const calls = await this.prisma.call.findMany({
       where: { companyId },
       include: {
@@ -391,6 +400,7 @@ export class CallsService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 10000,
     });
 
     // Build CSV header

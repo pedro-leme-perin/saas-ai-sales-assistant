@@ -322,6 +322,8 @@ model AISuggestion {
   @@index([chatId])
   @@index([userId])
   @@index([createdAt(sort: Desc)])
+  @@index([callId, wasUsed])    // Analytics: suggestion adoption per call
+  @@index([chatId, wasUsed])    // Analytics: suggestion adoption per chat
   @@map("ai_suggestions")
 }
 
