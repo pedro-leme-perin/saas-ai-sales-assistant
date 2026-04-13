@@ -7,7 +7,7 @@ import { RolesGuard } from '../../src/modules/auth/guards/roles.guard';
 import { TenantGuard } from '../../src/modules/auth/guards/tenant.guard';
 import { ClerkStrategy } from '../../src/modules/auth/strategies/clerk.strategy';
 import { AuthUser } from '../../src/modules/auth/interfaces/auth-user.interface';
-import { ROLES_KEY, IS_PUBLIC_KEY } from '../../src/modules/auth/decorators/roles.decorator';
+// ROLES_KEY and IS_PUBLIC_KEY used internally by guards via Reflector metadata
 
 jest.setTimeout(10000);
 

@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsService } from '../../src/modules/analytics/analytics.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
+import { CacheService } from '../../src/infrastructure/cache/cache.service';
 
 jest.setTimeout(15000);
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
   let prisma: unknown;
+  let cacheService: Record<string, jest.Mock>;
 
   const COMPANY_ID = 'company-123';
 
@@ -26,11 +28,24 @@ describe('AnalyticsService', () => {
       },
     };
 
+    cacheService = {
+      getJson: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AnalyticsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        AnalyticsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: CacheService, useValue: cacheService },
+      ],
     }).compile();
 
     service = module.get<AnalyticsService>(AnalyticsService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   // ─────────────────────────────────────────

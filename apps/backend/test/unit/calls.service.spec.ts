@@ -27,8 +27,12 @@ describe('CallsService', () => {
     call: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
+      aggregate: jest.fn(),
+      upsert: jest.fn(),
     },
     aISuggestion: {
       deleteMany: jest.fn(),
@@ -172,12 +176,13 @@ describe('CallsService', () => {
   // getCallStats
   // ──────────────────────────────────────────────
   describe('getCallStats', () => {
-    it('should compute correct stats', async () => {
-      mockPrismaService.call.findMany.mockResolvedValue([
-        { ...mockCall, status: 'COMPLETED', duration: 100 },
-        { ...mockCall, id: 'c2', status: 'COMPLETED', duration: 200 },
-        { ...mockCall, id: 'c3', status: 'FAILED', duration: 0 },
-      ]);
+    it('should compute correct stats via SQL aggregations', async () => {
+      mockPrismaService.call.count
+        .mockResolvedValueOnce(3) // total
+        .mockResolvedValueOnce(2); // completed
+      mockPrismaService.call.aggregate.mockResolvedValue({
+        _avg: { duration: 100 },
+      });
 
       const result = await service.getCallStats('company-123');
 
@@ -188,7 +193,10 @@ describe('CallsService', () => {
     });
 
     it('should handle zero calls', async () => {
-      mockPrismaService.call.findMany.mockResolvedValue([]);
+      mockPrismaService.call.count.mockResolvedValue(0);
+      mockPrismaService.call.aggregate.mockResolvedValue({
+        _avg: { duration: null },
+      });
 
       const result = await service.getCallStats('company-123');
 
@@ -199,9 +207,12 @@ describe('CallsService', () => {
     });
 
     it('should handle single completed call', async () => {
-      mockPrismaService.call.findMany.mockResolvedValue([
-        { ...mockCall, status: 'COMPLETED', duration: 300 },
-      ]);
+      mockPrismaService.call.count
+        .mockResolvedValueOnce(1) // total
+        .mockResolvedValueOnce(1); // completed
+      mockPrismaService.call.aggregate.mockResolvedValue({
+        _avg: { duration: 300 },
+      });
 
       const result = await service.getCallStats('company-123');
 
