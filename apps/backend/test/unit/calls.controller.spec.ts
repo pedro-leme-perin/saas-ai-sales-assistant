@@ -79,6 +79,10 @@ describe('CallsController', () => {
     controller = module.get<CallsController>(CallsController);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   // ─────────────────────────────────────────
   // GET /calls/:companyId
   // ─────────────────────────────────────────

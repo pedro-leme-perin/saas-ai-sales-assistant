@@ -74,6 +74,10 @@ describe('WhatsappController', () => {
     controller = module.get<WhatsappController>(WhatsappController);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   // ─────────────────────────────────────────
   // POST /whatsapp/webhook (Twilio incoming)
   // ─────────────────────────────────────────
