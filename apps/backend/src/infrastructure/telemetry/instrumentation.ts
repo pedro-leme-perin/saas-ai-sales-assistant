@@ -28,9 +28,9 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { Resource } from '@opentelemetry/resources';
 import {
-  ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-  ATTR_DEPLOYMENT_ENVIRONMENT_NAME,
+  SEMRESATTRS_SERVICE_NAME,
+  SEMRESATTRS_SERVICE_VERSION,
+  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } from '@opentelemetry/semantic-conventions';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
@@ -71,9 +71,9 @@ function initTelemetry(): NodeSDK | null {
 
   // ── Resource: service identity metadata ────────────────────────────────
   const resource = new Resource({
-    [ATTR_SERVICE_NAME]: SERVICE_NAME,
-    [ATTR_SERVICE_VERSION]: SERVICE_VERSION,
-    [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: NODE_ENV,
+    [SEMRESATTRS_SERVICE_NAME]: SERVICE_NAME,
+    [SEMRESATTRS_SERVICE_VERSION]: SERVICE_VERSION,
+    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: NODE_ENV,
     'service.namespace': 'theiadvisor',
     'service.instance.id': process.env.RAILWAY_SERVICE_ID || `local-${process.pid}`,
   });
