@@ -22,15 +22,15 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 13/04/2026 (sessão 34)
+> Última atualização: 13/04/2026 (sessão 35)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | `4ccb759` (13/04/2026) | CI pendente verificação — 853 tests esperados |
-| Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 36 env vars |
+| Último commit | `deac4c8` (13/04/2026) | OTel semantic-conventions fix + Axiom verified |
+| Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
 | Auth (Clerk) | ✅ Produção | Production keys (`pk_live_*`), Google OAuth, webhooks OK |
@@ -44,7 +44,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
 | CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview deploys + smoke tests) |
 | Testes | ✅ 46 suites + k6 | 37 backend + 9 E2E + 3 k6 load tests, ~853 tests |
-| Telemetria | ⏳ Código pronto | OpenTelemetry SDK + Axiom OTLP (requer AXIOM_API_TOKEN) |
+| Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP, 16 traces verificados |
 
 ### 2.2 Infraestrutura de Produção
 
@@ -82,14 +82,14 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - [x] ~~Railway: pagar fatura pendente de $5~~ (pago em 13/04)
 
 **Itens técnicos futuros:**
-- [ ] Verificar CI green após push da sessão 33 (commits `ec8c7a8`..`4ccb759`) — proxy bloqueava GitHub API na sessão 34
+- [ ] Verificar CI green após push da sessão 35 (commits `6fe5bed`..`deac4c8`)
 - [ ] Sentry: migrar para plano pago quando tráfego crescer
-- [x] ~~Axiom (logs) + OpenTelemetry (traces) — observabilidade completa~~ (sessão 34: OTel SDK + TelemetryModule + Axiom OTLP)
+- [x] ~~Axiom (logs) + OpenTelemetry (traces) — observabilidade completa~~ (sessão 34-35: OTel SDK + TelemetryModule + Axiom OTLP — verificado em produção)
 - [x] ~~Load testing real com k6 contra produção~~ (sessão 34: 3 scripts criados — load, stress, ai-latency)
 - [x] ~~CI/CD pipeline para staging environment~~ (sessão 34: staging.yml workflow)
 - [x] ~~Upgrade GitHub Actions para v5~~ (feito sessão 33, commit `ec8c7a8`)
-- [ ] Configurar Axiom: criar conta → obter AXIOM_API_TOKEN → adicionar ao Railway
-- [ ] Executar `pnpm install` para instalar dependências OTel (14 pacotes adicionados ao package.json)
+- [x] ~~Configurar Axiom: criar conta → obter AXIOM_API_TOKEN → adicionar ao Railway~~ (sessão 35: org `theiadvisor-fxam`, dataset `theiadvisor-traces`, token configurado)
+- [x] ~~Instalar dependências OTel + deploy em produção~~ (sessão 35: commits `6fe5bed` + `deac4c8`, Railway deploy OK)
 - [ ] Configurar Railway staging project + secrets para staging.yml workflow
 - [ ] Executar k6 load tests contra produção (baseline performance)
 
@@ -274,6 +274,48 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - Staging CI/CD: ✅ Workflow criado (.github/workflows/staging.yml)
 - CI Pipeline: ⏳ Pendente — requer `pnpm install` para novas deps OTel
 - Observabilidade: ⏳ Pendente — requer Axiom API token configurado no Railway
+
+### 2.10 Sessão 35 — 13/04/2026
+
+**Objetivo:** Axiom setup completo — conta, dataset, API token, Railway env vars, verificação de traces em produção.
+
+**Commits desta sessão:**
+- `89945bb` — chore: sync pnpm-lock.yaml with OTel dependencies (14 packages added)
+- `6fe5bed` — feat: add OpenTelemetry instrumentation, k6 load tests, staging CI/CD (17 files, 2079 lines)
+- `deac4c8` — fix: use SEMRESATTRS_* exports compatible with @opentelemetry/semantic-conventions v1.40
+
+**Axiom configuração:**
+- Org: `TheIAdvisor` (slug: `theiadvisor-fxam`)
+- Dataset: `theiadvisor-traces`
+- API Token name: `theiadvisor-backend`
+- OTLP endpoint: `https://api.axiom.co/v1/traces` (Bearer auth)
+
+**Railway env vars adicionadas (4):**
+- `AXIOM_API_TOKEN` — `xaat-28f5c6fa-ac1f-4df5-a822-fa16d987b693`
+- `AXIOM_DATASET` — `theiadvisor-traces`
+- `OTEL_ENABLED` — `true`
+- `OTEL_SERVICE_NAME` — `theiadvisor-backend`
+
+**Problemas resolvidos:**
+1. **Arquivos da sessão 34 nunca commitados:** Todos os 17 arquivos (OTel, k6, staging.yml) estavam untracked/modified. Sessão anterior só commitou `pnpm-lock.yaml`. Fix: commit `6fe5bed` com todos os arquivos.
+2. **Build failure — `ATTR_DEPLOYMENT_ENVIRONMENT_NAME` not found:** `@opentelemetry/semantic-conventions` v1.40.0 usa `SEMRESATTRS_*` exports (v1.x API), não `ATTR_*` (v2.x API). Fix: alterados 3 imports/usages em `instrumentation.ts`. Commit `deac4c8`.
+3. **Railway não redeploya ao mudar env vars:** Redeploy manual necessário após configurar as 4 vars Axiom.
+4. **Zero traces após primeiro deploy:** Combinação dos problemas 1+2+3 — código não commitado + import incompatível + falta de redeploy.
+
+**Verificação final:**
+- Axiom Query retornou **16 trace events** com metadados OTel completos:
+  - `http.target: "/api/docs"`, `http.method: "GET"`, `http.status_code: 304`
+  - `name: "theiadvisor-backend"`, `namespace: "theiadvisor"`
+  - `deployment.environment: "production"`
+  - `scope.name: "@opentelemetry/instrumentation-http"`, `version: "0.57.2"`
+  - Trace IDs e Span IDs presentes
+
+**Estado ao final da sessão:**
+- Axiom: ✅ Conta criada, dataset configurado, traces fluindo
+- OpenTelemetry: ✅ Produção — auto-instrumentation HTTP ativa, traces verificados
+- Railway: ✅ 40 env vars (36 anteriores + 4 Axiom/OTel)
+- Build: ✅ semantic-conventions fix deployed
+- CI Pipeline: ⏳ Pendente verificação
 
 ---
 

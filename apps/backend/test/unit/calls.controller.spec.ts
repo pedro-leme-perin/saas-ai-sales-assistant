@@ -47,6 +47,10 @@ describe('CallsController', () => {
       handleRecordingCompleted: jest.fn().mockResolvedValue(undefined),
       handleStatusWebhook: jest.fn().mockResolvedValue(undefined),
       handleStatusWebhookBySid: jest.fn().mockResolvedValue(undefined),
+      findCallById: jest.fn().mockResolvedValue({
+        id: 'call-123',
+        companyId: 'company-123',
+      }),
       analyzeCall: jest.fn().mockResolvedValue({ sentiment: 0.8, suggestions: [] }),
       exportCallsAsCsv: jest
         .fn()
@@ -62,9 +66,11 @@ describe('CallsController', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string) =>
-              key === 'TWILIO_WEBHOOK_URL' ? 'https://test.com/webhooks' : undefined,
-            ),
+            get: jest.fn((key: string) => {
+              if (key === 'twilio.webhookUrl') return 'https://test.com/webhooks';
+              if (key === 'TWILIO_WEBHOOK_URL') return 'https://test.com/webhooks';
+              return undefined;
+            }),
           },
         },
       ],
@@ -232,17 +238,27 @@ describe('CallsController', () => {
   });
 
   describe('handleTranscriptionWebhook', () => {
-    it('should update transcript when text provided', async () => {
+    it('should validate call and update transcript when text provided', async () => {
       const body = { TranscriptionText: 'Hello world' };
       const result = await controller.handleTranscriptionWebhook('call-123', body);
       expect(result).toEqual({ success: true });
-      expect(callsService.update).toHaveBeenCalledWith('call-123', '', {
+      expect(callsService.findCallById).toHaveBeenCalledWith('call-123');
+      expect(callsService.update).toHaveBeenCalledWith('call-123', 'company-123', {
         transcript: 'Hello world',
       });
     });
 
     it('should skip update when no text', async () => {
       const body = {};
+      const result = await controller.handleTranscriptionWebhook('call-123', body);
+      expect(result).toEqual({ success: true });
+      expect(callsService.findCallById).not.toHaveBeenCalled();
+      expect(callsService.update).not.toHaveBeenCalled();
+    });
+
+    it('should warn when call not found', async () => {
+      (callsService.findCallById as jest.Mock).mockResolvedValueOnce(null);
+      const body = { TranscriptionText: 'Hello world' };
       const result = await controller.handleTranscriptionWebhook('call-123', body);
       expect(result).toEqual({ success: true });
       expect(callsService.update).not.toHaveBeenCalled();

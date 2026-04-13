@@ -36,6 +36,11 @@ export class CallsService {
     });
   }
 
+  /** Find call by ID only (no tenant check — for webhook use) */
+  async findCallById(id: string) {
+    return this.prisma.call.findUnique({ where: { id } });
+  }
+
   async findOne(id: string, companyId: string) {
     const call = await this.prisma.call.findFirst({
       where: { id, companyId },
@@ -238,6 +243,8 @@ export class CallsService {
   }
 
   async findOrCreateByCallSid(callSid: string, fromNumber: string) {
+    // Use upsert to prevent race condition when two webhooks arrive simultaneously
+    // (DDIA Cap. 7 — preventing write skew with atomic operations)
     const existing = await this.prisma.call.findFirst({
       where: { twilioCallSid: callSid },
     });
@@ -254,8 +261,11 @@ export class CallsService {
     });
     if (!user) throw new Error('No user found for company');
 
-    return this.prisma.call.create({
-      data: {
+    // Upsert: atomic create-or-return — eliminates TOCTOU race condition
+    return this.prisma.call.upsert({
+      where: { twilioCallSid: callSid },
+      update: {}, // Already exists — return as-is
+      create: {
         companyId: company.id,
         userId: user.id,
         phoneNumber: fromNumber,

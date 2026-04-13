@@ -209,7 +209,9 @@ export class WhatsappService {
         where: { waMessageId: payload.MessageSid },
         data: { status: newStatus },
       })
-      .catch(() => {});
+      .catch((err) =>
+        this.logger.error(`Message status update failed for ${payload.MessageSid}:`, err),
+      );
 
     this.logger.log(`📊 Message ${payload.MessageSid} status: ${payload.MessageStatus}`);
   }
@@ -372,7 +374,7 @@ export class WhatsappService {
           where: { id: data.suggestionId },
           data: { wasUsed: true, usedAt: new Date() },
         })
-        .catch(() => {});
+        .catch((err) => this.logger.error(`Suggestion usage update failed:`, err));
     }
 
     this.logger.log(`✅ Message sent to ${chat.customerPhone} (${twilioMessage.sid})`);
@@ -459,6 +461,44 @@ export class WhatsappService {
       orderBy: { createdAt: 'asc' },
       take: 100,
     });
+  }
+
+  /** Generate AI suggestion for a chat (Clean Architecture — logic in service, not controller) */
+  async generateSuggestionForChat(chatId: string, companyId: string) {
+    const messages = await this.getMessages(chatId, companyId);
+    const lastCustomerMessage = messages
+      .filter((m: { direction: string; content: string }) => m.direction === 'INCOMING')
+      .pop();
+
+    if (!lastCustomerMessage) {
+      return {
+        suggestion: 'Inicie a conversa perguntando como você pode ajudar o cliente.',
+        confidence: 0.8,
+        type: 'general',
+        context: 'whatsapp',
+      };
+    }
+
+    const conversationHistory = messages
+      .slice(-10)
+      .map(
+        (m: { direction: string; content: string }) =>
+          `${m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor'}: ${m.content}`,
+      )
+      .join('\n');
+
+    const aiResult = await this.aiService.generateSuggestion(lastCustomerMessage.content, {
+      conversationHistory,
+      customerSentiment: 'neutral',
+    });
+
+    return {
+      suggestion: aiResult.text,
+      confidence: aiResult.confidence,
+      type: 'general',
+      context: 'whatsapp',
+      provider: aiResult.provider,
+    };
   }
 
   async markAsRead(chatId: string, companyId: string) {

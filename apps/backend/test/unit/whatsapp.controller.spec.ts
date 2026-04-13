@@ -1,14 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WhatsappController } from '../../src/modules/whatsapp/whatsapp.controller';
 import { WhatsappService } from '../../src/modules/whatsapp/whatsapp.service';
-import { AiService } from '../../src/modules/ai/ai.service';
 
 jest.setTimeout(15000);
 
 describe('WhatsappController', () => {
   let controller: WhatsappController;
   let whatsappService: jest.Mocked<Partial<WhatsappService>>;
-  let aiService: jest.Mocked<Partial<AiService>>;
 
   const mockChat = {
     id: 'chat-123',
@@ -59,22 +57,18 @@ describe('WhatsappController', () => {
       getMessages: jest.fn().mockResolvedValue(mockMessages),
       sendMessage: jest.fn().mockResolvedValue({ id: 'msg-new', status: 'sent' }),
       markAsRead: jest.fn().mockResolvedValue({ success: true }),
-    };
-
-    aiService = {
-      generateSuggestion: jest.fn().mockResolvedValue({
-        text: 'Nosso plano Starter custa R$149/mês.',
+      generateSuggestionForChat: jest.fn().mockResolvedValue({
+        suggestion: 'Nosso plano Starter custa R$149/mês.',
         confidence: 0.85,
+        type: 'general',
+        context: 'whatsapp',
         provider: 'openai',
       }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WhatsappController],
-      providers: [
-        { provide: WhatsappService, useValue: whatsappService },
-        { provide: AiService, useValue: aiService },
-      ],
+      providers: [{ provide: WhatsappService, useValue: whatsappService }],
     }).compile();
 
     controller = module.get<WhatsappController>(WhatsappController);
@@ -200,32 +194,28 @@ describe('WhatsappController', () => {
   // ─────────────────────────────────────────
 
   describe('getSuggestion', () => {
-    it('should return AI suggestion based on conversation', async () => {
+    it('should delegate to service and return AI suggestion', async () => {
       const result = await controller.getSuggestion('company-123', 'chat-123');
       expect(result.suggestion).toBe('Nosso plano Starter custa R$149/mês.');
       expect(result.confidence).toBe(0.85);
       expect(result.context).toBe('whatsapp');
-      expect(aiService.generateSuggestion).toHaveBeenCalledWith(
-        'Quero saber o preço',
-        expect.objectContaining({ conversationHistory: expect.any(String) }),
+      expect(whatsappService.generateSuggestionForChat).toHaveBeenCalledWith(
+        'chat-123',
+        'company-123',
       );
     });
 
     it('should return default suggestion when no customer messages', async () => {
-      (whatsappService.getMessages as jest.Mock).mockResolvedValueOnce([
-        {
-          id: 'msg-1',
-          chatId: 'chat-123',
-          direction: 'OUTGOING',
-          content: 'Olá!',
-          timestamp: new Date(),
-        },
-      ]);
+      (whatsappService.generateSuggestionForChat as jest.Mock).mockResolvedValueOnce({
+        suggestion: 'Inicie a conversa perguntando como você pode ajudar o cliente.',
+        confidence: 0.8,
+        type: 'general',
+        context: 'whatsapp',
+      });
       const result = await controller.getSuggestion('company-123', 'chat-123');
       expect(result.suggestion).toContain('Inicie a conversa');
       expect(result.confidence).toBe(0.8);
       expect(result.type).toBe('general');
-      expect(aiService.generateSuggestion).not.toHaveBeenCalled();
     });
   });
 

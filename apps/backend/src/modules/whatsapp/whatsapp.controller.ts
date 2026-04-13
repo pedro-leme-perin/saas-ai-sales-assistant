@@ -7,6 +7,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  Logger,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -23,16 +24,14 @@ import { Public } from '../../common/decorators/public.decorator';
 import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
 import { TwilioSignatureGuard } from '@/common/guards/twilio-signature.guard';
 import { WhatsappService, TwilioWebhookPayload, TwilioStatusPayload } from './whatsapp.service';
-import { AiService } from '../ai/ai.service';
 
 @ApiTags('whatsapp')
 @ApiBearerAuth('JWT')
 @Controller('whatsapp')
 export class WhatsappController {
-  constructor(
-    private readonly whatsappService: WhatsappService,
-    private readonly aiService: AiService,
-  ) {}
+  private readonly logger = new Logger(WhatsappController.name);
+
+  constructor(private readonly whatsappService: WhatsappService) {}
 
   @Public()
   @UseGuards(TwilioSignatureGuard)
@@ -43,7 +42,7 @@ export class WhatsappController {
   async receiveTwilioWebhook(@Body() payload: TwilioWebhookPayload, @Res() res: Response) {
     this.whatsappService
       .processWebhook(payload)
-      .catch((err) => console.error('Twilio webhook processing error:', err));
+      .catch((err) => this.logger.error('Twilio webhook processing error:', err));
     res.setHeader('Content-Type', 'text/xml');
     res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
@@ -57,7 +56,7 @@ export class WhatsappController {
   async receiveTwilioStatus(@Body() payload: TwilioStatusPayload, @Res() res: Response) {
     this.whatsappService
       .processStatusCallback(payload)
-      .catch((err) => console.error('Twilio status callback error:', err));
+      .catch((err) => this.logger.error('Twilio status callback error:', err));
     res.setHeader('Content-Type', 'text/xml');
     res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
@@ -147,39 +146,8 @@ export class WhatsappController {
     description: 'Suggestion generated successfully',
   })
   async getSuggestion(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
-    const messages = await this.whatsappService.getMessages(chatId, companyId);
-    const lastCustomerMessage = messages
-      .filter((m: { direction: string; content: string }) => m.direction === 'INCOMING')
-      .pop();
-
-    if (!lastCustomerMessage) {
-      return {
-        suggestion: 'Inicie a conversa perguntando como você pode ajudar o cliente.',
-        confidence: 0.8,
-        type: 'general',
-        context: 'whatsapp',
-      };
-    }
-
-    const conversationHistory = messages
-      .slice(-10)
-      .map(
-        (m: { direction: string; content: string }) =>
-          `${m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor'}: ${m.content}`,
-      )
-      .join('\n');
-
-    const aiResult = await this.aiService.generateSuggestion(lastCustomerMessage.content, {
-      conversationHistory,
-      customerSentiment: 'neutral',
-    });
-    return {
-      suggestion: aiResult.text,
-      confidence: aiResult.confidence,
-      type: 'general',
-      context: 'whatsapp',
-      provider: aiResult.provider,
-    };
+    // Clean Architecture: business logic delegated to service layer
+    return this.whatsappService.generateSuggestionForChat(chatId, companyId);
   }
 
   @Patch('chats/:companyId/:chatId/read')

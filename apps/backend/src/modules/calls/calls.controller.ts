@@ -139,9 +139,10 @@ export class CallsController {
     @Request() req: { user: { id: string } },
   ) {
     const webhookUrl =
-      this.configService.get<string>('twilio.webhookUrl') ||
-      process.env.BACKEND_URL ||
-      'http://localhost:3001';
+      this.configService.get<string>('twilio.webhookUrl') || process.env.BACKEND_URL;
+    if (!webhookUrl) {
+      throw new Error('TWILIO_WEBHOOK_URL or BACKEND_URL must be configured');
+    }
     return this.callsService.initiateCall(companyId, req.user.id, data.phoneNumber, webhookUrl);
   }
 
@@ -175,7 +176,15 @@ export class CallsController {
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
 
-    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL;
+    if (!backendUrl) {
+      this.logger.error('BACKEND_URL not configured — voice webhook cannot route media stream');
+      res.type('text/xml');
+      res.send(
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Say>Configuration error</Say></Response>',
+      );
+      return;
+    }
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
     this.logger.log(`WebSocket URL: ${wsUrl}/ws/media`);
@@ -216,7 +225,15 @@ export class CallsController {
 
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
-    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL;
+    if (!backendUrl) {
+      this.logger.error('BACKEND_URL not configured — inbound voice webhook cannot route');
+      res.type('text/xml');
+      res.send(
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Say>Configuration error</Say></Response>',
+      );
+      return;
+    }
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
     response.say({ language: 'pt-BR', voice: 'Polly.Camila' }, 'Assistente de vendas conectado.');
@@ -296,7 +313,15 @@ export class CallsController {
     @Body() body: { TranscriptionText?: string },
   ) {
     if (body.TranscriptionText) {
-      await this.callsService.update(callId, '', { transcript: body.TranscriptionText });
+      // Validate call exists before updating (prevents update on guessed IDs)
+      const call = await this.callsService.findCallById(callId);
+      if (call) {
+        await this.callsService.update(callId, call.companyId, {
+          transcript: body.TranscriptionText,
+        });
+      } else {
+        this.logger.warn(`Transcription webhook for unknown call: ${callId}`);
+      }
     }
     return { success: true };
   }

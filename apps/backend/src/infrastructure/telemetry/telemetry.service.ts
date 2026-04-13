@@ -70,10 +70,9 @@ export class TelemetryService {
 
   // ── Gauges (SRE — Saturation signal) ─────────────────────────────────
 
-  private readonly activeConnections = this.meter.createUpDownCounter(
-    'ws.connections.active',
-    { description: 'Active WebSocket connections' },
-  );
+  private readonly activeConnections = this.meter.createUpDownCounter('ws.connections.active', {
+    description: 'Active WebSocket connections',
+  });
 
   // ── Public API ───────────────────────────────────────────────────────
 

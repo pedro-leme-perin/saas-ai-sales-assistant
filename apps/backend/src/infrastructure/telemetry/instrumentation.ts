@@ -136,9 +136,7 @@ function initTelemetry(): NodeSDK | null {
           const url = request.url || '';
           // Skip health checks + metrics (SRE — signal vs. noise)
           return (
-            url.startsWith('/health') ||
-            url.startsWith('/metrics') ||
-            url.startsWith('/favicon')
+            url.startsWith('/health') || url.startsWith('/metrics') || url.startsWith('/favicon')
           );
         },
         requestHook: (span, request) => {
