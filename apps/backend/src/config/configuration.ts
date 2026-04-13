@@ -109,4 +109,12 @@ export default () => ({
     jwtSecret: process.env.JWT_SECRET,
     encryptionKey: process.env.ENCRYPTION_KEY,
   },
+
+  // Telemetry (SRE — Observability)
+  telemetry: {
+    enabled: process.env.OTEL_ENABLED !== 'false',
+    serviceName: process.env.OTEL_SERVICE_NAME || 'theiadvisor-backend',
+    axiomToken: process.env.AXIOM_API_TOKEN,
+    axiomDataset: process.env.AXIOM_DATASET || 'theiadvisor-traces',
+  },
 });

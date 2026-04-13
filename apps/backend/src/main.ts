@@ -1,4 +1,6 @@
 // Railway: monorepo root context build
+// OpenTelemetry MUST be initialized before any other imports (SRE — Distributed Tracing)
+import './infrastructure/telemetry/instrumentation';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -15,6 +17,7 @@ import { MediaStreamsGateway } from './modules/calls/media-streams.gateway';
 import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { TelemetryService } from './infrastructure/telemetry/telemetry.service';
 
 const logger = new Logger('Bootstrap');
 
@@ -79,8 +82,9 @@ async function bootstrap() {
   // ── Global Exception Filter (Release It! - Error Handling) ──
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // ── Structured Logging (SRE - Monitoring: structured logs with context) ──
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  // ── Structured Logging + Telemetry (SRE - Monitoring: structured logs + OTel metrics) ──
+  const telemetryService = app.get(TelemetryService, { strict: false });
+  app.useGlobalInterceptors(new LoggingInterceptor(telemetryService));
 
   // ── Graceful Shutdown (Release It! - Stability Patterns) ──
   app.enableShutdownHooks();

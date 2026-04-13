@@ -1,0 +1,235 @@
+name: Staging Deploy
+
+# Triggers: PR to main (preview) + manual dispatch
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - preview
+
+concurrency:
+  group: staging-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_STAGING_PROJECT_ID }}
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Gate: Run full CI first
+  # ──────────────────────────────────────────────
+  ci:
+    name: CI Validation
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  # ──────────────────────────────────────────────
+  # Backend: Deploy to Railway staging
+  # ──────────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend (Staging)
+    runs-on: ubuntu-latest
+    needs: ci
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Railway CLI
+        run: |
+          curl -fsSL https://railway.com/install.sh | sh
+          echo "$HOME/.railway/bin" >> $GITHUB_PATH
+
+      - name: Deploy to Railway staging
+        id: deploy
+        run: |
+          railway up --service backend-staging --detach
+          DEPLOY_URL=$(railway domain --service backend-staging 2>/dev/null || echo "https://staging-api.theiadvisor.com")
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+
+      - name: Wait for healthy deployment
+        run: |
+          STAGING_URL="${{ steps.deploy.outputs.url }}"
+          echo "Waiting for $STAGING_URL/health to respond..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Backend staging is healthy"
+              exit 0
+            fi
+            echo "Attempt $i/30 — status: $STATUS, retrying in 10s..."
+            sleep 10
+          done
+          echo "❌ Backend staging did not become healthy in 5 minutes"
+          exit 1
+
+      - name: Run database migrations
+        run: |
+          railway run --service backend-staging -- pnpm exec prisma migrate deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+
+  # ──────────────────────────────────────────────
+  # Frontend: Deploy to Vercel preview
+  # ──────────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend (Preview)
+    runs-on: ubuntu-latest
+    needs: ci
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @saas/shared run build
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/frontend
+
+      - name: Build frontend
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.STAGING_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.STAGING_CLERK_SECRET_KEY }}
+
+      - name: Deploy to Vercel preview
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "✅ Frontend deployed to: $DEPLOY_URL"
+        working-directory: apps/frontend
+
+  # ──────────────────────────────────────────────
+  # Smoke tests against staging
+  # ──────────────────────────────────────────────
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Health check — Backend
+        run: |
+          STAGING_URL="${{ needs.deploy-backend.outputs.url }}"
+          echo "Testing backend at $STAGING_URL"
+
+          # Health endpoint
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health")
+          [ "$STATUS" = "200" ] && echo "✅ /health OK" || { echo "❌ /health failed ($STATUS)"; exit 1; }
+
+          # Readiness
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health/ready")
+          [ "$STATUS" = "200" ] && echo "✅ /health/ready OK" || { echo "❌ /health/ready failed ($STATUS)"; exit 1; }
+
+          # Liveness
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health/live")
+          [ "$STATUS" = "200" ] && echo "✅ /health/live OK" || { echo "❌ /health/live failed ($STATUS)"; exit 1; }
+
+          # API docs
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/api/docs")
+          [ "$STATUS" = "200" ] && echo "✅ /api/docs OK" || echo "⚠️ /api/docs returned $STATUS"
+
+          # AI providers
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/api/ai/providers")
+          [ "$STATUS" = "200" ] && echo "✅ /api/ai/providers OK" || echo "⚠️ /api/ai/providers returned $STATUS"
+
+      - name: Health check — Frontend
+        run: |
+          PREVIEW_URL="${{ needs.deploy-frontend.outputs.url }}"
+          echo "Testing frontend at $PREVIEW_URL"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
+          [ "$STATUS" = "200" ] && echo "✅ Frontend OK" || { echo "❌ Frontend failed ($STATUS)"; exit 1; }
+
+  # ──────────────────────────────────────────────
+  # PR Comment with deployment URLs
+  # ──────────────────────────────────────────────
+  comment:
+    name: PR Comment
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend, smoke-tests]
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post deployment URLs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const backendUrl = '${{ needs.deploy-backend.outputs.url }}';
+            const frontendUrl = '${{ needs.deploy-frontend.outputs.url }}';
+            const body = [
+              '## 🚀 Staging Deployment',
+              '',
+              '| Service | URL | Status |',
+              '|---------|-----|--------|',
+              `| Frontend | [Preview](${frontendUrl}) | ✅ Deployed |`,
+              `| Backend | [API](${backendUrl}) | ✅ Deployed |`,
+              `| API Docs | [Swagger](${backendUrl}/api/docs) | ✅ Available |`,
+              `| Health | [Check](${backendUrl}/health) | ✅ Healthy |`,
+              '',
+              '### Quick Links',
+              `- 🔍 [API Documentation](${backendUrl}/api/docs)`,
+              `- 🏥 [Health Check](${backendUrl}/health)`,
+              `- 🤖 [AI Providers](${backendUrl}/api/ai/providers)`,
+              '',
+              `> Commit: \`${context.sha.substring(0, 7)}\` | Branch: \`${context.payload.pull_request.head.ref}\``,
+            ].join('\n');
+
+            // Find existing comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Staging Deployment')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

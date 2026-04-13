@@ -22,7 +22,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 13/04/2026
+> Última atualização: 13/04/2026 (sessão 34)
 
 ### 2.1 Status Geral
 
@@ -42,8 +42,9 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Cloudflare R2 (Upload) | ✅ Produção | Bucket `theiadvisor-uploads`, domínio `uploads.theiadvisor.com` |
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
-| CI/CD | ⏳ Pendente | GitHub Actions: lint → typecheck → build → test → E2E → ci-gate |
-| Testes | ✅ 46 suites | 37 backend (.spec.ts) + 9 frontend (E2E Playwright), ~853 tests |
+| CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview deploys + smoke tests) |
+| Testes | ✅ 46 suites + k6 | 37 backend + 9 E2E + 3 k6 load tests, ~853 tests |
+| Telemetria | ⏳ Código pronto | OpenTelemetry SDK + Axiom OTLP (requer AXIOM_API_TOKEN) |
 
 ### 2.2 Infraestrutura de Produção
 
@@ -81,12 +82,16 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - [x] ~~Railway: pagar fatura pendente de $5~~ (pago em 13/04)
 
 **Itens técnicos futuros:**
-- [ ] Verificar CI green após push da sessão 33 (commits `ec8c7a8`..`4ccb759`)
+- [ ] Verificar CI green após push da sessão 33 (commits `ec8c7a8`..`4ccb759`) — proxy bloqueava GitHub API na sessão 34
 - [ ] Sentry: migrar para plano pago quando tráfego crescer
-- [ ] Axiom (logs) + OpenTelemetry (traces) — observabilidade completa
-- [ ] Load testing real com k6 contra produção (scripts prontos em `k6/`)
-- [ ] CI/CD pipeline para staging environment
+- [x] ~~Axiom (logs) + OpenTelemetry (traces) — observabilidade completa~~ (sessão 34: OTel SDK + TelemetryModule + Axiom OTLP)
+- [x] ~~Load testing real com k6 contra produção~~ (sessão 34: 3 scripts criados — load, stress, ai-latency)
+- [x] ~~CI/CD pipeline para staging environment~~ (sessão 34: staging.yml workflow)
 - [x] ~~Upgrade GitHub Actions para v5~~ (feito sessão 33, commit `ec8c7a8`)
+- [ ] Configurar Axiom: criar conta → obter AXIOM_API_TOKEN → adicionar ao Railway
+- [ ] Executar `pnpm install` para instalar dependências OTel (14 pacotes adicionados ao package.json)
+- [ ] Configurar Railway staging project + secrets para staging.yml workflow
+- [ ] Executar k6 load tests contra produção (baseline performance)
 
 ### 2.5 Sessão 30 — 05/04/2026
 
@@ -208,6 +213,68 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - Performance: ✅ SQL aggregations, cache, parallel AI
 - Backend typecheck: ✅ `tsconfig.check.json` exclui tests (0 continue-on-error)
 
+### 2.9 Sessão 34 — 13/04/2026
+
+**Objetivo:** Observabilidade completa (OpenTelemetry + Axiom), k6 load testing scripts, staging CI/CD pipeline.
+
+**Arquivos criados/modificados (16 arquivos):**
+
+*Novos:*
+- `apps/backend/k6/load-test.js` — Standard load test (4 min, 100 VUs, p95 < 500ms SLO)
+- `apps/backend/k6/stress-test.js` — Stress test (10 min, 1000 VUs, circuit breaker validation)
+- `apps/backend/k6/ai-latency-test.js` — AI latency test (5 min, 40 VUs, p95 < 2000ms SLO)
+- `apps/backend/src/infrastructure/telemetry/instrumentation.ts` — OTel SDK bootstrap (MUST import first)
+- `apps/backend/src/infrastructure/telemetry/telemetry.service.ts` — Custom metrics + spans (Four Golden Signals)
+- `apps/backend/src/infrastructure/telemetry/telemetry.module.ts` — Global NestJS module
+- `apps/backend/src/infrastructure/telemetry/index.ts` — Barrel exports
+- `.github/workflows/staging.yml` — Staging deploy pipeline (Railway + Vercel preview + smoke tests)
+
+*Modificados:*
+- `apps/backend/src/main.ts` — OTel import (line 3), TelemetryService injection
+- `apps/backend/src/app.module.ts` — TelemetryModule import
+- `apps/backend/src/common/interceptors/logging.interceptor.ts` — Trace correlation (traceId, spanId)
+- `apps/backend/src/config/configuration.ts` — Telemetry config section
+- `apps/backend/src/infrastructure/index.ts` — Telemetry exports
+- `apps/backend/package.json` — 14 OTel dependencies adicionadas
+- `CLAUDE.md` — Sessão 34
+
+**k6 Load Testing (3 scripts):**
+1. `load-test.js`: 9 grupos de teste, 22+ endpoints, métricas customizadas (api_latency, error_rate), handleSummary JSON.
+2. `stress-test.js`: 8 stages até 1000 VUs, breaking point detection (>5% error rate), circuit breaker tracking (503), weighted endpoint distribution.
+3. `ai-latency-test.js`: 10 transcripts realistas, métricas por endpoint (suggestion, analyze, balanced), timeout tracking (>10s).
+
+**OpenTelemetry Integration:**
+- Auto-instrumentation: HTTP, Express, NestJS, Prisma, IORedis, Socket.io (6 instrumentations)
+- Export: OTLP/HTTP para Axiom (vendor-neutral, zero lock-in — *DDIA* principle)
+- Sampling: 10% prod / 100% dev (ParentBasedSampler — distributed tracing continuity)
+- Metrics: Four Golden Signals (*SRE*) — latency, traffic, errors, saturation
+- Custom spans: `withSpan()` helper para operações de negócio
+- Trace correlation: traceId + spanId nos logs estruturados
+- Graceful shutdown: SDK shutdown em SIGTERM/SIGINT
+
+**Staging CI/CD Pipeline:**
+- Trigger: PR to main + manual dispatch
+- Jobs: CI validation → Backend deploy (Railway) → Frontend deploy (Vercel preview) → Smoke tests → PR comment
+- Health check: 30 retries × 10s (5 min max wait)
+- Smoke tests: health, readiness, liveness, API docs, AI providers, frontend
+- PR comment: auto-update com deployment URLs
+
+**Env vars novas (Railway):**
+- `AXIOM_API_TOKEN` — Axiom ingest token
+- `AXIOM_DATASET` — Dataset name (default: theiadvisor-traces)
+- `OTEL_ENABLED` — Enable/disable (default: true)
+- `OTEL_SERVICE_NAME` — Service name (default: theiadvisor-backend)
+
+**Dependências OTel adicionadas (14 pacotes):**
+`@opentelemetry/api`, `sdk-node`, `sdk-metrics`, `sdk-trace-base`, `resources`, `semantic-conventions`, `exporter-trace-otlp-http`, `exporter-metrics-otlp-http`, `instrumentation-http`, `instrumentation-express`, `instrumentation-nestjs-core`, `instrumentation-ioredis`, `instrumentation-socket.io`, `@prisma/instrumentation`
+
+**Estado ao final da sessão:**
+- k6 Scripts: ✅ 3 scripts criados (load, stress, AI latency)
+- OpenTelemetry: ✅ SDK + TelemetryModule + 6 auto-instrumentations
+- Staging CI/CD: ✅ Workflow criado (.github/workflows/staging.yml)
+- CI Pipeline: ⏳ Pendente — requer `pnpm install` para novas deps OTel
+- Observabilidade: ⏳ Pendente — requer Axiom API token configurado no Railway
+
 ---
 
 ## 3. ARQUITETURA
@@ -295,10 +362,12 @@ Infrastructure (Prisma, API Clients, Redis)
 | WhatsApp | WhatsApp Business API | API oficial Meta |
 | Object Storage | Cloudflare R2 (S3-compatible) | Presigned URLs, domínio custom |
 | Email | Resend | Transactional emails, templates HTML |
-| Monitoring | Sentry | Frontend + Backend, distributed tracing, Web Vitals |
+| Monitoring | Sentry + OpenTelemetry + Axiom | Distributed tracing, metrics, Web Vitals |
+| Telemetry | OpenTelemetry SDK | *SRE* — Four Golden Signals, OTLP export |
+| Load Testing | k6 | 3 scripts: load (100 VU), stress (1000 VU), AI (40 VU) |
 | Monorepo | pnpm workspaces | `apps/` + `packages/shared` |
 | Tests | Jest (unit/integration) + Playwright (E2E) | *Clean Code* Cap. 9 |
-| CI/CD | GitHub Actions | *SRE* Cap. Release Engineering |
+| CI/CD | GitHub Actions (ci.yml + staging.yml) | *SRE* Cap. Release Engineering |
 
 ---
 
@@ -323,9 +392,10 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   └── whatsapp/       # WhatsApp API, chat, messages
 │   │       ├── common/             # Guards, Pipes, Interceptors, Filters
 │   │       │   └── resilience/     # CircuitBreaker genérico
-│   │       ├── config/             # Env vars tipadas (13 grupos, 42+ vars)
+│   │       ├── config/             # Env vars tipadas (14 grupos, 46+ vars)
 │   │       ├── health/             # Health check, liveness, readiness
-│   │       ├── infrastructure/     # Prisma service, cache service
+│   │       ├── infrastructure/     # Prisma, cache, telemetry (OTel)
+│   │       │   └── telemetry/      # OTel SDK, TelemetryService, metrics
 │   │       └── presentation/       # Webhooks (Twilio, Clerk)
 │   └── frontend/                   # @saas/frontend (Next.js 15)
 │       └── src/
@@ -396,7 +466,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 7. VARIÁVEIS DE AMBIENTE
 
-### Backend (`apps/backend/.env`) — 13 grupos
+### Backend (`apps/backend/.env`) — 14 grupos
 
 ```
 # App
@@ -442,6 +512,9 @@ FRONTEND_URL, ALLOWED_ORIGINS
 
 # Security
 JWT_SECRET, ENCRYPTION_KEY
+
+# Telemetry (OpenTelemetry + Axiom)
+OTEL_ENABLED, OTEL_SERVICE_NAME, AXIOM_API_TOKEN, AXIOM_DATASET
 ```
 
 ### Frontend (`apps/frontend/.env.local`)
@@ -518,7 +591,29 @@ Cada integração externa tem CircuitBreaker com estados: CLOSED → OPEN → HA
 5. `[SalesAI] AI Provider Slow` — p95 >5000ms (critical), >2000ms (warning)
 6. `[SalesAI] LCP Regression` — p75 >4000ms (critical), >2500ms (warning)
 
-### 10.3 Frontend Performance
+### 10.3 OpenTelemetry (Backend)
+
+- **SDK:** `@opentelemetry/sdk-node` com auto-instrumentation (6 instrumentations)
+- **Export:** OTLP/HTTP → Axiom (vendor-neutral, zero lock-in)
+- **Instrumentations:** HTTP, Express, NestJS, Prisma, IORedis, Socket.io
+- **Sampling:** ParentBasedSampler — 10% prod, 100% dev
+- **Metrics (Four Golden Signals):**
+  - Latency: `http.request.duration_ms`, `ai.suggestion.latency_ms`, `db.query.duration_ms`
+  - Traffic: `http.requests.total`, `ai.suggestions.total`, `webhooks.received.total`
+  - Errors: `ai.errors.total`
+  - Saturation: `ws.connections.active`, `circuit_breaker.trips.total`
+- **Trace correlation:** traceId + spanId propagados nos logs estruturados
+- **Custom spans:** `TelemetryService.withSpan()` para operações de negócio
+
+### 10.4 k6 Load Testing
+
+| Script | Duração | VUs Max | SLO Validado |
+|---|---|---|---|
+| `load-test.js` | 4 min | 100 | API p95 < 500ms, error < 0.1% |
+| `stress-test.js` | 10 min | 1000 | Graceful degradation, circuit breaker |
+| `ai-latency-test.js` | 5 min | 40 | AI p95 < 2000ms, error < 5% |
+
+### 10.5 Frontend Performance
 
 - Web Vitals: CLS, LCP, TTFB, INP, FID → Sentry measurements
 - Distributed tracing: `sentry-trace` + `baggage` headers

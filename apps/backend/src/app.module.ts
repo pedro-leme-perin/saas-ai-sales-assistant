@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from './infrastructure/database/prisma.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
+import { TelemetryModule } from './infrastructure/telemetry/telemetry.module';
 import { HealthModule } from './health/health.module';
 
 import { UsersModule } from './modules/users/users.module';
@@ -35,6 +36,7 @@ import configuration from './config/configuration';
     ]),
     PrismaModule,
     CacheModule,
+    TelemetryModule,
     HealthModule,
     AuthModule,
     UsersModule,
