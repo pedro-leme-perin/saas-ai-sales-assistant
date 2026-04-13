@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
+import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 
 @Injectable()
 export class AnalyticsService {
@@ -33,25 +34,29 @@ export class AnalyticsService {
       totalSuggestions,
       suggestionsUsed,
       avgDurationResult,
-    ] = await Promise.all([
-      this.prisma.call.count({ where: { companyId } }),
-      this.prisma.call.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
-      this.prisma.call.count({
-        where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
-      }),
-      this.prisma.whatsappChat.count({ where: { companyId } }),
-      this.prisma.whatsappChat.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
-      this.prisma.whatsappChat.count({
-        where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
-      }),
-      this.prisma.user.count({ where: { companyId } }),
-      this.prisma.aISuggestion.count({ where: { call: { companyId } } }),
-      this.prisma.aISuggestion.count({ where: { call: { companyId }, wasUsed: true } }),
-      this.prisma.call.aggregate({
-        where: { companyId, status: 'COMPLETED' },
-        _avg: { duration: true },
-      }),
-    ]);
+    ] = await promiseAllWithTimeout(
+      [
+        this.prisma.call.count({ where: { companyId } }),
+        this.prisma.call.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
+        this.prisma.call.count({
+          where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+        }),
+        this.prisma.whatsappChat.count({ where: { companyId } }),
+        this.prisma.whatsappChat.count({ where: { companyId, createdAt: { gte: startOfMonth } } }),
+        this.prisma.whatsappChat.count({
+          where: { companyId, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+        }),
+        this.prisma.user.count({ where: { companyId } }),
+        this.prisma.aISuggestion.count({ where: { call: { companyId } } }),
+        this.prisma.aISuggestion.count({ where: { call: { companyId }, wasUsed: true } }),
+        this.prisma.call.aggregate({
+          where: { companyId, status: 'COMPLETED' },
+          _avg: { duration: true },
+        }),
+      ],
+      15000,
+      'getDashboardKPIs',
+    );
 
     const callsGrowth =
       callsLastMonth > 0
@@ -120,16 +125,26 @@ export class AnalyticsService {
   async getWhatsAppAnalytics(companyId: string) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [totalChats, openChats, messages, aiUsedMessages] = await Promise.all([
-      this.prisma.whatsappChat.count({ where: { companyId, createdAt: { gte: thirtyDaysAgo } } }),
-      this.prisma.whatsappChat.count({ where: { companyId, status: 'OPEN' } }),
-      this.prisma.whatsappMessage.count({
-        where: { chat: { companyId }, createdAt: { gte: thirtyDaysAgo } },
-      }),
-      this.prisma.whatsappMessage.count({
-        where: { chat: { companyId }, createdAt: { gte: thirtyDaysAgo }, aiSuggestionUsed: true },
-      }),
-    ]);
+    const [totalChats, openChats, messages, aiUsedMessages] = await promiseAllWithTimeout(
+      [
+        this.prisma.whatsappChat.count({
+          where: { companyId, createdAt: { gte: thirtyDaysAgo } },
+        }),
+        this.prisma.whatsappChat.count({ where: { companyId, status: 'OPEN' } }),
+        this.prisma.whatsappMessage.count({
+          where: { chat: { companyId }, createdAt: { gte: thirtyDaysAgo } },
+        }),
+        this.prisma.whatsappMessage.count({
+          where: {
+            chat: { companyId },
+            createdAt: { gte: thirtyDaysAgo },
+            aiSuggestionUsed: true,
+          },
+        }),
+      ],
+      15000,
+      'getWhatsAppAnalytics',
+    );
 
     return {
       totalChats,

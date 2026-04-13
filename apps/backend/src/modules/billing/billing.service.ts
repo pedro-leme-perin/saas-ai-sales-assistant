@@ -4,6 +4,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { AuthenticatedUser } from '@common/decorators';
 import { Plan, SubscriptionStatus, AuditAction, Prisma } from '@prisma/client';
 import Stripe from 'stripe';
@@ -144,19 +145,28 @@ export class BillingService {
 
   async getSubscription(companyId: string) {
     try {
-      const [subscription, company] = await Promise.all([
-        this.prisma.subscription.findFirst({
-          where: {
-            companyId,
-            status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
-          },
-          include: { company: { select: { id: true, name: true, plan: true } } },
-        }),
-        this.prisma.company.findUnique({
-          where: { id: companyId },
-          select: { plan: true, maxUsers: true, maxCallsPerMonth: true, maxChatsPerMonth: true },
-        }),
-      ]);
+      const [subscription, company] = await promiseAllWithTimeout(
+        [
+          this.prisma.subscription.findFirst({
+            where: {
+              companyId,
+              status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+            },
+            include: { company: { select: { id: true, name: true, plan: true } } },
+          }),
+          this.prisma.company.findUnique({
+            where: { id: companyId },
+            select: {
+              plan: true,
+              maxUsers: true,
+              maxCallsPerMonth: true,
+              maxChatsPerMonth: true,
+            },
+          }),
+        ],
+        15000,
+        'getSubscription',
+      );
 
       if (!company) throw new NotFoundException(`Company ${companyId} not found`);
 

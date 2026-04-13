@@ -4,6 +4,7 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { Twilio } from 'twilio';
 import { CallDirection, CallStatus, SuggestionType } from '@prisma/client';
+import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 
 @Injectable()
 export class CallsService {
@@ -314,14 +315,18 @@ export class CallsService {
 
   async getCallStats(companyId: string) {
     // Use SQL aggregations instead of loading all calls into memory (DDIA Cap. 3)
-    const [total, completed, avgResult] = await Promise.all([
-      this.prisma.call.count({ where: { companyId } }),
-      this.prisma.call.count({ where: { companyId, status: CallStatus.COMPLETED } }),
-      this.prisma.call.aggregate({
-        where: { companyId },
-        _avg: { duration: true },
-      }),
-    ]);
+    const [total, completed, avgResult] = await promiseAllWithTimeout(
+      [
+        this.prisma.call.count({ where: { companyId } }),
+        this.prisma.call.count({ where: { companyId, status: CallStatus.COMPLETED } }),
+        this.prisma.call.aggregate({
+          where: { companyId },
+          _avg: { duration: true },
+        }),
+      ],
+      15000,
+      'getCallStats',
+    );
 
     return {
       total,

@@ -4,6 +4,7 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
@@ -134,14 +135,18 @@ export class CompaniesService {
     // Check if company exists
     await this.findOne(id);
 
-    const [totalCalls, totalChats, totalUsers, activeCalls] = await Promise.all([
-      this.prisma.call.count({ where: { companyId: id } }),
-      this.prisma.whatsappChat.count({ where: { companyId: id } }),
-      this.prisma.user.count({ where: { companyId: id } }),
-      this.prisma.call.count({
-        where: { companyId: id, status: 'IN_PROGRESS' },
-      }),
-    ]);
+    const [totalCalls, totalChats, totalUsers, activeCalls] = await promiseAllWithTimeout(
+      [
+        this.prisma.call.count({ where: { companyId: id } }),
+        this.prisma.whatsappChat.count({ where: { companyId: id } }),
+        this.prisma.user.count({ where: { companyId: id } }),
+        this.prisma.call.count({
+          where: { companyId: id, status: 'IN_PROGRESS' },
+        }),
+      ],
+      15000,
+      'getCompanyStats',
+    );
 
     return {
       totalCalls,

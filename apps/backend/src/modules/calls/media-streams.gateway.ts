@@ -53,10 +53,12 @@ export class MediaStreamsGateway {
 
       client.on('close', (code: number) => {
         this.logger.log(`Twilio Media Stream DISCONNECTED: code=${code}`);
+        this.cleanupClientSessions();
       });
 
       client.on('error', (error: Error) => {
         this.logger.error('Twilio Media Stream ERROR:', error);
+        this.cleanupClientSessions();
       });
     });
 
@@ -239,6 +241,38 @@ export class MediaStreamsGateway {
 
     const audioBuffer = Buffer.from(message.media.payload, 'base64');
     session.deepgramSession.send(audioBuffer);
+  }
+
+  /**
+   * Clean up all active Deepgram sessions when a client disconnects abruptly.
+   * Saves any partial transcripts before cleanup.
+   * Prevents WebSocket connection leaks (Release It! — Steady State).
+   */
+  private cleanupClientSessions() {
+    if (this.activeSessions.size === 0) return;
+
+    this.logger.log(`Cleaning up ${this.activeSessions.size} active session(s) after disconnect`);
+    for (const [streamSid, session] of this.activeSessions) {
+      try {
+        session.deepgramSession?.finish();
+      } catch (err) {
+        this.logger.warn(`Error closing Deepgram session ${streamSid}: ${err}`);
+      }
+
+      // Save partial transcript if available
+      const fullTranscript = session.fullTranscript.join(' ');
+      if (fullTranscript) {
+        this.prisma.call
+          .update({
+            where: { id: session.callId },
+            data: { transcript: fullTranscript },
+          })
+          .catch((err) =>
+            this.logger.error(`Failed to save transcript on cleanup for ${session.callId}: ${err}`),
+          );
+      }
+    }
+    this.activeSessions.clear();
   }
 
   private async handleStreamStop(message: TwilioStreamMessage) {

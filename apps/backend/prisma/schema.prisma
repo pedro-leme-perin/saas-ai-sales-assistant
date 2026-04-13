@@ -183,6 +183,7 @@ model Call {
   @@index([userId])
   @@index([companyId, status])
   @@index([companyId, createdAt(sort: Desc)])
+  @@index([companyId, sentiment])      // Sentiment analytics queries
   @@index([phoneNumber])
   @@index([twilioCallSid])
   @@map("calls")

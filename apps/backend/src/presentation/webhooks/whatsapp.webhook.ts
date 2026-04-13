@@ -7,6 +7,7 @@ import { ApiTags, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '@common/decorators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { timingSafeEqual } from 'crypto';
 
 interface WhatsAppWebhookBody {
   entry?: Array<{
@@ -62,9 +63,14 @@ export class WhatsappWebhookController {
   ) {
     const verifyToken = this.configService.get<string>('whatsapp.verifyToken');
 
-    if (mode === 'subscribe' && token === verifyToken) {
-      this.logger.log('WhatsApp webhook verified');
-      return challenge;
+    if (mode === 'subscribe' && verifyToken && token) {
+      // Constant-time comparison to prevent timing attacks (Building Microservices Cap. 11)
+      const tokenBuf = Buffer.from(token);
+      const verifyBuf = Buffer.from(verifyToken);
+      if (tokenBuf.length === verifyBuf.length && timingSafeEqual(tokenBuf, verifyBuf)) {
+        this.logger.log('WhatsApp webhook verified');
+        return challenge;
+      }
     }
 
     this.logger.warn('WhatsApp webhook verification failed');
