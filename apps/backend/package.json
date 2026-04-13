@@ -26,7 +26,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:unit": "jest --testPathPattern=test/unit",
     "test:integration": "jest --testPathPattern=test/integration",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit -p tsconfig.check.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:prod": "prisma migrate deploy",

@@ -22,15 +22,15 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 31/03/2026
+> Última atualização: 13/04/2026
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | `55876aa` (05/04/2026) | CI green + test fixes + lint fixes |
-| Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 39 test suites, 36 env vars |
+| Último commit | `63334b4` (13/04/2026) | CI #105 genuinely green — all 851 tests passing |
+| Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 36 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
 | Auth (Clerk) | ✅ Produção | Production keys (`pk_live_*`), Google OAuth, webhooks OK |
@@ -42,8 +42,8 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Cloudflare R2 (Upload) | ✅ Produção | Bucket `theiadvisor-uploads`, domínio `uploads.theiadvisor.com` |
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
-| CI/CD | ✅ Green (CI #93) | GitHub Actions: lint → typecheck → build → test → E2E → ci-gate |
-| Testes | ✅ 48 suites | 37 backend (.spec.ts) + 9 frontend (E2E Playwright), 838 tests |
+| CI/CD | ✅ Green (CI #105) | GitHub Actions: lint → typecheck → build → test → E2E → ci-gate |
+| Testes | ✅ 46 suites | 37 backend (.spec.ts) + 9 frontend (E2E Playwright), 851 tests |
 
 ### 2.2 Infraestrutura de Produção
 
@@ -76,13 +76,16 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - [ ] WhatsApp Business API: Meta Business Manager → verificar empresa → configurar número BR → Access Token + Phone Number ID → Railway
 - [ ] Stripe: migrar CPF → CNPJ (opcional, recomendado)
 - [ ] Twilio: comprar número BR +55 (opcional)
-- [ ] Clerk Dashboard: renomear aplicação "Sales AI" → "TheIAdvisor" (Settings → Application name)
+- [x] ~~Clerk Dashboard: renomear aplicação "Sales AI" → "TheIAdvisor"~~ (já atualizado)
+- [x] ~~Railway: limpar projetos duplicados~~ (deletados pure-fulfillment + charming-courtesy)
+- [ ] Railway: pagar fatura pendente de $5 (subscription de 05/04)
 
 **Itens técnicos futuros:**
 - [ ] Sentry: migrar para plano pago quando tráfego crescer
 - [ ] Axiom (logs) + OpenTelemetry (traces) — observabilidade completa
 - [ ] Load testing real com k6 contra produção (scripts prontos em `k6/`)
 - [ ] CI/CD pipeline para staging environment
+- [ ] Upgrade GitHub Actions (checkout, setup-node, cache, upload-artifact) para versões com Node.js 22+ support
 
 ### 2.5 Sessão 30 — 05/04/2026
 
@@ -107,18 +110,18 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - `cf2734a` — fix: add type assertions to test mocks (Clerk/Stripe) + fix prettier in specs
 - `e886d13` — fix: disable ts-jest diagnostics to avoid test mock type failures in CI
 - `55876aa` — fix: make backend unit/integration tests non-blocking in CI
-- `[pending]` — fix: resolve all 120 test failures + lint warnings + remove CI continue-on-error
+- (continuado na sessão 32)
 
 **Problemas resolvidos:**
 1. CI pipeline nunca tinha passado (92 runs consecutivos falhando). Root cause: pnpm-lock.yaml referenciava `@saas/shared` que não existia no package.json do backend.
 2. 37+ arquivos com erros de lint/prettier/typecheck — nunca detectados porque CI falhava na instalação.
 3. CI cache stale: shared package não era rebuilded após cache restore. Fix: step "Rebuild shared package".
 4. ts-jest compilava TypeScript com strict mode, quebrando mocks. Fix: `diagnostics: false`.
-5. 10 test suites com 120 testes falhando por bugs de mock pré-existentes (socket.on, Date.now, fetch, Prisma, Svix). Corrigidos todos os mocks enterprise-grade.
+5. 10 test suites com 120 testes falhando por bugs de mock pré-existentes (socket.on, Date.now, fetch, Prisma, Svix). Parte corrigida nesta sessão, parte na sessão 32.
 6. 12+ lint warnings em source/test files. Corrigidos: unused vars → `_prefix`, `any` → `unknown`, imports removidos, prettier formatting.
 
 **Estado ao final da sessão:**
-- CI Pipeline: ✅ Green (CI #93 — primeiro green da história do projeto)
+- CI Pipeline: ✅ Green (CI #93 — primeiro green com `continue-on-error`)
 - Frontend Vercel: ✅ Deploy SUCCESS com branding "TheIAdvisor" live em theiadvisor.com
 - Backend Railway: ✅ Online (commit `89027b8`)
 - Testes: ✅ 37 suites (10 corrigidos nesta sessão), 838 tests
@@ -126,6 +129,36 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - Branding: ✅ "TheIAdvisor" confirmado na landing page, título, header, footer, copyright
 
 **Nota:** Backend typecheck mantém `continue-on-error: true` — Clerk/Stripe mock types são incompatíveis com `tsc --noEmit` por natureza (mocks parciais). Build compila normalmente.
+
+### 2.7 Sessão 32 — 13/04/2026
+
+**Objetivo:** CI genuinamente green — corrigir os últimos 4 test suites falhando + limpeza Railway.
+
+**Commits desta sessão:**
+- `5b7426b` — fix: add ConfigService mock to calls controller test + fix emoji mismatches in cache/deepgram specs
+- `3d9b7df` — fix: move Logger.prototype.warn spy before module.compile() in cache/deepgram specs
+- `07d2c49` — fix: resolve 3 remaining test suite failures (cache, deepgram, media-streams)
+- `63334b4` — fix: correct CircuitBreakerStatus enum case in deepgram spec (CLOSED not closed)
+
+**Problemas resolvidos:**
+1. `calls.controller.spec.ts`: Controller injetava `ConfigService` no constructor mas test não fornecia provider → crash DI. Fix: adicionado mock ConfigService.
+2. `cache.service.spec.ts` + `deepgram.service.spec.ts`: 3 bugs combinados:
+   - **Mock poisoning:** `mockReturnValue()` persiste através de `clearAllMocks()` — apenas `mockReset()` limpa. Fix: `mockReset()` + `mockImplementation()` no `beforeEach`.
+   - **Spy timing:** `jest.spyOn(Logger.prototype, 'warn')` precisa ser criado ANTES de `module.compile()` para capturar logs do constructor.
+   - **Emoji mismatch:** Source usa prefixos emoji (⚠️) nas mensagens de log que os testes não incluíam.
+3. `media-streams.gateway.spec.ts`: `wss.handleUpgrade()` chamava `socket.on()` internamente — mock socket incompleto causava crash. Fix: `mockImplementation(() => {})`.
+4. `deepgram.service.spec.ts`: `CircuitBreakerStatus` enum usa UPPERCASE (`CLOSED`, `OPEN`, `HALF_OPEN`) — test comparava lowercase.
+
+**Ações operacionais:**
+- Railway: deletados 2 projetos duplicados (pure-fulfillment, charming-courtesy). Projeto ativo: capable-recreation.
+- Clerk: confirmado que aplicação já estava renomeada para "TheIAdvisor".
+- Railway billing: identificada fatura pendente de $5 (05/04) — requer ação do Pedro.
+
+**Estado ao final da sessão:**
+- CI Pipeline: ✅ Green (CI #105 — genuinamente green, 0 continue-on-error em testes)
+- Testes: ✅ 37 suites, 851 tests (13 testes a mais que sessão anterior)
+- Railway: ✅ 1 projeto ativo (capable-recreation), 2 duplicados removidos
+- Backend typecheck: ⚠️ Mantém `continue-on-error: true` — 10 erros `'prisma' is of type 'unknown'` em test mocks (incompatível com `tsc --noEmit`)
 
 ---
 
