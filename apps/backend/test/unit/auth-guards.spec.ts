@@ -648,7 +648,8 @@ describe('Auth Guards Integration', () => {
 
     (mockReflector.getAllAndOverride as jest.Mock)
       .mockReturnValueOnce(false) // AuthGuard: not public
-      .mockReturnValueOnce([UserRole.ADMIN]); // RolesGuard: requires ADMIN
+      .mockReturnValueOnce([UserRole.ADMIN]) // RolesGuard: requires ADMIN
+      .mockReturnValueOnce(false); // TenantGuard: not public
     (mockClerkStrategy.validate as jest.Mock).mockResolvedValue(user);
 
     // 1. AuthGuard authenticates
@@ -683,8 +684,9 @@ describe('Auth Guards Integration', () => {
     const context = createMockExecutionContext(request);
 
     (mockReflector.getAllAndOverride as jest.Mock)
-      .mockReturnValueOnce(false)
-      .mockReturnValueOnce([UserRole.MANAGER, UserRole.ADMIN]);
+      .mockReturnValueOnce(false) // AuthGuard: not public
+      .mockReturnValueOnce([UserRole.MANAGER, UserRole.ADMIN]) // RolesGuard
+      .mockReturnValueOnce(false); // TenantGuard: not public
     (mockClerkStrategy.validate as jest.Mock).mockResolvedValue(user);
 
     // Execute guard chain

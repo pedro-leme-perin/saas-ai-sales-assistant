@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { WhatsappController } from '../../src/modules/whatsapp/whatsapp.controller';
 import { WhatsappService } from '../../src/modules/whatsapp/whatsapp.service';
 
@@ -68,7 +69,10 @@ describe('WhatsappController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WhatsappController],
-      providers: [{ provide: WhatsappService, useValue: whatsappService }],
+      providers: [
+        { provide: WhatsappService, useValue: whatsappService },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
     }).compile();
 
     controller = module.get<WhatsappController>(WhatsappController);

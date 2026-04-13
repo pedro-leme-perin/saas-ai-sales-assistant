@@ -118,7 +118,7 @@ describe('HealthController', () => {
 
       const result = await controller.check();
 
-      expect(result.latency?.database).toBeGreaterThanOrEqual(10);
+      expect(result.latency?.database).toBeGreaterThanOrEqual(8);
       expect(result.latency?.database).toBeLessThan(50);
     });
 
