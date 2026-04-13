@@ -8,10 +8,8 @@ import {
   Res,
   HttpCode,
   Request,
-  Headers,
   Logger,
   UseGuards,
-  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
