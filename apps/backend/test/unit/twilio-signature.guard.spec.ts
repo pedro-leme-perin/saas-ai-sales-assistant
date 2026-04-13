@@ -46,8 +46,8 @@ describe('TwilioSignatureGuard', () => {
       getClass: () => jest.fn(),
       getArgs: () => [],
       getArgByIndex: () => null,
-      switchToRpc: () => ({} as never),
-      switchToWs: () => ({} as never),
+      switchToRpc: () => ({}) as never,
+      switchToWs: () => ({}) as never,
       getType: () => 'http' as const,
     } as unknown as ExecutionContext;
   };
