@@ -108,49 +108,8 @@ describe('AuthGuard', () => {
   });
 
   describe('canActivate', () => {
-    it('should allow access to /health endpoint without authentication', async () => {
-      const context = createMockExecutionContext(createMockRequest({ path: '/health' }));
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-
-      const result = await guard.canActivate(context);
-
-      expect(result).toBe(true);
-      expect(mockClerkStrategy.validate).not.toHaveBeenCalled();
-    });
-
-    it('should allow access to whatsapp/webhook endpoint without authentication', async () => {
-      const context = createMockExecutionContext(
-        createMockRequest({ path: '/webhook/whatsapp/webhook' }),
-      );
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-
-      const result = await guard.canActivate(context);
-
-      expect(result).toBe(true);
-      expect(mockClerkStrategy.validate).not.toHaveBeenCalled();
-    });
-
-    it('should allow access to billing/webhook endpoint without authentication', async () => {
-      const context = createMockExecutionContext(
-        createMockRequest({ path: '/webhook/billing/webhook' }),
-      );
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-
-      const result = await guard.canActivate(context);
-
-      expect(result).toBe(true);
-      expect(mockClerkStrategy.validate).not.toHaveBeenCalled();
-    });
-
-    it('should allow access to webhooks/clerk endpoint without authentication', async () => {
-      const context = createMockExecutionContext(createMockRequest({ path: '/webhooks/clerk' }));
-      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-
-      const result = await guard.canActivate(context);
-
-      expect(result).toBe(true);
-      expect(mockClerkStrategy.validate).not.toHaveBeenCalled();
-    });
+    // AuthGuard uses @Public() decorator exclusively — no path-based whitelist (sessão 33)
+    // /health, webhooks, etc. must use @Public() on the controller/method
 
     it('should allow access when @Public() decorator is applied', async () => {
       const context = createMockExecutionContext(
@@ -162,6 +121,40 @@ describe('AuthGuard', () => {
 
       expect(result).toBe(true);
       expect(mockClerkStrategy.validate).not.toHaveBeenCalled();
+    });
+
+    it('should allow @Public() health endpoint without authentication', async () => {
+      const context = createMockExecutionContext(createMockRequest({ path: '/health' }));
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(true);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockClerkStrategy.validate).not.toHaveBeenCalled();
+    });
+
+    it('should allow @Public() webhook endpoints without authentication', async () => {
+      const context = createMockExecutionContext(
+        createMockRequest({ path: '/webhook/whatsapp/webhook' }),
+      );
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(true);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockClerkStrategy.validate).not.toHaveBeenCalled();
+    });
+
+    it('should require auth on non-@Public() endpoints regardless of path', async () => {
+      const user = createAuthUser();
+      const context = createMockExecutionContext(createMockRequest({ path: '/health' }));
+      (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
+      (mockClerkStrategy.validate as jest.Mock).mockResolvedValue(user);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockClerkStrategy.validate).toHaveBeenCalled();
     });
 
     it('should authenticate user and attach to request on valid token', async () => {
@@ -200,15 +193,18 @@ describe('AuthGuard', () => {
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should use url fallback when path is not set', async () => {
+    it('should authenticate when path is not set and endpoint is not @Public()', async () => {
+      const user = createAuthUser();
       const request = createMockRequest({ path: undefined, url: '/health' });
       const context = createMockExecutionContext(request);
 
       (mockReflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
+      (mockClerkStrategy.validate as jest.Mock).mockResolvedValue(user);
 
       const result = await guard.canActivate(context);
 
       expect(result).toBe(true);
+      expect(mockClerkStrategy.validate).toHaveBeenCalled();
     });
 
     it('should handle empty path and url gracefully', async () => {
