@@ -305,9 +305,9 @@ describe('BillingService', () => {
     it('should throw NotFoundException when no active subscription', async () => {
       mockPrismaService.subscription.findFirst.mockResolvedValue(null);
 
-      await expect(service.cancelSubscription('company-123', mockUser as unknown as AuthenticatedUser)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.cancelSubscription('company-123', mockUser as unknown as AuthenticatedUser),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should cancel subscription and create audit log', async () => {
