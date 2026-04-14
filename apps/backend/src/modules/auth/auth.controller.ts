@@ -53,6 +53,7 @@ export class AuthController {
         id: user.company.id,
         name: user.company.name,
         plan: user.company.plan,
+        settings: user.company.settings,
       },
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

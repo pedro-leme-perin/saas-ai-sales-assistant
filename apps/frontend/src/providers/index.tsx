@@ -137,8 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCompany(user.company);
 
           // Redirect to onboarding if not completed
-          const metadata = user.company.metadata;
-          const isOnboarded = metadata?.onboarded === true;
+          // Schema: Company.settings (Json) holds onboarded flag — NOT metadata
+          const settings = user.company.settings as { onboarded?: boolean } | undefined;
+          const isOnboarded = settings?.onboarded === true;
           if (!isOnboarded && !pathname.startsWith('/onboarding')) {
             router.push('/onboarding');
           }
