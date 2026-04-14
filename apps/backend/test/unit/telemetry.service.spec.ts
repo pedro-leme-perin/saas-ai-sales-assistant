@@ -65,12 +65,7 @@ const otelMock = jest.requireMock('@opentelemetry/api') as {
   };
   trace: { getActiveSpan: jest.Mock };
 };
-const {
-  mockCounterAdd,
-  mockHistogramRecord,
-  mockUpDownCounterAdd,
-  mockSpan,
-} = otelMock.__mocks;
+const { mockCounterAdd, mockHistogramRecord, mockUpDownCounterAdd, mockSpan } = otelMock.__mocks;
 
 describe('TelemetryService', () => {
   let service: TelemetryService;

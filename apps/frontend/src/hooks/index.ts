@@ -23,13 +23,13 @@ export function useWebSocket(userId: string | undefined, companyId: string | und
       setIsConnected(wsClient.isConnected);
     }, 1000);
 
-    // Subscribe to events
-    const unsubSuggestion = wsClient.on('ai:suggestion', (data: WSAISuggestion) => {
-      addSuggestion(data.suggestion);
+    // Subscribe to events (using any due to Socket.io's variadic callback signature)
+    const unsubSuggestion = wsClient.on('ai:suggestion', (data: any) => {
+      addSuggestion((data as WSAISuggestion).suggestion);
     });
 
-    const unsubNotification = wsClient.on('notification', (data: WSNotification) => {
-      addNotification(data.notification);
+    const unsubNotification = wsClient.on('notification', (data: any) => {
+      addNotification((data as WSNotification).notification);
     });
 
     return () => {

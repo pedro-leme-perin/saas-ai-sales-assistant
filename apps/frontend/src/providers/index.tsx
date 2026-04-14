@@ -151,16 +151,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user && user.companyId) {
           wsClient.connect(user.id, user.companyId);
 
-          wsClient.onNotification((data: unknown) => {
-            const d = data as { notification?: Parameters<typeof addNotification>[0] } & Parameters<typeof addNotification>[0];
-            addNotification(d.notification || d);
+          wsClient.onNotification((data: any) => {
+            addNotification(data.notification || data);
           });
 
-          wsClient.onAISuggestion((data: unknown) => {
-            const d = data as Parameters<typeof addSuggestion>[0] & { transcript?: string };
-            addSuggestion(d);
-            if (d.transcript) {
-              addTranscriptEntry({ text: d.transcript, speaker: 'customer' });
+          wsClient.onAISuggestion((data: any) => {
+            addSuggestion(data.suggestion || data);
+            if (data.transcript) {
+              addTranscriptEntry({ text: data.transcript, speaker: 'customer' });
             }
           });
         }
