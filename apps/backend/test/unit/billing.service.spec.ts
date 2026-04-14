@@ -3,6 +3,12 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BillingService } from '../../src/modules/billing/billing.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
+import type { Plan } from '@prisma/client';
+import type Stripe from 'stripe';
+import type { AuthenticatedUser } from '../../src/common/decorators';
+
+// Transaction callback type for Prisma $transaction mocks
+type TxCallback<T> = (tx: unknown) => Promise<T> | T;
 
 jest.setTimeout(15000);
 
@@ -206,7 +212,7 @@ describe('BillingService', () => {
       mockPrismaService.company.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.createCheckoutSession('STARTER' as any, 'invalid-id', mockUser as any),
+        service.createCheckoutSession('STARTER' as Plan, 'invalid-id', mockUser as unknown as AuthenticatedUser),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -214,9 +220,9 @@ describe('BillingService', () => {
       mockPrismaService.company.findUnique.mockResolvedValue(mockCompany);
 
       const result = await service.createCheckoutSession(
-        'PROFESSIONAL' as any,
+        'PROFESSIONAL' as Plan,
         'company-123',
-        mockUser as any,
+        mockUser as unknown as AuthenticatedUser,
       );
 
       expect(result.url).toContain('mock=true');
@@ -239,7 +245,7 @@ describe('BillingService', () => {
       mockPrismaService.company.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.changePlan('PROFESSIONAL' as any, 'invalid-id', mockUser as any),
+        service.changePlan('PROFESSIONAL' as Plan, 'invalid-id', mockUser as unknown as AuthenticatedUser),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -247,13 +253,13 @@ describe('BillingService', () => {
       mockPrismaService.company.findUnique.mockResolvedValue(mockCompany);
 
       await expect(
-        service.changePlan('STARTER' as any, 'company-123', mockUser as any),
+        service.changePlan('STARTER' as Plan, 'company-123', mockUser as unknown as AuthenticatedUser),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should change plan and create audit log', async () => {
       mockPrismaService.company.findUnique.mockResolvedValue(mockCompany);
-      mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
+      mockPrismaService.$transaction.mockImplementation(async (cb: TxCallback<unknown>) => {
         const tx = {
           company: { update: jest.fn() },
           auditLog: { create: jest.fn() },
@@ -262,9 +268,9 @@ describe('BillingService', () => {
       });
 
       const result = await service.changePlan(
-        'PROFESSIONAL' as any,
+        'PROFESSIONAL' as Plan,
         'company-123',
-        mockUser as any,
+        mockUser as unknown as AuthenticatedUser,
       );
 
       expect(result.success).toBe(true);
@@ -287,14 +293,14 @@ describe('BillingService', () => {
     it('should throw NotFoundException when no active subscription', async () => {
       mockPrismaService.subscription.findFirst.mockResolvedValue(null);
 
-      await expect(service.cancelSubscription('company-123', mockUser as any)).rejects.toThrow(
+      await expect(service.cancelSubscription('company-123', mockUser as unknown as AuthenticatedUser)).rejects.toThrow(
         NotFoundException,
       );
     });
 
     it('should cancel subscription and create audit log', async () => {
       mockPrismaService.subscription.findFirst.mockResolvedValue(mockSubscription);
-      mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
+      mockPrismaService.$transaction.mockImplementation(async (cb: TxCallback<unknown>) => {
         const tx = {
           subscription: { update: jest.fn() },
           auditLog: { create: jest.fn() },
@@ -302,7 +308,7 @@ describe('BillingService', () => {
         return cb(tx);
       });
 
-      const result = await service.cancelSubscription('company-123', mockUser as any);
+      const result = await service.cancelSubscription('company-123', mockUser as unknown as AuthenticatedUser);
 
       expect(result.success).toBe(true);
       expect(result.cancelAtPeriodEnd).toBe(true);
@@ -381,7 +387,7 @@ describe('BillingService', () => {
 
     it('should create subscription and update company', async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue(null);
-      mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
+      mockPrismaService.$transaction.mockImplementation(async (cb: TxCallback<unknown>) => {
         const tx = {
           subscription: { create: jest.fn() },
           company: { update: jest.fn() },
@@ -411,7 +417,7 @@ describe('BillingService', () => {
     it('should skip when subscription not found', async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue(null);
 
-      await service.handleSubscriptionUpdated(stripeSubPayload as any);
+      await service.handleSubscriptionUpdated(stripeSubPayload as unknown as Stripe.Subscription);
 
       expect(mockPrismaService.subscription.update).not.toHaveBeenCalled();
     });
@@ -420,7 +426,7 @@ describe('BillingService', () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue(mockSubscription);
       mockPrismaService.subscription.update.mockResolvedValue({});
 
-      await service.handleSubscriptionUpdated(stripeSubPayload as any);
+      await service.handleSubscriptionUpdated(stripeSubPayload as unknown as Stripe.Subscription);
 
       expect(mockPrismaService.subscription.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -438,14 +444,14 @@ describe('BillingService', () => {
     it('should skip when subscription not found', async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue(null);
 
-      await service.handleSubscriptionDeleted({ id: 'sub_unknown' } as any);
+      await service.handleSubscriptionDeleted({ id: 'sub_unknown' } as unknown as Stripe.Subscription);
 
       expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
     it('should cancel subscription and reset company to STARTER', async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue(mockSubscription);
-      mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
+      mockPrismaService.$transaction.mockImplementation(async (cb: TxCallback<unknown>) => {
         const tx = {
           subscription: { update: jest.fn() },
           company: { update: jest.fn() },
@@ -453,7 +459,7 @@ describe('BillingService', () => {
         return cb(tx);
       });
 
-      await service.handleSubscriptionDeleted({ id: 'sub_stripe123' } as any);
+      await service.handleSubscriptionDeleted({ id: 'sub_stripe123' } as unknown as Stripe.Subscription);
 
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
