@@ -106,7 +106,7 @@ class WebSocketClient {
     }
   }
 
-  emit(event: string, data: unknown) {
+  emit(event: string, data: any) {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
     }
@@ -137,22 +137,22 @@ class WebSocketClient {
   // =====================================================
 
   // Backend emits: 'ai:suggestion'
-  onAISuggestion(callback: (suggestion: unknown) => void) {
+  onAISuggestion(callback: (suggestion: any) => void) {
     return this.on('ai:suggestion', callback);
   }
 
   // Backend emits: 'call:status'
-  onCallStatusUpdate(callback: (call: unknown) => void) {
+  onCallStatusUpdate(callback: (call: any) => void) {
     return this.on('call:status', callback);
   }
 
   // Backend emits: 'whatsapp:message'
-  onWhatsAppMessage(callback: (message: unknown) => void) {
+  onWhatsAppMessage(callback: (message: any) => void) {
     return this.on('whatsapp:message', callback);
   }
 
   // Backend emits: 'notification'
-  onNotification(callback: (notification: unknown) => void) {
+  onNotification(callback: (notification: any) => void) {
     return this.on('notification', callback);
   }
 
