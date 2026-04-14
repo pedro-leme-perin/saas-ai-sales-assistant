@@ -236,9 +236,9 @@ describe('WhatsappService', () => {
     it('should throw NotFoundException when chat does not exist', async () => {
       mockPrismaService.whatsappChat.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.generateSuggestionForChat('invalid-id', 'company-123'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.generateSuggestionForChat('invalid-id', 'company-123')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

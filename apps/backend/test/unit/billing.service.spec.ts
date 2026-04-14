@@ -212,7 +212,11 @@ describe('BillingService', () => {
       mockPrismaService.company.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.createCheckoutSession('STARTER' as Plan, 'invalid-id', mockUser as unknown as AuthenticatedUser),
+        service.createCheckoutSession(
+          'STARTER' as Plan,
+          'invalid-id',
+          mockUser as unknown as AuthenticatedUser,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -245,7 +249,11 @@ describe('BillingService', () => {
       mockPrismaService.company.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.changePlan('PROFESSIONAL' as Plan, 'invalid-id', mockUser as unknown as AuthenticatedUser),
+        service.changePlan(
+          'PROFESSIONAL' as Plan,
+          'invalid-id',
+          mockUser as unknown as AuthenticatedUser,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -253,7 +261,11 @@ describe('BillingService', () => {
       mockPrismaService.company.findUnique.mockResolvedValue(mockCompany);
 
       await expect(
-        service.changePlan('STARTER' as Plan, 'company-123', mockUser as unknown as AuthenticatedUser),
+        service.changePlan(
+          'STARTER' as Plan,
+          'company-123',
+          mockUser as unknown as AuthenticatedUser,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -308,7 +320,10 @@ describe('BillingService', () => {
         return cb(tx);
       });
 
-      const result = await service.cancelSubscription('company-123', mockUser as unknown as AuthenticatedUser);
+      const result = await service.cancelSubscription(
+        'company-123',
+        mockUser as unknown as AuthenticatedUser,
+      );
 
       expect(result.success).toBe(true);
       expect(result.cancelAtPeriodEnd).toBe(true);
@@ -444,7 +459,9 @@ describe('BillingService', () => {
     it('should skip when subscription not found', async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue(null);
 
-      await service.handleSubscriptionDeleted({ id: 'sub_unknown' } as unknown as Stripe.Subscription);
+      await service.handleSubscriptionDeleted({
+        id: 'sub_unknown',
+      } as unknown as Stripe.Subscription);
 
       expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
@@ -459,7 +476,9 @@ describe('BillingService', () => {
         return cb(tx);
       });
 
-      await service.handleSubscriptionDeleted({ id: 'sub_stripe123' } as unknown as Stripe.Subscription);
+      await service.handleSubscriptionDeleted({
+        id: 'sub_stripe123',
+      } as unknown as Stripe.Subscription);
 
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
