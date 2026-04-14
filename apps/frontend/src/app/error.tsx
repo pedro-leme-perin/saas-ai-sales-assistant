@@ -43,9 +43,10 @@ export default function Error({
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={reset}
+            aria-label="Tentar novamente"
             className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
-            <RefreshCw className="h-4 w-4" /> Tentar novamente
+            <RefreshCw className="h-4 w-4" aria-hidden="true" /> Tentar novamente
           </button>
           <Link href="/dashboard"
             className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"

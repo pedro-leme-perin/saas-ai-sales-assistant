@@ -89,7 +89,14 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
 
     const key = `rate:company:${user.companyId}:${tier}`;
 
-    const result = await this.cacheService.checkRateLimit(key, maxRequests, DEFAULT_WINDOW_SECONDS);
+    let result: { allowed: boolean; remaining?: number; resetAt?: number };
+    try {
+      result = await this.cacheService.checkRateLimit(key, maxRequests, DEFAULT_WINDOW_SECONDS);
+    } catch (error) {
+      // Fail-open: allow request if cache is unavailable (Release It! — Bulkhead)
+      this.guardLogger.warn(`Rate limit check failed, allowing request: ${error}`);
+      return true;
+    }
 
     if (!result.allowed) {
       this.guardLogger.warn(

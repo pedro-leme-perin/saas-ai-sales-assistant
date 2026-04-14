@@ -29,8 +29,6 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: [
       'lucide-react',
-      'recharts',
-      'framer-motion',
       '@radix-ui/react-dialog',
       '@radix-ui/react-dropdown-menu',
       '@radix-ui/react-popover',

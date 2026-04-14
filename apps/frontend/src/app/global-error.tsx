@@ -26,6 +26,7 @@ export default function GlobalError({
           </p>
           <button
             onClick={reset}
+            aria-label="Tentar novamente"
             style={{ padding: '0.5rem 1.5rem', borderRadius: '0.5rem', border: '1px solid #ddd', cursor: 'pointer', background: '#000', color: '#fff' }}
           >
             Tentar novamente

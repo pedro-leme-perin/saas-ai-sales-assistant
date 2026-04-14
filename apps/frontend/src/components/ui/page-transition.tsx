@@ -1,44 +1,42 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 8,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-  },
-  exit: {
-    opacity: 0,
-    y: -8,
-  },
-};
-
-const pageTransition = {
-  type: 'tween',
-  ease: 'easeInOut',
-  duration: 0.2,
-};
-
+/**
+ * CSS-based page transition — replaces framer-motion (~180KB) with pure CSS animations.
+ * Animates opacity + translateY on route change (0.2s ease-in-out).
+ */
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    setIsAnimating(true);
+    const timer = setTimeout(() => setIsAnimating(false), 200);
+    return () => clearTimeout(timer);
+  }, [pathname]);
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={pathname}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={pageVariants}
-        transition={pageTransition}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <div
+      className={isAnimating ? 'animate-fade-in-up' : ''}
+      style={{
+        animation: isAnimating ? 'fadeInUp 0.2s ease-in-out' : 'none',
+      }}
+    >
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+      {children}
+    </div>
   );
 }

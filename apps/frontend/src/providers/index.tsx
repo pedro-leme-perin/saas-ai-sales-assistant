@@ -1,8 +1,19 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
+
+const ReactQueryDevtools =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(
+        () =>
+          import('@tanstack/react-query-devtools').then((m) => ({
+            default: m.ReactQueryDevtools,
+          })),
+        { ssr: false },
+      )
+    : null;
 import { useAuth } from '@clerk/nextjs';
 import { usePathname, useRouter } from 'next/navigation';
 import { Toaster } from 'sonner';
@@ -83,7 +94,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         {children}
       </ThemeProvider>
       <Toaster position="top-right" richColors closeButton />
-      <ReactQueryDevtools initialIsOpen={false} />
+      {ReactQueryDevtools && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
 }

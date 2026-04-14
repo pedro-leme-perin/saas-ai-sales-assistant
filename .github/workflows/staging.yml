@@ -44,7 +44,7 @@ jobs:
       name: staging
       url: ${{ steps.deploy.outputs.url }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Install Railway CLI
         run: |
@@ -93,11 +93,11 @@ jobs:
       name: preview
       url: ${{ steps.deploy.outputs.url }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -139,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-backend, deploy-frontend]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Health check — Backend
         run: |

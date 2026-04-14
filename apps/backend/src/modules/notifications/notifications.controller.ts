@@ -24,7 +24,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService, CreateNotificationDto } from './notifications.service';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { AuthGuard } from '@modules/auth/guards/auth.guard';
@@ -55,6 +55,8 @@ export class NotificationsController {
   @Post()
   @ApiOperation({ summary: 'Create a new notification' })
   @ApiResponse({ status: 201, description: 'Notification created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid notification data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async create(@Body() createDto: CreateNotificationDto, @Request() req: AuthenticatedRequest) {
     const userId = req.user?.id || createDto.userId;
     const companyId = req.user?.companyId || createDto.companyId;
@@ -72,6 +74,7 @@ export class NotificationsController {
   @Get()
   @ApiOperation({ summary: 'Get all notifications for authenticated user' })
   @ApiResponse({ status: 200, description: 'Returns paginated notifications' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAll(@Query() pagination: PaginationDto, @Request() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
@@ -107,6 +110,8 @@ export class NotificationsController {
   @Patch(':id/read')
   @ApiOperation({ summary: 'Mark a notification as read' })
   @ApiResponse({ status: 200, description: 'Notification marked as read' })
+  @ApiResponse({ status: 404, description: 'Notification not found' })
+  @ApiParam({ name: 'id', description: 'Notification ID' })
   async markAsRead(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
@@ -143,6 +148,8 @@ export class NotificationsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a notification' })
   @ApiResponse({ status: 200, description: 'Notification deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Notification not found' })
+  @ApiParam({ name: 'id', description: 'Notification ID' })
   async delete(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     // ✅ Extract user context
     const userId = req.user?.id;
