@@ -20,8 +20,5 @@ export function promiseAllWithTimeout<T extends readonly unknown[]>(
     setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs),
   );
 
-  return Promise.race([
-    Promise.all(promises) as Promise<[...T]>,
-    timeout,
-  ]);
+  return Promise.race([Promise.all(promises) as Promise<[...T]>, timeout]);
 }
