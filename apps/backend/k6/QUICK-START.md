@@ -4,11 +4,29 @@
 
 Your `k6/` directory now contains:
 
-1. **load-test.js** — Standard load test (4 min, validates 500ms SLO)
-2. **stress-test.js** — Stress test (10 min, finds breaking points)
-3. **ai-latency-test.js** — AI-specific test (5 min, validates 2s SLO)
-4. **run-tests.sh** — Interactive helper script
-5. **README.md** — Detailed documentation
+1. **baseline-test.js** — Quick baseline (3 min, 20 VUs, prod-safe) ⭐ start here
+2. **load-test.js** — Standard load test (4 min, validates 500ms SLO)
+3. **stress-test.js** — Stress test (10 min, finds breaking points)
+4. **ai-latency-test.js** — AI-specific test (5 min, validates 2s SLO)
+5. **run-tests.sh** — Interactive helper script
+6. **.env.example** — Environment config template
+7. **README.md** — Detailed documentation
+
+## Production Baseline (RECOMMENDED FIRST RUN)
+
+```bash
+# 1. Get a Clerk JWT — open https://theiadvisor.com, DevTools console:
+#    await window.Clerk.session.getToken()
+# 2. Export env vars:
+export BASE_URL=https://api.theiadvisor.com
+export AUTH_TOKEN="Bearer eyJ..."
+
+# 3. Run baseline (3 min, 20 VUs — safe for production)
+cd apps/backend
+k6 run k6/baseline-test.js --out json=k6/results/baseline-$(date +%F).json
+```
+
+Expected SLO compliance: API p95 < 500ms, error < 0.1%.
 
 ## Installation (1 minute)
 

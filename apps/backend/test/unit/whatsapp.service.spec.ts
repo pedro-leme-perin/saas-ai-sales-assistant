@@ -168,4 +168,121 @@ describe('WhatsappService', () => {
       ).rejects.toThrow('Twilio not configured');
     });
   });
+
+  describe('generateSuggestionForChat', () => {
+    it('should return greeting suggestion when no incoming messages exist', async () => {
+      mockPrismaService.whatsappChat.findFirst.mockResolvedValue(mockChat);
+      mockPrismaService.whatsappMessage.findMany.mockResolvedValue([]);
+
+      const result = await service.generateSuggestionForChat('chat-123', 'company-123');
+
+      expect(result.type).toBe('general');
+      expect(result.context).toBe('whatsapp');
+      expect(result.suggestion).toContain('Inicie a conversa');
+      expect(result.confidence).toBeGreaterThan(0);
+      expect(mockAiService.generateSuggestion).not.toHaveBeenCalled();
+    });
+
+    it('should call AI service with last customer message and conversation history', async () => {
+      const messages = [
+        { direction: 'INCOMING', content: 'Olá, tudo bem?' },
+        { direction: 'OUTGOING', content: 'Oi! Como posso ajudar?' },
+        { direction: 'INCOMING', content: 'Quanto custa o plano?' },
+      ];
+      mockPrismaService.whatsappChat.findFirst.mockResolvedValue(mockChat);
+      mockPrismaService.whatsappMessage.findMany.mockResolvedValue(messages);
+      mockAiService.generateSuggestion.mockResolvedValue({
+        text: 'Temos 3 planos: R$97, R$297 e R$697.',
+        confidence: 0.92,
+        provider: 'openai',
+      });
+
+      const result = await service.generateSuggestionForChat('chat-123', 'company-123');
+
+      expect(mockAiService.generateSuggestion).toHaveBeenCalledWith(
+        'Quanto custa o plano?',
+        expect.objectContaining({
+          conversationHistory: expect.stringContaining('Cliente: Olá, tudo bem?'),
+          customerSentiment: 'neutral',
+        }),
+      );
+      expect(result.suggestion).toBe('Temos 3 planos: R$97, R$297 e R$697.');
+      expect(result.provider).toBe('openai');
+      expect(result.confidence).toBe(0.92);
+    });
+
+    it('should use only last 10 messages as context', async () => {
+      const messages = Array.from({ length: 15 }, (_, i) => ({
+        direction: i % 2 === 0 ? 'INCOMING' : 'OUTGOING',
+        content: `message ${i}`,
+      }));
+      mockPrismaService.whatsappChat.findFirst.mockResolvedValue(mockChat);
+      mockPrismaService.whatsappMessage.findMany.mockResolvedValue(messages);
+      mockAiService.generateSuggestion.mockResolvedValue({
+        text: 'OK',
+        confidence: 0.8,
+        provider: 'openai',
+      });
+
+      await service.generateSuggestionForChat('chat-123', 'company-123');
+
+      const context = mockAiService.generateSuggestion.mock.calls[0][1];
+      // Should include messages 5..14 (last 10), not 0..4
+      expect(context.conversationHistory).toContain('message 5');
+      expect(context.conversationHistory).toContain('message 14');
+      expect(context.conversationHistory).not.toContain('message 4');
+    });
+
+    it('should throw NotFoundException when chat does not exist', async () => {
+      mockPrismaService.whatsappChat.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.generateSuggestionForChat('invalid-id', 'company-123'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('markAsRead', () => {
+    it('should reset unreadCount to zero', async () => {
+      mockPrismaService.whatsappChat.findFirst.mockResolvedValue({
+        ...mockChat,
+        unreadCount: 5,
+      });
+      mockPrismaService.whatsappChat.update.mockResolvedValue({
+        ...mockChat,
+        unreadCount: 0,
+      });
+
+      const result = await service.markAsRead('chat-123', 'company-123');
+
+      expect(mockPrismaService.whatsappChat.update).toHaveBeenCalledWith({
+        where: { id: 'chat-123' },
+        data: { unreadCount: 0 },
+      });
+      expect(result.unreadCount).toBe(0);
+    });
+
+    it('should throw NotFoundException when chat does not exist', async () => {
+      mockPrismaService.whatsappChat.findFirst.mockResolvedValue(null);
+
+      await expect(service.markAsRead('invalid-id', 'company-123')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockPrismaService.whatsappChat.update).not.toHaveBeenCalled();
+    });
+
+    it('should validate chat belongs to company (tenant isolation)', async () => {
+      mockPrismaService.whatsappChat.findFirst.mockResolvedValue(null);
+
+      await expect(service.markAsRead('chat-123', 'wrong-company')).rejects.toThrow(
+        NotFoundException,
+      );
+      // findFirst must be called with companyId in where clause
+      expect(mockPrismaService.whatsappChat.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ companyId: 'wrong-company' }),
+        }),
+      );
+    });
+  });
 });
