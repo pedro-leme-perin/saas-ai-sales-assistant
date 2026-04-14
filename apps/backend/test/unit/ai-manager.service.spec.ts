@@ -88,11 +88,11 @@ describe('AIManagerService', () => {
   });
 
   describe('generateSuggestion', () => {
-    let mockProvider: jest.Mocked<AIProvider>;
+    let _mockProvider: jest.Mocked<AIProvider>;
     let mockBreaker: jest.Mocked<CircuitBreaker>;
 
     beforeEach(() => {
-      mockProvider = {
+      _mockProvider = {
         generateSuggestion: jest.fn(),
         analyzeConversation: jest.fn(),
         healthCheck: jest.fn(),

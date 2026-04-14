@@ -15,7 +15,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   metrics,
   trace,
-  context,
   SpanKind,
   SpanStatusCode,
   type Span,

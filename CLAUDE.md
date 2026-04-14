@@ -22,14 +22,14 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 13/04/2026 (sessão 36)
+> Última atualização: 13/04/2026 (sessão 37)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | `c97edcd` (13/04/2026) | CI green — test fixes (session 36) |
+| Último commit | `457d012` (13/04/2026) | CI green — resilience hardening + lint cleanup (session 37) |
 | Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
@@ -43,7 +43,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
 | CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview deploys + smoke tests) |
-| Testes | ✅ 46 suites + k6 | 37 backend + 9 E2E + 3 k6 load tests, ~853 tests, CI #118 ✅ |
+| Testes | ✅ 46 suites + k6 | 37 backend + 9 E2E + 3 k6 load tests, ~853 tests, CI #121 ✅ |
 | Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP, 16 traces verificados |
 
 ### 2.2 Infraestrutura de Produção
@@ -344,6 +344,37 @@ Sessão 33 fez 5 mudanças de código fonte (CacheService dependency, SQL aggreg
 - CI Pipeline: ✅ Green (CI #118 — commit `c97edcd`, 3m01s, zero failures)
 - Testes: ✅ 37 suites backend, ~853 tests, zero continue-on-error
 - CI Runs na sessão: #114 ❌ → #115 ❌ → #116 ❌ → #117 ❌ → #118 ✅
+
+### 2.12 Sessão 37 — 13/04/2026
+
+**Objetivo:** Resilience hardening completo + lint cleanup (zero warnings).
+
+**Commits desta sessão (6 commits):**
+- `0b926cc` — resilience: timing-safe token comparison, Deepgram session leak fix, promiseAllWithTimeout, error logging, composite index
+- `b012418` — docs: update CLAUDE.md with session 36 details
+- `c359968` — fix: use tuple-preserving generics in promiseAllWithTimeout for mixed-type arrays
+- `457d012` — fix: prettier formatting in promiseAllWithTimeout (single-line array)
+- (pending) — lint: fix 15 CI warnings (unused vars, `any` types, unused imports)
+
+**Resilience hardening (8 melhorias):**
+1. **Timing-safe token comparison (WhatsApp webhook):** `token === verifyToken` → `crypto.timingSafeEqual()` — previne timing attacks na verificação de webhook.
+2. **Deepgram session leak fix:** Adicionado `cleanupClientSessions()` no `media-streams.gateway.ts` — fecha sessões Deepgram e salva transcrições parciais em disconnect/error. Previne WebSocket connection leaks (*Release It!* — Steady State).
+3. **`promiseAllWithTimeout` utility:** Novo arquivo `common/resilience/promise-timeout.ts` — wraps `Promise.all` com timeout configurável (*Release It!* — "Never wait forever"). Tuple-preserving generics para arrays de tipos mistos.
+4. **Timeout em 4 services:** `analytics.service` (15s), `calls.service` (15s), `billing.service` (15s), `companies.service` (15s) — todos `Promise.all` agora têm timeout.
+5. **Error logging em silent catches:** 4 `catch {}` blocks no `deepgram.service.ts` agora logam warnings (buffer flush, JSON parse, send, close).
+6. **Composite index `[companyId, sentiment]`:** Adicionado em `Call` model para queries de sentiment analytics.
+
+**Lint cleanup (15 warnings → 0):**
+- `auth.service.spec.ts`: `prisma`/`cache` unused → `_prisma`/`_cache`; 18× `as any` → `as unknown as Record<string, unknown>`
+- `auth-guards.spec.ts`: `MockExecutionContext` interface removida; `handlerMetadata`/`classMetadata` → `_handlerMetadata`/`_classMetadata`
+- `ai-manager.service.spec.ts`: `mockProvider` → `_mockProvider` (unused in tests)
+- `telemetry.service.ts`: `context` import removido (unused)
+
+**Estado ao final da sessão:**
+- CI Pipeline: ✅ Green (CI #121 — commit `457d012`, 3m22s)
+- Testes: ✅ 37 suites backend, ~853 tests
+- Lint warnings: ✅ 0 (15 corrigidos nesta sessão)
+- CI Runs na sessão: #119 ❌ (TypeScript) → #120 ❌ (Prettier) → #121 ✅
 
 ---
 

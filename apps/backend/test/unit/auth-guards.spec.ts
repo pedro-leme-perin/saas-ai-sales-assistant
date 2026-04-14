@@ -24,18 +24,10 @@ interface MockRequest {
   params?: Record<string, string>;
 }
 
-interface MockExecutionContext {
-  switchToHttp(): {
-    getRequest(): MockRequest;
-  };
-  getHandler(): unknown;
-  getClass(): unknown;
-}
-
 function createMockExecutionContext(
   request: MockRequest,
-  handlerMetadata?: Record<string, unknown>,
-  classMetadata?: Record<string, unknown>,
+  _handlerMetadata?: Record<string, unknown>,
+  _classMetadata?: Record<string, unknown>,
 ): ExecutionContext {
   return {
     switchToHttp: () => ({
