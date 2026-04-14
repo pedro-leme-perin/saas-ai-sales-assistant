@@ -2,8 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { logger } from './logger';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SocketCallback = (...args: any[]) => void;
+type SocketCallback = (...args: unknown[]) => void;
 
 class WebSocketClient {
   private socket: Socket | null = null;

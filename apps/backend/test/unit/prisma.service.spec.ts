@@ -75,7 +75,9 @@ describe('PrismaService', () => {
     it('should call $connect', async () => {
       const connectSpy = jest.spyOn(service, '$connect').mockResolvedValueOnce();
       // Mock user.count used in the init method
-      (service as unknown as Record<string, unknown>).user = { count: jest.fn().mockResolvedValue(5) };
+      (service as unknown as Record<string, unknown>).user = {
+        count: jest.fn().mockResolvedValue(5),
+      };
 
       await service.onModuleInit();
 
@@ -84,7 +86,9 @@ describe('PrismaService', () => {
 
     it('should retry on connection failure', async () => {
       const connectSpy = jest.spyOn(service, '$connect');
-      (service as unknown as Record<string, unknown>).user = { count: jest.fn().mockResolvedValue(0) };
+      (service as unknown as Record<string, unknown>).user = {
+        count: jest.fn().mockResolvedValue(0),
+      };
 
       // Fail twice, succeed on third
       connectSpy
