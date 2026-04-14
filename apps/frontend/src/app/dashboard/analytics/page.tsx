@@ -9,7 +9,14 @@ import {
   Zap, Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { analyticsService } from '@/services/api';
+import {
+  analyticsService,
+  type DashboardData,
+  type AnalyticsCallsData,
+  type AnalyticsWhatsAppData,
+  type AnalyticsSentimentData,
+  type AnalyticsAIPerformanceData,
+} from '@/services/api';
 import { formatDuration } from '@/lib/utils';
 import { useTranslation } from '@/i18n/use-translation';
 
@@ -93,25 +100,25 @@ export default function AnalyticsPage() {
 
   const { data: callsData } = useQuery({
     queryKey: ['analytics-calls'],
-    queryFn: () => analyticsService.getCalls() as Promise<any>,
+    queryFn: () => analyticsService.getCalls(),
   });
 
   const { data: waData } = useQuery({
     queryKey: ['analytics-whatsapp'],
-    queryFn: () => analyticsService.getWhatsApp() as Promise<any>,
+    queryFn: () => analyticsService.getWhatsApp(),
   });
 
   const { data: sentimentData } = useQuery({
     queryKey: ['analytics-sentiment'],
-    queryFn: () => analyticsService.getSentiment() as Promise<any>,
+    queryFn: () => analyticsService.getSentiment(),
   });
 
   const { data: aiPerfData } = useQuery({
     queryKey: ['analytics-ai-performance'],
-    queryFn: () => analyticsService.getAIPerformance() as Promise<any>,
+    queryFn: () => analyticsService.getAIPerformance(),
   });
 
-  const dashboard = dashboardRaw as any;
+  const dashboard = dashboardRaw;
 
   // Memoize KPI computation
   const kpis = useMemo(() => [

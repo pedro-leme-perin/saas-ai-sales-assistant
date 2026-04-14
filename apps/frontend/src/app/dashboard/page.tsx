@@ -8,8 +8,9 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { callsService, companiesService, analyticsService } from '@/services/api';
+import { callsService, companiesService, analyticsService, type DashboardData } from '@/services/api';
 import { formatDuration, formatDateTime, formatPhone, getCallStatusColor } from '@/lib/utils';
+import type { Call } from '@/types';
 import Link from 'next/link';
 import { useTranslation } from '@/i18n/use-translation';
 
@@ -96,7 +97,7 @@ export default function DashboardPage() {
     queryFn: () => analyticsService.getDashboard(),
   });
 
-  const dashboard = dashboardRaw as any;
+  const dashboard = dashboardRaw as DashboardData | undefined;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t('greeting.morning') : hour < 18 ? t('greeting.afternoon') : t('greeting.evening');
   const isLoading = statsLoading || dashLoading;
@@ -290,7 +291,7 @@ export default function DashboardPage() {
             <RecentCallsSkeleton />
           ) : recentCalls?.data && recentCalls.data.length > 0 ? (
             <div className="space-y-2">
-              {recentCalls.data.map((call: any) => (
+              {recentCalls.data.map((call: Call) => (
                 <div key={call.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">

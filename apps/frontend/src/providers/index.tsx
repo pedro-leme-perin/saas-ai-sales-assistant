@@ -24,6 +24,7 @@ import {
   useAISuggestionsStore, useActiveCallStore, useUIStore,
 } from '@/stores';
 import { authService } from '@/services/api';
+import { logger } from '@/lib/logger';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -150,19 +151,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user && user.companyId) {
           wsClient.connect(user.id, user.companyId);
 
-          wsClient.onNotification((data: any) => {
-            addNotification(data.notification || data);
+          wsClient.onNotification((data: unknown) => {
+            const d = data as Record<string, unknown>;
+            addNotification((d.notification || d) as Parameters<typeof addNotification>[0]);
           });
 
-          wsClient.onAISuggestion((data: any) => {
-            addSuggestion(data);
-            if (data.transcript) {
-              addTranscriptEntry({ text: data.transcript, speaker: 'customer' });
+          wsClient.onAISuggestion((data: unknown) => {
+            const d = data as Record<string, unknown>;
+            addSuggestion(d as Parameters<typeof addSuggestion>[0]);
+            if (d.transcript) {
+              addTranscriptEntry({ text: d.transcript as string, speaker: 'customer' });
             }
           });
         }
       } catch (error) {
-        console.error('Auth sync error:', error);
+        logger.auth.error('Auth sync failed', error);
         clear();
       } finally {
         setLoading(false);

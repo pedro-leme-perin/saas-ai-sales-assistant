@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { notificationsService } from '@/services/api';
+import { logger } from '@/lib/logger';
 
 interface NotificationsTabProps {
   t: (key: string) => string;
@@ -74,7 +75,7 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
           emailBilling: prefs.emailBilling ?? true,
         });
       } catch (error) {
-        console.error('Failed to load notification preferences:', error);
+        logger.ui.error('Failed to load notification preferences', error);
         toast.error(t('common.error'));
       } finally {
         setLoading(false);
@@ -96,7 +97,7 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
       await notificationsService.updatePreferences(updatedPreferences);
       toast.success(t('common.saveChanges'));
     } catch (error) {
-      console.error('Failed to update notification preferences:', error);
+      logger.ui.error('Failed to update notification preferences', error);
       // Revert on error
       setPreferences(preferences);
       toast.error(t('common.error'));

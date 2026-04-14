@@ -1,9 +1,13 @@
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
+import { logger } from './logger';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SocketCallback = (...args: any[]) => void;
 
 class WebSocketClient {
   private socket: Socket | null = null;
-  private listeners: Map<string, Set<Function>> = new Map();
+  private listeners: Map<string, Set<SocketCallback>> = new Map();
 
   connect(userId?: string, companyId?: string) {
     if (this.socket?.connected) return;
@@ -20,13 +24,13 @@ class WebSocketClient {
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ WebSocket connected');
+      logger.ws.info('Connected');
       // Dismiss any previous disconnection toast
       toast.dismiss('ws-disconnected');
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('❌ WebSocket disconnected:', reason);
+      logger.ws.warn('Disconnected', { reason });
       if (reason !== 'io client disconnect') {
         toast.warning('Conexão perdida', {
           description: 'Reconectando automaticamente...',
@@ -37,7 +41,7 @@ class WebSocketClient {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('WebSocket error:', error.message);
+      logger.ws.error('Connection error', error);
       toast.error('Erro de conexão em tempo real', {
         description: 'Sugestões de IA podem estar indisponíveis.',
         id: 'ws-error',
@@ -46,7 +50,7 @@ class WebSocketClient {
     });
 
     this.socket.io.on('reconnect', (attempt) => {
-      console.log(`✅ WebSocket reconnected after ${attempt} attempts`);
+      logger.ws.info('Reconnected', { attempt });
       toast.success('Conexão restaurada', {
         id: 'ws-reconnected',
         duration: 3000,
@@ -64,7 +68,7 @@ class WebSocketClient {
     // Re-register existing listeners on reconnect
     this.listeners.forEach((callbacks, event) => {
       callbacks.forEach((callback) => {
-        this.socket?.on(event, callback as any);
+        this.socket?.on(event, callback);
       });
     });
   }
@@ -80,14 +84,14 @@ class WebSocketClient {
     return this.socket?.connected || false;
   }
 
-  on(event: string, callback: Function): () => void {
+  on(event: string, callback: SocketCallback): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(callback);
 
     if (this.socket) {
-      this.socket.on(event, callback as any);
+      this.socket.on(event, callback);
     }
 
     return () => {
@@ -95,14 +99,14 @@ class WebSocketClient {
     };
   }
 
-  off(event: string, callback: Function) {
+  off(event: string, callback: SocketCallback) {
     this.listeners.get(event)?.delete(callback);
     if (this.socket) {
-      this.socket.off(event, callback as any);
+      this.socket.off(event, callback);
     }
   }
 
-  emit(event: string, data: any) {
+  emit(event: string, data: unknown) {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
     }
@@ -133,22 +137,22 @@ class WebSocketClient {
   // =====================================================
 
   // Backend emits: 'ai:suggestion'
-  onAISuggestion(callback: (suggestion: any) => void) {
+  onAISuggestion(callback: (suggestion: unknown) => void) {
     return this.on('ai:suggestion', callback);
   }
 
   // Backend emits: 'call:status'
-  onCallStatusUpdate(callback: (call: any) => void) {
+  onCallStatusUpdate(callback: (call: unknown) => void) {
     return this.on('call:status', callback);
   }
 
   // Backend emits: 'whatsapp:message'
-  onWhatsAppMessage(callback: (message: any) => void) {
+  onWhatsAppMessage(callback: (message: unknown) => void) {
     return this.on('whatsapp:message', callback);
   }
 
   // Backend emits: 'notification'
-  onNotification(callback: (notification: any) => void) {
+  onNotification(callback: (notification: unknown) => void) {
     return this.on('notification', callback);
   }
 

@@ -1,5 +1,6 @@
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
+import { logger } from './logger';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const isServer = typeof window === 'undefined';
@@ -38,7 +39,7 @@ class ApiClient {
               config.headers.Authorization = `Bearer ${token}`;
             }
           } catch (err) {
-            console.error('Failed to get auth token:', err);
+            logger.auth.error('Failed to get auth token', err);
           }
         }
 
@@ -105,11 +106,11 @@ class ApiClient {
   }
 
   async get<T>(url: string, params?: Record<string, unknown>, isBlob?: boolean): Promise<T> {
-    const config: Record<string, unknown> = { params };
+    const config: AxiosRequestConfig = { params };
     if (isBlob) {
       config.responseType = 'blob';
     }
-    const response = await this.client.get<T>(url, config as any);
+    const response = await this.client.get<T>(url, config);
     return response.data;
   }
 

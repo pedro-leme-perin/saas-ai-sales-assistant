@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { registerServiceWorker, onOnlineStatusChange } from '@/lib/register-sw';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/use-translation';
+import { logger } from '@/lib/logger';
 
 /**
  * Service Worker registration component
@@ -35,7 +36,7 @@ export function ServiceWorkerRegistrar() {
         );
       },
       onOffline: (error) => {
-        console.warn('[SW] Registration error:', error);
+        logger.sw.warn('Registration error', { error });
         // Silently fail in production
       },
     });

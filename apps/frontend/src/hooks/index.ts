@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
+import { logger } from '@/lib/logger';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { wsClient } from '@/lib/websocket';
 import { useAISuggestionsStore, useNotificationsStore, useActiveCallStore } from '@/stores';
@@ -24,7 +25,7 @@ export function useWebSocket(userId: string | undefined, companyId: string | und
 
     // Subscribe to events
     const unsubSuggestion = wsClient.on('ai:suggestion', (data: WSAISuggestion) => {
-      addSuggestion(data as any);
+      addSuggestion(data.suggestion);
     });
 
     const unsubNotification = wsClient.on('notification', (data: WSNotification) => {
@@ -93,13 +94,13 @@ export function useChatWebSocket(chatId: string | null) {
       }
     });
 
-    const unsubTypingStart = wsClient.on('typing:start', (data: any) => {
+    const unsubTypingStart = wsClient.on('typing:start', (data: { chatId: string }) => {
       if (data.chatId === chatId) {
         setOtherTyping(true);
       }
     });
 
-    const unsubTypingStop = wsClient.on('typing:stop', (data: any) => {
+    const unsubTypingStop = wsClient.on('typing:stop', (data: { chatId: string }) => {
       if (data.chatId === chatId) {
         setOtherTyping(false);
       }
@@ -211,7 +212,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
           window.localStorage.setItem(key, JSON.stringify(valueToStore));
         }
       } catch (error) {
-        console.error('Error saving to localStorage:', error);
+        logger.ui.error('Failed to save to localStorage', error);
       }
     },
     [key, storedValue]
@@ -276,7 +277,7 @@ export function useCopyToClipboard() {
 
   const copy = useCallback(async (text: string) => {
     if (!navigator?.clipboard) {
-      console.warn('Clipboard not supported');
+      logger.ui.warn('Clipboard not supported');
       return false;
     }
 
@@ -285,7 +286,7 @@ export function useCopyToClipboard() {
       setCopiedText(text);
       return true;
     } catch {
-      console.warn('Copy failed');
+      logger.ui.warn('Copy failed');
       setCopiedText(null);
       return false;
     }

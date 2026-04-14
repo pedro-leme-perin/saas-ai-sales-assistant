@@ -32,6 +32,17 @@
     "billing": "Billing",
     "settings": "Settings"
   },
+  "header": {
+    "plan": "Plan: {{plan}}",
+    "notifications": "Notifications",
+    "noNotifications": "No notifications",
+    "userFallback": "User",
+    "roleFallback": "Seller",
+    "myAccount": "My Account",
+    "profile": "Profile",
+    "settings": "Settings",
+    "signOut": "Sign out"
+  },
   "auth": {
     "signIn": "Sign in",
     "signUp": "Sign up",
@@ -417,7 +428,15 @@
     "reconnecting": "Reconnecting automatically...",
     "connectionRestored": "Connection restored",
     "reconnectFailed": "Reconnection failed",
-    "reloadPage": "Reload the page to try again."
+    "reloadPage": "Reload the page to try again.",
+    "somethingWentWrong": "Something went wrong",
+    "unexpectedError": "An unexpected error occurred. Our team has been notified.",
+    "unexpectedDashboardError": "An unexpected error occurred. Our team has been notified.",
+    "errorCode": "Code: {{code}}",
+    "tryAgain": "Try again",
+    "goToDashboard": "Go to Dashboard",
+    "pageNotFound": "Page not found",
+    "pageNotFoundDesc": "The page you're looking for doesn't exist or has been moved."
   },
   "actions": {
     "refresh": "Refresh"

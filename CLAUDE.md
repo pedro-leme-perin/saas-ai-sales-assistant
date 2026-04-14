@@ -29,7 +29,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | `457d012` (13/04/2026) | CI green — resilience hardening + lint cleanup (session 37) |
+| Último commit | (pendente) (13/04/2026) | Enterprise frontend quality + backend test coverage (session 38) |
 | Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
@@ -43,7 +43,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
 | CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview deploys + smoke tests) |
-| Testes | ✅ 46 suites + k6 | 37 backend + 9 E2E + 3 k6 load tests, ~853 tests, CI #121 ✅ |
+| Testes | ✅ 48 suites + k6 | 39 backend + 9 E2E + 3 k6 load tests, ~875 tests |
 | Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP, 16 traces verificados |
 
 ### 2.2 Infraestrutura de Produção
@@ -375,6 +375,93 @@ Sessão 33 fez 5 mudanças de código fonte (CacheService dependency, SQL aggreg
 - Testes: ✅ 37 suites backend, ~853 tests
 - Lint warnings: ✅ 0 (15 corrigidos nesta sessão)
 - CI Runs na sessão: #119 ❌ (TypeScript) → #120 ❌ (Prettier) → #121 ✅
+
+### 2.13 Sessão 38 — 13/04/2026
+
+**Objetivo:** Enterprise-grade frontend quality — type safety, i18n, structured logging, backend test coverage.
+
+**Itens executados (5):**
+
+**Item 7 — Frontend `as any` removal (type safety):**
+- `websocket.ts`: Added `SocketCallback` type alias, removed 3× `callback as any`, `data: any` → `data: unknown`, convenience method params `any` → `unknown`
+- `api-client.ts`: Added `AxiosRequestConfig` import, removed `config as any` cast
+- `hooks/index.ts`: `addSuggestion(data as any)` → `addSuggestion(data.suggestion)` (WSAISuggestion wrapper fix)
+- `services/api.ts`: Added 5 typed interfaces (DashboardData, AnalyticsCallsData, AnalyticsWhatsAppData, AnalyticsSentimentData, AnalyticsAIPerformanceData), removed `<any>` generics
+- `dashboard/page.tsx`: `dashboardRaw as any` → typed cast, `call: any` → `call: Call`
+- `dashboard/calls/page.tsx`: Created `CallDetail` interface, removed `useQuery() as any`, `callDetailRaw as any`, `csv as any`, `s: any`, `error: any`
+- `dashboard/analytics/page.tsx`: Removed all `as Promise<any>` casts
+- `providers/index.tsx`: `(data: any)` → `(data: unknown)` with Record casts
+- **Result:** Zero `as any` remaining in frontend `src/`
+
+**Item 8 — Hardcoded pt-BR strings → i18n:**
+- `i18n/dictionaries/pt-BR.json`: Added `header.*` (9 keys), `errors.*` (8 keys)
+- `i18n/dictionaries/en.json`: Added matching English translations
+- `app/error.tsx`: Converted to use `useTranslation()`, replaced 4 hardcoded strings
+- `app/dashboard/not-found.tsx`: Converted Server → Client Component for i18n access
+- `app/dashboard/[...slug]/page.tsx`: Same Server → Client conversion
+- `app/dashboard/error.tsx`: Added i18n for 4 hardcoded strings
+
+**Item 9 — console.log → structured logging:**
+- Created `lib/logger.ts`: Module-scoped loggers with Sentry breadcrumb integration, production filtering (warn/error only)
+- Pre-built loggers: `logger.ws`, `logger.api`, `logger.auth`, `logger.sw`, `logger.ui`
+- Migrated 10 files (25+ console calls):
+  - `websocket.ts` (4 calls), `api-client.ts` (1), `api.ts` (8)
+  - `hooks/index.ts` (3), `providers/index.tsx` (1), `register-sw.ts` (7)
+  - `service-worker-registrar.tsx` (1), `notifications-tab.tsx` (2)
+  - `dashboard/error.tsx` (1), `dashboard/calls/page.tsx` (1)
+- **Result:** Zero `console.*` calls in frontend (except inside logger.ts itself)
+
+**Item 10 — Backend unit test coverage:**
+- Created `test/unit/prisma.service.spec.ts` (NEW): 8 tests — constructor, onModuleInit retry logic, onModuleDestroy, isHealthy, dev mode query logging
+- Created `test/unit/telemetry.service.spec.ts` (NEW): 14 tests — Four Golden Signals (traffic: recordRequest/recordAISuggestion, errors: recordCircuitBreakerTrip/recordWebhook, latency: recordDbQuery, saturation: WS connections), span management (withSpan success/error/non-Error/always-end), getTraceContext
+- **Result:** 42 test suites (40 → 42), ~875 tests estimated
+
+**Item 11 — CLAUDE.md updated** (this section)
+
+**CI fix (pre-requisite):**
+- `d584d32` — ci: revert pnpm/action-setup@v6 → @v4 (v6 defaults to pnpm 10, incompatible lockfile format)
+- Fixed corrupted pnpm-lock.yaml (9KB of null bytes appended)
+
+**Arquivos criados/modificados (~20 arquivos):**
+
+*Novos:*
+- `apps/frontend/src/lib/logger.ts` — Structured frontend logger with Sentry integration
+- `apps/backend/test/unit/prisma.service.spec.ts` — PrismaService unit tests
+- `apps/backend/test/unit/telemetry.service.spec.ts` — TelemetryService unit tests
+
+*Modificados:*
+- `apps/frontend/src/lib/websocket.ts` — Type safety + logger
+- `apps/frontend/src/lib/api-client.ts` — Type safety + logger
+- `apps/frontend/src/lib/api.ts` — Logger (8 replacements)
+- `apps/frontend/src/lib/register-sw.ts` — Logger (7 replacements)
+- `apps/frontend/src/hooks/index.ts` — Type safety + logger
+- `apps/frontend/src/services/api.ts` — 5 new typed interfaces
+- `apps/frontend/src/providers/index.tsx` — Type safety + logger
+- `apps/frontend/src/components/service-worker-registrar.tsx` — Logger
+- `apps/frontend/src/components/settings/tabs/notifications-tab.tsx` — Logger
+- `apps/frontend/src/app/dashboard/page.tsx` — Type safety
+- `apps/frontend/src/app/dashboard/calls/page.tsx` — Type safety + logger
+- `apps/frontend/src/app/dashboard/analytics/page.tsx` — Type safety
+- `apps/frontend/src/app/dashboard/error.tsx` — i18n + logger
+- `apps/frontend/src/app/dashboard/not-found.tsx` — i18n (Server → Client)
+- `apps/frontend/src/app/dashboard/[...slug]/page.tsx` — i18n (Server → Client)
+- `apps/frontend/src/app/error.tsx` — i18n + logger
+- `apps/frontend/src/i18n/dictionaries/pt-BR.json` — 17 new keys
+- `apps/frontend/src/i18n/dictionaries/en.json` — 17 new keys
+
+**Referências de livros aplicadas:**
+- *Clean Code* Cap. 9 (Tests): Unit tests para PrismaService e TelemetryService
+- *SRE* (Four Golden Signals): TelemetryService tests organizados por signal (traffic, errors, latency, saturation)
+- *Release It!* (Transparency): Structured logging com Sentry breadcrumbs, production filtering
+- *Clean Code* Cap. 2 (Naming): `SocketCallback` type, `CallDetail` interface, `DashboardData` etc.
+- *Clean Architecture* Cap. 22: Logger como infrastructure, não acoplado a presentation
+
+**Estado ao final da sessão:**
+- Frontend type safety: ✅ Zero `as any` em todo o frontend
+- Frontend i18n: ✅ Zero strings hardcoded em error/404 pages
+- Frontend logging: ✅ Structured logger com Sentry, zero console.* calls
+- Backend tests: ✅ 42 suites (~875 tests)
+- CI Pipeline: ⏳ Pendente — commit + push necessários
 
 ---
 

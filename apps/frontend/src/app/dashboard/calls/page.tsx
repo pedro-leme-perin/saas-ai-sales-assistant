@@ -14,7 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { callsService } from '@/services/api';
 import { formatDuration, formatDateTime, formatPhone, getCallStatusColor } from '@/lib/utils';
-import { CallStatus, CallDirection, type Call } from '@/types';
+import { CallStatus, CallDirection, type Call, type AISuggestion } from '@/types';
+import { logger } from '@/lib/logger';
+
+/** Extended Call type with relations loaded by getById */
+interface CallDetail extends Call {
+  aiSuggestions?: Array<AISuggestion & { wasUsed?: boolean; content?: string }>;
+}
 import { useActiveCallStore, useAISuggestionsStore, useUserStore } from '@/stores';
 import { wsClient } from '@/lib/websocket';
 import { toast } from 'sonner';
@@ -166,12 +172,11 @@ export default function CallsPage() {
   }, [showNewCallModal, selectedCall]);
 
   // Queries
-  const { data: callDetailRaw } = useQuery({
+  const { data: callDetail } = useQuery<CallDetail>({
     queryKey: ['call-detail', selectedCall?.id],
-    queryFn: () => callsService.getById(selectedCall!.id),
+    queryFn: () => callsService.getById(selectedCall!.id) as Promise<CallDetail>,
     enabled: !!selectedCall,
-  }) as any;
-  const callDetail = callDetailRaw as any;
+  });
 
   const { data: callsData, isLoading } = useQuery({
     queryKey: ['calls', { status: statusFilter, direction: directionFilter, search: searchQuery }],
@@ -206,7 +211,7 @@ export default function CallsPage() {
         description: t('calls.dialingTo', { phone: formatPhone(call.phoneNumber) }),
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(t('calls.errorStartCall'), {
         description: error.message || t('calls.tryAgain'),
       });
@@ -277,7 +282,7 @@ export default function CallsPage() {
       const csv = await callsService.exportCsv();
 
       // Create blob and download
-      const blob = new Blob([csv as any], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
@@ -289,7 +294,7 @@ export default function CallsPage() {
 
       toast.success(t('calls.exportSuccess'));
     } catch (error) {
-      console.error('CSV export failed:', error);
+      logger.api.error('CSV export failed', error);
       toast.error(t('calls.exportError'));
     } finally {
       setExportingCsv(false);
@@ -729,7 +734,7 @@ export default function CallsPage() {
                 </div>
                 {callDetail?.aiSuggestions?.length > 0 ? (
                   <div className="space-y-2">
-                    {callDetail.aiSuggestions.map((s: any, i: number) => (
+                    {callDetail.aiSuggestions.map((s, i) => (
                       <div key={i} className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-2">
                         <p className="text-sm leading-relaxed">{s.content}</p>
                         <ConfidenceBar value={s.confidence || 0.8} />

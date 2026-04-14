@@ -3,6 +3,8 @@
  * Handles registration, updates, and offline messaging
  */
 
+import { logger } from './logger';
+
 export interface ServiceWorkerUpdateHandler {
   onUpdate?: () => void;
   onOffline?: (error: Error) => void;
@@ -20,7 +22,7 @@ export function registerServiceWorker(
 
   // Only register in production to avoid dev mode issues
   if (process.env.NODE_ENV !== 'production') {
-    console.debug('[SW] Skipping registration in development mode');
+    logger.sw.debug('Skipping registration in development mode');
     return;
   }
 
@@ -31,7 +33,7 @@ export function registerServiceWorker(
       })
       .then((reg) => {
         registration = reg;
-        console.log('[SW] Registered successfully:', reg.scope);
+        logger.sw.info('Registered successfully', { scope: reg.scope });
 
         // Listen for updates
         reg.addEventListener('updatefound', () => {
@@ -41,7 +43,7 @@ export function registerServiceWorker(
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // New SW is ready, notify client
-              console.log('[SW] Update available');
+              logger.sw.info('Update available');
               options.onUpdate?.();
 
               // Automatically skip waiting (immediate activation)
@@ -53,12 +55,12 @@ export function registerServiceWorker(
         // Check for updates every hour
         setInterval(() => {
           reg.update().catch((err) => {
-            console.warn('[SW] Update check failed:', err);
+            logger.sw.warn('Update check failed', { error: err });
           });
         }, 60 * 60 * 1000);
       })
       .catch((err) => {
-        console.warn('[SW] Registration failed:', err);
+        logger.sw.warn('Registration failed', { error: err });
         options.onOffline?.(err);
       });
   });
@@ -76,7 +78,7 @@ export async function unregisterServiceWorker(): Promise<void> {
           await reg.unregister();
         }
       } catch (err) {
-        console.warn('[SW] Unregister failed:', err);
+        logger.sw.warn('Unregister failed', { error: err });
       }
     }
     return;
@@ -85,9 +87,9 @@ export async function unregisterServiceWorker(): Promise<void> {
   try {
     await registration.unregister();
     registration = null;
-    console.log('[SW] Unregistered successfully');
+    logger.sw.info('Unregistered successfully');
   } catch (err) {
-    console.warn('[SW] Unregister failed:', err);
+    logger.sw.warn('Unregister failed', { error: err });
   }
 }
 

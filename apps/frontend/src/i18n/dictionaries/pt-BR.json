@@ -32,6 +32,17 @@
     "billing": "Faturamento",
     "settings": "Configurações"
   },
+  "header": {
+    "plan": "Plano: {{plan}}",
+    "notifications": "Notificações",
+    "noNotifications": "Nenhuma notificação",
+    "userFallback": "Usuário",
+    "roleFallback": "Vendedor",
+    "myAccount": "Minha Conta",
+    "profile": "Perfil",
+    "settings": "Configurações",
+    "signOut": "Sair"
+  },
   "auth": {
     "signIn": "Entrar",
     "signUp": "Criar conta",
@@ -417,7 +428,15 @@
     "reconnecting": "Reconectando automaticamente...",
     "connectionRestored": "Conexão restaurada",
     "reconnectFailed": "Falha na reconexão",
-    "reloadPage": "Recarregue a página para tentar novamente."
+    "reloadPage": "Recarregue a página para tentar novamente.",
+    "somethingWentWrong": "Algo deu errado",
+    "unexpectedError": "Um erro inesperado ocorreu. Nossa equipe foi notificada.",
+    "unexpectedDashboardError": "Ocorreu um erro inesperado. Nossa equipe já foi notificada.",
+    "errorCode": "Código: {{code}}",
+    "tryAgain": "Tentar novamente",
+    "goToDashboard": "Ir para Dashboard",
+    "pageNotFound": "Página não encontrada",
+    "pageNotFoundDesc": "A página que você está procurando não existe ou foi movida."
   },
   "actions": {
     "refresh": "Recarregar"

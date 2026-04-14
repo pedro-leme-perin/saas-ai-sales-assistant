@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logger } from './logger';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const isServer = typeof window === 'undefined';
@@ -24,16 +25,16 @@ api.interceptors.request.use(
             if (token) {
               config.headers.Authorization = `Bearer ${token}`;
             } else {
-              console.warn('⚠️ Token é null');
+              logger.auth.warn('Token is null');
             }
           } else {
-            console.warn('⚠️ Clerk.session é null');
+            logger.auth.warn('Clerk session is null');
           }
         } else {
-          console.warn('⚠️ window.Clerk não está definido');
+          logger.auth.warn('Clerk not initialized');
         }
       } catch (error) {
-        console.error('❌ Erro ao pegar token do Clerk:', error);
+        logger.auth.error('Failed to get Clerk token', error);
       }
     }
     return config;
@@ -46,7 +47,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error('Unauthorized - token inválido ou expirado');
+      logger.auth.warn('Unauthorized - invalid or expired token');
     }
     return Promise.reject(error);
   },
@@ -89,7 +90,7 @@ export const apiService = {
       const companyId = userResponse.data.companyId;
 
       if (!companyId) {
-        console.warn('No companyId found for user');
+        logger.api.warn('No companyId found for user');
         return { totalCalls: 0, totalWhatsAppChats: 0, totalAISuggestions: 0 };
       }
 
@@ -101,7 +102,7 @@ export const apiService = {
         totalAISuggestions: 0,
       };
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      logger.api.error('Failed to fetch dashboard stats', error);
       return { totalCalls: 0, totalWhatsAppChats: 0, totalAISuggestions: 0 };
     }
   },
@@ -121,7 +122,7 @@ export const apiService = {
       const response = await api.get('/api/companies');
       return response.data.data?.[0] || null;
     } catch (error) {
-      console.error('Error fetching company:', error);
+      logger.api.error('Failed to fetch company', error);
       return null;
     }
   },

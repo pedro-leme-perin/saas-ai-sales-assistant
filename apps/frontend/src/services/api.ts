@@ -67,8 +67,8 @@ export const usersService = {
 
 export const companiesService = {
   async getCurrent(): Promise<Company> {
-    const res = await apiClient.get<any>('/companies/current');
-    return res?.data ?? res;
+    const res = await apiClient.get<Company & { data?: Company }>('/companies/current');
+    return (res as unknown as { data?: Company })?.data ?? res;
   },
 
   async getStats(): Promise<CompanyStats> {
@@ -76,8 +76,8 @@ export const companiesService = {
   },
 
   async getUsage(): Promise<CompanyUsage> {
-    const res = await apiClient.get<any>('/companies/current/usage');
-    return res?.data ?? res;
+    const res = await apiClient.get<CompanyUsage & { data?: CompanyUsage }>('/companies/current/usage');
+    return (res as unknown as { data?: CompanyUsage })?.data ?? res;
   },
 
   async update(data: Partial<Company> | Record<string, unknown>): Promise<Company> {
@@ -466,30 +466,69 @@ export const uploadService = {
 };
 
 // =============================================
+// ANALYTICS TYPES
+// =============================================
+
+export interface DashboardData {
+  calls: { total: number; thisMonth: number; growth: number; avgDuration: number };
+  chats: { total: number; thisMonth: number; growth: number };
+  ai: { total: number; used: number; adoptionRate: number };
+  users: { total: number };
+}
+
+export interface AnalyticsCallsData {
+  total: number;
+  completed: number;
+  successRate: number;
+  avgDuration: number;
+}
+
+export interface AnalyticsWhatsAppData {
+  totalChats: number;
+  openChats: number;
+  messages: number;
+}
+
+export interface AnalyticsSentimentData {
+  positive: number;
+  neutral: number;
+  negative: number;
+  distribution: Array<{ label: string; count: number; percentage: number }>;
+}
+
+export interface AnalyticsAIPerformanceData {
+  totalSuggestions: number;
+  usedSuggestions: number;
+  adoptionRate: number;
+  avgConfidence: number;
+  byType: Array<{ type: string; count: number; usedCount: number }>;
+}
+
+// =============================================
 // ANALYTICS SERVICE
 // =============================================
 export const analyticsService = {
-  async getDashboard() {
+  async getDashboard(): Promise<DashboardData> {
     if (!apiClient.getCompanyId()) await authService.getMe();
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/dashboard/${companyId}`);
   },
-  async getCalls() {
+  async getCalls(): Promise<AnalyticsCallsData> {
     if (!apiClient.getCompanyId()) await authService.getMe();
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/calls/${companyId}`);
   },
-  async getWhatsApp() {
+  async getWhatsApp(): Promise<AnalyticsWhatsAppData> {
     if (!apiClient.getCompanyId()) await authService.getMe();
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/whatsapp/${companyId}`);
   },
-  async getSentiment() {
+  async getSentiment(): Promise<AnalyticsSentimentData> {
     if (!apiClient.getCompanyId()) await authService.getMe();
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/sentiment/${companyId}`);
   },
-  async getAIPerformance() {
+  async getAIPerformance(): Promise<AnalyticsAIPerformanceData> {
     if (!apiClient.getCompanyId()) await authService.getMe();
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/ai-performance/${companyId}`);
