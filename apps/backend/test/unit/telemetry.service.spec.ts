@@ -11,42 +11,66 @@ import { SpanStatusCode } from '@opentelemetry/api';
 // Suppress logger output during tests
 jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
-// Mock @opentelemetry/api
-const mockCounterAdd = jest.fn();
-const mockHistogramRecord = jest.fn();
-const mockUpDownCounterAdd = jest.fn();
+// Mock @opentelemetry/api — factory creates mocks internally (jest hoists jest.mock)
+jest.mock('@opentelemetry/api', () => {
+  const mockCounterAdd = jest.fn();
+  const mockHistogramRecord = jest.fn();
+  const mockUpDownCounterAdd = jest.fn();
 
-const mockSpanSetAttribute = jest.fn();
-const mockSpanSetStatus = jest.fn();
-const mockSpanRecordException = jest.fn();
-const mockSpanEnd = jest.fn();
-const mockSpanContext = jest.fn().mockReturnValue({ traceId: 'abc123', spanId: 'def456' });
+  const mockSpan = {
+    setAttribute: jest.fn(),
+    setStatus: jest.fn(),
+    recordException: jest.fn(),
+    end: jest.fn(),
+    spanContext: jest.fn().mockReturnValue({ traceId: 'abc123', spanId: 'def456' }),
+  };
 
-const mockSpan = {
-  setAttribute: mockSpanSetAttribute,
-  setStatus: mockSpanSetStatus,
-  recordException: mockSpanRecordException,
-  end: mockSpanEnd,
-  spanContext: mockSpanContext,
+  return {
+    __mocks: { mockCounterAdd, mockHistogramRecord, mockUpDownCounterAdd, mockSpan },
+    metrics: {
+      getMeter: jest.fn().mockReturnValue({
+        createCounter: jest.fn().mockReturnValue({ add: mockCounterAdd }),
+        createHistogram: jest.fn().mockReturnValue({ record: mockHistogramRecord }),
+        createUpDownCounter: jest.fn().mockReturnValue({ add: mockUpDownCounterAdd }),
+      }),
+    },
+    trace: {
+      getTracer: jest.fn().mockReturnValue({
+        startActiveSpan: jest
+          .fn()
+          .mockImplementation((_name: string, _opts: unknown, fn: (s: unknown) => unknown) =>
+            fn(mockSpan),
+          ),
+      }),
+      getActiveSpan: jest.fn().mockReturnValue(mockSpan),
+    },
+    SpanKind: { INTERNAL: 0 },
+    SpanStatusCode: { OK: 1, ERROR: 2 },
+  };
+});
+
+// Retrieve the internal mocks AFTER jest.mock has run
+const otelMock = jest.requireMock('@opentelemetry/api') as {
+  __mocks: {
+    mockCounterAdd: jest.Mock;
+    mockHistogramRecord: jest.Mock;
+    mockUpDownCounterAdd: jest.Mock;
+    mockSpan: {
+      setAttribute: jest.Mock;
+      setStatus: jest.Mock;
+      recordException: jest.Mock;
+      end: jest.Mock;
+      spanContext: jest.Mock;
+    };
+  };
+  trace: { getActiveSpan: jest.Mock };
 };
-
-jest.mock('@opentelemetry/api', () => ({
-  metrics: {
-    getMeter: jest.fn().mockReturnValue({
-      createCounter: jest.fn().mockReturnValue({ add: mockCounterAdd }),
-      createHistogram: jest.fn().mockReturnValue({ record: mockHistogramRecord }),
-      createUpDownCounter: jest.fn().mockReturnValue({ add: mockUpDownCounterAdd }),
-    }),
-  },
-  trace: {
-    getTracer: jest.fn().mockReturnValue({
-      startActiveSpan: jest.fn().mockImplementation((_name, _opts, fn) => fn(mockSpan)),
-    }),
-    getActiveSpan: jest.fn().mockReturnValue(mockSpan),
-  },
-  SpanKind: { INTERNAL: 0 },
-  SpanStatusCode: { OK: 1, ERROR: 2 },
-}));
+const {
+  mockCounterAdd,
+  mockHistogramRecord,
+  mockUpDownCounterAdd,
+  mockSpan,
+} = otelMock.__mocks;
 
 describe('TelemetryService', () => {
   let service: TelemetryService;
@@ -107,7 +131,6 @@ describe('TelemetryService', () => {
     it('should increment error counter on failure', () => {
       service.recordAISuggestion('openai', 5000, false);
 
-      // Called twice: once for suggestion counter, once for error counter
       expect(mockCounterAdd).toHaveBeenCalledWith(1, { provider: 'openai', success: false });
       expect(mockCounterAdd).toHaveBeenCalledWith(1, { provider: 'openai' });
     });
@@ -116,7 +139,7 @@ describe('TelemetryService', () => {
   // ── Error Signal ─────────────────────────────────────
 
   describe('recordCircuitBreakerTrip', () => {
-    it('should increment circuit breaker counter and log warning', () => {
+    it('should increment circuit breaker counter', () => {
       service.recordCircuitBreakerTrip('deepgram');
 
       expect(mockCounterAdd).toHaveBeenCalledWith(1, { integration: 'deepgram' });
@@ -171,9 +194,9 @@ describe('TelemetryService', () => {
       });
 
       expect(result).toBe(42);
-      expect(mockSpanSetAttribute).toHaveBeenCalledWith('custom', 'attr');
-      expect(mockSpanSetStatus).toHaveBeenCalledWith({ code: SpanStatusCode.OK });
-      expect(mockSpanEnd).toHaveBeenCalled();
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith('custom', 'attr');
+      expect(mockSpan.setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.OK });
+      expect(mockSpan.end).toHaveBeenCalled();
     });
 
     it('should record exception and re-throw on error', async () => {
@@ -185,12 +208,12 @@ describe('TelemetryService', () => {
         }),
       ).rejects.toThrow('Operation failed');
 
-      expect(mockSpanSetStatus).toHaveBeenCalledWith({
+      expect(mockSpan.setStatus).toHaveBeenCalledWith({
         code: SpanStatusCode.ERROR,
         message: 'Operation failed',
       });
-      expect(mockSpanRecordException).toHaveBeenCalledWith(error);
-      expect(mockSpanEnd).toHaveBeenCalled();
+      expect(mockSpan.recordException).toHaveBeenCalledWith(error);
+      expect(mockSpan.end).toHaveBeenCalled();
     });
 
     it('should handle non-Error exceptions', async () => {
@@ -200,11 +223,11 @@ describe('TelemetryService', () => {
         }),
       ).rejects.toBe('string error');
 
-      expect(mockSpanSetStatus).toHaveBeenCalledWith({
+      expect(mockSpan.setStatus).toHaveBeenCalledWith({
         code: SpanStatusCode.ERROR,
         message: 'Unknown error',
       });
-      expect(mockSpanRecordException).toHaveBeenCalledWith(new Error('string error'));
+      expect(mockSpan.recordException).toHaveBeenCalledWith(new Error('string error'));
     });
 
     it('should always end span even on error', async () => {
@@ -216,7 +239,7 @@ describe('TelemetryService', () => {
         // Expected
       }
 
-      expect(mockSpanEnd).toHaveBeenCalledTimes(1);
+      expect(mockSpan.end).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -228,9 +251,7 @@ describe('TelemetryService', () => {
     });
 
     it('should return null when no active span', () => {
-      // Override the mock to return null
-      const { trace } = jest.requireMock('@opentelemetry/api');
-      trace.getActiveSpan.mockReturnValueOnce(null);
+      otelMock.trace.getActiveSpan.mockReturnValueOnce(null);
 
       const ctx = service.getTraceContext();
 

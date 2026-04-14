@@ -152,15 +152,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           wsClient.connect(user.id, user.companyId);
 
           wsClient.onNotification((data: unknown) => {
-            const d = data as Record<string, unknown>;
-            addNotification((d.notification || d) as Parameters<typeof addNotification>[0]);
+            const d = data as { notification?: Parameters<typeof addNotification>[0] } & Parameters<typeof addNotification>[0];
+            addNotification(d.notification || d);
           });
 
           wsClient.onAISuggestion((data: unknown) => {
-            const d = data as Record<string, unknown>;
-            addSuggestion(d as Parameters<typeof addSuggestion>[0]);
+            const d = data as Parameters<typeof addSuggestion>[0] & { transcript?: string };
+            addSuggestion(d);
             if (d.transcript) {
-              addTranscriptEntry({ text: d.transcript as string, speaker: 'customer' });
+              addTranscriptEntry({ text: d.transcript, speaker: 'customer' });
             }
           });
         }

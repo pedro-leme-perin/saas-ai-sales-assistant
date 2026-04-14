@@ -732,7 +732,7 @@ export default function CallsPage() {
                   <Sparkles className="h-4 w-4 text-primary" />
                   <h3 className="font-medium">{t('calls.aiSuggestions')}</h3>
                 </div>
-                {callDetail?.aiSuggestions?.length > 0 ? (
+                {callDetail?.aiSuggestions && callDetail.aiSuggestions.length > 0 ? (
                   <div className="space-y-2">
                     {callDetail.aiSuggestions.map((s, i) => (
                       <div key={i} className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-2">

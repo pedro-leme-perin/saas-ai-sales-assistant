@@ -2,7 +2,8 @@ import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { logger } from './logger';
 
-type SocketCallback = (...args: unknown[]) => void;
+// Socket.io listeners are variadic; match the underlying type to avoid false variance errors
+type SocketCallback = (...args: any[]) => void;
 
 class WebSocketClient {
   private socket: Socket | null = null;
