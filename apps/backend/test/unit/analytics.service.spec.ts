@@ -26,6 +26,9 @@ describe('AnalyticsService', () => {
         count: jest.fn().mockResolvedValue(30),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      // SQL-level groupBy (byDay) — template-tagged $queryRaw
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      auditLog: { findMany: jest.fn().mockResolvedValue([]) },
     };
 
     cacheService = {
@@ -90,38 +93,57 @@ describe('AnalyticsService', () => {
   // ─────────────────────────────────────────
 
   describe('getCallsAnalytics', () => {
-    it('should return analytics with success rate', async () => {
-      prisma.call.findMany.mockResolvedValue([
-        { id: '1', duration: 120, status: 'COMPLETED', createdAt: new Date() },
-        { id: '2', duration: 60, status: 'COMPLETED', createdAt: new Date() },
-        { id: '3', duration: 0, status: 'FAILED', createdAt: new Date() },
-      ]);
+    it('should return analytics with success rate via SQL aggregations', async () => {
+      (prisma as { call: Record<string, jest.Mock> }).call.count
+        .mockResolvedValueOnce(3) // total
+        .mockResolvedValueOnce(2); // completed
+      (prisma as { call: Record<string, jest.Mock> }).call.aggregate.mockResolvedValue({
+        _avg: { duration: 90 },
+      });
+      (prisma as { $queryRaw: jest.Mock }).$queryRaw.mockResolvedValue([]);
+
       const result = await service.getCallsAnalytics(COMPANY_ID);
+
       expect(result.total).toBe(3);
       expect(result.completed).toBe(2);
       expect(result.successRate).toBe(67); // 2/3 = 67%
+      expect(result.avgDuration).toBe(90);
     });
 
     it('should handle empty calls', async () => {
-      prisma.call.findMany.mockResolvedValue([]);
+      (prisma as { call: Record<string, jest.Mock> }).call.count.mockResolvedValue(0);
+      (prisma as { call: Record<string, jest.Mock> }).call.aggregate.mockResolvedValue({
+        _avg: { duration: null },
+      });
+      (prisma as { $queryRaw: jest.Mock }).$queryRaw.mockResolvedValue([]);
+
       const result = await service.getCallsAnalytics(COMPANY_ID);
+
       expect(result.total).toBe(0);
       expect(result.successRate).toBe(0);
       expect(result.avgDuration).toBe(0);
     });
 
-    it('should group calls by day', async () => {
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      prisma.call.findMany.mockResolvedValue([
-        { id: '1', duration: 120, status: 'COMPLETED', createdAt: today },
-        { id: '2', duration: 60, status: 'COMPLETED', createdAt: today },
-        { id: '3', duration: 180, status: 'COMPLETED', createdAt: yesterday },
+    it('should use SQL GROUP BY for byDay (not in-memory)', async () => {
+      (prisma as { call: Record<string, jest.Mock> }).call.count.mockResolvedValue(3);
+      (prisma as { call: Record<string, jest.Mock> }).call.aggregate.mockResolvedValue({
+        _avg: { duration: 120 },
+      });
+      const today = new Date('2026-04-14');
+      const yesterday = new Date('2026-04-13');
+      (prisma as { $queryRaw: jest.Mock }).$queryRaw.mockResolvedValue([
+        { date: yesterday, count: BigInt(1) },
+        { date: today, count: BigInt(2) },
       ]);
+
       const result = await service.getCallsAnalytics(COMPANY_ID);
+
       expect(result.byDay).toHaveLength(2);
+      expect(result.byDay[0].date).toBe('2026-04-13');
+      expect(result.byDay[0].calls).toBe(1);
+      expect(result.byDay[1].calls).toBe(2);
+      // findMany is NOT called anymore — verify SQL path is used
+      expect((prisma as { $queryRaw: jest.Mock }).$queryRaw).toHaveBeenCalled();
     });
   });
 

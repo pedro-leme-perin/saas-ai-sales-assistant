@@ -95,30 +95,41 @@ export class AnalyticsService {
   async getCallsAnalytics(companyId: string) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const calls = await this.prisma.call.findMany({
-      where: { companyId, createdAt: { gte: thirtyDaysAgo } },
-      select: { id: true, duration: true, status: true, createdAt: true },
-      orderBy: { createdAt: 'asc' },
-      take: 10000, // Prevent memory exhaustion (Release It! — Fail Fast)
-    });
-
-    const byDay: Record<string, { date: string; calls: number }> = {};
-    for (const call of calls) {
-      const date = (call.createdAt as Date).toISOString().split('T')[0];
-      if (!byDay[date]) byDay[date] = { date, calls: 0 };
-      byDay[date].calls++;
-    }
-
-    const completed = calls.filter((c) => c.status === 'COMPLETED').length;
-    const total = calls.length;
+    // SQL-level aggregation (DDIA Cap. 3 — push computation to storage layer)
+    // Replaces findMany(10000) + JS loops with count + aggregate + groupBy
+    const [total, completed, agg, byDayRaw] = await promiseAllWithTimeout(
+      [
+        this.prisma.call.count({
+          where: { companyId, createdAt: { gte: thirtyDaysAgo } },
+        }),
+        this.prisma.call.count({
+          where: { companyId, createdAt: { gte: thirtyDaysAgo }, status: 'COMPLETED' },
+        }),
+        this.prisma.call.aggregate({
+          where: { companyId, createdAt: { gte: thirtyDaysAgo } },
+          _avg: { duration: true },
+        }),
+        this.prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+          SELECT DATE("createdAt") AS date, COUNT(*)::bigint AS count
+          FROM "Call"
+          WHERE "companyId" = ${companyId} AND "createdAt" >= ${thirtyDaysAgo}
+          GROUP BY DATE("createdAt")
+          ORDER BY date ASC
+        `,
+      ],
+      15000,
+      'getCallsAnalytics',
+    );
 
     return {
       total,
       completed,
       successRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-      avgDuration:
-        total > 0 ? Math.round(calls.reduce((s, c) => s + (c.duration || 0), 0) / total) : 0,
-      byDay: Object.values(byDay),
+      avgDuration: Math.round(agg._avg.duration ?? 0),
+      byDay: byDayRaw.map((r) => ({
+        date: r.date.toISOString().split('T')[0],
+        calls: Number(r.count),
+      })),
     };
   }
 
