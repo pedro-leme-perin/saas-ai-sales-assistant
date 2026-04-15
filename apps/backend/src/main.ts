@@ -51,11 +51,31 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
-  // ── Security headers (Release It! - Defense in Depth) ──
+  // ── Security headers (Release It! - Defense in Depth; OWASP Secure Headers) ──
+  // CSP is disabled here because the frontend (Next.js) sets a strict CSP; the
+  // backend serves Swagger UI at /api/docs which needs inline scripts.
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Next.js handles CSP
+      contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
+      // HSTS: 2 years, include subdomains, preload-eligible (matches frontend)
+      strictTransportSecurity: {
+        maxAge: 63072000,
+        includeSubDomains: true,
+        preload: true,
+      },
+      // Never allow framing of API responses
+      frameguard: { action: 'deny' },
+      // Hide Express "X-Powered-By" (also removed by NestJS but defensive)
+      hidePoweredBy: true,
+      // Conservative referrer policy
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      // Block MIME-sniff attacks
+      noSniff: true,
+      // Force IE to run scripts in origin mode
+      ieNoOpen: true,
+      // XSS filter (legacy but harmless)
+      xssFilter: true,
     }),
   );
 
