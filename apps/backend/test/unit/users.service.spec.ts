@@ -626,4 +626,269 @@ describe('UsersService', () => {
       expect(result.name).toBe('Usuário');
     });
   });
+
+  // ──────────────────────────────────────────────
+  // inviteUser
+  // ──────────────────────────────────────────────
+
+  describe('inviteUser', () => {
+    const companyId = 'company-123';
+    const inviterId = 'inviter-abc';
+    const email = 'newuser@acme.com';
+
+    beforeEach(() => {
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+      mockPrismaService.user.findUnique.mockResolvedValue({ name: 'Maria' });
+      mockPrismaService.company.findUnique.mockResolvedValue(mockCompany);
+      mockPrismaService.user.create.mockImplementation((args) =>
+        Promise.resolve({
+          id: 'new-user-id',
+          email: args.data.email,
+          role: args.data.role,
+          status: 'PENDING',
+        }),
+      );
+      mockPrismaService.auditLog.create.mockResolvedValue({});
+      mockEmailService.sendInviteEmail.mockResolvedValue({ success: true });
+    });
+
+    it('should reject invalid email format', async () => {
+      await expect(service.inviteUser(companyId, 'invalid', 'VENDOR', inviterId)).rejects.toThrow(
+        'Invalid email format',
+      );
+      await expect(service.inviteUser(companyId, '', 'VENDOR', inviterId)).rejects.toThrow(
+        'Invalid email format',
+      );
+    });
+
+    it('should reject if user already exists in company', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValueOnce({ id: 'existing', email });
+
+      await expect(service.inviteUser(companyId, email, 'VENDOR', inviterId)).rejects.toThrow(
+        'User already exists in this company',
+      );
+      expect(mockPrismaService.user.create).not.toHaveBeenCalled();
+    });
+
+    it('should create PENDING user with pending_ clerkId prefix', async () => {
+      await service.inviteUser(companyId, email, 'VENDOR', inviterId);
+
+      const createCall = mockPrismaService.user.create.mock.calls[0][0];
+      expect(createCall.data.email).toBe(email);
+      expect(createCall.data.role).toBe('VENDOR');
+      expect(createCall.data.companyId).toBe(companyId);
+      expect(createCall.data.status).toBe('PENDING');
+      expect(createCall.data.isActive).toBe(false);
+      expect(createCall.data.clerkId).toMatch(/^pending_\d+_/);
+    });
+
+    it('should create INVITE audit log', async () => {
+      await service.inviteUser(companyId, email, 'MANAGER', inviterId);
+
+      expect(mockPrismaService.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            companyId,
+            userId: inviterId,
+            action: 'INVITE',
+            resource: 'USER',
+            newValues: expect.objectContaining({ email, role: 'MANAGER' }),
+          }),
+        }),
+      );
+    });
+
+    it('should send invite email with inviter and company names', async () => {
+      await service.inviteUser(companyId, email, 'VENDOR', inviterId);
+
+      expect(mockEmailService.sendInviteEmail).toHaveBeenCalledWith({
+        recipientEmail: email,
+        inviterName: 'Maria',
+        companyName: 'Acme Corp',
+        role: 'VENDOR',
+      });
+    });
+
+    it('should NOT fail invite when email service rejects (non-blocking)', async () => {
+      mockEmailService.sendInviteEmail.mockRejectedValueOnce(new Error('SMTP down'));
+
+      const result = await service.inviteUser(companyId, email, 'VENDOR', inviterId);
+
+      expect(result.success).toBe(true);
+      expect(result.userId).toBe('new-user-id');
+    });
+
+    it('should fallback inviter name when inviter not found', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValueOnce(null);
+
+      await service.inviteUser(companyId, email, 'VENDOR', inviterId);
+
+      expect(mockEmailService.sendInviteEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ inviterName: 'Um membro da equipe' }),
+      );
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // removeUser
+  // ──────────────────────────────────────────────
+
+  describe('removeUser', () => {
+    const companyId = 'company-123';
+    const userId = 'user-to-remove';
+
+    it('should throw NotFoundException when user does not exist', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.removeUser(userId, companyId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should enforce tenant isolation via companyId filter', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.removeUser(userId, 'wrong-company')).rejects.toThrow(NotFoundException);
+
+      expect(mockPrismaService.user.findFirst).toHaveBeenCalledWith({
+        where: expect.objectContaining({ id: userId, companyId: 'wrong-company' }),
+      });
+    });
+
+    it('should BLOCK removing last admin', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+      });
+      mockPrismaService.user.count.mockResolvedValue(1);
+
+      await expect(service.removeUser(userId, companyId)).rejects.toThrow(
+        'Cannot remove the last admin from the company',
+      );
+      expect(mockPrismaService.user.update).not.toHaveBeenCalled();
+      expect(mockPrismaService.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('should allow removing admin when there are others', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+      });
+      mockPrismaService.user.count.mockResolvedValue(3);
+      mockPrismaService.user.update.mockResolvedValue({});
+      mockPrismaService.auditLog.create.mockResolvedValue({});
+
+      const result = await service.removeUser(userId, companyId);
+
+      expect(result.success).toBe(true);
+      expect(mockPrismaService.user.update).toHaveBeenCalled();
+    });
+
+    it('should HARD DELETE pending users', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        role: 'VENDOR',
+        status: 'PENDING',
+      });
+      mockPrismaService.user.count.mockResolvedValue(2);
+      mockPrismaService.user.delete.mockResolvedValue({});
+      mockPrismaService.auditLog.create.mockResolvedValue({});
+
+      await service.removeUser(userId, companyId);
+
+      expect(mockPrismaService.user.delete).toHaveBeenCalledWith({ where: { id: userId } });
+      expect(mockPrismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it('should SOFT DELETE active users (set isActive=false, deletedAt)', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        role: 'VENDOR',
+        status: 'ACTIVE',
+      });
+      mockPrismaService.user.count.mockResolvedValue(2);
+      mockPrismaService.user.update.mockResolvedValue({});
+      mockPrismaService.auditLog.create.mockResolvedValue({});
+
+      await service.removeUser(userId, companyId);
+
+      const updateCall = mockPrismaService.user.update.mock.calls[0][0];
+      expect(updateCall.data.isActive).toBe(false);
+      expect(updateCall.data.status).toBe('INACTIVE');
+      expect(updateCall.data.deletedAt).toBeInstanceOf(Date);
+      expect(mockPrismaService.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('should create DELETE audit log', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        role: 'VENDOR',
+        status: 'ACTIVE',
+      });
+      mockPrismaService.user.count.mockResolvedValue(2);
+      mockPrismaService.user.update.mockResolvedValue({});
+      mockPrismaService.auditLog.create.mockResolvedValue({});
+
+      await service.removeUser(userId, companyId);
+
+      expect(mockPrismaService.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: 'DELETE',
+            resource: 'USER',
+            oldValues: expect.objectContaining({ email: mockUser.email }),
+          }),
+        }),
+      );
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // updateUserRole
+  // ──────────────────────────────────────────────
+
+  describe('updateUserRole', () => {
+    const companyId = 'company-123';
+    const userId = 'user-xyz';
+
+    it('should throw NotFoundException when user not in company', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateUserRole(userId, companyId, 'ADMIN')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should reject same-role update (BadRequest)', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue({ ...mockUser, role: 'ADMIN' });
+
+      await expect(service.updateUserRole(userId, companyId, 'ADMIN')).rejects.toThrow(
+        'New role is the same as current role',
+      );
+      expect(mockPrismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it('should update role and create audit log with old/new values', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue({ ...mockUser, role: 'VENDOR' });
+      mockPrismaService.user.update.mockResolvedValue({ ...mockUser, role: 'MANAGER' });
+      mockPrismaService.auditLog.create.mockResolvedValue({});
+
+      const result = await service.updateUserRole(userId, companyId, 'MANAGER');
+
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: expect.objectContaining({ role: 'MANAGER' }),
+      });
+      expect(mockPrismaService.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: 'UPDATE',
+            oldValues: { role: 'VENDOR' },
+            newValues: { role: 'MANAGER' },
+          }),
+        }),
+      );
+      expect(result.role).toBe('MANAGER');
+    });
+  });
 });
