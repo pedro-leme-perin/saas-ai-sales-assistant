@@ -274,6 +274,10 @@ model WhatsappMessage {
   @@index([chatId])
   @@index([chatId, createdAt(sort: Desc)])
   @@index([waMessageId])
+  // Analytics: AI suggestion adoption metrics (analytics.service.getWhatsAppAnalytics)
+  @@index([chatId, aiSuggestionUsed, createdAt(sort: Desc)])
+  // Sender direction queries (e.g. count INCOMING for response-rate)
+  @@index([chatId, direction, createdAt(sort: Desc)])
   @@map("whatsapp_messages")
 }
 
