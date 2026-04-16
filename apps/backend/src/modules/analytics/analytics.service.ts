@@ -173,54 +173,70 @@ export class AnalyticsService {
   async getSentimentAnalytics(companyId: string) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const calls = await this.prisma.call.findMany({
-      where: {
-        companyId,
-        status: 'COMPLETED',
-        sentiment: { not: null },
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      select: { sentiment: true, sentimentLabel: true, createdAt: true },
-      orderBy: { createdAt: 'asc' },
-      take: 10000,
-    });
+    // SQL-level aggregation per ADR-008
+    // Uses index [companyId, sentiment] (sessão 37) + [companyId, createdAt]
+    const baseWhere = {
+      companyId,
+      status: 'COMPLETED' as const,
+      sentiment: { not: null },
+      createdAt: { gte: thirtyDaysAgo },
+    };
 
-    if (calls.length === 0) {
-      return { avgSentiment: 0, distribution: {}, trend: [] };
+    const [agg, byLabel, weeklyTrend] = await promiseAllWithTimeout(
+      [
+        // Total count + avg sentiment
+        this.prisma.call.aggregate({
+          where: baseWhere,
+          _count: { _all: true },
+          _avg: { sentiment: true },
+        }),
+        // Distribution by sentiment label (SQL groupBy)
+        this.prisma.call.groupBy({
+          by: ['sentimentLabel'],
+          where: baseWhere,
+          _count: { _all: true },
+        }),
+        // Weekly trend via $queryRaw — date_trunc keeps us in SQL
+        this.prisma.$queryRaw<Array<{ week: Date; avg: number; count: bigint }>>`
+          SELECT
+            date_trunc('week', "created_at") AS week,
+            AVG("sentiment")::float AS avg,
+            COUNT(*)::bigint AS count
+          FROM "calls"
+          WHERE "company_id" = ${companyId}
+            AND "status" = 'COMPLETED'
+            AND "sentiment" IS NOT NULL
+            AND "created_at" >= ${thirtyDaysAgo}
+          GROUP BY week
+          ORDER BY week ASC
+        `,
+      ],
+      15000,
+      'getSentimentAnalytics',
+    );
+
+    const totalAnalyzed = agg._count._all;
+    if (totalAnalyzed === 0) {
+      return { avgSentiment: 0, distribution: {}, trend: [], totalAnalyzed: 0 };
     }
 
-    // Average sentiment
-    const avgSentiment = calls.reduce((sum, c) => sum + (c.sentiment || 0), 0) / calls.length;
-
-    // Distribution by label
     const distribution: Record<string, number> = {};
-    for (const call of calls) {
-      const label = call.sentimentLabel || 'UNKNOWN';
-      distribution[label] = (distribution[label] || 0) + 1;
+    for (const row of byLabel) {
+      const label = row.sentimentLabel || 'UNKNOWN';
+      distribution[label] = row._count._all;
     }
 
-    // Weekly trend (avg sentiment per week)
-    const weeklyMap: Record<string, { total: number; count: number }> = {};
-    for (const call of calls) {
-      const weekStart = this.getWeekStart(call.createdAt as Date);
-      if (!weeklyMap[weekStart]) weeklyMap[weekStart] = { total: 0, count: 0 };
-      weeklyMap[weekStart].total += call.sentiment || 0;
-      weeklyMap[weekStart].count++;
-    }
-
-    const trend = Object.entries(weeklyMap)
-      .map(([week, data]) => ({
-        week,
-        avgSentiment: Math.round((data.total / data.count) * 100) / 100,
-        calls: data.count,
-      }))
-      .sort((a, b) => a.week.localeCompare(b.week));
+    const trend = weeklyTrend.map((r) => ({
+      week: r.week.toISOString().split('T')[0],
+      avgSentiment: Math.round((r.avg ?? 0) * 100) / 100,
+      calls: Number(r.count),
+    }));
 
     return {
-      avgSentiment: Math.round(avgSentiment * 100) / 100,
+      avgSentiment: Math.round((agg._avg.sentiment ?? 0) * 100) / 100,
       distribution,
       trend,
-      totalAnalyzed: calls.length,
+      totalAnalyzed,
     };
   }
 
@@ -290,12 +306,6 @@ export class AnalyticsService {
       byProvider,
       byType,
     };
-  }
-
-  private getWeekStart(date: Date): string {
-    const d = new Date(date);
-    d.setDate(d.getDate() - d.getDay());
-    return d.toISOString().split('T')[0];
   }
 
   private percentile(values: number[], p: number): number {

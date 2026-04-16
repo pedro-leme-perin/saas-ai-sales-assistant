@@ -172,23 +172,51 @@ describe('AnalyticsService', () => {
   // ─────────────────────────────────────────
 
   describe('getSentimentAnalytics', () => {
-    it('should return sentiment distribution and trend', async () => {
-      prisma.call.findMany.mockResolvedValue([
-        { sentiment: 0.8, sentimentLabel: 'POSITIVE', createdAt: new Date() },
-        { sentiment: 0.6, sentimentLabel: 'NEUTRAL', createdAt: new Date() },
-        { sentiment: 0.9, sentimentLabel: 'POSITIVE', createdAt: new Date() },
+    beforeEach(() => {
+      // groupBy is added at runtime by the new implementation
+      (prisma as { call: Record<string, jest.Mock> }).call.groupBy = jest.fn();
+    });
+
+    it('should return sentiment distribution and trend via SQL', async () => {
+      (prisma as { call: Record<string, jest.Mock> }).call.aggregate.mockResolvedValue({
+        _count: { _all: 3 },
+        _avg: { sentiment: 0.77 },
+      });
+      (prisma as { call: Record<string, jest.Mock> }).call.groupBy.mockResolvedValue([
+        { sentimentLabel: 'POSITIVE', _count: { _all: 2 } },
+        { sentimentLabel: 'NEUTRAL', _count: { _all: 1 } },
       ]);
+      (prisma as { $queryRaw: jest.Mock }).$queryRaw.mockResolvedValue([
+        { week: new Date('2026-04-07'), avg: 0.7, count: BigInt(1) },
+        { week: new Date('2026-04-14'), avg: 0.85, count: BigInt(2) },
+      ]);
+
       const result = await service.getSentimentAnalytics(COMPANY_ID);
-      expect(result.avgSentiment).toBeCloseTo(0.77, 1);
-      expect((result.distribution as unknown as Record<string, number>)['POSITIVE']).toBe(2);
-      expect((result.distribution as unknown as Record<string, number>)['NEUTRAL']).toBe(1);
+
+      expect(result.avgSentiment).toBeCloseTo(0.77, 2);
       expect(result.totalAnalyzed).toBe(3);
+      expect(
+        (result.distribution as unknown as Record<string, number>)['POSITIVE'],
+      ).toBe(2);
+      expect(
+        (result.distribution as unknown as Record<string, number>)['NEUTRAL'],
+      ).toBe(1);
+      expect(result.trend).toHaveLength(2);
+      expect(result.trend[0].week).toBe('2026-04-07');
+      expect(result.trend[1].calls).toBe(2);
     });
 
     it('should handle no sentiment data', async () => {
-      prisma.call.findMany.mockResolvedValue([]);
+      (prisma as { call: Record<string, jest.Mock> }).call.aggregate.mockResolvedValue({
+        _count: { _all: 0 },
+        _avg: { sentiment: null },
+      });
+      (prisma as { call: Record<string, jest.Mock> }).call.groupBy.mockResolvedValue([]);
+      (prisma as { $queryRaw: jest.Mock }).$queryRaw.mockResolvedValue([]);
+
       const result = await service.getSentimentAnalytics(COMPANY_ID);
       expect(result.avgSentiment).toBe(0);
+      expect(result.totalAnalyzed).toBe(0);
       expect(result.trend).toHaveLength(0);
     });
   });
