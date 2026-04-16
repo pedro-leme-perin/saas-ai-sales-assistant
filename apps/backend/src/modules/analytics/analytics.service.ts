@@ -12,9 +12,26 @@ export class AnalyticsService {
     private readonly cache: CacheService,
   ) {}
 
+  /**
+   * Cache key for dashboard KPIs. Public so other services
+   * (billing, companies) can invalidate after writes.
+   */
+  static dashboardCacheKey(companyId: string): string {
+    return `analytics:dashboard:${companyId}`;
+  }
+
+  /**
+   * Invalidate all analytics caches for a company.
+   * Call after any mutation that affects KPIs (plan change, user invite,
+   * onboarding completion, etc.).
+   */
+  async invalidateCompanyCache(companyId: string): Promise<void> {
+    await this.cache.del(AnalyticsService.dashboardCacheKey(companyId));
+  }
+
   async getDashboardKPIs(companyId: string) {
     // Cache dashboard KPIs for 5 minutes (System Design Interview Cap. 4)
-    const cacheKey = `analytics:dashboard:${companyId}`;
+    const cacheKey = AnalyticsService.dashboardCacheKey(companyId);
     const cached = await this.cache.getJson<Record<string, unknown>>(cacheKey);
     if (cached) return cached;
 

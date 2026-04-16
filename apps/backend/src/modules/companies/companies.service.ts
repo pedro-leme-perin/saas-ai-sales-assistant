@@ -4,6 +4,7 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { CacheService } from '@infrastructure/cache/cache.service';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -12,7 +13,15 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
+
+  /** Cache key matches AnalyticsService.dashboardCacheKey() */
+  private analyticsCacheKey(companyId: string): string {
+    return `analytics:dashboard:${companyId}`;
+  }
 
   /**
    * Create a new company
@@ -110,7 +119,7 @@ export class CompaniesService {
   async completeOnboarding(companyId: string, dto: CompleteOnboardingDto) {
     await this.findOne(companyId);
 
-    return this.prisma.company.update({
+    const updated = await this.prisma.company.update({
       where: { id: companyId },
       data: {
         name: dto.companyName.trim(),
@@ -125,6 +134,11 @@ export class CompaniesService {
         } as Prisma.InputJsonValue,
       },
     });
+
+    // Invalidate dashboard cache so KPIs reflect new company state immediately
+    await this.cache.del(this.analyticsCacheKey(companyId));
+
+    return updated;
   }
 
   /**

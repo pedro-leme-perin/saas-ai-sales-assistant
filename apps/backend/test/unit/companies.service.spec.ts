@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { CompaniesService } from '../../src/modules/companies/companies.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
+import { CacheService } from '../../src/infrastructure/cache/cache.service';
 import { CreateCompanyDto } from '../../src/modules/companies/dto/create-company.dto';
 import { UpdateCompanyDto } from '../../src/modules/companies/dto/update-company.dto';
 
@@ -55,9 +56,19 @@ describe('CompaniesService', () => {
     },
   };
 
+  const mockCacheService = {
+    del: jest.fn().mockResolvedValue(true),
+    getJson: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CompaniesService, { provide: PrismaService, useValue: mockPrismaService }],
+      providers: [
+        CompaniesService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: CacheService, useValue: mockCacheService },
+      ],
     }).compile();
 
     service = module.get<CompaniesService>(CompaniesService);

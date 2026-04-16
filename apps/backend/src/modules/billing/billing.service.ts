@@ -4,6 +4,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { CacheService } from '@infrastructure/cache/cache.service';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { AuthenticatedUser } from '@common/decorators';
 import { Plan, SubscriptionStatus, AuditAction, Prisma } from '@prisma/client';
@@ -66,6 +67,7 @@ export class BillingService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
   ) {
     this.stripeSecretKey = this.configService.get<string>('stripe.secretKey') || '';
     this.stripePrices = {
@@ -292,6 +294,9 @@ export class BillingService {
           },
         });
       });
+
+      // Invalidate analytics cache so dashboard reflects new plan immediately
+      await this.cache.del(`analytics:dashboard:${companyId}`);
 
       this.logger.log(`✅ Company ${companyId} changed plan: ${oldPlan} => ${newPlan}`);
       return { success: true, message: `Plan changed to ${newPlan}`, plan: planDetails };

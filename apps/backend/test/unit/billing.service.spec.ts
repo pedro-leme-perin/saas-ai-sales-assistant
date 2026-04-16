@@ -3,6 +3,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BillingService } from '../../src/modules/billing/billing.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
+import { CacheService } from '../../src/infrastructure/cache/cache.service';
 import type { Plan } from '@prisma/client';
 import type Stripe from 'stripe';
 import type { AuthenticatedUser } from '../../src/common/decorators';
@@ -87,12 +88,19 @@ describe('BillingService', () => {
     }),
   };
 
+  const mockCacheService = {
+    del: jest.fn().mockResolvedValue(true),
+    getJson: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BillingService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: CacheService, useValue: mockCacheService },
       ],
     }).compile();
 
