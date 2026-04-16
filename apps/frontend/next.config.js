@@ -49,7 +49,8 @@ const nextConfig = {
     // Content Security Policy — allows Clerk, Sentry, Stripe, API, Socket.io
     // Refs: OWASP Secure Headers Project, MDN CSP
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const csp = [
+    const isProd = process.env.NODE_ENV === 'production';
+    const cspDirectives = [
       "default-src 'self'",
       // Scripts: Clerk, Sentry CDN, Stripe.js, inline for Next runtime
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.com https://*.clerk.theiadvisor.com https://js.stripe.com https://*.sentry.io https://browser.sentry-cdn.com",
@@ -68,8 +69,12 @@ const nextConfig = {
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
-      'upgrade-insecure-requests',
-    ].join('; ');
+    ];
+    // Only upgrade HTTP→HTTPS in production (breaks localhost in CI/dev)
+    if (isProd) {
+      cspDirectives.push('upgrade-insecure-requests');
+    }
+    const csp = cspDirectives.join('; ');
 
     return [
       {
