@@ -14,7 +14,7 @@
 // (Designing Data-Intensive Applications - Multi-tenancy)
 // =====================================================
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { PaginationDto, createPaginatedResult } from '@common/dto/pagination.dto';
 import { NotificationType, NotificationChannel, Prisma } from '@prisma/client';
@@ -61,7 +61,7 @@ export class NotificationsService {
   async create(data: CreateNotificationDto) {
     // ✅ Validate tenant context exists
     if (!data.companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     return this.prisma.notification.create({
@@ -90,7 +90,7 @@ export class NotificationsService {
   ) {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     // ✅ Build where clause with BOTH userId and companyId
@@ -121,7 +121,7 @@ export class NotificationsService {
   async getUnreadCount(userId: string, companyId: string) {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     const count = await this.prisma.notification.count({
@@ -142,7 +142,7 @@ export class NotificationsService {
   async markAsRead(id: string, userId: string, companyId: string) {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     // ✅ Find notification with tenant isolation
@@ -175,7 +175,7 @@ export class NotificationsService {
   async markAllAsRead(userId: string, companyId: string) {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     await this.prisma.notification.updateMany({
@@ -200,7 +200,7 @@ export class NotificationsService {
   async delete(id: string, userId: string, companyId: string) {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     // ✅ Find notification with tenant isolation
@@ -230,7 +230,7 @@ export class NotificationsService {
   async deleteAllRead(userId: string, companyId: string) {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     const result = await this.prisma.notification.deleteMany({
@@ -251,7 +251,7 @@ export class NotificationsService {
   async findById(id: string, userId: string, companyId: string) {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     const notification = await this.prisma.notification.findFirst({
@@ -276,7 +276,7 @@ export class NotificationsService {
   async getPreferences(userId: string, companyId: string): Promise<NotificationPreferences> {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     const company = await this.prisma.company.findUnique({
@@ -313,7 +313,7 @@ export class NotificationsService {
   ): Promise<NotificationPreferences> {
     // ✅ Validate tenant context
     if (!companyId) {
-      throw new Error('companyId is required for tenant isolation');
+      throw new BadRequestException('companyId is required for tenant isolation');
     }
 
     const company = await this.prisma.company.findUnique({

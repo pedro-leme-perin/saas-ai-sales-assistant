@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ServiceUnavailableException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
@@ -96,7 +102,7 @@ export class CallsService {
     const call = await this.findOne(id, companyId);
 
     if (!call.transcript) {
-      throw new Error('Call has no transcript to analyze');
+      throw new BadRequestException('Call has no transcript to analyze');
     }
 
     this.logger.log(`Analyzing call ${id} with AI...`);
@@ -161,7 +167,7 @@ export class CallsService {
 
   async initiateCall(companyId: string, userId: string, phoneNumber: string, webhookUrl: string) {
     if (!this.twilioClient) {
-      throw new Error('Twilio not configured');
+      throw new ServiceUnavailableException('Twilio not configured');
     }
 
     this.logger.log(`Initiating call to ${phoneNumber}`);
@@ -224,8 +230,11 @@ export class CallsService {
   async endCall(id: string, companyId: string) {
     const call = await this.findOne(id, companyId);
 
-    if (!this.twilioClient || !call.twilioCallSid) {
-      throw new Error('Cannot end call - Twilio not configured or no SID');
+    if (!this.twilioClient) {
+      throw new ServiceUnavailableException('Twilio not configured');
+    }
+    if (!call.twilioCallSid) {
+      throw new BadRequestException('Call has no Twilio SID — cannot end remotely');
     }
 
     try {
@@ -255,12 +264,12 @@ export class CallsService {
       where: { isActive: true },
       orderBy: { createdAt: 'asc' },
     });
-    if (!company) throw new Error('No active company found');
+    if (!company) throw new NotFoundException('No active company found');
 
     const user = await this.prisma.user.findFirst({
       where: { companyId: company.id },
     });
-    if (!user) throw new Error('No user found for company');
+    if (!user) throw new NotFoundException('No user found for company');
 
     // Upsert: atomic create-or-return — eliminates TOCTOU race condition
     return this.prisma.call.upsert({

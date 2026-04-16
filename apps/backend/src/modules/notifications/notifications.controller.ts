@@ -23,6 +23,7 @@ import {
   Query,
   UseGuards,
   Request,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService, CreateNotificationDto } from './notifications.service';
@@ -80,7 +81,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.findAll(userId, companyId, pagination);
@@ -98,7 +99,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.getUnreadCount(userId, companyId);
@@ -118,7 +119,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.markAsRead(id, userId, companyId);
@@ -136,7 +137,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.markAllAsRead(userId, companyId);
@@ -156,7 +157,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.delete(id, userId, companyId);
@@ -174,7 +175,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.deleteAllRead(userId, companyId);
@@ -193,7 +194,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.findById(id, userId, companyId);
@@ -210,7 +211,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.getPreferences(userId, companyId);
@@ -237,7 +238,7 @@ export class NotificationsController {
     const companyId = req.user?.companyId;
 
     if (!userId || !companyId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('User not authenticated');
     }
 
     return this.notificationsService.updatePreferences(userId, companyId, data);
