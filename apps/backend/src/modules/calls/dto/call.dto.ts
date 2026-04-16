@@ -19,7 +19,9 @@ import { CallStatus, CallDirection } from '@prisma/client';
 export class CreateCallDto {
   @ApiProperty({ example: '+5511999999999' })
   @IsString()
-  @Matches(/^\+[1-9]\d{6,14}$/, { message: 'phoneNumber must be E.164 format (e.g. +5511999999999)' })
+  @Matches(/^\+[1-9]\d{6,14}$/, {
+    message: 'phoneNumber must be E.164 format (e.g. +5511999999999)',
+  })
   phoneNumber!: string;
 
   @ApiPropertyOptional()

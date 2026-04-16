@@ -16,10 +16,7 @@ describe('WebhookIdempotencyService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        WebhookIdempotencyService,
-        { provide: CacheService, useValue: cacheService },
-      ],
+      providers: [WebhookIdempotencyService, { provide: CacheService, useValue: cacheService }],
     }).compile();
 
     service = module.get<WebhookIdempotencyService>(WebhookIdempotencyService);

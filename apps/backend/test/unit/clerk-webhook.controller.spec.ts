@@ -31,7 +31,9 @@ describe('ClerkWebhookController', () => {
   };
 
   const mockWebhookIdempotency = {
-    checkAndMark: jest.fn().mockResolvedValue({ isDuplicate: false, correlationId: 'wh_clerk_test' }),
+    checkAndMark: jest
+      .fn()
+      .mockResolvedValue({ isDuplicate: false, correlationId: 'wh_clerk_test' }),
   };
 
   beforeEach(async () => {

@@ -96,7 +96,9 @@ describe('BillingService', () => {
   };
 
   const mockWebhookIdempotency = {
-    checkAndMark: jest.fn().mockResolvedValue({ isDuplicate: false, correlationId: 'wh_stripe_test' }),
+    checkAndMark: jest
+      .fn()
+      .mockResolvedValue({ isDuplicate: false, correlationId: 'wh_stripe_test' }),
   };
 
   beforeEach(async () => {
