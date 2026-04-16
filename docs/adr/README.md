@@ -18,6 +18,7 @@ Title → Status → Context → Decision → Consequences → Compliance → No
 | 008 | [SQL-level aggregation over app-level](./008-sql-level-aggregation.md) | Aceito  | this dir |
 | 009 | [Multi-tenancy via shared DB + companyId](./009-multi-tenancy-shared-db.md) | Aceito  | this dir (formaliza #003) |
 | 010 | [Observability stack — Sentry + OTel + Axiom](./010-observability-stack.md) | Aceito  | this dir |
+| 011 | [AI provider abstraction with automatic fallback](./011-ai-provider-abstraction.md) | Aceito  | this dir |
 
 ## When to create an ADR
 
