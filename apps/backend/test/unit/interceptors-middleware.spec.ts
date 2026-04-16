@@ -262,7 +262,9 @@ describe('LoggingInterceptor', () => {
     it('should maintain request ID consistency across logs', (done) => {
       const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
       const request = createMockRequest();
-      (request as unknown as Record<string, unknown>).headers = { 'x-request-id': 'consistent-id-123' };
+      (request as unknown as Record<string, unknown>).headers = {
+        'x-request-id': 'consistent-id-123',
+      };
       const response = createMockResponse();
       const context = createMockExecutionContext(request, response);
       const handler = createMockCallHandler({ data: 'test' });
