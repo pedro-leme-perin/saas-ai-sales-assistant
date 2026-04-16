@@ -245,7 +245,13 @@ export default function WhatsAppPage() {
         <Card className="flex-1 flex flex-col">
           {/* Chat Header */}
           <div className="flex items-center gap-3 p-4 border-b">
-            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSelectedChat(null)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('accessibility.backToList')}
+              className="md:hidden"
+              onClick={() => setSelectedChat(null)}
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-600">

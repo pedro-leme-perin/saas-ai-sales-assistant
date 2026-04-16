@@ -293,7 +293,15 @@
     "expandMenu": "Expandir menu",
     "collapseMenu": "Recolher menu",
     "sidebar": "Menu lateral",
-    "notificationsCount": "Notificações ({{count}} não lidas)"
+    "notificationsCount": "Notificações ({{count}} não lidas)",
+    "notifications": "Notificações",
+    "backToList": "Voltar para a lista",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "close": "Fechar",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página",
+    "dismissBanner": "Dispensar mensagem"
   },
   "landing": {
     "badge": "Assistente de vendas potencializado por IA",

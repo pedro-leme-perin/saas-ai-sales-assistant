@@ -97,12 +97,18 @@ const UserRow = memo(function UserRow({
         <span className="text-xs text-muted-foreground hidden sm:block">
           {formatDateTime(user.createdAt).split(',')[0]}
         </span>
-        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Editar ${user.name || user.email}`}
+          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
           <Edit className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
+          aria-label={`Remover ${user.name || user.email}`}
           className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => onDelete(user)}
           disabled={user.role === 'OWNER'}
@@ -354,7 +360,12 @@ export default function TeamPage() {
                   <p className="text-sm text-muted-foreground">Envie um convite por email</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setShowInviteModal(false)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Fechar"
+                onClick={() => setShowInviteModal(false)}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>

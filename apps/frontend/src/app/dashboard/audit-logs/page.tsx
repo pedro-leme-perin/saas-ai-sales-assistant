@@ -334,18 +334,20 @@ export default function AuditLogsPage() {
             <Button
               variant="outline"
               size="icon"
+              aria-label={t('accessibility.previousPage')}
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
               className="h-8 w-8"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium">
+            <span className="text-sm font-medium" aria-live="polite">
               {page} / {data.meta.totalPages}
             </span>
             <Button
               variant="outline"
               size="icon"
+              aria-label={t('accessibility.nextPage')}
               onClick={() => setPage(Math.min(data.meta.totalPages, page + 1))}
               disabled={page === data.meta.totalPages}
               className="h-8 w-8"

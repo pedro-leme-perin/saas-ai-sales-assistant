@@ -177,22 +177,34 @@ function BillingPageContent() {
 
       {/* Banners */}
       {banner === 'success' && (
-        <Card className="border-green-200 bg-green-50/50">
+        <Card className="border-green-200 bg-green-50/50" role="status" aria-live="polite">
           <CardContent className="p-4 flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
             <span className="text-sm font-medium text-green-800 flex-1">Assinatura ativada com sucesso!</span>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setBanner(null)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Dispensar mensagem"
+              className="h-8 w-8"
+              onClick={() => setBanner(null)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </CardContent>
         </Card>
       )}
       {banner === 'canceled' && (
-        <Card className="border-yellow-200 bg-yellow-50/50">
+        <Card className="border-yellow-200 bg-yellow-50/50" role="status" aria-live="polite">
           <CardContent className="p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
             <span className="text-sm font-medium text-yellow-800 flex-1">Checkout cancelado. Nenhuma cobrança realizada.</span>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setBanner(null)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Dispensar mensagem"
+              className="h-8 w-8"
+              onClick={() => setBanner(null)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </CardContent>

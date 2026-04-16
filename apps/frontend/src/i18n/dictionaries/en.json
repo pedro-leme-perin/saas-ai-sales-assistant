@@ -293,7 +293,15 @@
     "expandMenu": "Expand menu",
     "collapseMenu": "Collapse menu",
     "sidebar": "Sidebar",
-    "notificationsCount": "Notifications ({{count}} unread)"
+    "notificationsCount": "Notifications ({{count}} unread)",
+    "notifications": "Notifications",
+    "backToList": "Back to list",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "dismissBanner": "Dismiss message"
   },
   "landing": {
     "badge": "AI-powered sales assistant",
