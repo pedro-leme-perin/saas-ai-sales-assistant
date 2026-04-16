@@ -24,6 +24,7 @@ describe('AnalyticsService', () => {
       user: { count: jest.fn().mockResolvedValue(5) },
       aISuggestion: {
         count: jest.fn().mockResolvedValue(30),
+        aggregate: jest.fn().mockResolvedValue({ _avg: { latencyMs: null, confidence: null } }),
         findMany: jest.fn().mockResolvedValue([]),
       },
       // SQL-level groupBy (byDay) — template-tagged $queryRaw

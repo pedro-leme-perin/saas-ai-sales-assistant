@@ -315,7 +315,7 @@ describe('CallsService', () => {
       });
 
       await expect(service.endCall('call-123', 'company-123')).rejects.toThrow(
-        'Cannot end call - Twilio not configured or no SID',
+        'Twilio not configured',
       );
     });
   });
