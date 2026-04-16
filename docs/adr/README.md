@@ -16,6 +16,8 @@ Title → Status → Context → Decision → Consequences → Compliance → No
 | 006 | Deepgram para STT                                 | Aceito  | CLAUDE.md  |
 | 007 | Circuit breaker em integrações externas           | Aceito  | CLAUDE.md  |
 | 008 | [SQL-level aggregation over app-level](./008-sql-level-aggregation.md) | Aceito  | this dir |
+| 009 | [Multi-tenancy via shared DB + companyId](./009-multi-tenancy-shared-db.md) | Aceito  | this dir (formaliza #003) |
+| 010 | [Observability stack — Sentry + OTel + Axiom](./010-observability-stack.md) | Aceito  | this dir |
 
 ## When to create an ADR
 
