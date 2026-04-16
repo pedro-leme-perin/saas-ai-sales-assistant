@@ -175,6 +175,19 @@ export default function TeamPage() {
     }
   }, [showInviteModal]);
 
+  // ESC key closes any open modal (WCAG 2.1 — keyboard accessible)
+  useEffect(() => {
+    if (!showInviteModal && !showDeleteConfirm) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showInviteModal) setShowInviteModal(false);
+        else if (showDeleteConfirm) setShowDeleteConfirm(null);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showInviteModal, showDeleteConfirm]);
+
   // Memoize filtered users for performance
   const filteredUsers = useMemo(
     () =>
@@ -347,6 +360,9 @@ export default function TeamPage() {
           onClick={() => setShowInviteModal(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invite-modal-title"
             className="bg-background rounded-xl shadow-2xl w-full max-w-md m-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -356,7 +372,7 @@ export default function TeamPage() {
                   <UserPlus className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold">Convidar Membro</h2>
+                  <h2 id="invite-modal-title" className="text-lg font-semibold">Convidar Membro</h2>
                   <p className="text-sm text-muted-foreground">Envie um convite por email</p>
                 </div>
               </div>
@@ -426,6 +442,10 @@ export default function TeamPage() {
           onClick={() => setShowDeleteConfirm(null)}
         >
           <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-modal-title"
+            aria-describedby="delete-modal-desc"
             className="bg-background rounded-xl shadow-2xl w-full max-w-sm m-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -434,8 +454,8 @@ export default function TeamPage() {
                 <AlertTriangle className="h-6 w-6 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Remover membro</h3>
-                <p className="text-sm text-muted-foreground mt-1">
+                <h3 id="delete-modal-title" className="text-lg font-semibold">Remover membro</h3>
+                <p id="delete-modal-desc" className="text-sm text-muted-foreground mt-1">
                   Tem certeza que deseja remover <strong>{showDeleteConfirm.name}</strong> da equipe? Esta ação não pode ser desfeita.
                 </p>
               </div>
