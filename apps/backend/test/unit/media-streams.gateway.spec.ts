@@ -170,7 +170,10 @@ describe('MediaStreamsGateway', () => {
     });
 
     it('should call handleStreamStart for start event', async () => {
-      const startSpy = jest.spyOn(gateway as any, 'handleStreamStart');
+      const startSpy = jest.spyOn(
+        gateway as unknown as Record<string, unknown>,
+        'handleStreamStart',
+      );
 
       const message = {
         event: 'start' as const,
@@ -182,7 +185,10 @@ describe('MediaStreamsGateway', () => {
     });
 
     it('should call handleMediaChunk for media event', async () => {
-      const mediaSpy = jest.spyOn(gateway as any, 'handleMediaChunk');
+      const mediaSpy = jest.spyOn(
+        gateway as unknown as Record<string, unknown>,
+        'handleMediaChunk',
+      );
 
       const message = {
         event: 'media' as const,
@@ -195,7 +201,10 @@ describe('MediaStreamsGateway', () => {
     });
 
     it('should call handleStreamStop for stop event', async () => {
-      const stopSpy = jest.spyOn(gateway as any, 'handleStreamStop');
+      const stopSpy = jest.spyOn(
+        gateway as unknown as Record<string, unknown>,
+        'handleStreamStop',
+      );
 
       const message = {
         event: 'stop' as const,
@@ -210,7 +219,7 @@ describe('MediaStreamsGateway', () => {
       const logSpy = jest.spyOn(gateway['logger'], 'log');
 
       const message = {
-        event: 'unknown' as any,
+        event: 'unknown' as unknown as 'connected',
       };
 
       await expect(gateway['handleTwilioMessage'](message)).resolves.not.toThrow();
@@ -245,7 +254,7 @@ describe('MediaStreamsGateway', () => {
       prismaService.call.findFirst.mockResolvedValue({
         id: mockCallId,
         userId: mockUserId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof prismaService.call.findFirst>>);
 
       const message = {
         event: 'start' as const,
@@ -266,7 +275,7 @@ describe('MediaStreamsGateway', () => {
       prismaService.call.findFirst.mockResolvedValue({
         id: mockCallId,
         userId: mockUserId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof prismaService.call.findFirst>>);
 
       const message = {
         event: 'start' as const,
@@ -287,7 +296,7 @@ describe('MediaStreamsGateway', () => {
       prismaService.call.findFirst.mockResolvedValue({
         id: mockCallId,
         userId: mockUserId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof prismaService.call.findFirst>>);
       const errorSpy = jest.spyOn(gateway['logger'], 'error');
 
       const message = {
@@ -308,7 +317,7 @@ describe('MediaStreamsGateway', () => {
       prismaService.call.findFirst.mockResolvedValue({
         id: mockCallId,
         userId: mockUserId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof prismaService.call.findFirst>>);
 
       const message = {
         event: 'start' as const,
@@ -322,15 +331,15 @@ describe('MediaStreamsGateway', () => {
     });
 
     it('should pass transcript callback to deepgram', async () => {
-      let transcriptCallback: any;
-      deepgramService.createLiveSession.mockImplementation((onTranscript: any) => {
-        transcriptCallback = onTranscript;
+      let transcriptCallback: (data: { text: string; isFinal: boolean }) => void;
+      deepgramService.createLiveSession.mockImplementation((onTranscript: unknown) => {
+        transcriptCallback = onTranscript as typeof transcriptCallback;
         return createMockLiveSession();
       });
       prismaService.call.findFirst.mockResolvedValue({
         id: mockCallId,
         userId: mockUserId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof prismaService.call.findFirst>>);
 
       const message = {
         event: 'start' as const,
@@ -341,8 +350,8 @@ describe('MediaStreamsGateway', () => {
       await gateway['handleStreamStart'](message);
 
       // Test transcript callback
-      expect(transcriptCallback).toBeDefined();
-      transcriptCallback({ text: 'Hello', isFinal: true });
+      expect(transcriptCallback!).toBeDefined();
+      transcriptCallback!({ text: 'Hello', isFinal: true });
 
       expect(notificationsGateway.sendAISuggestion).toHaveBeenCalledWith(mockUserId, {
         callId: mockCallId,
@@ -354,15 +363,15 @@ describe('MediaStreamsGateway', () => {
     });
 
     it('should not send interim transcripts to client', async () => {
-      let transcriptCallback: any;
-      deepgramService.createLiveSession.mockImplementation((onTranscript: any) => {
-        transcriptCallback = onTranscript;
+      let transcriptCallback: (data: { text: string; isFinal: boolean }) => void;
+      deepgramService.createLiveSession.mockImplementation((onTranscript: unknown) => {
+        transcriptCallback = onTranscript as typeof transcriptCallback;
         return createMockLiveSession();
       });
       prismaService.call.findFirst.mockResolvedValue({
         id: mockCallId,
         userId: mockUserId,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof prismaService.call.findFirst>>);
 
       const message = {
         event: 'start' as const,
@@ -405,7 +414,9 @@ describe('MediaStreamsGateway', () => {
         latencyMs: 100,
       };
       aiService.generateSuggestion.mockResolvedValue(mockSuggestion);
-      prismaService.aISuggestion.create.mockResolvedValue({} as any);
+      prismaService.aISuggestion.create.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.aISuggestion.create>>,
+      );
 
       const session = {
         callId: mockCallId,
@@ -431,7 +442,9 @@ describe('MediaStreamsGateway', () => {
         latencyMs: 150,
       };
       aiService.generateSuggestion.mockResolvedValue(mockSuggestion);
-      prismaService.aISuggestion.create.mockResolvedValue({} as any);
+      prismaService.aISuggestion.create.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.aISuggestion.create>>,
+      );
 
       const session = {
         callId: mockCallId,
@@ -459,7 +472,9 @@ describe('MediaStreamsGateway', () => {
         latencyMs: 150,
       };
       aiService.generateSuggestion.mockResolvedValue(mockSuggestion);
-      prismaService.aISuggestion.create.mockResolvedValue({} as any);
+      prismaService.aISuggestion.create.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.aISuggestion.create>>,
+      );
 
       const session = {
         callId: mockCallId,
@@ -492,7 +507,9 @@ describe('MediaStreamsGateway', () => {
         latencyMs: 100,
       };
       aiService.generateSuggestion.mockResolvedValue(mockSuggestion);
-      prismaService.aISuggestion.create.mockResolvedValue({} as any);
+      prismaService.aISuggestion.create.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.aISuggestion.create>>,
+      );
 
       const session = {
         callId: mockCallId,
@@ -516,7 +533,9 @@ describe('MediaStreamsGateway', () => {
         provider: 'openai',
         latencyMs: 100,
       });
-      prismaService.aISuggestion.create.mockResolvedValue({} as any);
+      prismaService.aISuggestion.create.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.aISuggestion.create>>,
+      );
 
       const session = {
         callId: mockCallId,
@@ -544,7 +563,9 @@ describe('MediaStreamsGateway', () => {
         provider: 'openai',
         latencyMs: 100,
       });
-      prismaService.aISuggestion.create.mockResolvedValue({} as any);
+      prismaService.aISuggestion.create.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.aISuggestion.create>>,
+      );
 
       const session = {
         callId: mockCallId,
@@ -708,7 +729,9 @@ describe('MediaStreamsGateway', () => {
         deepgramSession: mockSession,
         fullTranscript: ['hello', 'world'],
       });
-      prismaService.call.update.mockResolvedValue({} as any);
+      prismaService.call.update.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.call.update>>,
+      );
 
       const message = {
         event: 'stop' as const,
@@ -727,7 +750,9 @@ describe('MediaStreamsGateway', () => {
         deepgramSession: null,
         fullTranscript: ['hello', 'world'],
       });
-      prismaService.call.update.mockResolvedValue({} as any);
+      prismaService.call.update.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.call.update>>,
+      );
 
       const message = {
         event: 'stop' as const,
@@ -785,7 +810,9 @@ describe('MediaStreamsGateway', () => {
         deepgramSession: null,
         fullTranscript: ['hello'],
       });
-      prismaService.call.update.mockResolvedValue({} as any);
+      prismaService.call.update.mockResolvedValue(
+        {} as unknown as Awaited<ReturnType<typeof prismaService.call.update>>,
+      );
       const logSpy = jest.spyOn(gateway['logger'], 'log');
 
       const message = {
