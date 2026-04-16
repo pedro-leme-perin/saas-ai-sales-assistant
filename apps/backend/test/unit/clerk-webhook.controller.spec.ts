@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { ClerkWebhookController } from '../../src/modules/auth/webhooks/clerk-webhook.controller';
 import { UsersService } from '../../src/modules/users/users.service';
+import { WebhookIdempotencyService } from '../../src/common/resilience/webhook-idempotency.service';
 import { ClerkUserData } from '../../src/modules/auth/interfaces/clerk.interfaces';
 import { RawBodyRequest } from '@nestjs/common';
 import { Request } from 'express';
@@ -29,6 +30,10 @@ describe('ClerkWebhookController', () => {
     softDeleteByClerkId: jest.fn(),
   };
 
+  const mockWebhookIdempotency = {
+    checkAndMark: jest.fn().mockResolvedValue({ isDuplicate: false, correlationId: 'wh_clerk_test' }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ClerkWebhookController],
@@ -36,6 +41,10 @@ describe('ClerkWebhookController', () => {
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: WebhookIdempotencyService,
+          useValue: mockWebhookIdempotency,
         },
       ],
     }).compile();

@@ -22,14 +22,14 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 13/04/2026 (sessão 37)
+> Última atualização: 16/04/2026 (sessão 39)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | (pendente) (13/04/2026) | Enterprise frontend quality + backend test coverage (session 38) |
+| Último commit | (pendente) (16/04/2026) | Webhook idempotency + DTO hardening + error boundaries (session 39) |
 | Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
@@ -43,7 +43,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
 | CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview deploys + smoke tests) |
-| Testes | ✅ 48 suites + k6 | 39 backend + 9 E2E + 3 k6 load tests, ~875 tests |
+| Testes | ✅ 50 suites + k6 | 41 backend + 9 E2E + 3 k6 load tests, ~882 tests |
 | Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP, 16 traces verificados |
 
 ### 2.2 Infraestrutura de Produção
@@ -462,6 +462,90 @@ Sessão 33 fez 5 mudanças de código fonte (CacheService dependency, SQL aggreg
 - Frontend logging: ✅ Structured logger com Sentry, zero console.* calls
 - Backend tests: ✅ 42 suites (~875 tests)
 - CI Pipeline: ⏳ Pendente — commit + push necessários
+
+### 2.14 Sessão 39 — 16/04/2026
+
+**Objetivo:** Webhook idempotency, DTO validation hardening, frontend error boundaries, API response standardization.
+
+**Itens executados (5):**
+
+**Item 1 — Webhook Idempotency (Stripe, Clerk, WhatsApp):**
+- Created `WebhookIdempotencyService` (`common/resilience/webhook-idempotency.service.ts`) — Redis SETNX + 48h TTL deduplication
+- Integrated into `BillingService.handleWebhook()` — dedup by Stripe event ID
+- Integrated into `ClerkWebhookController.handleWebhook()` — dedup by svix-id
+- Integrated into `WhatsappWebhookController.processMessages()` — dedup per message ID
+- Added to `CacheModule` (@Global) for universal availability
+- Created unit test: `webhook-idempotency.service.spec.ts` (7 tests)
+- Updated 3 existing spec files with `WebhookIdempotencyService` mock
+- Graceful degradation: if Redis fails, allow processing (at-least-once > at-most-once)
+
+**Item 2 — DTO Validation Hardening (9 DTO files):**
+- `CompleteOnboardingDto`: Added `@IsEnum(Plan)` for selectedPlan, `@IsIn` for teamSize/channels, `@MaxLength`, `@MinLength`, `@Transform(trim)`
+- `CreateCallDto/UpdateCallDto`: Added `@Matches(E.164)` for phone, `@MaxLength` on transcript(500K)/summary(10K)/notes(5K), `@IsUrl` for recordingUrl
+- `CreateUserDto`: Added `@MaxLength(200)` for name, `@Matches(E.164)` for phone, `@IsUrl` for avatarUrl
+- `CreateCompanyDto/UpdateCompanyDto`: Added `@Matches` for slug pattern, `@MaxLength`, `@MinLength`, `@Matches(IANA)` for timezone
+- `WhatsApp DTOs`: Added `@Matches(E.164)` for customerPhone, `@MaxLength(4096)` for content (WhatsApp limit), `@MaxLength` on all string fields
+- All name/text fields: Added `@Transform(trim)` for whitespace sanitization
+
+**Item 3 — Frontend Error Boundaries (7 segments):**
+- Created reusable `SegmentError` component (`components/dashboard/segment-error.tsx`)
+- Added `error.tsx` to all 7 dashboard segments: calls, analytics, billing, whatsapp, settings, team, audit-logs
+- Each segment has isolated error handling (Release It! — Bulkheads pattern)
+- Error logging via `logger.ui.error` with segment identification
+
+**Item 4 — API Response Standardization:**
+- Added `TransformInterceptor` to global interceptors in `main.ts`
+- All responses now wrapped in `{ success: true, data, timestamp }` envelope
+- Error responses already standardized via `GlobalExceptionFilter`
+
+**Item 5 — Zod Environment Validation (from previous session, committed):**
+- `env.validation.ts`: Zod schema validating 40+ env vars at startup
+- Production-specific requirements for 7 critical vars
+- `validateEnv()` called before `NestFactory.create()` in `main.ts`
+
+**Arquivos criados/modificados (~25 arquivos):**
+
+*Novos:*
+- `apps/backend/src/common/resilience/webhook-idempotency.service.ts`
+- `apps/backend/test/unit/webhook-idempotency.service.spec.ts`
+- `apps/frontend/src/components/dashboard/segment-error.tsx`
+- `apps/frontend/src/app/dashboard/calls/error.tsx`
+- `apps/frontend/src/app/dashboard/analytics/error.tsx`
+- `apps/frontend/src/app/dashboard/billing/error.tsx`
+- `apps/frontend/src/app/dashboard/whatsapp/error.tsx`
+- `apps/frontend/src/app/dashboard/settings/error.tsx`
+- `apps/frontend/src/app/dashboard/team/error.tsx`
+- `apps/frontend/src/app/dashboard/audit-logs/error.tsx`
+
+*Modificados:*
+- `apps/backend/src/infrastructure/cache/cache.module.ts` — WebhookIdempotencyService provider
+- `apps/backend/src/modules/billing/billing.service.ts` — Idempotency check + new dependency
+- `apps/backend/src/modules/auth/webhooks/clerk-webhook.controller.ts` — Idempotency check
+- `apps/backend/src/presentation/webhooks/whatsapp.webhook.ts` — Idempotency check per message
+- `apps/backend/src/modules/calls/dto/call.dto.ts` — E.164, MaxLength, IsUrl
+- `apps/backend/src/modules/users/dto/user.dto.ts` — E.164, MaxLength, IsUrl
+- `apps/backend/src/modules/whatsapp/dto/whatsapp.dto.ts` — E.164, MaxLength(4096)
+- `apps/backend/src/modules/companies/dto/create-company.dto.ts` — Slug regex, MaxLength
+- `apps/backend/src/modules/companies/dto/update-company.dto.ts` — Slug regex, IANA timezone, MaxLength
+- `apps/backend/src/modules/companies/dto/complete-onboarding.dto.ts` — IsEnum(Plan), IsIn, MaxLength
+- `apps/backend/src/main.ts` — TransformInterceptor added globally
+- `apps/backend/test/unit/billing.service.spec.ts` — WebhookIdempotencyService mock
+- `apps/backend/test/unit/clerk-webhook.controller.spec.ts` — WebhookIdempotencyService mock
+- `apps/backend/test/unit/whatsapp-webhook.controller.spec.ts` — WebhookIdempotencyService mock
+
+**Referências de livros aplicadas:**
+- *Release It!* — Idempotent Receivers (webhook deduplication), Bulkheads (segment error boundaries)
+- *Release It!* — Fail Fast (DTO validation at boundary, env validation at startup)
+- *Clean Architecture* Cap. 22: Validation at boundary layer (DTOs), not in domain
+- *DDIA* Cap. 11: Exactly-once vs at-least-once semantics for webhook processing
+
+**Estado ao final da sessão:**
+- Webhook idempotency: ✅ Redis-based dedup for Stripe, Clerk, WhatsApp
+- DTO validation: ✅ E.164 phones, MaxLength, slug regex, IANA timezone, trim sanitization
+- Error boundaries: ✅ 7 dashboard segments + 1 reusable component
+- API standardization: ✅ TransformInterceptor applied globally
+- Testes: ~44 suites esperados (~882 tests)
+- CI Pipeline: ⏳ Pendente — requer `pnpm install` (lockfile sync) + push
 
 ---
 

@@ -3,6 +3,7 @@
 // =====================================================
 
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { IsString, IsIn } from 'class-validator';
 import { UploadService } from './upload.service';
@@ -34,6 +35,7 @@ interface CurrentUserPayload {
 @ApiTags('upload')
 @Controller('upload')
 @UseGuards(AuthGuard, TenantGuard, RolesGuard)
+@Throttle({ strict: { ttl: 60000, limit: 10 } }) // File uploads — strict rate limit
 @ApiBearerAuth('JWT')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}

@@ -4,9 +4,11 @@
 
 import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { ApiTags, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '@common/decorators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { WebhookIdempotencyService } from '../../common/resilience/webhook-idempotency.service';
 import { timingSafeEqual } from 'crypto';
 
 interface WhatsAppWebhookBody {
@@ -43,6 +45,7 @@ interface WhatsAppMessage {
 }
 
 @ApiTags('webhooks')
+@SkipThrottle() // WhatsApp webhooks are server-to-server, must not be rate-limited
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {
   private readonly logger = new Logger(WhatsappWebhookController.name);
@@ -50,6 +53,7 @@ export class WhatsappWebhookController {
   constructor(
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly webhookIdempotency: WebhookIdempotencyService,
   ) {}
 
   @Get()
@@ -112,6 +116,18 @@ export class WhatsappWebhookController {
     const metadata = value?.metadata;
 
     for (const message of messages) {
+      // Idempotency check per message ID (Release It! — Idempotent Receivers)
+      const { isDuplicate, correlationId } = await this.webhookIdempotency.checkAndMark(
+        'whatsapp',
+        message.id,
+      );
+      if (isDuplicate) {
+        this.logger.warn(
+          `Skipping duplicate WhatsApp message [${correlationId}] from=${message.from}`,
+        );
+        continue;
+      }
+
       const contact = contacts.find((c) => c.wa_id === message.from);
 
       const messageData = {
@@ -124,7 +140,9 @@ export class WhatsappWebhookController {
         phoneNumberId: metadata?.phone_number_id,
       };
 
-      this.logger.log(`New WhatsApp message from ${message.from}: ${message.type}`);
+      this.logger.log(
+        `New WhatsApp message [${correlationId}] from ${message.from}: ${message.type}`,
+      );
 
       // Emit event for processing
       this.eventEmitter.emit('whatsapp.message.received', messageData);

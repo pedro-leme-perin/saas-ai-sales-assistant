@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { BillingService } from '../../src/modules/billing/billing.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
+import { WebhookIdempotencyService } from '../../src/common/resilience/webhook-idempotency.service';
 import type { Plan } from '@prisma/client';
 import type Stripe from 'stripe';
 import type { AuthenticatedUser } from '../../src/common/decorators';
@@ -94,6 +95,10 @@ describe('BillingService', () => {
     set: jest.fn().mockResolvedValue(true),
   };
 
+  const mockWebhookIdempotency = {
+    checkAndMark: jest.fn().mockResolvedValue({ isDuplicate: false, correlationId: 'wh_stripe_test' }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -101,6 +106,7 @@ describe('BillingService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: CacheService, useValue: mockCacheService },
+        { provide: WebhookIdempotencyService, useValue: mockWebhookIdempotency },
       ],
     }).compile();
 

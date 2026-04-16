@@ -5,6 +5,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
+import { WebhookIdempotencyService } from '../../common/resilience/webhook-idempotency.service';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { AuthenticatedUser } from '@common/decorators';
 import { Plan, SubscriptionStatus, AuditAction, Prisma } from '@prisma/client';
@@ -68,6 +69,7 @@ export class BillingService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly webhookIdempotency: WebhookIdempotencyService,
   ) {
     this.stripeSecretKey = this.configService.get<string>('stripe.secretKey') || '';
     this.stripePrices = {
@@ -382,7 +384,17 @@ export class BillingService {
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    this.logger.log(`📨 Webhook received: ${event.type}`);
+    // Idempotency check — skip if already processed (Release It! — Idempotent Receivers)
+    const { isDuplicate, correlationId } = await this.webhookIdempotency.checkAndMark(
+      'stripe',
+      event.id,
+    );
+    if (isDuplicate) {
+      this.logger.warn(`Skipping duplicate Stripe event [${correlationId}] type=${event.type}`);
+      return;
+    }
+
+    this.logger.log(`📨 Webhook received [${correlationId}]: ${event.type}`);
 
     switch (event.type) {
       case 'customer.subscription.created':

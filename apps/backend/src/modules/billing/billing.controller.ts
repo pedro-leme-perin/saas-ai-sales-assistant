@@ -17,7 +17,7 @@ import {
   HttpStatus,
   Headers,
 } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { Public } from '@/common/decorators/public.decorator';
 import { BillingService, PlanDetails } from './billing.service';
@@ -52,6 +52,7 @@ import { CreateCheckoutDto, ChangePlanDto } from './dto/billing.dto';
 @ApiTags('billing')
 @ApiBearerAuth('JWT')
 @UseGuards(TenantGuard)
+@Throttle({ strict: { ttl: 60000, limit: 20 } }) // Billing mutations are sensitive — strict rate limit
 @Controller('billing')
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}

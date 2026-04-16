@@ -17,6 +17,7 @@ import { MediaStreamsGateway } from './modules/calls/media-streams.gateway';
 import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { TelemetryService } from './infrastructure/telemetry/telemetry.service';
 import { validateEnv } from './config/env.validation';
 
@@ -108,7 +109,9 @@ async function bootstrap() {
 
   // ── Structured Logging + Telemetry (SRE - Monitoring: structured logs + OTel metrics) ──
   const telemetryService = app.get(TelemetryService, { strict: false });
-  app.useGlobalInterceptors(new LoggingInterceptor(telemetryService));
+  // TransformInterceptor: wraps all responses in { success, data, timestamp } envelope
+  // LoggingInterceptor: structured logs + OTel trace correlation
+  app.useGlobalInterceptors(new TransformInterceptor(), new LoggingInterceptor(telemetryService));
 
   // ── Graceful Shutdown (Release It! - Stability Patterns) ──
   app.enableShutdownHooks();

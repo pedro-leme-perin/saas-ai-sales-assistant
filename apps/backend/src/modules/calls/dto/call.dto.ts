@@ -8,18 +8,25 @@ import {
   Min,
   Max,
   IsNumber,
+  MaxLength,
+  Matches,
+  IsUrl,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { CallStatus, CallDirection } from '@prisma/client';
 
 export class CreateCallDto {
   @ApiProperty({ example: '+5511999999999' })
   @IsString()
+  @Matches(/^\+[1-9]\d{6,14}$/, { message: 'phoneNumber must be E.164 format (e.g. +5511999999999)' })
   phoneNumber!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(200)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   contactName?: string;
 
   @ApiPropertyOptional({ enum: CallDirection, default: 'OUTBOUND' })
@@ -42,16 +49,19 @@ export class UpdateCallDto extends PartialType(CreateCallDto) {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500000)
   transcript?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(10000)
   summary?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(5000)
   notes?: string;
 
   @ApiPropertyOptional()
@@ -62,13 +72,14 @@ export class UpdateCallDto extends PartialType(CreateCallDto) {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUrl({}, { message: 'recordingUrl must be a valid URL' })
   recordingUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @MaxLength(50, { each: true })
   tags?: string[];
 }
 
@@ -79,6 +90,7 @@ export class AddTranscriptDto {
 
   @ApiProperty()
   @IsString()
+  @MaxLength(10000)
   text!: string;
 
   @ApiPropertyOptional()
@@ -103,6 +115,7 @@ export class CallFilterDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   userId?: string;
 
   @ApiPropertyOptional()
@@ -116,5 +129,6 @@ export class CallFilterDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   search?: string;
 }

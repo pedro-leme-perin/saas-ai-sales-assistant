@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WhatsappWebhookController } from '../../src/presentation/webhooks/whatsapp.webhook';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { WebhookIdempotencyService } from '../../src/common/resilience/webhook-idempotency.service';
 
 jest.setTimeout(15000);
 
@@ -18,6 +19,12 @@ describe('WhatsappWebhookController', () => {
     emit: jest.fn(),
   };
 
+  const mockWebhookIdempotency = {
+    checkAndMark: jest
+      .fn()
+      .mockResolvedValue({ isDuplicate: false, correlationId: 'wh_whatsapp_test' }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WhatsappWebhookController],
@@ -29,6 +36,10 @@ describe('WhatsappWebhookController', () => {
         {
           provide: EventEmitter2,
           useValue: mockEventEmitter,
+        },
+        {
+          provide: WebhookIdempotencyService,
+          useValue: mockWebhookIdempotency,
         },
       ],
     }).compile();

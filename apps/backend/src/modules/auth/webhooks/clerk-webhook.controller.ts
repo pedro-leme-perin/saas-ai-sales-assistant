@@ -12,10 +12,12 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Webhook } from 'svix';
 import { UsersService } from '../../users/users.service';
 import { Public } from '../decorators/public.decorator';
+import { WebhookIdempotencyService } from '../../../common/resilience/webhook-idempotency.service';
 import {
   ClerkWebhookEvent,
   ClerkUserData,
@@ -23,11 +25,15 @@ import {
 } from '../interfaces/clerk.interfaces';
 
 @ApiTags('webhooks')
+@SkipThrottle() // Clerk webhooks are server-to-server, must not be rate-limited
 @Controller('webhooks/clerk')
 export class ClerkWebhookController {
   private readonly logger = new Logger(ClerkWebhookController.name);
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly webhookIdempotency: WebhookIdempotencyService,
+  ) {}
 
   @Public()
   @Post()
@@ -74,7 +80,20 @@ export class ClerkWebhookController {
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    // 3. Processar evento
+    // 3. Idempotency check — svix-id is unique per delivery (Release It! — Idempotent Receivers)
+    const { isDuplicate, correlationId } = await this.webhookIdempotency.checkAndMark(
+      'clerk',
+      svixId,
+    );
+    if (isDuplicate) {
+      this.logger.warn(
+        `Skipping duplicate Clerk event [${correlationId}] type=${event.type}`,
+      );
+      return { received: true };
+    }
+
+    // 4. Processar evento
+    this.logger.log(`Processing [${correlationId}]: ${event.type}`);
     await this.processEvent(event.type, event.data);
 
     return { received: true };
