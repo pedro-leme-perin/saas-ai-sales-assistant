@@ -18,6 +18,7 @@ import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TelemetryService } from './infrastructure/telemetry/telemetry.service';
+import { validateEnv } from './config/env.validation';
 
 const logger = new Logger('Bootstrap');
 
@@ -44,6 +45,9 @@ if (process.env.SENTRY_DSN) {
 }
 
 async function bootstrap() {
+  // Fail Fast: validate all env vars BEFORE starting the app (Release It!)
+  validateEnv();
+
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
