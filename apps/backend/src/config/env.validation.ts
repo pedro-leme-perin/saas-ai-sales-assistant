@@ -122,16 +122,10 @@ export function validateEnv(): EnvConfig {
 
   // Production-specific: warn about missing critical vars
   if (result.data.NODE_ENV === 'production') {
-    const missing = productionRequirements.filter(
-      (key) => !process.env[key],
-    );
+    const missing = productionRequirements.filter((key) => !process.env[key]);
     if (missing.length > 0) {
-      logger.error(
-        `Production requires these env vars: ${missing.join(', ')}`,
-      );
-      throw new Error(
-        `Missing production env vars: ${missing.join(', ')}`,
-      );
+      logger.error(`Production requires these env vars: ${missing.join(', ')}`);
+      throw new Error(`Missing production env vars: ${missing.join(', ')}`);
     }
   }
 

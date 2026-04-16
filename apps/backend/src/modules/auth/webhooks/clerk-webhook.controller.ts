@@ -86,9 +86,7 @@ export class ClerkWebhookController {
       svixId,
     );
     if (isDuplicate) {
-      this.logger.warn(
-        `Skipping duplicate Clerk event [${correlationId}] type=${event.type}`,
-      );
+      this.logger.warn(`Skipping duplicate Clerk event [${correlationId}] type=${event.type}`);
       return { received: true };
     }
 

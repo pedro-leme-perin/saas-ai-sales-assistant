@@ -201,10 +201,7 @@ describe('MediaStreamsGateway', () => {
     });
 
     it('should call handleStreamStop for stop event', async () => {
-      const stopSpy = jest.spyOn(
-        gateway as unknown as Record<string, unknown>,
-        'handleStreamStop',
-      );
+      const stopSpy = jest.spyOn(gateway as unknown as Record<string, unknown>, 'handleStreamStop');
 
       const message = {
         event: 'stop' as const,
