@@ -195,12 +195,8 @@ describe('AnalyticsService', () => {
 
       expect(result.avgSentiment).toBeCloseTo(0.77, 2);
       expect(result.totalAnalyzed).toBe(3);
-      expect(
-        (result.distribution as unknown as Record<string, number>)['POSITIVE'],
-      ).toBe(2);
-      expect(
-        (result.distribution as unknown as Record<string, number>)['NEUTRAL'],
-      ).toBe(1);
+      expect((result.distribution as unknown as Record<string, number>)['POSITIVE']).toBe(2);
+      expect((result.distribution as unknown as Record<string, number>)['NEUTRAL']).toBe(1);
       expect(result.trend).toHaveLength(2);
       expect(result.trend[0].week).toBe('2026-04-07');
       expect(result.trend[1].calls).toBe(2);
@@ -258,11 +254,7 @@ describe('AnalyticsService', () => {
           { type: 'OBJECTION_HANDLING', _count: { _all: 1 } },
           { type: 'CLOSING', _count: { _all: 1 } },
         ]);
-      ais.findMany.mockResolvedValue([
-        { latencyMs: 500 },
-        { latencyMs: 800 },
-        { latencyMs: 300 },
-      ]);
+      ais.findMany.mockResolvedValue([{ latencyMs: 500 }, { latencyMs: 800 }, { latencyMs: 300 }]);
 
       const result = await service.getAIPerformance(COMPANY_ID);
 
@@ -272,11 +264,15 @@ describe('AnalyticsService', () => {
       expect(result.helpfulRate).toBe(50);
       expect(result.avgLatency).toBe(533);
       expect(result.avgConfidence).toBeCloseTo(0.82, 2);
-      expect((result.byProvider as unknown as Record<string, { count: number; used: number }>)['gpt-4o']).toEqual({
+      expect(
+        (result.byProvider as unknown as Record<string, { count: number; used: number }>)['gpt-4o'],
+      ).toEqual({
         count: 2,
         used: 1,
       });
-      expect((result.byProvider as unknown as Record<string, { count: number; used: number }>)['claude']).toEqual({
+      expect(
+        (result.byProvider as unknown as Record<string, { count: number; used: number }>)['claude'],
+      ).toEqual({
         count: 1,
         used: 1,
       });

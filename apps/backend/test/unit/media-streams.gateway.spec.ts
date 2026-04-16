@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { MediaStreamsGateway } from '../../src/modules/calls/media-streams.gateway';
 import { DeepgramService, LiveSession } from '../../src/infrastructure/stt/deepgram.service';
 import { AiService } from '../../src/modules/ai/ai.service';

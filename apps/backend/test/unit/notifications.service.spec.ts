@@ -8,7 +8,7 @@ jest.setTimeout(15000);
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
-  let prisma: PrismaService;
+  let _prisma: PrismaService;
 
   // Mock data
   const mockCompanyId = 'company-123';
@@ -61,7 +61,7 @@ describe('NotificationsService', () => {
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);
-    prisma = module.get<PrismaService>(PrismaService);
+    _prisma = module.get<PrismaService>(PrismaService);
 
     jest.clearAllMocks();
   });

@@ -9,7 +9,7 @@ import { UploadService } from '../../src/modules/upload/upload.service';
 
 describe('UploadService', () => {
   let service: UploadService;
-  let configService: ConfigService;
+  let _configService: ConfigService;
 
   const mockConfigValues: Record<string, string> = {
     R2_ACCOUNT_ID: 'test-account-id',
@@ -42,7 +42,7 @@ describe('UploadService', () => {
     }).compile();
 
     service = module.get<UploadService>(UploadService);
-    configService = module.get<ConfigService>(ConfigService);
+    _configService = module.get<ConfigService>(ConfigService);
   });
 
   describe('generatePresignedUrl', () => {
