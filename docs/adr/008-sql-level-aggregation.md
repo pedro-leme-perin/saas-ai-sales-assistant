@@ -99,8 +99,10 @@ Aplicado retroativamente em:
 
 - session 33: `calls.service.getCallStats` (count + aggregate)
 - session 39: `analytics.service.getCallsAnalytics` ($queryRaw + count + aggregate)
+- session 40: `analytics.service.getSentimentAnalytics` (aggregate + groupBy + $queryRaw date_trunc)
+- session 40: `analytics.service.getAIPerformance` (4 counts + aggregate + 3 groupBy
+  + slim findMany only for p95)
 
-Ainda pendentes de refactor (candidatos para ADR-008-compliance sweep):
-
-- `analytics.service.getSentimentAnalytics` (loop + groupBy em JS)
-- `analytics.service.getAIPerformance` (filter + reduce)
+**100% das funções de analytics estão em conformidade com ADR-008** a partir
+da sessão 40. Toda PR futura que adicionar query analytics deve seguir o
+mesmo padrão.

@@ -248,61 +248,81 @@ export class AnalyticsService {
   async getAIPerformance(companyId: string) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const suggestions = await this.prisma.aISuggestion.findMany({
-      where: {
-        createdAt: { gte: thirtyDaysAgo },
-        OR: [{ call: { companyId } }, { chat: { companyId } }],
-      },
-      select: {
-        wasUsed: true,
-        feedback: true,
-        latencyMs: true,
-        model: true,
-        type: true,
-        confidence: true,
-        createdAt: true,
-      },
-      take: 10000,
-    });
+    // Tenant filter shared by all aggregations (suggestion → call OR chat → company)
+    const baseWhere = {
+      createdAt: { gte: thirtyDaysAgo },
+      OR: [{ call: { companyId } }, { chat: { companyId } }],
+    };
 
-    if (suggestions.length === 0) {
-      return { total: 0, adoptionRate: 0, avgLatency: 0, byProvider: {}, byType: {} };
+    // ADR-008: SQL-level aggregation. p95 stays in JS but only loads
+    // latencyMs column (small payload).
+    const [total, used, helpful, withFeedback, agg, byProviderTotal, byProviderUsed, byTypeRaw, latencyRows] =
+      await promiseAllWithTimeout(
+        [
+          this.prisma.aISuggestion.count({ where: baseWhere }),
+          this.prisma.aISuggestion.count({ where: { ...baseWhere, wasUsed: true } }),
+          this.prisma.aISuggestion.count({ where: { ...baseWhere, feedback: 'HELPFUL' } }),
+          this.prisma.aISuggestion.count({ where: { ...baseWhere, feedback: { not: null } } }),
+          this.prisma.aISuggestion.aggregate({
+            where: baseWhere,
+            _avg: { latencyMs: true, confidence: true },
+          }),
+          this.prisma.aISuggestion.groupBy({
+            by: ['model'],
+            where: baseWhere,
+            _count: { _all: true },
+          }),
+          this.prisma.aISuggestion.groupBy({
+            by: ['model'],
+            where: { ...baseWhere, wasUsed: true },
+            _count: { _all: true },
+          }),
+          this.prisma.aISuggestion.groupBy({
+            by: ['type'],
+            where: baseWhere,
+            _count: { _all: true },
+          }),
+          // p95: load only latencyMs column (~8 bytes/row vs full row ~300 bytes)
+          this.prisma.aISuggestion.findMany({
+            where: { ...baseWhere, latencyMs: { not: null } },
+            select: { latencyMs: true },
+            take: 10000,
+          }),
+        ],
+        15000,
+        'getAIPerformance',
+      );
+
+    if (total === 0) {
+      return { total: 0, adoptionRate: 0, avgLatency: 0, p95Latency: 0, byProvider: {}, byType: {} };
     }
 
-    const used = suggestions.filter((s) => s.wasUsed).length;
-    const helpful = suggestions.filter((s) => s.feedback === 'HELPFUL').length;
-    const withFeedback = suggestions.filter((s) => s.feedback !== null).length;
-    const latencies = suggestions.filter((s) => s.latencyMs != null).map((s) => s.latencyMs!);
-
-    // By provider
+    // Merge byProvider total + used into single map
     const byProvider: Record<string, { count: number; used: number }> = {};
-    for (const s of suggestions) {
-      const model = s.model || 'unknown';
-      if (!byProvider[model]) byProvider[model] = { count: 0, used: 0 };
-      byProvider[model].count++;
-      if (s.wasUsed) byProvider[model].used++;
+    for (const row of byProviderTotal) {
+      const model = row.model || 'unknown';
+      byProvider[model] = { count: row._count._all, used: 0 };
+    }
+    for (const row of byProviderUsed) {
+      const model = row.model || 'unknown';
+      if (byProvider[model]) byProvider[model].used = row._count._all;
     }
 
-    // By type
     const byType: Record<string, number> = {};
-    for (const s of suggestions) {
-      byType[s.type] = (byType[s.type] || 0) + 1;
+    for (const row of byTypeRaw) {
+      byType[row.type] = row._count._all;
     }
+
+    const latencies = latencyRows.map((r) => r.latencyMs!).filter((v): v is number => v != null);
 
     return {
-      total: suggestions.length,
+      total,
       used,
-      adoptionRate: Math.round((used / suggestions.length) * 100),
+      adoptionRate: Math.round((used / total) * 100),
       helpfulRate: withFeedback > 0 ? Math.round((helpful / withFeedback) * 100) : 0,
-      avgLatency:
-        latencies.length > 0
-          ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
-          : 0,
+      avgLatency: Math.round(agg._avg.latencyMs ?? 0),
       p95Latency: latencies.length > 0 ? this.percentile(latencies, 95) : 0,
-      avgConfidence:
-        Math.round(
-          (suggestions.reduce((sum, s) => sum + (s.confidence || 0), 0) / suggestions.length) * 100,
-        ) / 100,
+      avgConfidence: Math.round((agg._avg.confidence ?? 0) * 100) / 100,
       byProvider,
       byType,
     };

@@ -226,57 +226,74 @@ describe('AnalyticsService', () => {
   // ─────────────────────────────────────────
 
   describe('getAIPerformance', () => {
-    it('should return AI metrics with p95 latency', async () => {
-      prisma.aISuggestion.findMany.mockResolvedValue([
-        {
-          wasUsed: true,
-          feedback: 'HELPFUL',
-          latencyMs: 500,
-          model: 'gpt-4o',
-          type: 'GREETING',
-          confidence: 0.9,
-          createdAt: new Date(),
-        },
-        {
-          wasUsed: false,
-          feedback: 'NOT_HELPFUL',
-          latencyMs: 800,
-          model: 'gpt-4o',
-          type: 'OBJECTION_HANDLING',
-          confidence: 0.7,
-          createdAt: new Date(),
-        },
-        {
-          wasUsed: true,
-          feedback: null,
-          latencyMs: 300,
-          model: 'claude',
-          type: 'CLOSING',
-          confidence: 0.85,
-          createdAt: new Date(),
-        },
+    beforeEach(() => {
+      // groupBy used by new implementation
+      (prisma as { aISuggestion: Record<string, jest.Mock> }).aISuggestion.groupBy = jest.fn();
+    });
+
+    it('should return AI metrics from SQL aggregations', async () => {
+      const ais = (prisma as { aISuggestion: Record<string, jest.Mock> }).aISuggestion;
+      ais.count
+        .mockResolvedValueOnce(3) // total
+        .mockResolvedValueOnce(2) // used
+        .mockResolvedValueOnce(1) // helpful
+        .mockResolvedValueOnce(2); // withFeedback
+      ais.aggregate.mockResolvedValue({
+        _avg: { latencyMs: 533, confidence: 0.82 },
+      });
+      ais.groupBy
+        // byProvider total
+        .mockResolvedValueOnce([
+          { model: 'gpt-4o', _count: { _all: 2 } },
+          { model: 'claude', _count: { _all: 1 } },
+        ])
+        // byProvider used
+        .mockResolvedValueOnce([
+          { model: 'gpt-4o', _count: { _all: 1 } },
+          { model: 'claude', _count: { _all: 1 } },
+        ])
+        // byType
+        .mockResolvedValueOnce([
+          { type: 'GREETING', _count: { _all: 1 } },
+          { type: 'OBJECTION_HANDLING', _count: { _all: 1 } },
+          { type: 'CLOSING', _count: { _all: 1 } },
+        ]);
+      ais.findMany.mockResolvedValue([
+        { latencyMs: 500 },
+        { latencyMs: 800 },
+        { latencyMs: 300 },
       ]);
+
       const result = await service.getAIPerformance(COMPANY_ID);
+
       expect(result.total).toBe(3);
       expect(result.used).toBe(2);
       expect(result.adoptionRate).toBe(67);
-      expect(result.helpfulRate).toBe(50); // 1 helpful / 2 with feedback
+      expect(result.helpfulRate).toBe(50);
       expect(result.avgLatency).toBe(533);
-      expect((result.byProvider as unknown as Record<string, unknown>)['gpt-4o']).toHaveProperty(
-        'count',
-        2,
-      );
-      expect((result.byProvider as unknown as Record<string, unknown>)['claude']).toHaveProperty(
-        'count',
-        1,
-      );
+      expect(result.avgConfidence).toBeCloseTo(0.82, 2);
+      expect((result.byProvider as unknown as Record<string, { count: number; used: number }>)['gpt-4o']).toEqual({
+        count: 2,
+        used: 1,
+      });
+      expect((result.byProvider as unknown as Record<string, { count: number; used: number }>)['claude']).toEqual({
+        count: 1,
+        used: 1,
+      });
     });
 
     it('should handle empty AI data', async () => {
-      prisma.aISuggestion.findMany.mockResolvedValue([]);
+      const ais = (prisma as { aISuggestion: Record<string, jest.Mock> }).aISuggestion;
+      ais.count.mockResolvedValue(0);
+      ais.aggregate.mockResolvedValue({ _avg: { latencyMs: null, confidence: null } });
+      ais.groupBy.mockResolvedValue([]);
+      ais.findMany.mockResolvedValue([]);
+
       const result = await service.getAIPerformance(COMPANY_ID);
+
       expect(result.total).toBe(0);
       expect(result.adoptionRate).toBe(0);
+      expect(result.avgLatency).toBe(0);
     });
   });
 });
