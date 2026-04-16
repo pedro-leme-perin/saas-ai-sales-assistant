@@ -273,42 +273,51 @@ export class AnalyticsService {
 
     // ADR-008: SQL-level aggregation. p95 stays in JS but only loads
     // latencyMs column (small payload).
-    const [total, used, helpful, withFeedback, agg, byProviderTotal, byProviderUsed, byTypeRaw, latencyRows] =
-      await promiseAllWithTimeout(
-        [
-          this.prisma.aISuggestion.count({ where: baseWhere }),
-          this.prisma.aISuggestion.count({ where: { ...baseWhere, wasUsed: true } }),
-          this.prisma.aISuggestion.count({ where: { ...baseWhere, feedback: 'HELPFUL' } }),
-          this.prisma.aISuggestion.count({ where: { ...baseWhere, feedback: { not: null } } }),
-          this.prisma.aISuggestion.aggregate({
-            where: baseWhere,
-            _avg: { latencyMs: true, confidence: true },
-          }),
-          this.prisma.aISuggestion.groupBy({
-            by: ['model'],
-            where: baseWhere,
-            _count: { _all: true },
-          }),
-          this.prisma.aISuggestion.groupBy({
-            by: ['model'],
-            where: { ...baseWhere, wasUsed: true },
-            _count: { _all: true },
-          }),
-          this.prisma.aISuggestion.groupBy({
-            by: ['type'],
-            where: baseWhere,
-            _count: { _all: true },
-          }),
-          // p95: load only latencyMs column (~8 bytes/row vs full row ~300 bytes)
-          this.prisma.aISuggestion.findMany({
-            where: { ...baseWhere, latencyMs: { not: null } },
-            select: { latencyMs: true },
-            take: 10000,
-          }),
-        ],
-        15000,
-        'getAIPerformance',
-      );
+    const [
+      total,
+      used,
+      helpful,
+      withFeedback,
+      agg,
+      byProviderTotal,
+      byProviderUsed,
+      byTypeRaw,
+      latencyRows,
+    ] = await promiseAllWithTimeout(
+      [
+        this.prisma.aISuggestion.count({ where: baseWhere }),
+        this.prisma.aISuggestion.count({ where: { ...baseWhere, wasUsed: true } }),
+        this.prisma.aISuggestion.count({ where: { ...baseWhere, feedback: 'HELPFUL' } }),
+        this.prisma.aISuggestion.count({ where: { ...baseWhere, feedback: { not: null } } }),
+        this.prisma.aISuggestion.aggregate({
+          where: baseWhere,
+          _avg: { latencyMs: true, confidence: true },
+        }),
+        this.prisma.aISuggestion.groupBy({
+          by: ['model'],
+          where: baseWhere,
+          _count: { _all: true },
+        }),
+        this.prisma.aISuggestion.groupBy({
+          by: ['model'],
+          where: { ...baseWhere, wasUsed: true },
+          _count: { _all: true },
+        }),
+        this.prisma.aISuggestion.groupBy({
+          by: ['type'],
+          where: baseWhere,
+          _count: { _all: true },
+        }),
+        // p95: load only latencyMs column (~8 bytes/row vs full row ~300 bytes)
+        this.prisma.aISuggestion.findMany({
+          where: { ...baseWhere, latencyMs: { not: null } },
+          select: { latencyMs: true },
+          take: 10000,
+        }),
+      ],
+      15000,
+      'getAIPerformance',
+    );
 
     if (total === 0) {
       return { total: 0, adoptionRate: 0, avgLatency: 0, p95Latency: 0, byProvider: {}, byType: {} };

@@ -12,7 +12,7 @@ global.fetch = mockFetch as unknown as typeof fetch;
 
 describe('EmailService', () => {
   let service: EmailService;
-  let configService: ConfigService;
+  let _configService: ConfigService;
 
   const mockConfigValues: Record<string, string> = {
     RESEND_API_KEY: 'test_resend_api_key_123',
@@ -36,7 +36,7 @@ describe('EmailService', () => {
     }).compile();
 
     service = module.get<EmailService>(EmailService);
-    configService = module.get<ConfigService>(ConfigService);
+    _configService = module.get<ConfigService>(ConfigService);
   });
 
   describe('sendInviteEmail', () => {

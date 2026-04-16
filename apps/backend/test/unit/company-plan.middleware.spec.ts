@@ -3,14 +3,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CompanyPlanMiddleware } from '../../src/common/middleware/company-plan.middleware';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 jest.setTimeout(15000);
 
 describe('CompanyPlanMiddleware', () => {
   let middleware: CompanyPlanMiddleware;
-  let prisma: PrismaService;
-  let cache: CacheService;
+  let _prisma: PrismaService;
+  let _cache: CacheService;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let mockNext: jest.Mock<void>;
@@ -46,8 +46,8 @@ describe('CompanyPlanMiddleware', () => {
     }).compile();
 
     middleware = module.get<CompanyPlanMiddleware>(CompanyPlanMiddleware);
-    prisma = module.get<PrismaService>(PrismaService);
-    cache = module.get<CacheService>(CacheService);
+    _prisma = module.get<PrismaService>(PrismaService);
+    _cache = module.get<CacheService>(CacheService);
 
     // Initialize mock request/response/next
     mockRequest = {

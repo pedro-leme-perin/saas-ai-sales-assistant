@@ -1,12 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
-import {
-  DeepgramService,
-  TranscriptionResult,
-  LiveSession,
-} from '../../src/infrastructure/stt/deepgram.service';
-import { CircuitBreaker } from '../../src/common/resilience/circuit-breaker';
+import { DeepgramService } from '../../src/infrastructure/stt/deepgram.service';
 
 jest.setTimeout(15000);
 

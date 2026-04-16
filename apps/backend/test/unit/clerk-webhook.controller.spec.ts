@@ -21,7 +21,7 @@ jest.mock('svix', () => {
 
 describe('ClerkWebhookController', () => {
   let controller: ClerkWebhookController;
-  let usersService: UsersService;
+  let _usersService: UsersService;
 
   const mockUsersService = {
     createFromWebhook: jest.fn(),
@@ -41,7 +41,7 @@ describe('ClerkWebhookController', () => {
     }).compile();
 
     controller = module.get<ClerkWebhookController>(ClerkWebhookController);
-    usersService = module.get<UsersService>(UsersService);
+    _usersService = module.get<UsersService>(UsersService);
 
     jest.clearAllMocks();
     mockWebhookVerify.mockClear();
