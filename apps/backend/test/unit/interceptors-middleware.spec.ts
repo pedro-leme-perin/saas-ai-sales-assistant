@@ -1,5 +1,5 @@
 import { ExecutionContext, CallHandler, Logger } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { of, throwError } from 'rxjs';
 import { LoggingInterceptor } from '../../src/common/interceptors/logging.interceptor';
 import {

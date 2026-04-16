@@ -320,7 +320,14 @@ export class AnalyticsService {
     );
 
     if (total === 0) {
-      return { total: 0, adoptionRate: 0, avgLatency: 0, p95Latency: 0, byProvider: {}, byType: {} };
+      return {
+        total: 0,
+        adoptionRate: 0,
+        avgLatency: 0,
+        p95Latency: 0,
+        byProvider: {},
+        byType: {},
+      };
     }
 
     // Merge byProvider total + used into single map
