@@ -30,17 +30,17 @@ describe('MediaStreamsGateway', () => {
     deepgramService = {
       isConfigured: jest.fn().mockReturnValue(true),
       createLiveSession: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<DeepgramService>;
 
     // Mock AiService
     aiService = {
       generateSuggestion: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<AiService>;
 
     // Mock NotificationsGateway
     notificationsGateway = {
       sendAISuggestion: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<NotificationsGateway>;
 
     // Mock PrismaService
     prismaService = {
@@ -51,7 +51,7 @@ describe('MediaStreamsGateway', () => {
       aISuggestion: {
         create: jest.fn(),
       },
-    } as any;
+    } as unknown as jest.Mocked<PrismaService>;
 
     gateway = new MediaStreamsGateway(
       deepgramService,
@@ -108,13 +108,13 @@ describe('MediaStreamsGateway', () => {
     it('should destroy socket if WSS not initialized', () => {
       const mockSocket = {
         destroy: jest.fn(),
-      } as any;
-      const mockRequest = {} as any;
+      } as unknown as import('net').Socket;
+      const mockRequest = {} as unknown as import('http').IncomingMessage;
       const mockHead = Buffer.from('');
 
       gateway.handleUpgrade(mockRequest, mockSocket, mockHead);
 
-      expect(mockSocket.destroy).toHaveBeenCalled();
+      expect((mockSocket as unknown as { destroy: jest.Mock }).destroy).toHaveBeenCalled();
     });
 
     it('should call handleUpgrade on WSS when initialized', () => {
@@ -122,8 +122,8 @@ describe('MediaStreamsGateway', () => {
 
       const mockSocket = {
         destroy: jest.fn(),
-      } as any;
-      const mockRequest = { url: '/ws/media' } as any;
+      } as unknown as import('net').Socket;
+      const mockRequest = { url: '/ws/media' } as unknown as import('http').IncomingMessage;
       const mockHead = Buffer.from('');
 
       const wss = gateway['wss']!;

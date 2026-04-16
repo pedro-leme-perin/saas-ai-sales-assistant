@@ -211,7 +211,7 @@ export class AnalyticsService {
         this.prisma.call.groupBy({
           by: ['sentimentLabel'],
           where: baseWhere,
-          _count: { _all: true },
+          _count: true,
         }),
         // Weekly trend via $queryRaw — date_trunc keeps us in SQL
         this.prisma.$queryRaw<Array<{ week: Date; avg: number; count: bigint }>>`
@@ -240,7 +240,7 @@ export class AnalyticsService {
     const distribution: Record<string, number> = {};
     for (const row of byLabel) {
       const label = row.sentimentLabel || 'UNKNOWN';
-      distribution[label] = row._count._all;
+      distribution[label] = row._count;
     }
 
     const trend = weeklyTrend.map((r) => ({
@@ -296,17 +296,17 @@ export class AnalyticsService {
         this.prisma.aISuggestion.groupBy({
           by: ['model'],
           where: baseWhere,
-          _count: { _all: true },
+          _count: true,
         }),
         this.prisma.aISuggestion.groupBy({
           by: ['model'],
           where: { ...baseWhere, wasUsed: true },
-          _count: { _all: true },
+          _count: true,
         }),
         this.prisma.aISuggestion.groupBy({
           by: ['type'],
           where: baseWhere,
-          _count: { _all: true },
+          _count: true,
         }),
         // p95: load only latencyMs column (~8 bytes/row vs full row ~300 bytes)
         this.prisma.aISuggestion.findMany({
@@ -334,16 +334,16 @@ export class AnalyticsService {
     const byProvider: Record<string, { count: number; used: number }> = {};
     for (const row of byProviderTotal) {
       const model = row.model || 'unknown';
-      byProvider[model] = { count: row._count._all, used: 0 };
+      byProvider[model] = { count: row._count, used: 0 };
     }
     for (const row of byProviderUsed) {
       const model = row.model || 'unknown';
-      if (byProvider[model]) byProvider[model].used = row._count._all;
+      if (byProvider[model]) byProvider[model].used = row._count;
     }
 
     const byType: Record<string, number> = {};
     for (const row of byTypeRaw) {
-      byType[row.type] = row._count._all;
+      byType[row.type] = row._count;
     }
 
     const latencies = latencyRows.map((r) => r.latencyMs!).filter((v): v is number => v != null);

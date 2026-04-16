@@ -88,7 +88,7 @@ describe('LoggingInterceptor', () => {
   describe('intercept - Basic Functionality', () => {
     it('should extract and set request ID from headers', (done) => {
       const request = createMockRequest();
-      (request as any).headers = { 'x-request-id': 'req-12345' };
+      (request as unknown as Record<string, unknown>).headers = { 'x-request-id': 'req-12345' };
       const response = createMockResponse();
       const context = createMockExecutionContext(request, response);
       const handler = createMockCallHandler({ success: true });
@@ -149,8 +149,8 @@ describe('LoggingInterceptor', () => {
         id: 'user-123',
         companyId: 'company-456',
       });
-      (request as any).headers = { 'user-agent': 'Mozilla/5.0' };
-      (request as any).ip = '192.168.1.100';
+      (request as unknown as Record<string, unknown>).headers = { 'user-agent': 'Mozilla/5.0' };
+      (request as unknown as Record<string, unknown>).ip = '192.168.1.100';
       const response = createMockResponse();
       const context = createMockExecutionContext(request, response);
       const handler = createMockCallHandler({ success: true });
@@ -262,7 +262,7 @@ describe('LoggingInterceptor', () => {
     it('should maintain request ID consistency across logs', (done) => {
       const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
       const request = createMockRequest();
-      (request as any).headers = { 'x-request-id': 'consistent-id-123' };
+      (request as unknown as Record<string, unknown>).headers = { 'x-request-id': 'consistent-id-123' };
       const response = createMockResponse();
       const context = createMockExecutionContext(request, response);
       const handler = createMockCallHandler({ data: 'test' });
