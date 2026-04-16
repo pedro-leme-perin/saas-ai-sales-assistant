@@ -95,7 +95,13 @@ const nextConfig = {
             value:
               'camera=(), microphone=(self), geolocation=(), payment=(self "https://js.stripe.com"), usb=(), magnetometer=(), accelerometer=(), gyroscope=()',
           },
-          { key: 'Content-Security-Policy', value: csp },
+          {
+            // Report-only by default; set CSP_ENFORCE=true in Vercel prod to block violations
+            key: process.env.CSP_ENFORCE === 'true'
+              ? 'Content-Security-Policy'
+              : 'Content-Security-Policy-Report-Only',
+            value: csp,
+          },
         ],
       },
       {
