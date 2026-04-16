@@ -183,8 +183,8 @@ describe('AnalyticsService', () => {
         _avg: { sentiment: 0.77 },
       });
       (prisma as { call: Record<string, jest.Mock> }).call.groupBy.mockResolvedValue([
-        { sentimentLabel: 'POSITIVE', _count: 2 },
-        { sentimentLabel: 'NEUTRAL', _count: 1 },
+        { sentimentLabel: 'POSITIVE', _count: { _all: 2 } },
+        { sentimentLabel: 'NEUTRAL', _count: { _all: 1 } },
       ]);
       (prisma as { $queryRaw: jest.Mock }).$queryRaw.mockResolvedValue([
         { week: new Date('2026-04-07'), avg: 0.7, count: BigInt(1) },
@@ -240,19 +240,19 @@ describe('AnalyticsService', () => {
       ais.groupBy
         // byProvider total
         .mockResolvedValueOnce([
-          { model: 'gpt-4o', _count: 2 },
-          { model: 'claude', _count: 1 },
+          { model: 'gpt-4o', _count: { _all: 2 } },
+          { model: 'claude', _count: { _all: 1 } },
         ])
         // byProvider used
         .mockResolvedValueOnce([
-          { model: 'gpt-4o', _count: 1 },
-          { model: 'claude', _count: 1 },
+          { model: 'gpt-4o', _count: { _all: 1 } },
+          { model: 'claude', _count: { _all: 1 } },
         ])
         // byType
         .mockResolvedValueOnce([
-          { type: 'GREETING', _count: 1 },
-          { type: 'OBJECTION_HANDLING', _count: 1 },
-          { type: 'CLOSING', _count: 1 },
+          { type: 'GREETING', _count: { _all: 1 } },
+          { type: 'OBJECTION_HANDLING', _count: { _all: 1 } },
+          { type: 'CLOSING', _count: { _all: 1 } },
         ]);
       ais.findMany.mockResolvedValue([{ latencyMs: 500 }, { latencyMs: 800 }, { latencyMs: 300 }]);
 

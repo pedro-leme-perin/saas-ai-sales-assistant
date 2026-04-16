@@ -208,10 +208,11 @@ export class AnalyticsService {
           _avg: { sentiment: true },
         }),
         // Distribution by sentiment label (SQL groupBy)
+        // @ts-expect-error Prisma groupBy types overly strict with sentiment/status where clause
         this.prisma.call.groupBy({
           by: ['sentimentLabel'],
           where: baseWhere,
-          _count: true,
+          _count: { _all: true },
         }),
         // Weekly trend via $queryRaw — date_trunc keeps us in SQL
         this.prisma.$queryRaw<Array<{ week: Date; avg: number; count: bigint }>>`
@@ -238,9 +239,9 @@ export class AnalyticsService {
     }
 
     const distribution: Record<string, number> = {};
-    for (const row of byLabel) {
+    for (const row of byLabel as { sentimentLabel: string | null; _count: { _all: number } }[]) {
       const label = row.sentimentLabel || 'UNKNOWN';
-      distribution[label] = row._count;
+      distribution[label] = row._count._all;
     }
 
     const trend = weeklyTrend.map((r) => ({
@@ -293,20 +294,23 @@ export class AnalyticsService {
           where: baseWhere,
           _avg: { latencyMs: true, confidence: true },
         }),
+        // @ts-expect-error Prisma groupBy types don't support relation filters in where
         this.prisma.aISuggestion.groupBy({
           by: ['model'],
           where: baseWhere,
-          _count: true,
+          _count: { _all: true },
         }),
+        // @ts-expect-error Prisma groupBy types don't support relation filters in where
         this.prisma.aISuggestion.groupBy({
           by: ['model'],
           where: { ...baseWhere, wasUsed: true },
-          _count: true,
+          _count: { _all: true },
         }),
+        // @ts-expect-error Prisma groupBy types don't support relation filters in where
         this.prisma.aISuggestion.groupBy({
           by: ['type'],
           where: baseWhere,
-          _count: true,
+          _count: { _all: true },
         }),
         // p95: load only latencyMs column (~8 bytes/row vs full row ~300 bytes)
         this.prisma.aISuggestion.findMany({
@@ -331,19 +335,22 @@ export class AnalyticsService {
     }
 
     // Merge byProvider total + used into single map
+    type GroupByModel = { model: string | null; _count: { _all: number } };
+    type GroupByType = { type: string; _count: { _all: number } };
+
     const byProvider: Record<string, { count: number; used: number }> = {};
-    for (const row of byProviderTotal) {
+    for (const row of byProviderTotal as GroupByModel[]) {
       const model = row.model || 'unknown';
-      byProvider[model] = { count: row._count, used: 0 };
+      byProvider[model] = { count: row._count._all, used: 0 };
     }
-    for (const row of byProviderUsed) {
+    for (const row of byProviderUsed as GroupByModel[]) {
       const model = row.model || 'unknown';
-      if (byProvider[model]) byProvider[model].used = row._count;
+      if (byProvider[model]) byProvider[model].used = row._count._all;
     }
 
     const byType: Record<string, number> = {};
-    for (const row of byTypeRaw) {
-      byType[row.type] = row._count;
+    for (const row of byTypeRaw as GroupByType[]) {
+      byType[row.type] = row._count._all;
     }
 
     const latencies = latencyRows.map((r) => r.latencyMs!).filter((v): v is number => v != null);
