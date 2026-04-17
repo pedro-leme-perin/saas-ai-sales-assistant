@@ -426,9 +426,7 @@ describe('NotificationsController', () => {
       } as AuthenticatedRequest;
       const preferences = { emailCalls: false };
 
-      await expect(
-        controller.updatePreferences(preferences, invalidReq),
-      ).rejects.toThrow();
+      await expect(controller.updatePreferences(preferences, invalidReq)).rejects.toThrow();
       expect(service.updatePreferences).not.toHaveBeenCalled();
     });
 
@@ -438,9 +436,7 @@ describe('NotificationsController', () => {
       } as AuthenticatedRequest;
       const preferences = { emailCalls: false };
 
-      await expect(
-        controller.updatePreferences(preferences, invalidReq),
-      ).rejects.toThrow();
+      await expect(controller.updatePreferences(preferences, invalidReq)).rejects.toThrow();
       expect(service.updatePreferences).not.toHaveBeenCalled();
     });
   });

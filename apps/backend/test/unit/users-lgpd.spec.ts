@@ -71,27 +71,20 @@ describe('Users LGPD Compliance', () => {
         expect(result).toHaveProperty('exportedAt');
         expect(result.format).toBe('JSON');
         expect(result.data).toEqual(mockExportData);
-        expect(usersService.exportUserData).toHaveBeenCalledWith(
-          'user-123',
-          'company-123',
-        );
+        expect(usersService.exportUserData).toHaveBeenCalledWith('user-123', 'company-123');
       });
 
       it('should throw UnauthorizedException when user context is missing', async () => {
         const req = { user: undefined };
 
-        await expect(controller.exportUserData(req)).rejects.toThrow(
-          UnauthorizedException,
-        );
+        await expect(controller.exportUserData(req)).rejects.toThrow(UnauthorizedException);
         expect(usersService.exportUserData).not.toHaveBeenCalled();
       });
 
       it('should throw UnauthorizedException when userId is missing', async () => {
         const req = { user: { id: undefined, companyId: 'company-123' } };
 
-        await expect(controller.exportUserData(req)).rejects.toThrow(
-          UnauthorizedException,
-        );
+        await expect(controller.exportUserData(req)).rejects.toThrow(UnauthorizedException);
       });
     });
 
@@ -235,12 +228,8 @@ describe('Users LGPD Compliance', () => {
         mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
         mockPrismaService.call.findMany.mockResolvedValue(mockCalls);
         mockPrismaService.whatsappChat.findMany.mockResolvedValue(mockChats);
-        mockPrismaService.aISuggestion.findMany.mockResolvedValue(
-          mockSuggestions,
-        );
-        mockPrismaService.notification.findMany.mockResolvedValue(
-          mockNotifications,
-        );
+        mockPrismaService.aISuggestion.findMany.mockResolvedValue(mockSuggestions);
+        mockPrismaService.notification.findMany.mockResolvedValue(mockNotifications);
         mockPrismaService.auditLog.findMany.mockResolvedValue(mockAuditLogs);
 
         const result = await service.exportUserData('user-123', 'company-123');
@@ -320,10 +309,7 @@ describe('Users LGPD Compliance', () => {
           status: 'SUSPENDED',
         });
 
-        await service.requestAccountDeletion(
-          'user-123',
-          'company-123',
-        );
+        await service.requestAccountDeletion('user-123', 'company-123');
 
         expect(mockPrismaService.user.update).toHaveBeenCalledWith({
           where: { id: 'user-123' },
@@ -338,11 +324,7 @@ describe('Users LGPD Compliance', () => {
         mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
         mockPrismaService.user.update.mockResolvedValue(mockUser);
 
-        await service.requestAccountDeletion(
-          'user-123',
-          'company-123',
-          'Privacy concerns',
-        );
+        await service.requestAccountDeletion('user-123', 'company-123', 'Privacy concerns');
 
         expect(mockPrismaService.auditLog.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
@@ -364,10 +346,7 @@ describe('Users LGPD Compliance', () => {
         mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
         mockPrismaService.user.update.mockResolvedValue(mockUser);
 
-        await service.requestAccountDeletion(
-          'user-123',
-          'company-123',
-        );
+        await service.requestAccountDeletion('user-123', 'company-123');
 
         expect(mockEmailService.sendDeletionRequestEmail).toHaveBeenCalledWith({
           recipientEmail: 'john@acme.com',
@@ -379,15 +358,10 @@ describe('Users LGPD Compliance', () => {
       it('should not fail when email sending fails', async () => {
         mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
         mockPrismaService.user.update.mockResolvedValue(mockUser);
-        mockEmailService.sendDeletionRequestEmail.mockRejectedValue(
-          new Error('SMTP error'),
-        );
+        mockEmailService.sendDeletionRequestEmail.mockRejectedValue(new Error('SMTP error'));
 
         // Should not throw — email is non-blocking
-        const result = await service.requestAccountDeletion(
-          'user-123',
-          'company-123',
-        );
+        const result = await service.requestAccountDeletion('user-123', 'company-123');
 
         expect(result.success).toBe(true);
       });
