@@ -42,4 +42,6 @@ export function StepCard({
         {description}
       </p>
       <div>{children}</div>
-    </div
+    </div>
+  );
+}
