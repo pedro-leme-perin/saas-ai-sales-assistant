@@ -94,8 +94,10 @@ describe('WhatsappController', () => {
         From: 'whatsapp:+5511999990000',
         To: 'whatsapp:+5511888880000',
       };
-      await controller.receiveTwilioWebhook(payload as unknown as Record<string, unknown>,
-        mockRes as unknown as Response);
+      await controller.receiveTwilioWebhook(
+        payload as unknown as Record<string, unknown>,
+        mockRes as unknown as Response,
+      );
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/xml');
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining('<Response>'));
@@ -103,8 +105,10 @@ describe('WhatsappController', () => {
 
     it('should process asynchronously (fire-and-forget)', async () => {
       const payload = { Body: 'Test', From: 'whatsapp:+5511999990000' };
-      await controller.receiveTwilioWebhook(payload as unknown as Record<string, unknown>,
-        mockRes as unknown as Response);
+      await controller.receiveTwilioWebhook(
+        payload as unknown as Record<string, unknown>,
+        mockRes as unknown as Response,
+      );
       // processWebhook is called but not awaited in controller
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });
@@ -117,8 +121,10 @@ describe('WhatsappController', () => {
   describe('receiveTwilioStatus', () => {
     it('should process status callback and return TwiML', async () => {
       const payload = { MessageSid: 'SM123', MessageStatus: 'delivered' };
-      await controller.receiveTwilioStatus(payload as unknown as Record<string, unknown>,
-        mockRes as unknown as Response);
+      await controller.receiveTwilioStatus(
+        payload as unknown as Record<string, unknown>,
+        mockRes as unknown as Response,
+      );
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/xml');
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });

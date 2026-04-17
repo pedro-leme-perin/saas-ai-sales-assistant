@@ -119,9 +119,9 @@ describe('Users LGPD Compliance', () => {
       it('should throw UnauthorizedException when user context is missing', async () => {
         const req = { user: undefined };
 
-        await expect(
-          controller.requestDeletion(req, { reason: 'test' }),
-        ).rejects.toThrow(UnauthorizedException);
+        await expect(controller.requestDeletion(req, { reason: 'test' })).rejects.toThrow(
+          UnauthorizedException,
+        );
         expect(usersService.requestAccountDeletion).not.toHaveBeenCalled();
       });
     });
@@ -268,9 +268,9 @@ describe('Users LGPD Compliance', () => {
       it('should throw NotFoundException when user does not exist', async () => {
         mockPrismaService.user.findFirst.mockResolvedValue(null);
 
-        await expect(
-          service.exportUserData('nonexistent', 'company-123'),
-        ).rejects.toThrow('User nonexistent not found');
+        await expect(service.exportUserData('nonexistent', 'company-123')).rejects.toThrow(
+          'User nonexistent not found',
+        );
       });
     });
 
@@ -295,8 +295,7 @@ describe('Users LGPD Compliance', () => {
         // Verify scheduled date is ~30 days from now
         const now = new Date();
         const diffDays = Math.round(
-          (result.scheduledDeletionDate.getTime() - now.getTime()) /
-            (1000 * 60 * 60 * 24),
+          (result.scheduledDeletionDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
         );
         expect(diffDays).toBeGreaterThanOrEqual(29);
         expect(diffDays).toBeLessThanOrEqual(31);
