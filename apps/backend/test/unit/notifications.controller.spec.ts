@@ -130,22 +130,22 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
       const pagination = { skip: 0, take: 10 };
 
-      await expect(controller.findAll(pagination, invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.findAll(pagination, invalidReq)).rejects.toThrow();
       expect(service.findAll).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
       const pagination = { skip: 0, take: 10 };
 
-      await expect(controller.findAll(pagination, invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.findAll(pagination, invalidReq)).rejects.toThrow();
       expect(service.findAll).not.toHaveBeenCalled();
     });
 
@@ -173,20 +173,20 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.getUnreadCount(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.getUnreadCount(invalidReq)).rejects.toThrow();
       expect(service.getUnreadCount).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.getUnreadCount(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.getUnreadCount(invalidReq)).rejects.toThrow();
       expect(service.getUnreadCount).not.toHaveBeenCalled();
     });
   });
@@ -197,7 +197,10 @@ describe('NotificationsController', () => {
       const updatedNotification = { ...mockNotification, read: true };
       (service.markAsRead as jest.Mock).mockResolvedValue(updatedNotification);
 
-      const result = await controller.markAsRead(notificationId, mockRequest as AuthenticatedRequest);
+      const result = await controller.markAsRead(
+        notificationId,
+        mockRequest as AuthenticatedRequest,
+      );
 
       expect(service.markAsRead).toHaveBeenCalledWith(
         notificationId,
@@ -208,20 +211,20 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.markAsRead('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.markAsRead('notif-1', invalidReq)).rejects.toThrow();
       expect(service.markAsRead).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.markAsRead('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.markAsRead('notif-1', invalidReq)).rejects.toThrow();
       expect(service.markAsRead).not.toHaveBeenCalled();
     });
   });
@@ -237,20 +240,20 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.markAllAsRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.markAllAsRead(invalidReq)).rejects.toThrow();
       expect(service.markAllAsRead).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.markAllAsRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.markAllAsRead(invalidReq)).rejects.toThrow();
       expect(service.markAllAsRead).not.toHaveBeenCalled();
     });
   });
@@ -271,20 +274,20 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.delete('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.delete('notif-1', invalidReq)).rejects.toThrow();
       expect(service.delete).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.delete('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.delete('notif-1', invalidReq)).rejects.toThrow();
       expect(service.delete).not.toHaveBeenCalled();
     });
   });
@@ -300,20 +303,20 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.deleteAllRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.deleteAllRead(invalidReq)).rejects.toThrow();
       expect(service.deleteAllRead).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.deleteAllRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.deleteAllRead(invalidReq)).rejects.toThrow();
       expect(service.deleteAllRead).not.toHaveBeenCalled();
     });
   });
@@ -334,20 +337,20 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.findById('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.findById('notif-1', invalidReq)).rejects.toThrow();
       expect(service.findById).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.findById('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.findById('notif-1', invalidReq)).rejects.toThrow();
       expect(service.findById).not.toHaveBeenCalled();
     });
   });
@@ -370,20 +373,20 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.getPreferences(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.getPreferences(invalidReq)).rejects.toThrow();
       expect(service.getPreferences).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
 
-      await expect(controller.getPreferences(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
+      await expect(controller.getPreferences(invalidReq)).rejects.toThrow();
       expect(service.getPreferences).not.toHaveBeenCalled();
     });
   });
@@ -404,7 +407,10 @@ describe('NotificationsController', () => {
 
       (service.updatePreferences as jest.Mock).mockResolvedValue(mockUpdatedResult);
 
-      const result = await controller.updatePreferences(updatedPreferences, mockRequest as AuthenticatedRequest);
+      const result = await controller.updatePreferences(
+        updatedPreferences,
+        mockRequest as AuthenticatedRequest,
+      );
 
       expect(service.updatePreferences).toHaveBeenCalledWith(
         'test-user-id',
@@ -415,25 +421,25 @@ describe('NotificationsController', () => {
     });
 
     it('should throw error if userId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { companyId: 'test-company-id' },
-      };
+      } as AuthenticatedRequest;
       const preferences = { emailCalls: false };
 
       await expect(
-        controller.updatePreferences(preferences, invalidRequest as AuthenticatedRequest),
+        controller.updatePreferences(preferences, invalidReq),
       ).rejects.toThrow();
       expect(service.updatePreferences).not.toHaveBeenCalled();
     });
 
     it('should throw error if companyId is missing', async () => {
-      const invalidRequest = {
+      const invalidReq = {
         user: { id: 'test-user-id' },
-      };
+      } as AuthenticatedRequest;
       const preferences = { emailCalls: false };
 
       await expect(
-        controller.updatePreferences(preferences, invalidRequest as AuthenticatedRequest),
+        controller.updatePreferences(preferences, invalidReq),
       ).rejects.toThrow();
       expect(service.updatePreferences).not.toHaveBeenCalled();
     });
