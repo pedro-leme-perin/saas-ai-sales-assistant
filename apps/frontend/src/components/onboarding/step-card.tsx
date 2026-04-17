@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 interface StepCardProps {
   title: string;
@@ -15,8 +15,21 @@ export function StepCard({
   icon,
   children,
 }: StepCardProps) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="animate-step-enter">
+    <div
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(12px)",
+        transition: "opacity 0.35s ease-out, transform 0.35s ease-out",
+      }}
+    >
       <div className="flex items-center gap-3 mb-2">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 shrink-0">
           {icon}
@@ -29,23 +42,4 @@ export function StepCard({
         {description}
       </p>
       <div>{children}</div>
-
-      {/* Keyframe styles injected via a style tag to avoid requiring tailwind config changes */}
-      <style jsx>{`
-        @keyframes step-enter {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-step-enter {
-          animation: step-enter 0.35s ease-out both;
-        }
-      `}</style>
-    </div>
-  );
-}
+    </div
