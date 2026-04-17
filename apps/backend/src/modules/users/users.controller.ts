@@ -21,6 +21,7 @@ import { UsersService } from './users.service';
 import { CompanyId } from '@/modules/auth/decorators/current-user.decorator';
 import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
 import { InviteUserDto, UpdateUserRoleDto } from './dto/user.dto';
+import { RequestDeletionDto } from './dto/request-deletion.dto';
 
 // Interface for authenticated requests
 interface AuthenticatedRequest {
@@ -38,6 +39,91 @@ export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
   constructor(private readonly usersService: UsersService) {}
+
+  // ============================================
+  // LGPD COMPLIANCE (Lei Geral de Protecao de Dados)
+  // Must be declared BEFORE :id routes to avoid param conflicts
+  // ============================================
+
+  @Get('me/export-data')
+  @ApiOperation({
+    summary: 'Export all user data (LGPD Art. 18, V)',
+    description:
+      'Returns all data associated with the authenticated user in JSON format. ' +
+      'Includes profile, calls, WhatsApp chats, AI suggestions, notifications, and audit logs. ' +
+      'Tenant-isolated: only returns data within the user company.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User data exported successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'User context not found',
+  })
+  async exportUserData(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.id;
+    const companyId = req.user?.companyId;
+
+    if (!userId || !companyId) {
+      throw new UnauthorizedException('User context not found');
+    }
+
+    this.logger.log(
+      `LGPD data export requested by user ${userId} in company ${companyId}`,
+    );
+
+    const data = await this.usersService.exportUserData(userId, companyId);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      format: 'JSON',
+      data,
+    };
+  }
+
+  @Post('me/request-deletion')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request account deletion (LGPD Art. 18, VI)',
+    description:
+      'Requests deletion of the authenticated user account and associated data. ' +
+      'Does not immediately delete — suspends the account and schedules deletion in 30 days. ' +
+      'A confirmation email is sent to the user.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Deletion request created successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'User context not found',
+  })
+  async requestDeletion(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: RequestDeletionDto,
+  ) {
+    const userId = req.user?.id;
+    const companyId = req.user?.companyId;
+
+    if (!userId || !companyId) {
+      throw new UnauthorizedException('User context not found');
+    }
+
+    this.logger.log(
+      `LGPD deletion request by user ${userId} in company ${companyId}`,
+    );
+
+    return this.usersService.requestAccountDeletion(
+      userId,
+      companyId,
+      body.reason,
+    );
+  }
+
+  // ============================================
+  // CRUD ENDPOINTS
+  // ============================================
 
   @Get()
   @ApiOperation({
@@ -186,4 +272,5 @@ export class UsersController {
       updatedAt: updated.updatedAt,
     };
   }
+
 }

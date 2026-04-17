@@ -218,8 +218,29 @@ export default function Home() {
             </div>
             <span className="text-sm font-semibold">TheIAdvisor</span>
           </div>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/help"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('landing.help')}
+            </Link>
+            <Link
+              href="/terms"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('landing.termsOfService')}
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('landing.privacyPolicy')}
+            </Link>
+          </div>
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} TheIAdvisor. {t('landing.footerRights')}
+            &copy; {new Date().getFullYear()} TheIAdvisor.{' '}
+            {t('landing.footerRights')}
           </p>
         </div>
       </footer>

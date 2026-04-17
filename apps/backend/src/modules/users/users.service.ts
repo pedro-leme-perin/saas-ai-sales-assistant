@@ -537,6 +537,180 @@ export class UsersService {
   }
 
   // ============================================
+  // LGPD COMPLIANCE (Lei Geral de Protecao de Dados)
+  // ============================================
+
+  /**
+   * LGPD Art. 18, V — Data portability.
+   * Collects all user data within their tenant for export.
+   */
+  async exportUserData(
+    userId: string,
+    companyId: string,
+  ): Promise<Record<string, unknown>> {
+    this.logger.log(`Exporting data for user ${userId} in company ${companyId}`);
+
+    const user = await this.findByIdOrThrow(userId, companyId);
+
+    const [calls, whatsappChats, aiSuggestions, notifications, auditLogs] =
+      await Promise.all([
+        this.prisma.call.findMany({
+          where: { userId, companyId },
+          orderBy: { createdAt: 'desc' },
+          take: 10000,
+        }),
+        this.prisma.whatsappChat.findMany({
+          where: { assignedUserId: userId, companyId },
+          include: {
+            messages: {
+              orderBy: { createdAt: 'asc' },
+              take: 10000,
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 10000,
+        }),
+        this.prisma.aISuggestion.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 10000,
+        }),
+        this.prisma.notification.findMany({
+          where: { userId, companyId },
+          orderBy: { createdAt: 'desc' },
+          take: 10000,
+        }),
+        this.prisma.auditLog.findMany({
+          where: { userId, companyId },
+          orderBy: { createdAt: 'desc' },
+          take: 10000,
+        }),
+      ]);
+
+    // Log the export action
+    await this.prisma.auditLog.create({
+      data: {
+        companyId,
+        userId,
+        action: 'EXPORT' as AuditAction,
+        resource: 'USER',
+        resourceId: userId,
+        description: 'LGPD data export requested',
+      },
+    });
+
+    this.logger.log(
+      `Data export completed for user ${userId}: ` +
+        `${calls.length} calls, ${whatsappChats.length} chats, ` +
+        `${aiSuggestions.length} suggestions, ${notifications.length} notifications, ` +
+        `${auditLogs.length} audit logs`,
+    );
+
+    return {
+      profile: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+        avatarUrl: user.avatarUrl,
+        status: user.status,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      company: {
+        id: user.company.id,
+        name: user.company.name,
+        plan: user.company.plan,
+      },
+      calls,
+      whatsappChats,
+      aiSuggestions,
+      notifications,
+      auditLogs,
+    };
+  }
+
+  /**
+   * LGPD Art. 18, VI — Data deletion.
+   * Suspends the account and schedules deletion in 30 days.
+   */
+  async requestAccountDeletion(
+    userId: string,
+    companyId: string,
+    reason?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    scheduledDeletionDate: Date;
+  }> {
+    this.logger.log(
+      `Account deletion requested for user ${userId} in company ${companyId}`,
+    );
+
+    const user = await this.findByIdOrThrow(userId, companyId);
+
+    const scheduledDeletionDate = new Date();
+    scheduledDeletionDate.setDate(scheduledDeletionDate.getDate() + 30);
+
+    // Suspend the user account
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        status: 'SUSPENDED' as UserStatus,
+        isActive: false,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Log the deletion request
+    await this.prisma.auditLog.create({
+      data: {
+        companyId,
+        userId,
+        action: 'DELETE' as AuditAction,
+        resource: 'USER',
+        resourceId: userId,
+        description: `LGPD deletion request — scheduled for ${scheduledDeletionDate.toISOString()}`,
+        oldValues: {
+          status: user.status,
+          reason: reason || null,
+        },
+        newValues: {
+          status: 'SUSPENDED',
+          scheduledDeletionDate: scheduledDeletionDate.toISOString(),
+        },
+      },
+    });
+
+    // Send confirmation email (non-blocking)
+    this.emailService
+      .sendDeletionRequestEmail({
+        recipientEmail: user.email,
+        userName: user.name,
+        scheduledDeletionDate,
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `Non-blocking: deletion confirmation email failed for ${user.email}: ${message}`,
+        );
+      });
+
+    this.logger.log(
+      `Account deletion scheduled for user ${userId} on ${scheduledDeletionDate.toISOString()}`,
+    );
+
+    return {
+      success: true,
+      message:
+        'Your account has been suspended and is scheduled for deletion. ' +
+        'You will receive a confirmation email shortly.',
+      scheduledDeletionDate,
+    };
+  }
+
+  // ============================================
   // UPDATE LAST ACCESS
   // ============================================
 

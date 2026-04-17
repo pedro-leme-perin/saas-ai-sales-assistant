@@ -1,5 +1,9 @@
 name: CI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NODE_VERSION: '22'
+
 on:
   push:
     branches: [main]
@@ -9,9 +13,6 @@ on:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  NODE_VERSION: '22'
 
 jobs:
   # ──────────────────────────────────────────────

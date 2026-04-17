@@ -3,6 +3,11 @@ import { NotificationsController } from '../../src/modules/notifications/notific
 import { NotificationsService } from '../../src/modules/notifications/notifications.service';
 import { AuthGuard } from '../../src/modules/auth/guards/auth.guard';
 import { TenantGuard } from '../../src/modules/auth/guards/tenant.guard';
+import { NotificationType } from '@prisma/client';
+
+interface AuthenticatedRequest {
+  user?: { id?: string; companyId?: string };
+}
 
 jest.setTimeout(15000);
 
@@ -69,11 +74,11 @@ describe('NotificationsController', () => {
         message: 'Test message',
         userId: 'u1',
         companyId: 'c1',
-        type: 'CALL_STARTED' as any,
+        type: 'CALL_STARTED' as NotificationType,
       };
       (service.create as jest.Mock).mockResolvedValue(mockNotification);
 
-      const result = await controller.create(createDto, mockRequest as any);
+      const result = await controller.create(createDto, mockRequest as AuthenticatedRequest);
 
       expect(service.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -91,7 +96,7 @@ describe('NotificationsController', () => {
         message: 'Incoming call',
         userId: 'u1',
         companyId: 'c1',
-        type: 'CALL_STARTED' as any,
+        type: 'CALL_STARTED' as NotificationType,
         data: { callId: 'call-123' },
       };
       (service.create as jest.Mock).mockResolvedValue({
@@ -99,7 +104,7 @@ describe('NotificationsController', () => {
         ...createDto,
       });
 
-      const result = await controller.create(createDto, mockRequest as any);
+      const result = await controller.create(createDto, mockRequest as AuthenticatedRequest);
 
       expect(service.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -118,7 +123,7 @@ describe('NotificationsController', () => {
       const mockNotifications = [mockNotification];
       (service.findAll as jest.Mock).mockResolvedValue(mockNotifications);
 
-      const result = await controller.findAll(pagination, mockRequest as any);
+      const result = await controller.findAll(pagination, mockRequest as AuthenticatedRequest);
 
       expect(service.findAll).toHaveBeenCalledWith('test-user-id', 'test-company-id', pagination);
       expect(result).toEqual(mockNotifications);
@@ -130,7 +135,7 @@ describe('NotificationsController', () => {
       };
       const pagination = { skip: 0, take: 10 };
 
-      await expect(controller.findAll(pagination, invalidRequest as any)).rejects.toThrow();
+      await expect(controller.findAll(pagination, invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.findAll).not.toHaveBeenCalled();
     });
 
@@ -140,7 +145,7 @@ describe('NotificationsController', () => {
       };
       const pagination = { skip: 0, take: 10 };
 
-      await expect(controller.findAll(pagination, invalidRequest as any)).rejects.toThrow();
+      await expect(controller.findAll(pagination, invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.findAll).not.toHaveBeenCalled();
     });
 
@@ -148,7 +153,7 @@ describe('NotificationsController', () => {
       const pagination = { skip: 20, take: 5 };
       (service.findAll as jest.Mock).mockResolvedValue([]);
 
-      await controller.findAll(pagination, mockRequest as any);
+      await controller.findAll(pagination, mockRequest as AuthenticatedRequest);
 
       expect(service.findAll).toHaveBeenCalledWith('test-user-id', 'test-company-id', {
         skip: 20,
@@ -161,7 +166,7 @@ describe('NotificationsController', () => {
     it('should return unread notification count', async () => {
       (service.getUnreadCount as jest.Mock).mockResolvedValue({ unread: 5 });
 
-      const result = await controller.getUnreadCount(mockRequest as any);
+      const result = await controller.getUnreadCount(mockRequest as AuthenticatedRequest);
 
       expect(service.getUnreadCount).toHaveBeenCalledWith('test-user-id', 'test-company-id');
       expect(result).toEqual({ unread: 5 });
@@ -172,7 +177,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(controller.getUnreadCount(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.getUnreadCount(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.getUnreadCount).not.toHaveBeenCalled();
     });
 
@@ -181,7 +186,7 @@ describe('NotificationsController', () => {
         user: { id: 'test-user-id' },
       };
 
-      await expect(controller.getUnreadCount(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.getUnreadCount(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.getUnreadCount).not.toHaveBeenCalled();
     });
   });
@@ -192,7 +197,7 @@ describe('NotificationsController', () => {
       const updatedNotification = { ...mockNotification, read: true };
       (service.markAsRead as jest.Mock).mockResolvedValue(updatedNotification);
 
-      const result = await controller.markAsRead(notificationId, mockRequest as any);
+      const result = await controller.markAsRead(notificationId, mockRequest as AuthenticatedRequest);
 
       expect(service.markAsRead).toHaveBeenCalledWith(
         notificationId,
@@ -207,7 +212,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(controller.markAsRead('notif-1', invalidRequest as any)).rejects.toThrow();
+      await expect(controller.markAsRead('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.markAsRead).not.toHaveBeenCalled();
     });
 
@@ -216,7 +221,7 @@ describe('NotificationsController', () => {
         user: { id: 'test-user-id' },
       };
 
-      await expect(controller.markAsRead('notif-1', invalidRequest as any)).rejects.toThrow();
+      await expect(controller.markAsRead('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.markAsRead).not.toHaveBeenCalled();
     });
   });
@@ -225,7 +230,7 @@ describe('NotificationsController', () => {
     it('should mark all notifications as read', async () => {
       (service.markAllAsRead as jest.Mock).mockResolvedValue({ success: true });
 
-      const result = await controller.markAllAsRead(mockRequest as any);
+      const result = await controller.markAllAsRead(mockRequest as AuthenticatedRequest);
 
       expect(service.markAllAsRead).toHaveBeenCalledWith('test-user-id', 'test-company-id');
       expect(result.success).toBe(true);
@@ -236,7 +241,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(controller.markAllAsRead(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.markAllAsRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.markAllAsRead).not.toHaveBeenCalled();
     });
 
@@ -245,7 +250,7 @@ describe('NotificationsController', () => {
         user: { id: 'test-user-id' },
       };
 
-      await expect(controller.markAllAsRead(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.markAllAsRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.markAllAsRead).not.toHaveBeenCalled();
     });
   });
@@ -255,7 +260,7 @@ describe('NotificationsController', () => {
       const notificationId = 'notif-1';
       (service.delete as jest.Mock).mockResolvedValue({ success: true });
 
-      const result = await controller.delete(notificationId, mockRequest as any);
+      const result = await controller.delete(notificationId, mockRequest as AuthenticatedRequest);
 
       expect(service.delete).toHaveBeenCalledWith(
         notificationId,
@@ -270,7 +275,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(controller.delete('notif-1', invalidRequest as any)).rejects.toThrow();
+      await expect(controller.delete('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.delete).not.toHaveBeenCalled();
     });
 
@@ -279,7 +284,7 @@ describe('NotificationsController', () => {
         user: { id: 'test-user-id' },
       };
 
-      await expect(controller.delete('notif-1', invalidRequest as any)).rejects.toThrow();
+      await expect(controller.delete('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.delete).not.toHaveBeenCalled();
     });
   });
@@ -288,7 +293,7 @@ describe('NotificationsController', () => {
     it('should delete all read notifications', async () => {
       (service.deleteAllRead as jest.Mock).mockResolvedValue({ deleted: 5 });
 
-      const result = await controller.deleteAllRead(mockRequest as any);
+      const result = await controller.deleteAllRead(mockRequest as AuthenticatedRequest);
 
       expect(service.deleteAllRead).toHaveBeenCalledWith('test-user-id', 'test-company-id');
       expect(result.deleted).toBe(5);
@@ -299,7 +304,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(controller.deleteAllRead(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.deleteAllRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.deleteAllRead).not.toHaveBeenCalled();
     });
 
@@ -308,7 +313,7 @@ describe('NotificationsController', () => {
         user: { id: 'test-user-id' },
       };
 
-      await expect(controller.deleteAllRead(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.deleteAllRead(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.deleteAllRead).not.toHaveBeenCalled();
     });
   });
@@ -318,7 +323,7 @@ describe('NotificationsController', () => {
       const notificationId = 'notif-1';
       (service.findById as jest.Mock).mockResolvedValue(mockNotification);
 
-      const result = await controller.findById(notificationId, mockRequest as any);
+      const result = await controller.findById(notificationId, mockRequest as AuthenticatedRequest);
 
       expect(service.findById).toHaveBeenCalledWith(
         notificationId,
@@ -333,7 +338,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(controller.findById('notif-1', invalidRequest as any)).rejects.toThrow();
+      await expect(controller.findById('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.findById).not.toHaveBeenCalled();
     });
 
@@ -342,7 +347,7 @@ describe('NotificationsController', () => {
         user: { id: 'test-user-id' },
       };
 
-      await expect(controller.findById('notif-1', invalidRequest as any)).rejects.toThrow();
+      await expect(controller.findById('notif-1', invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.findById).not.toHaveBeenCalled();
     });
   });
@@ -358,7 +363,7 @@ describe('NotificationsController', () => {
       };
       (service.getPreferences as jest.Mock).mockResolvedValue(mockPreferences);
 
-      const result = await controller.getPreferences(mockRequest as any);
+      const result = await controller.getPreferences(mockRequest as AuthenticatedRequest);
 
       expect(service.getPreferences).toHaveBeenCalledWith('test-user-id', 'test-company-id');
       expect(result).toEqual(mockPreferences);
@@ -369,7 +374,7 @@ describe('NotificationsController', () => {
         user: { companyId: 'test-company-id' },
       };
 
-      await expect(controller.getPreferences(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.getPreferences(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.getPreferences).not.toHaveBeenCalled();
     });
 
@@ -378,7 +383,7 @@ describe('NotificationsController', () => {
         user: { id: 'test-user-id' },
       };
 
-      await expect(controller.getPreferences(invalidRequest as any)).rejects.toThrow();
+      await expect(controller.getPreferences(invalidRequest as AuthenticatedRequest)).rejects.toThrow();
       expect(service.getPreferences).not.toHaveBeenCalled();
     });
   });
@@ -399,7 +404,7 @@ describe('NotificationsController', () => {
 
       (service.updatePreferences as jest.Mock).mockResolvedValue(mockUpdatedResult);
 
-      const result = await controller.updatePreferences(updatedPreferences, mockRequest as any);
+      const result = await controller.updatePreferences(updatedPreferences, mockRequest as AuthenticatedRequest);
 
       expect(service.updatePreferences).toHaveBeenCalledWith(
         'test-user-id',
@@ -416,7 +421,7 @@ describe('NotificationsController', () => {
       const preferences = { emailCalls: false };
 
       await expect(
-        controller.updatePreferences(preferences, invalidRequest as any),
+        controller.updatePreferences(preferences, invalidRequest as AuthenticatedRequest),
       ).rejects.toThrow();
       expect(service.updatePreferences).not.toHaveBeenCalled();
     });
@@ -428,7 +433,7 @@ describe('NotificationsController', () => {
       const preferences = { emailCalls: false };
 
       await expect(
-        controller.updatePreferences(preferences, invalidRequest as any),
+        controller.updatePreferences(preferences, invalidRequest as AuthenticatedRequest),
       ).rejects.toThrow();
       expect(service.updatePreferences).not.toHaveBeenCalled();
     });
