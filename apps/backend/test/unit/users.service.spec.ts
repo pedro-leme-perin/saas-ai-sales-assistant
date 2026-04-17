@@ -265,6 +265,7 @@ describe('UsersService', () => {
 
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
         const txClient = {
           company: {
@@ -335,6 +336,7 @@ describe('UsersService', () => {
 
     it('should create new user from webhook data', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
         const txClient = {
           company: {
@@ -426,6 +428,7 @@ describe('UsersService', () => {
     it('should create user if not found on update webhook', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
       // Will call createFromWebhook internally, which will find null again then create
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
         const txClient = {
           company: {
@@ -503,6 +506,7 @@ describe('UsersService', () => {
   describe('helper methods (via createFromWebhook)', () => {
     it('should build full name from first and last', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
         const txClient = {
           company: {
@@ -569,6 +573,7 @@ describe('UsersService', () => {
 
     it('should fallback to "Usuário" when no name provided', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
         const txClient = {
           company: {

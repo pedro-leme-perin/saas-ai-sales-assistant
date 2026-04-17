@@ -146,7 +146,7 @@ describe('NotificationsService', () => {
     it('should throw error when companyId is null', async () => {
       const createDto = {
         userId: mockUserId,
-        companyId: null as any,
+        companyId: null as unknown as string,
         type: NotificationType.CALL_ENDED,
         title: 'Call Ended',
         message: 'Your call has been ended',

@@ -549,40 +549,39 @@ export class UsersService {
 
     const user = await this.findByIdOrThrow(userId, companyId);
 
-    const [calls, whatsappChats, aiSuggestions, notifications, auditLogs] =
-      await Promise.all([
-        this.prisma.call.findMany({
-          where: { userId, companyId },
-          orderBy: { createdAt: 'desc' },
-          take: 10000,
-        }),
-        this.prisma.whatsappChat.findMany({
-          where: { assignedUserId: userId, companyId },
-          include: {
-            messages: {
-              orderBy: { createdAt: 'asc' },
-              take: 10000,
-            },
+    const [calls, whatsappChats, aiSuggestions, notifications, auditLogs] = await Promise.all([
+      this.prisma.call.findMany({
+        where: { userId, companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 10000,
+      }),
+      this.prisma.whatsappChat.findMany({
+        where: { assignedUserId: userId, companyId },
+        include: {
+          messages: {
+            orderBy: { createdAt: 'asc' },
+            take: 10000,
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10000,
-        }),
-        this.prisma.aISuggestion.findMany({
-          where: { userId },
-          orderBy: { createdAt: 'desc' },
-          take: 10000,
-        }),
-        this.prisma.notification.findMany({
-          where: { userId, companyId },
-          orderBy: { createdAt: 'desc' },
-          take: 10000,
-        }),
-        this.prisma.auditLog.findMany({
-          where: { userId, companyId },
-          orderBy: { createdAt: 'desc' },
-          take: 10000,
-        }),
-      ]);
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10000,
+      }),
+      this.prisma.aISuggestion.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 10000,
+      }),
+      this.prisma.notification.findMany({
+        where: { userId, companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 10000,
+      }),
+      this.prisma.auditLog.findMany({
+        where: { userId, companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 10000,
+      }),
+    ]);
 
     // Log the export action
     await this.prisma.auditLog.create({
