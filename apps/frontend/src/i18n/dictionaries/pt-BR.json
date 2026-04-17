@@ -343,86 +343,86 @@
   },
   "terms": {
     "title": "Termos de Uso",
-    "lastUpdated": "Ultima atualizacao: 17 de abril de 2026",
-    "intro": "Estes Termos de Uso regulam o acesso e a utilizacao da plataforma TheIAdvisor, operada por TheIAdvisor Tecnologia Ltda., com sede no Brasil. Ao acessar ou utilizar nossos servicos, voce concorda integralmente com estes termos.",
+    "lastUpdated": "Ultima atualizacao: Abril 2026",
+    "intro": "Bem-vindo ao TheIAdvisor. Ao acessar e utilizar nossa plataforma, voce concorda com os termos e condicoes descritos neste documento.",
     "section1Title": "1. Aceitacao dos Termos",
-    "section1Text": "Ao criar uma conta ou utilizar qualquer funcionalidade da plataforma TheIAdvisor, voce declara ter lido, compreendido e aceito estes Termos de Uso em sua integralidade. Caso nao concorde com qualquer disposicao, voce nao devera utilizar a plataforma. Estes termos constituem um contrato vinculante entre voce (usuario) e TheIAdvisor, nos termos do artigo 421 do Codigo Civil Brasileiro e do Marco Civil da Internet (Lei n. 12.965/2014).",
+    "section1Text": "Ao criar uma conta ou utilizar qualquer funcionalidade do TheIAdvisor, voce aceita integralmente estes Termos de Uso e nossa Politica de Privacidade.",
     "section2Title": "2. Descricao do Servico",
-    "section2Text": "TheIAdvisor e uma plataforma SaaS de assistencia de vendas com inteligencia artificial que oferece: (a) transcricao em tempo real de ligacoes telefonicas com sugestoes de IA para vendedores; (b) analise de mensagens do WhatsApp Business com respostas contextuais sugeridas; (c) analytics de performance de vendas; (d) gestao de equipes de vendas. A plataforma utiliza provedores terceirizados de IA, telefonia e comunicacao para fornecer seus servicos.",
-    "section3Title": "3. Cadastro e Conta",
-    "section3Text": "Para utilizar a plataforma, voce deve criar uma conta fornecendo informacoes verdadeiras, completas e atualizadas. Voce e responsavel por manter a confidencialidade de suas credenciais de acesso e por todas as atividades realizadas em sua conta. Voce deve notificar imediatamente a TheIAdvisor sobre qualquer uso nao autorizado. A TheIAdvisor reserva-se o direito de suspender ou encerrar contas que violem estes termos.",
-    "section4Title": "4. Obrigacoes do Usuario",
-    "section4Text": "O usuario compromete-se a: (a) utilizar a plataforma apenas para finalidades licitas e comerciais legitimas; (b) nao utilizar a plataforma para assedio, spam, fraude ou qualquer atividade ilegal; (c) nao tentar acessar dados de outros usuarios ou empresas; (d) nao realizar engenharia reversa, descompilar ou extrair o codigo-fonte da plataforma; (e) respeitar os limites de uso do plano contratado; (f) manter suas informacoes cadastrais atualizadas; (g) cumprir a legislacao aplicavel, incluindo a LGPD e o Codigo de Defesa do Consumidor.",
-    "section5Title": "5. Planos e Pagamentos",
-    "section5Text": "A TheIAdvisor oferece planos de assinatura mensal com diferentes niveis de funcionalidade. Os pagamentos sao processados pelo Stripe, em Reais (BRL). Ao contratar um plano, voce autoriza a cobranca recorrente mensal no meio de pagamento informado. Cancelamentos podem ser feitos a qualquer momento pelo painel de faturamento, com efeito ao final do periodo vigente. Nao ha reembolso proporcional para periodos parciais. A TheIAdvisor reserva-se o direito de alterar precos com aviso previo de 30 dias.",
+    "section2Text": "O TheIAdvisor e uma plataforma SaaS de assistencia de vendas com inteligencia artificial que oferece transcricao de ligacoes em tempo real, sugestoes contextuais via IA e integracao com WhatsApp Business.",
+    "section3Title": "3. Uso do Servico e Uso Aceitavel",
+    "section3Text": "Voce concorda em utilizar o servico apenas para fins legais e de acordo com estas condicoes. E proibido usar a plataforma para atividades ilegais, fraudulentas ou que violem direitos de terceiros.",
+    "section4Title": "4. Conta e Seguranca",
+    "section4Text": "Voce e responsavel por manter a confidencialidade de suas credenciais de acesso e por todas as atividades realizadas em sua conta.",
+    "section5Title": "5. Pagamento e Cobranca",
+    "section5Text": "Os planos sao cobrados mensalmente em Reais (BRL). O pagamento e processado via Stripe. Faturas sao geradas automaticamente e enviadas por email.",
     "section6Title": "6. Propriedade Intelectual",
-    "section6Text": "Todo o conteudo, software, algoritmos, design, marcas e materiais da plataforma TheIAdvisor sao de propriedade exclusiva da TheIAdvisor ou de seus licenciadores. O uso da plataforma nao confere ao usuario qualquer direito de propriedade intelectual. As sugestoes geradas pela IA sao fornecidas como ferramenta de apoio e nao constituem propriedade intelectual do usuario. O usuario retem a propriedade de seus dados e conteudos inseridos na plataforma.",
-    "section7Title": "7. Limitacao de Responsabilidade",
-    "section7Text": "A TheIAdvisor fornece seus servicos no estado em que se encontram. Nao garantimos que: (a) o servico sera ininterrupto ou livre de erros; (b) as sugestoes da IA serao precisas, completas ou adequadas a qualquer situacao especifica; (c) os resultados obtidos pelo uso da plataforma atenderao suas expectativas. A TheIAdvisor nao sera responsavel por danos indiretos, incidentais, consequenciais ou punitivos. Nossa responsabilidade total esta limitada ao valor pago pelo usuario nos ultimos 12 meses.",
-    "section8Title": "8. Disponibilidade e Suporte",
-    "section8Text": "A TheIAdvisor empenha-se em manter a plataforma disponivel 99,9% do tempo. Manutencoes programadas serao comunicadas com antecedencia. O suporte tecnico e fornecido por email (team@theiadvisor.com) em horario comercial. Planos Enterprise podem incluir niveis diferenciados de suporte.",
-    "section9Title": "9. Suspensao e Encerramento",
-    "section9Text": "A TheIAdvisor pode suspender ou encerrar sua conta: (a) por violacao destes Termos; (b) por inadimplencia superior a 15 dias; (c) por determinacao judicial ou administrativa; (d) por inatividade superior a 12 meses. Em caso de encerramento, seus dados serao mantidos por 30 dias para recuperacao, apos o que serao excluidos conforme nossa Politica de Privacidade. Voce pode solicitar o encerramento de sua conta a qualquer momento.",
-    "section10Title": "10. Legislacao Aplicavel e Foro",
-    "section10Text": "Estes Termos sao regidos pelas leis da Republica Federativa do Brasil, especialmente o Marco Civil da Internet (Lei n. 12.965/2014), a LGPD (Lei n. 13.709/2018) e o Codigo de Defesa do Consumidor (Lei n. 8.078/1990). Fica eleito o foro da comarca do domicilio do usuario para dirimir quaisquer controversias, conforme o artigo 101, inciso I, do CDC.",
-    "section11Title": "11. Alteracoes dos Termos",
-    "section11Text": "A TheIAdvisor reserva-se o direito de modificar estes Termos a qualquer momento. Alteracoes relevantes serao notificadas por email ou pela plataforma com antecedencia minima de 15 dias. O uso continuado da plataforma apos a notificacao constitui aceitacao dos novos termos.",
-    "section12Title": "12. Contato",
-    "section12Text": "Em caso de duvidas sobre estes Termos de Uso, entre em contato conosco pelo email team@theiadvisor.com ou pelo site theiadvisor.com."
+    "section6Text": "Todo o conteudo, codigo-fonte, design, marcas e materiais do TheIAdvisor sao de propriedade intelectual exclusiva da empresa. E proibida a reproducao sem autorizacao.",
+    "section7Title": "7. Protecao de Dados",
+    "section7Text": "Coletamos e tratamos dados pessoais em conformidade com a LGPD (Lei Geral de Protecao de Dados). Consulte nossa Politica de Privacidade para mais detalhes.",
+    "section8Title": "8. Disponibilidade do Servico",
+    "section8Text": "Nos esforcaremos para manter o servico disponivel 24/7, mas nao garantimos disponibilidade ininterrupta. Manutencoes programadas serao comunicadas com antecedencia.",
+    "section9Title": "9. Limitacao de Responsabilidade",
+    "section9Text": "O TheIAdvisor nao sera responsavel por danos indiretos, incidentais ou consequenciais decorrentes do uso ou incapacidade de uso do servico.",
+    "section10Title": "10. Cancelamento e Rescisao",
+    "section10Text": "Voce pode cancelar sua assinatura a qualquer momento. O acesso permanece ativo ate o final do periodo pago. Reservamo-nos o direito de suspender contas que violem estes termos.",
+    "section11Title": "11. Alteracoes nos Termos",
+    "section11Text": "Podemos atualizar estes termos periodicamente. Alteracoes significativas serao notificadas por email ou via plataforma com 30 dias de antecedencia.",
+    "section12Title": "12. Foro e Legislacao",
+    "section12Text": "Estes termos sao regidos pela legislacao brasileira. Fica eleito o foro da comarca de Sao Paulo/SP para dirimir quaisquer controversias."
   },
   "privacy": {
     "title": "Politica de Privacidade",
-    "lastUpdated": "Ultima atualizacao: 17 de abril de 2026",
-    "intro": "Esta Politica de Privacidade descreve como a TheIAdvisor Tecnologia Ltda. coleta, utiliza, armazena e protege seus dados pessoais, em conformidade com a Lei Geral de Protecao de Dados Pessoais (LGPD - Lei n. 13.709/2018) e o Marco Civil da Internet (Lei n. 12.965/2014).",
+    "lastUpdated": "Ultima atualizacao: Abril 2026",
+    "intro": "O TheIAdvisor esta comprometido com a protecao de dados pessoais em conformidade com a LGPD (Lei Geral de Protecao de Dados — Lei 13.709/2018).",
     "section1Title": "1. Controlador de Dados",
-    "section1Text": "O controlador dos dados pessoais coletados por esta plataforma e a TheIAdvisor Tecnologia Ltda., com sede no Brasil. Para questoes relacionadas a privacidade, entre em contato pelo email team@theiadvisor.com.",
-    "section2Title": "2. Dados Pessoais Coletados",
-    "section2Intro": "Coletamos as seguintes categorias de dados pessoais:",
-    "section2Item1": "Dados de cadastro: nome, email, telefone, foto de perfil, cargo e empresa associada.",
-    "section2Item2": "Dados de uso: registros de acesso, funcionalidades utilizadas, horarios de uso, enderecos IP, tipo de navegador e dispositivo.",
-    "section2Item3": "Dados de comunicacao: transcricoes de ligacoes telefonicas, mensagens do WhatsApp processadas pela plataforma, gravacoes de chamadas (quando habilitado pelo usuario).",
-    "section2Item4": "Dados de pagamento: informacoes de faturamento processadas pelo Stripe. Nao armazenamos dados completos de cartao de credito.",
-    "section2Item5": "Dados de analytics: metricas de performance de vendas, analises de sentimento geradas pela IA, estatisticas de uso de sugestoes.",
-    "section2Item6": "Cookies e tecnologias similares: cookies essenciais para funcionamento, cookies de sessao para autenticacao e cookies analiticos para melhoria do servico.",
-    "section3Title": "3. Finalidade do Tratamento",
-    "section3Text": "Seus dados pessoais sao tratados para: (a) prestacao dos servicos contratados, incluindo transcricao, analise por IA e geracao de sugestoes; (b) gestao da conta e autenticacao; (c) processamento de pagamentos e faturamento; (d) comunicacoes sobre o servico e suporte; (e) melhoria continua da plataforma e dos algoritmos de IA; (f) cumprimento de obrigacoes legais e regulatorias; (g) seguranca da plataforma e prevencao de fraudes.",
-    "section4Title": "4. Base Legal (LGPD Art. 7)",
-    "section4Text": "O tratamento dos seus dados pessoais e fundamentado nas seguintes bases legais: (a) execucao de contrato (Art. 7, V) para a prestacao dos servicos; (b) consentimento (Art. 7, I) para comunicacoes de marketing e cookies analiticos; (c) legitimo interesse (Art. 7, IX) para melhoria da plataforma e seguranca; (d) cumprimento de obrigacao legal (Art. 7, II) para retencao fiscal e dados de faturamento; (e) exercicio regular de direitos (Art. 7, VI) para protecao em processos judiciais.",
+    "section1Text": "O TheIAdvisor, operado por sua empresa responsavel, e o controlador dos dados pessoais coletados atraves da plataforma, conforme definido pela LGPD.",
+    "section2Title": "2. Dados Coletados",
+    "section2Intro": "Coletamos os seguintes tipos de dados pessoais:",
+    "section2Item1": "Dados de identificacao: nome, email, telefone",
+    "section2Item2": "Dados de uso: logs de acesso, interacoes com a plataforma",
+    "section2Item3": "Dados de comunicacao: transcricoes de ligacoes, mensagens WhatsApp",
+    "section2Item4": "Dados de pagamento: processados diretamente pelo Stripe (PCI-compliant)",
+    "section2Item5": "Dados de dispositivo: navegador, sistema operacional, IP",
+    "section2Item6": "Dados de autenticacao: gerenciados pelo Clerk (provedor de identidade)",
+    "section3Title": "3. Base Legal para Tratamento",
+    "section3Text": "O tratamento de dados e realizado com base no Art. 7 da LGPD: execucao de contrato (Art. 7, V), consentimento do titular (Art. 7, I), e interesse legitimo do controlador (Art. 7, IX).",
+    "section4Title": "4. Finalidade do Tratamento",
+    "section4Text": "Os dados sao utilizados para: prestacao do servico contratado, melhoria da plataforma, comunicacoes transacionais, cumprimento de obrigacoes legais e analise de uso agregada.",
     "section5Title": "5. Compartilhamento de Dados",
-    "section5Intro": "Compartilhamos dados pessoais com os seguintes prestadores de servicos, estritamente necessarios para a operacao da plataforma:",
-    "section5Item1": "Clerk (autenticacao): nome, email, foto de perfil para gestao de identidade e login seguro.",
-    "section5Item2": "Stripe (pagamentos): dados de faturamento para processamento de pagamentos e gestao de assinaturas.",
-    "section5Item3": "Twilio (telefonia): numeros de telefone e metadados de chamadas para servicos de voz.",
-    "section5Item4": "Deepgram (transcricao): audio de chamadas em tempo real para transcricao via streaming, sem armazenamento permanente no provedor.",
-    "section5Item5": "OpenAI (inteligencia artificial): trechos de transcricoes e mensagens para geracao de sugestoes contextuais. Os dados enviados nao sao utilizados para treinamento de modelos.",
-    "section5Item6": "Sentry (monitoramento): dados tecnicos anonimizados para deteccao e correcao de erros. Dados pessoais identificaveis sao removidos antes do envio.",
-    "section5Footer": "Nao vendemos, alugamos ou comercializamos seus dados pessoais a terceiros para fins de marketing.",
+    "section5Intro": "Seus dados podem ser compartilhados com:",
+    "section5Item1": "Provedores de IA (OpenAI) — para gerar sugestoes contextuais",
+    "section5Item2": "Provedores de telecomunicacao (Twilio) — para funcionalidades de ligacao",
+    "section5Item3": "Provedores de transcricao (Deepgram) — para conversao de voz em texto",
+    "section5Item4": "Processador de pagamentos (Stripe) — para cobrancas e faturas",
+    "section5Item5": "Provedor de autenticacao (Clerk) — para gestao de identidade",
+    "section5Item6": "Provedor de email (Resend) — para comunicacoes transacionais",
+    "section5Footer": "Nenhum dado pessoal e vendido a terceiros.",
     "section6Title": "6. Retencao de Dados",
-    "section6Text": "Seus dados pessoais sao retidos pelo periodo necessario: (a) dados da conta: enquanto ativa, mais 30 dias apos encerramento; (b) dados de faturamento: 5 anos conforme legislacao fiscal brasileira; (c) registros de acesso: 6 meses conforme o Marco Civil da Internet (Art. 15); (d) dados de comunicacao: enquanto a conta estiver ativa; (e) dados de analytics: anonimizados e agregados apos 24 meses.",
-    "section7Title": "7. Direitos do Titular (LGPD Art. 18)",
-    "section7Intro": "Conforme a LGPD, voce tem os seguintes direitos sobre seus dados pessoais:",
+    "section6Text": "Dados pessoais sao retidos pelo periodo necessario para cumprimento das finalidades descritas. Apos solicitacao de exclusao, dados sao removidos em ate 30 dias, exceto quando retencao e exigida por lei.",
+    "section7Title": "7. Direitos do Titular (Art. 18 LGPD)",
+    "section7Intro": "Voce tem direito a:",
     "section7Item1": "Confirmacao da existencia de tratamento",
-    "section7Item2": "Acesso aos dados",
-    "section7Item3": "Correcao de dados incompletos, inexatos ou desatualizados",
-    "section7Item4": "Anonimizacao, bloqueio ou eliminacao de dados desnecessarios ou excessivos",
-    "section7Item5": "Portabilidade dos dados a outro fornecedor de servico",
-    "section7Item6": "Eliminacao dos dados tratados com consentimento",
-    "section7Item7": "Informacao sobre compartilhamento de dados",
-    "section7Item8": "Informacao sobre a possibilidade de nao fornecer consentimento e suas consequencias",
-    "section7Item9": "Revogacao do consentimento",
-    "section7Footer": "Para exercer seus direitos, envie uma solicitacao para team@theiadvisor.com. Responderemos em ate 15 dias uteis.",
-    "section8Title": "8. Cookies",
-    "section8Text": "Utilizamos cookies essenciais para o funcionamento da plataforma (autenticacao, sessao, preferencias). Cookies analiticos sao utilizados apenas com seu consentimento. Voce pode gerenciar suas preferencias de cookies nas configuracoes do navegador. A desativacao de cookies essenciais pode impactar o funcionamento da plataforma.",
-    "section9Title": "9. Seguranca dos Dados",
-    "section9Text": "Adotamos medidas tecnicas e organizacionais para proteger seus dados: (a) criptografia em transito (TLS/SSL); (b) criptografia em repouso para dados sensiveis; (c) autenticacao robusta com suporte a MFA; (d) isolamento de dados por empresa (multi-tenancy); (e) controle de acesso baseado em funcoes (RBAC); (f) monitoramento continuo com alertas de seguranca; (g) auditorias de acesso registradas em log.",
-    "section10Title": "10. Transferencia Internacional de Dados",
-    "section10Text": "Alguns de nossos prestadores de servicos estao localizados fora do Brasil. A transferencia internacional de dados e realizada em conformidade com o Art. 33 da LGPD, com base em: (a) clausulas contratuais padrao com os prestadores; (b) certificacoes e compromissos de privacidade dos prestadores. Todos os prestadores listados na secao 5 possuem politicas compativeis com a LGPD.",
-    "section11Title": "11. Alteracoes desta Politica",
-    "section11Text": "Esta Politica de Privacidade pode ser atualizada periodicamente. Alteracoes significativas serao notificadas por email ou pela plataforma com antecedencia minima de 15 dias.",
+    "section7Item2": "Acesso aos dados pessoais",
+    "section7Item3": "Correcao de dados incompletos ou desatualizados",
+    "section7Item4": "Anonimizacao ou bloqueio de dados desnecessarios",
+    "section7Item5": "Portabilidade dos dados (exportacao)",
+    "section7Item6": "Eliminacao dos dados pessoais",
+    "section7Item7": "Informacao sobre compartilhamento",
+    "section7Item8": "Revogacao do consentimento",
+    "section7Item9": "Oposicao ao tratamento",
+    "section7Footer": "Para exercer seus direitos, acesse as configuracoes da conta ou entre em contato pelo email team@theiadvisor.com.",
+    "section8Title": "8. Seguranca dos Dados",
+    "section8Text": "Implementamos medidas tecnicas e organizacionais para proteger dados pessoais: criptografia em transito (TLS) e em repouso, autenticacao multi-fator, controle de acesso baseado em funcoes (RBAC), auditoria de acessos.",
+    "section9Title": "9. Transferencia Internacional",
+    "section9Text": "Alguns dados podem ser processados por provedores localizados fora do Brasil. Garantimos que essas transferencias estao em conformidade com o Art. 33 da LGPD.",
+    "section10Title": "10. Cookies e Tecnologias de Rastreamento",
+    "section10Text": "Utilizamos cookies essenciais para funcionamento da plataforma e cookies de performance para melhorar a experiencia. Voce pode gerenciar preferencias de cookies nas configuracoes do navegador.",
+    "section11Title": "11. Incidentes de Seguranca",
+    "section11Text": "Em caso de incidente de seguranca envolvendo dados pessoais, notificaremos a ANPD e os titulares afetados conforme Art. 48 da LGPD, dentro do prazo razoavel.",
     "section12Title": "12. Encarregado de Protecao de Dados (DPO)",
-    "section12Text": "O Encarregado de Protecao de Dados da TheIAdvisor pode ser contatado pelo email team@theiadvisor.com. O DPO e responsavel por: (a) aceitar reclamacoes e comunicacoes dos titulares; (b) receber comunicacoes da Autoridade Nacional de Protecao de Dados (ANPD); (c) orientar funcionarios e contratados sobre praticas de protecao de dados.",
-    "section13Title": "13. Contato",
-    "section13Text": "Para duvidas, solicitacoes ou reclamacoes sobre esta Politica de Privacidade, entre em contato pelo email team@theiadvisor.com ou pelo site theiadvisor.com. Voce tambem tem direito de peticionar perante a Autoridade Nacional de Protecao de Dados (ANPD)."
+    "section12Text": "Para questoes relacionadas a protecao de dados pessoais, entre em contato com nosso encarregado pelo email: dpo@theiadvisor.com.",
+    "section13Title": "13. Alteracoes nesta Politica",
+    "section13Text": "Esta politica pode ser atualizada periodicamente. Alteracoes serao comunicadas por email ou via plataforma."
   },
   "analytics": {
     "title": "Analytics",
@@ -570,233 +570,6 @@
   "help": {
     "title": "Central de Ajuda",
     "subtitle": "Encontre respostas para as perguntas mais frequentes sobre o TheIAdvisor.",
-    "contactTitle": "Ainda precisa de ajuda?",
-    "contactDesc": "Nossa equipe esta pronta para ajudar. Entre em contato por email.",
-    "terms": "Termos de Uso",
-    "privacy": "Politica de Privacidade",
-    "categories": {
-      "gettingStarted": "Primeiros Passos",
-      "phoneCalls": "Ligacoes Telefonicas",
-      "whatsapp": "WhatsApp",
-      "billing": "Planos e Pagamentos",
-      "privacy": "Privacidade e Seguranca",
-      "support": "Suporte"
-    },
-    "faq": {
-      "whatIs": {
-        "q": "O que e o TheIAdvisor?",
-        "a": "O TheIAdvisor e um assistente de vendas com inteligencia artificial que fornece sugestoes em tempo real durante ligacoes telefonicas e conversas no WhatsApp. Ele transcreve chamadas ao vivo, analisa o contexto da conversa e sugere as melhores respostas para ajudar sua equipe a fechar mais vendas."
-      },
-      "howToStart": {
-        "q": "Como comeco a usar?",
-        "a": "Crie sua conta gratuitamente, complete o onboarding em 4 passos (empresa, equipe, canais e plano), e sua equipe ja pode comecar a fazer ligacoes com assistencia de IA. Nao e necessario cartao de credito para o plano Starter."
-      },
-      "channels": {
-        "q": "Quais canais sao suportados?",
-        "a": "Atualmente o TheIAdvisor suporta dois canais: ligacoes telefonicas com transcricao em tempo real via Deepgram e sugestoes de IA, e WhatsApp Business com analise de mensagens recebidas e respostas contextuais sugeridas."
-      },
-      "callAI": {
-        "q": "Como a IA funciona durante as ligacoes?",
-        "a": "Quando voce inicia uma ligacao pelo TheIAdvisor, o audio e transcrito em tempo real (latencia menor que 2 segundos). A IA analisa o contexto da conversa e gera sugestoes de resposta que aparecem na tela do vendedor instantaneamente via WebSocket."
-      },
-      "countries": {
-        "q": "Para quais paises posso ligar?",
-        "a": "O TheIAdvisor utiliza Twilio como provedor de telefonia, que suporta chamadas para a maioria dos paises. As tarifas variam por destino. Atualmente temos um numero dos EUA (+1) ativo, com planos de adicionar numeros brasileiros (+55) em breve."
-      },
-      "recording": {
-        "q": "As ligacoes sao gravadas?",
-        "a": "Sim, as ligacoes podem ser gravadas e armazenadas de forma segura no Cloudflare R2. As gravacoes ficam disponiveis no historico de ligacoes para revisao posterior. Voce pode desativar a gravacao nas configuracoes."
-      },
-      "whatsappConnect": {
-        "q": "Como conecto meu WhatsApp?",
-        "a": "A integracao com WhatsApp utiliza a API oficial do WhatsApp Business (Meta). E necessario ter uma conta no Meta Business Manager com empresa verificada. Apos a verificacao, configure o Access Token e Phone Number ID nas configuracoes do TheIAdvisor."
-      },
-      "whatsappAI": {
-        "q": "Como a IA sugere respostas no WhatsApp?",
-        "a": "Quando uma mensagem chega pelo WhatsApp, a IA analisa o historico da conversa, o perfil do cliente e o contexto da interacao para gerar sugestoes de resposta. O vendedor pode usar a sugestao como esta, edita-la ou ignorar."
-      },
-      "messageLimits": {
-        "q": "Existe limite de mensagens no WhatsApp?",
-        "a": "O limite de mensagens depende do seu plano e das restricoes da API do WhatsApp Business. O plano Starter inclui um volume basico, enquanto os planos Professional e Enterprise oferecem limites maiores. Consulte os detalhes de cada plano na pagina de faturamento."
-      },
-      "plans": {
-        "q": "Quais planos estao disponiveis?",
-        "a": "Oferecemos tres planos: Starter (R$97/mes, ate 5 usuarios), Professional (R$297/mes, ate 20 usuarios) e Enterprise (R$697/mes, usuarios ilimitados). Todos incluem acesso a IA em tempo real, transcricao de ligacoes e analytics."
-      },
-      "payment": {
-        "q": "Quais formas de pagamento sao aceitas?",
-        "a": "Aceitamos cartoes de credito internacionais (Visa, Mastercard, American Express) processados via Stripe. Os pagamentos sao em Reais (BRL) com cobranca mensal recorrente."
-      },
-      "cancellation": {
-        "q": "Como cancelo minha assinatura?",
-        "a": "Voce pode cancelar sua assinatura a qualquer momento nas configuracoes de faturamento do dashboard. O cancelamento entra em vigor ao final do periodo ja pago. Nao ha taxa de cancelamento ou multa."
-      },
-      "dataProtection": {
-        "q": "Como meus dados sao protegidos?",
-        "a": "Utilizamos criptografia em transito (TLS/SSL) e em repouso. Os dados sao armazenados em servidores seguros com backups automaticos. Autenticacao via Clerk com suporte a MFA. Headers de seguranca via Helmet. Monitoramento continuo via Sentry."
-      },
-      "lgpd": {
-        "q": "O TheIAdvisor esta em conformidade com a LGPD?",
-        "a": "Sim. Seguimos as diretrizes da Lei Geral de Protecao de Dados (LGPD). Voce pode solicitar acesso, correcao ou exclusao dos seus dados pessoais a qualquer momento entrando em contato com team@theiadvisor.com."
-      },
-      "getHelp": {
-        "q": "Como obtenho suporte tecnico?",
-        "a": "Envie um email para team@theiadvisor.com descrevendo sua duvida ou problema. Nossa equipe responde em ate 24 horas uteis. Para planos Enterprise, oferecemos suporte prioritario."
-      },
-      "contact": {
-        "q": "Quais sao os canais de contato?",
-        "a": "Atualmente, nosso canal principal de suporte e o email team@theiadvisor.com. Estamos trabalhando para adicionar chat ao vivo e uma base de conhecimento mais completa em breve."
-      }
-    }
-  },
-  "onboarding": {
-    "stepOf": "Passo {{current}} de {{total}}",
-    "back": "Voltar",
-    "next": "Próximo",
-    "finish": "Começar a usar",
-    "skip": "Pular",
-    "success": "Configuração concluída! Bem-vindo ao TheIAdvisor.",
-    "error": "Erro ao salvar configuração. Tente novamente.",
-    "welcome": {
-      "title": "Bem-vindo ao TheIAdvisor!",
-      "subtitle": "Vamos configurar sua conta em poucos passos.",
-      "companyLabel": "Nome da sua empresa",
-      "companyPlaceholder": "Ex: Acme Vendas"
-    },
-    "team": {
-      "title": "Sobre sua equipe",
-      "subtitle": "Isso nos ajuda a personalizar sua experiência.",
-      "sizeLabel": "Tamanho da equipe",
-      "people": "pessoas",
-      "industryLabel": "Setor de atuação",
-      "industries": {
-        "sales": "Vendas",
-        "realEstate": "Imobiliário",
-        "insurance": "Seguros",
-        "saas": "SaaS / Tecnologia",
-        "other": "Outro"
-      }
-    },
-    "channels": {
-      "title": "Canais de comunicação",
-      "subtitle": "Selecione os canais que sua equipe utiliza.",
-      "phone": {
-        "name": "Ligações Telefônicas",
-        "desc": "Transcrição em tempo real + sugestões IA durante a chamada"
-      },
-      "whatsapp": {
-        "name": "WhatsApp Business",
-        "desc": "Respostas contextuais geradas por IA para mensagens recebidas"
-      }
-    },
-    "plan": {
-      "title": "Escolha seu plano",
-      "subtitle": "Comece grátis e faça upgrade quando quiser.",
-      "plans": {
-        "STARTER": {
-          "name": "Starter",
-          "desc": "Ideal para começar — até 5 usuários",
-          "price": "Grátis"
-        },
-        "PROFESSIONAL": {
-          "name": "Professional",
-          "desc": "Para equipes em crescimento — até 20 usuários",
-          "price": "R$99/mês"
-        },
-        "ENTERPRISE": {
-          "name": "Enterprise",
-          "desc": "Para grandes operações — usuários ilimitados",
-          "price": "Sob consulta"
-        }
-      }
-    }
-  },
-  "terms": {
-    "title": "Termos de Uso",
-    "lastUpdated": "Ultima atualizacao: Abril 2026",
-    "intro": "Bem-vindo ao TheIAdvisor. Ao acessar e utilizar nossa plataforma, voce concorda com os termos e condicoes descritos neste documento.",
-    "section1Title": "1. Aceitacao dos Termos",
-    "section1Text": "Ao criar uma conta ou utilizar qualquer funcionalidade do TheIAdvisor, voce aceita integralmente estes Termos de Uso e nossa Politica de Privacidade.",
-    "section2Title": "2. Descricao do Servico",
-    "section2Text": "O TheIAdvisor e uma plataforma SaaS de assistencia de vendas com inteligencia artificial que oferece transcricao de ligacoes em tempo real, sugestoes contextuais via IA e integracao com WhatsApp Business.",
-    "section3Title": "3. Uso do Servico e Uso Aceitavel",
-    "section3Text": "Voce concorda em utilizar o servico apenas para fins legais e de acordo com estas condicoes. E proibido usar a plataforma para atividades ilegais, fraudulentas ou que violem direitos de terceiros.",
-    "section4Title": "4. Conta e Seguranca",
-    "section4Text": "Voce e responsavel por manter a confidencialidade de suas credenciais de acesso e por todas as atividades realizadas em sua conta.",
-    "section5Title": "5. Pagamento e Cobranca",
-    "section5Text": "Os planos sao cobrados mensalmente em Reais (BRL). O pagamento e processado via Stripe. Faturas sao geradas automaticamente e enviadas por email.",
-    "section6Title": "6. Propriedade Intelectual",
-    "section6Text": "Todo o conteudo, codigo-fonte, design, marcas e materiais do TheIAdvisor sao de propriedade intelectual exclusiva da empresa. E proibida a reproducao sem autorizacao.",
-    "section7Title": "7. Protecao de Dados",
-    "section7Text": "Coletamos e tratamos dados pessoais em conformidade com a LGPD (Lei Geral de Protecao de Dados). Consulte nossa Politica de Privacidade para mais detalhes.",
-    "section8Title": "8. Disponibilidade do Servico",
-    "section8Text": "Nos esforcaremos para manter o servico disponivel 24/7, mas nao garantimos disponibilidade ininterrupta. Manutencoes programadas serao comunicadas com antecedencia.",
-    "section9Title": "9. Limitacao de Responsabilidade",
-    "section9Text": "O TheIAdvisor nao sera responsavel por danos indiretos, incidentais ou consequenciais decorrentes do uso ou incapacidade de uso do servico.",
-    "section10Title": "10. Cancelamento e Rescisao",
-    "section10Text": "Voce pode cancelar sua assinatura a qualquer momento. O acesso permanece ativo ate o final do periodo pago. Reservamo-nos o direito de suspender contas que violem estes termos.",
-    "section11Title": "11. Alteracoes nos Termos",
-    "section11Text": "Podemos atualizar estes termos periodicamente. Alteracoes significativas serao notificadas por email ou via plataforma com 30 dias de antecedencia.",
-    "section12Title": "12. Foro e Legislacao",
-    "section12Text": "Estes termos sao regidos pela legislacao brasileira. Fica eleito o foro da comarca de Sao Paulo/SP para dirimir quaisquer controversias."
-  },
-  "privacy": {
-    "title": "Politica de Privacidade",
-    "lastUpdated": "Ultima atualizacao: Abril 2026",
-    "intro": "O TheIAdvisor esta comprometido com a protecao de dados pessoais em conformidade com a LGPD (Lei Geral de Protecao de Dados — Lei 13.709/2018).",
-    "section1Title": "1. Controlador de Dados",
-    "section1Text": "O TheIAdvisor, operado por sua empresa responsavel, e o controlador dos dados pessoais coletados atraves da plataforma, conforme definido pela LGPD.",
-    "section2Title": "2. Dados Coletados",
-    "section2Intro": "Coletamos os seguintes tipos de dados pessoais:",
-    "section2Item1": "Dados de identificacao: nome, email, telefone",
-    "section2Item2": "Dados de uso: logs de acesso, interacoes com a plataforma",
-    "section2Item3": "Dados de comunicacao: transcricoes de ligacoes, mensagens WhatsApp",
-    "section2Item4": "Dados de pagamento: processados diretamente pelo Stripe (PCI-compliant)",
-    "section2Item5": "Dados de dispositivo: navegador, sistema operacional, IP",
-    "section2Item6": "Dados de autenticacao: gerenciados pelo Clerk (provedor de identidade)",
-    "section3Title": "3. Base Legal para Tratamento",
-    "section3Text": "O tratamento de dados e realizado com base no Art. 7 da LGPD: execucao de contrato (Art. 7, V), consentimento do titular (Art. 7, I), e interesse legitimo do controlador (Art. 7, IX).",
-    "section4Title": "4. Finalidade do Tratamento",
-    "section4Text": "Os dados sao utilizados para: prestacao do servico contratado, melhoria da plataforma, comunicacoes transacionais, cumprimento de obrigacoes legais e analise de uso agregada.",
-    "section5Title": "5. Compartilhamento de Dados",
-    "section5Intro": "Seus dados podem ser compartilhados com:",
-    "section5Item1": "Provedores de IA (OpenAI) — para gerar sugestoes contextuais",
-    "section5Item2": "Provedores de telecomunicacao (Twilio) — para funcionalidades de ligacao",
-    "section5Item3": "Provedores de transcricao (Deepgram) — para conversao de voz em texto",
-    "section5Item4": "Processador de pagamentos (Stripe) — para cobrancas e faturas",
-    "section5Item5": "Provedor de autenticacao (Clerk) — para gestao de identidade",
-    "section5Item6": "Provedor de email (Resend) — para comunicacoes transacionais",
-    "section5Footer": "Nenhum dado pessoal e vendido a terceiros.",
-    "section6Title": "6. Retencao de Dados",
-    "section6Text": "Dados pessoais sao retidos pelo periodo necessario para cumprimento das finalidades descritas. Apos solicitacao de exclusao, dados sao removidos em ate 30 dias, exceto quando retencao e exigida por lei.",
-    "section7Title": "7. Direitos do Titular (Art. 18 LGPD)",
-    "section7Intro": "Voce tem direito a:",
-    "section7Item1": "Confirmacao da existencia de tratamento",
-    "section7Item2": "Acesso aos dados pessoais",
-    "section7Item3": "Correcao de dados incompletos ou desatualizados",
-    "section7Item4": "Anonimizacao ou bloqueio de dados desnecessarios",
-    "section7Item5": "Portabilidade dos dados (exportacao)",
-    "section7Item6": "Eliminacao dos dados pessoais",
-    "section7Item7": "Informacao sobre compartilhamento",
-    "section7Item8": "Revogacao do consentimento",
-    "section7Item9": "Oposicao ao tratamento",
-    "section7Footer": "Para exercer seus direitos, acesse as configuracoes da conta ou entre em contato pelo email team@theiadvisor.com.",
-    "section8Title": "8. Seguranca dos Dados",
-    "section8Text": "Implementamos medidas tecnicas e organizacionais para proteger dados pessoais: criptografia em transito (TLS) e em repouso, autenticacao multi-fator, controle de acesso baseado em funcoes (RBAC), auditoria de acessos.",
-    "section9Title": "9. Transferencia Internacional",
-    "section9Text": "Alguns dados podem ser processados por provedores localizados fora do Brasil. Garantimos que essas transferencias estao em conformidade com o Art. 33 da LGPD.",
-    "section10Title": "10. Cookies e Tecnologias de Rastreamento",
-    "section10Text": "Utilizamos cookies essenciais para funcionamento da plataforma e cookies de performance para melhorar a experiencia. Voce pode gerenciar preferencias de cookies nas configuracoes do navegador.",
-    "section11Title": "11. Incidentes de Seguranca",
-    "section11Text": "Em caso de incidente de seguranca envolvendo dados pessoais, notificaremos a ANPD e os titulares afetados conforme Art. 48 da LGPD, dentro do prazo razoavel.",
-    "section12Title": "12. Encarregado de Protecao de Dados (DPO)",
-    "section12Text": "Para questoes relacionadas a protecao de dados pessoais, entre em contato com nosso encarregado pelo email: dpo@theiadvisor.com.",
-    "section13Title": "13. Alteracoes nesta Politica",
-    "section13Text": "Esta politica pode ser atualizada periodicamente. Alteracoes serao comunicadas por email ou via plataforma."
-  },
-  "help": {
-    "title": "Central de Ajuda",
-    "subtitle": "Encontre respostas para as perguntas mais frequentes sobre o TheIAdvisor.",
     "contactTitle": "Precisa de mais ajuda?",
     "contactDesc": "Nossa equipe de suporte esta pronta para ajudar voce.",
     "terms": "Termos de Uso",
@@ -873,6 +646,68 @@
       "contact": {
         "q": "Qual o email de contato?",
         "a": "Nosso email principal de suporte e team@theiadvisor.com."
+      }
+    }
+  },
+  "onboarding": {
+    "stepOf": "Passo {{current}} de {{total}}",
+    "back": "Voltar",
+    "next": "Próximo",
+    "finish": "Começar a usar",
+    "skip": "Pular",
+    "success": "Configuração concluída! Bem-vindo ao TheIAdvisor.",
+    "error": "Erro ao salvar configuração. Tente novamente.",
+    "welcome": {
+      "title": "Bem-vindo ao TheIAdvisor!",
+      "subtitle": "Vamos configurar sua conta em poucos passos.",
+      "companyLabel": "Nome da sua empresa",
+      "companyPlaceholder": "Ex: Acme Vendas"
+    },
+    "team": {
+      "title": "Sobre sua equipe",
+      "subtitle": "Isso nos ajuda a personalizar sua experiência.",
+      "sizeLabel": "Tamanho da equipe",
+      "people": "pessoas",
+      "industryLabel": "Setor de atuação",
+      "industries": {
+        "sales": "Vendas",
+        "realEstate": "Imobiliário",
+        "insurance": "Seguros",
+        "saas": "SaaS / Tecnologia",
+        "other": "Outro"
+      }
+    },
+    "channels": {
+      "title": "Canais de comunicação",
+      "subtitle": "Selecione os canais que sua equipe utiliza.",
+      "phone": {
+        "name": "Ligações Telefônicas",
+        "desc": "Transcrição em tempo real + sugestões IA durante a chamada"
+      },
+      "whatsapp": {
+        "name": "WhatsApp Business",
+        "desc": "Respostas contextuais geradas por IA para mensagens recebidas"
+      }
+    },
+    "plan": {
+      "title": "Escolha seu plano",
+      "subtitle": "Comece grátis e faça upgrade quando quiser.",
+      "plans": {
+        "STARTER": {
+          "name": "Starter",
+          "desc": "Ideal para começar — até 5 usuários",
+          "price": "Grátis"
+        },
+        "PROFESSIONAL": {
+          "name": "Professional",
+          "desc": "Para equipes em crescimento — até 20 usuários",
+          "price": "R$99/mês"
+        },
+        "ENTERPRISE": {
+          "name": "Enterprise",
+          "desc": "Para grandes operações — usuários ilimitados",
+          "price": "Sob consulta"
+        }
       }
     }
   },
