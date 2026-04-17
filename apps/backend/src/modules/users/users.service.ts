@@ -556,7 +556,7 @@ export class UsersService {
         take: 10000,
       }),
       this.prisma.whatsappChat.findMany({
-        where: { assignedUserId: userId, companyId },
+        where: { userId, companyId },
         include: {
           messages: {
             orderBy: { createdAt: 'asc' },
