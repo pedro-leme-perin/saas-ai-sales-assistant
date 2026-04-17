@@ -512,6 +512,38 @@
       "showing": "Mostrando",
       "to": "até",
       "of": "de"
+    },
+    "detail": {
+      "title": "Detalhes do Registro",
+      "resource": "Recurso",
+      "timestamp": "Data e Hora",
+      "user": "Usuário",
+      "description": "Descrição",
+      "ipAddress": "Endereço IP",
+      "userAgent": "Navegador",
+      "requestId": "ID da Requisição",
+      "copyRequestId": "Copiar ID da requisição",
+      "changes": "Alterações",
+      "oldValues": "Valores Anteriores",
+      "newValues": "Valores Novos"
+    }
+  },
+  "team": {
+    "invite": {
+      "title": "Convidar Membro",
+      "subtitle": "Envie um convite por email",
+      "emailLabel": "Email",
+      "emailPlaceholder": "email@exemplo.com",
+      "emailRequired": "O email é obrigatório",
+      "emailInvalid": "Formato de email inválido",
+      "roleLabel": "Função",
+      "roleVendor": "Vendedor",
+      "roleManager": "Gerente",
+      "roleAdmin": "Administrador",
+      "messageLabel": "Mensagem",
+      "messagePlaceholder": "Adicione uma mensagem personalizada ao convite...",
+      "optional": "opcional",
+      "submit": "Enviar Convite"
     }
   },
   "errors": {
@@ -678,5 +710,20 @@
         }
       }
     }
+  },
+  "analyticsOverview": {
+    "title": "Resumo de Performance",
+    "aiAdoption": "Taxa de Adocao IA",
+    "avgSentiment": "Sentimento Medio",
+    "activeChannels": "Canais Ativos",
+    "conversionRate": "Taxa de Conversao"
+  },
+  "activityFeed": {
+    "title": "Atividade Recente",
+    "noActivity": "Nenhuma atividade recente",
+    "justNow": "Agora",
+    "minutesAgo": "{{count}} min atras",
+    "hoursAgo": "{{count}}h atras",
+    "daysAgo": "{{count}}d atras"
   }
 }

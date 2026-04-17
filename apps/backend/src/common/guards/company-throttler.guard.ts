@@ -12,6 +12,7 @@ import { getOptionsToken } from '@nestjs/throttler';
 import { Reflector } from '@nestjs/core';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { AuthUser } from '../../modules/auth/interfaces/auth-user.interface';
+import { RATE_LIMIT_KEY, RateLimitOptions } from '../decorators/rate-limit.decorator';
 import { Plan } from '@prisma/client';
 
 /**
@@ -82,16 +83,26 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
       return true;
     }
 
+    // Check for custom @RateLimit() options (per-endpoint overrides)
+    const rateLimitOptions = this.reflector.getAllAndOverride<RateLimitOptions | undefined>(
+      RATE_LIMIT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
     // Plan comes from user.company (populated by ClerkStrategy → UserWithCompany)
     const plan: string = user.company?.plan || 'STARTER';
     const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.STARTER;
-    const maxRequests = limits[tier as keyof PlanLimits] || limits.default;
+
+    // Custom limit from @RateLimit({ limit: N }) takes precedence over plan-based limits
+    const maxRequests =
+      rateLimitOptions?.limit || limits[tier as keyof PlanLimits] || limits.default;
+    const windowSeconds = rateLimitOptions?.window || DEFAULT_WINDOW_SECONDS;
 
     const key = `rate:company:${user.companyId}:${tier}`;
 
     let result: { allowed: boolean; remaining?: number; resetAt?: number };
     try {
-      result = await this.cacheService.checkRateLimit(key, maxRequests, DEFAULT_WINDOW_SECONDS);
+      result = await this.cacheService.checkRateLimit(key, maxRequests, windowSeconds);
     } catch (error) {
       // Fail-open: allow request if cache is unavailable (Release It! — Bulkhead)
       this.guardLogger.warn(`Rate limit check failed, allowing request: ${error}`);
@@ -100,15 +111,15 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
 
     if (!result.allowed) {
       this.guardLogger.warn(
-        `Rate limit exceeded: company=${user.companyId} plan=${plan} tier=${tier} limit=${maxRequests}/min`,
+        `Rate limit exceeded: company=${user.companyId} plan=${plan} tier=${tier} limit=${maxRequests}/${windowSeconds}s`,
       );
 
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: `Rate limit exceeded. Plan ${plan}: ${maxRequests} requests per minute.`,
+          message: `Rate limit exceeded. Plan ${plan}: ${maxRequests} requests per ${windowSeconds} seconds.`,
           error: 'Too Many Requests',
-          retryAfter: DEFAULT_WINDOW_SECONDS,
+          retryAfter: windowSeconds,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
@@ -118,7 +129,7 @@ export class CompanyThrottlerGuard extends ThrottlerGuard {
     const response = context.switchToHttp().getResponse();
     response.setHeader('X-RateLimit-Limit', maxRequests);
     response.setHeader('X-RateLimit-Remaining', result.remaining);
-    response.setHeader('X-RateLimit-Reset', DEFAULT_WINDOW_SECONDS);
+    response.setHeader('X-RateLimit-Reset', windowSeconds);
 
     return true;
   }

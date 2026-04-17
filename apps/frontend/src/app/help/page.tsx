@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { Sparkles, ChevronDown, HelpCircle, Mail } from 'lucide-react';
-import { SignedIn, SignedOut } from '@clerk/nextjs';
-import { useTranslation } from '@/i18n/use-translation';
+import { useState } from "react";
+import Link from "next/link";
+import { Sparkles, ChevronDown, HelpCircle, Mail } from "lucide-react";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { useTranslation } from "@/i18n/use-translation";
 
 interface FaqItem {
   questionKey: string;
@@ -18,49 +18,73 @@ interface FaqCategory {
 
 const FAQ_CATEGORIES: FaqCategory[] = [
   {
-    titleKey: 'help.categories.gettingStarted',
+    titleKey: "help.categories.gettingStarted",
     items: [
-      { questionKey: 'help.faq.whatIs.q', answerKey: 'help.faq.whatIs.a' },
-      { questionKey: 'help.faq.howToStart.q', answerKey: 'help.faq.howToStart.a' },
-      { questionKey: 'help.faq.channels.q', answerKey: 'help.faq.channels.a' },
+      { questionKey: "help.faq.whatIs.q", answerKey: "help.faq.whatIs.a" },
+      {
+        questionKey: "help.faq.howToStart.q",
+        answerKey: "help.faq.howToStart.a",
+      },
+      { questionKey: "help.faq.channels.q", answerKey: "help.faq.channels.a" },
     ],
   },
   {
-    titleKey: 'help.categories.phoneCalls',
+    titleKey: "help.categories.phoneCalls",
     items: [
-      { questionKey: 'help.faq.callAI.q', answerKey: 'help.faq.callAI.a' },
-      { questionKey: 'help.faq.countries.q', answerKey: 'help.faq.countries.a' },
-      { questionKey: 'help.faq.recording.q', answerKey: 'help.faq.recording.a' },
+      { questionKey: "help.faq.callAI.q", answerKey: "help.faq.callAI.a" },
+      {
+        questionKey: "help.faq.countries.q",
+        answerKey: "help.faq.countries.a",
+      },
+      {
+        questionKey: "help.faq.recording.q",
+        answerKey: "help.faq.recording.a",
+      },
     ],
   },
   {
-    titleKey: 'help.categories.whatsapp',
+    titleKey: "help.categories.whatsapp",
     items: [
-      { questionKey: 'help.faq.whatsappConnect.q', answerKey: 'help.faq.whatsappConnect.a' },
-      { questionKey: 'help.faq.whatsappAI.q', answerKey: 'help.faq.whatsappAI.a' },
-      { questionKey: 'help.faq.messageLimits.q', answerKey: 'help.faq.messageLimits.a' },
+      {
+        questionKey: "help.faq.whatsappConnect.q",
+        answerKey: "help.faq.whatsappConnect.a",
+      },
+      {
+        questionKey: "help.faq.whatsappAI.q",
+        answerKey: "help.faq.whatsappAI.a",
+      },
+      {
+        questionKey: "help.faq.messageLimits.q",
+        answerKey: "help.faq.messageLimits.a",
+      },
     ],
   },
   {
-    titleKey: 'help.categories.billing',
+    titleKey: "help.categories.billing",
     items: [
-      { questionKey: 'help.faq.plans.q', answerKey: 'help.faq.plans.a' },
-      { questionKey: 'help.faq.payment.q', answerKey: 'help.faq.payment.a' },
-      { questionKey: 'help.faq.cancellation.q', answerKey: 'help.faq.cancellation.a' },
+      { questionKey: "help.faq.plans.q", answerKey: "help.faq.plans.a" },
+      { questionKey: "help.faq.payment.q", answerKey: "help.faq.payment.a" },
+      {
+        questionKey: "help.faq.cancellation.q",
+        answerKey: "help.faq.cancellation.a",
+      },
     ],
   },
   {
-    titleKey: 'help.categories.privacy',
+    titleKey: "help.categories.privacy",
     items: [
-      { questionKey: 'help.faq.dataProtection.q', answerKey: 'help.faq.dataProtection.a' },
-      { questionKey: 'help.faq.lgpd.q', answerKey: 'help.faq.lgpd.a' },
+      {
+        questionKey: "help.faq.dataProtection.q",
+        answerKey: "help.faq.dataProtection.a",
+      },
+      { questionKey: "help.faq.lgpd.q", answerKey: "help.faq.lgpd.a" },
     ],
   },
   {
-    titleKey: 'help.categories.support',
+    titleKey: "help.categories.support",
     items: [
-      { questionKey: 'help.faq.getHelp.q', answerKey: 'help.faq.getHelp.a' },
-      { questionKey: 'help.faq.contact.q', answerKey: 'help.faq.contact.a' },
+      { questionKey: "help.faq.getHelp.q", answerKey: "help.faq.getHelp.a" },
+      { questionKey: "help.faq.contact.q", answerKey: "help.faq.contact.a" },
     ],
   },
 ];
@@ -85,12 +109,14 @@ function AccordionItem({
         <span>{question}</span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
+            isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
       {isOpen && (
-        <div className="pb-4 text-sm text-muted-foreground leading-relaxed">{answer}</div>
+        <div className="pb-4 text-sm text-muted-foreground leading-relaxed">
+          {answer}
+        </div>
       )}
     </div>
   );
@@ -129,7 +155,7 @@ export default function HelpPage() {
                 href="/"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                {t('common.back')}
+                {t("common.back")}
               </Link>
             </SignedOut>
             <SignedIn>
@@ -137,7 +163,7 @@ export default function HelpPage() {
                 href="/dashboard"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                {t('nav.dashboard')}
+                {t("nav.dashboard")}
               </Link>
             </SignedIn>
           </div>
@@ -151,9 +177,11 @@ export default function HelpPage() {
             <HelpCircle className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-            {t('help.title')}
+            {t("help.title")}
           </h1>
-          <p className="text-muted-foreground max-w-xl mx-auto">{t('help.subtitle')}</p>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            {t("help.subtitle")}
+          </p>
         </div>
       </section>
 
@@ -162,7 +190,9 @@ export default function HelpPage() {
         <div className="max-w-3xl mx-auto space-y-10">
           {FAQ_CATEGORIES.map((category) => (
             <div key={category.titleKey}>
-              <h2 className="text-lg font-semibold mb-4">{t(category.titleKey)}</h2>
+              <h2 className="text-lg font-semibold mb-4">
+                {t(category.titleKey)}
+              </h2>
               <div className="rounded-xl border bg-card p-4">
                 {category.items.map((item) => (
                   <AccordionItem
@@ -183,8 +213,12 @@ export default function HelpPage() {
       <section className="py-16 px-4 bg-muted/30 border-t">
         <div className="max-w-2xl mx-auto text-center">
           <Mail className="h-6 w-6 text-primary mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">{t('help.contactTitle')}</h2>
-          <p className="text-sm text-muted-foreground mb-4">{t('help.contactDesc')}</p>
+          <h2 className="text-xl font-semibold mb-2">
+            {t("help.contactTitle")}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t("help.contactDesc")}
+          </p>
           <a
             href="mailto:team@theiadvisor.com"
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -204,15 +238,22 @@ export default function HelpPage() {
             <span className="text-sm font-semibold">TheIAdvisor</span>
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <Link href="/terms" className="hover:text-foreground transition-colors">
-              {t('help.terms')}
+            <Link
+              href="/terms"
+              className="hover:text-foreground transition-colors"
+            >
+              {t("help.terms")}
             </Link>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">
-              {t('help.privacy')}
+            <Link
+              href="/privacy"
+              className="hover:text-foreground transition-colors"
+            >
+              {t("help.privacy")}
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} TheIAdvisor. {t('landing.footerRights')}
+            &copy; {new Date().getFullYear()} TheIAdvisor.{" "}
+            {t("landing.footerRights")}
           </p>
         </div>
       </footer>

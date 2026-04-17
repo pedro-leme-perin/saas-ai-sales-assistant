@@ -1,37 +1,56 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect, useMemo, memo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useRef, useEffect, useMemo, memo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Users, Search, Mail, Phone, Shield, ShieldCheck,
-  User, Trash2, Edit, UserPlus, X, AlertTriangle,
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { usersService, companiesService } from '@/services/api';
-import { formatDateTime } from '@/lib/utils';
-import { toast } from 'sonner';
-import type { User as UserType, UserRole } from '@/types';
+  Users,
+  Search,
+  Mail,
+  Phone,
+  Shield,
+  ShieldCheck,
+  User,
+  Trash2,
+  Edit,
+  UserPlus,
+  X,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { usersService, companiesService } from "@/services/api";
+import { formatDateTime } from "@/lib/utils";
+import { toast } from "sonner";
+import type { User as UserType, UserRole } from "@/types";
 
 const roleLabels: Record<UserRole, string> = {
-  OWNER: 'Proprietário',
-  ADMIN: 'Administrador',
-  MANAGER: 'Gerente',
-  VENDOR: 'Vendedor',
+  OWNER: "Proprietário",
+  ADMIN: "Administrador",
+  MANAGER: "Gerente",
+  VENDOR: "Vendedor",
 };
 
 const roleColors: Record<UserRole, string> = {
-  OWNER: 'bg-purple-100 text-purple-700 border-purple-200',
-  ADMIN: 'bg-blue-100 text-blue-700 border-blue-200',
-  MANAGER: 'bg-green-100 text-green-700 border-green-200',
-  VENDOR: 'bg-slate-100 text-slate-700 border-slate-200',
+  OWNER: "bg-purple-100 text-purple-700 border-purple-200",
+  ADMIN: "bg-blue-100 text-blue-700 border-blue-200",
+  MANAGER: "bg-green-100 text-green-700 border-green-200",
+  VENDOR: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 function TeamSkeleton() {
   return (
     <div className="space-y-2">
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="flex items-center gap-4 p-4 rounded-lg border animate-pulse">
+        <div
+          key={i}
+          className="flex items-center gap-4 p-4 rounded-lg border animate-pulse"
+        >
           <div className="h-10 w-10 rounded-full bg-muted" />
           <div className="flex-1 space-y-2">
             <div className="h-4 w-40 bg-muted rounded" />
@@ -53,15 +72,13 @@ const UserRow = memo(function UserRow({
   onDelete: (user: UserType) => void;
 }) {
   return (
-    <div
-      className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors group"
-    >
+    <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors group">
       <div className="flex items-center gap-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
           {user.name
-            .split(' ')
+            .split(" ")
             .map((n) => n[0])
-            .join('')
+            .join("")
             .slice(0, 2)
             .toUpperCase()}
         </div>
@@ -95,7 +112,7 @@ const UserRow = memo(function UserRow({
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground hidden sm:block">
-          {formatDateTime(user.createdAt).split(',')[0]}
+          {formatDateTime(user.createdAt).split(",")[0]}
         </span>
         <Button
           variant="ghost"
@@ -111,7 +128,7 @@ const UserRow = memo(function UserRow({
           aria-label={`Remover ${user.name || user.email}`}
           className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => onDelete(user)}
-          disabled={user.role === 'OWNER'}
+          disabled={user.role === "OWNER"}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -122,15 +139,17 @@ const UserRow = memo(function UserRow({
 
 export default function TeamPage() {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserType | null>(null);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<string>('VENDOR');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserType | null>(
+    null,
+  );
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<string>("VENDOR");
   const emailInputRef = useRef<HTMLInputElement>(null);
 
   const { data: usersData, isLoading } = useQuery({
-    queryKey: ['users'],
+    queryKey: ["users"],
     queryFn: async () => {
       const res = await usersService.getAll({ limit: 50 });
       return res as { data: UserType[]; meta: { total: number } };
@@ -138,7 +157,7 @@ export default function TeamPage() {
   });
 
   const { data: usage } = useQuery({
-    queryKey: ['company-usage'],
+    queryKey: ["company-usage"],
     queryFn: () => companiesService.getUsage(),
   });
 
@@ -146,26 +165,26 @@ export default function TeamPage() {
     mutationFn: (data: { email: string; role: string }) =>
       usersService.invite(data.email, data.role),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Convite enviado com sucesso!');
-      setInviteEmail('');
-      setInviteRole('VENDOR');
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("Convite enviado com sucesso!");
+      setInviteEmail("");
+      setInviteRole("VENDOR");
       setShowInviteModal(false);
     },
     onError: (error: any) => {
-      toast.error('Erro ao enviar convite', { description: error.message });
+      toast.error("Erro ao enviar convite", { description: error.message });
     },
   });
 
   const deleteUserMutation = useMutation({
     mutationFn: (userId: string) => usersService.delete(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       setShowDeleteConfirm(null);
-      toast.success('Membro removido da equipe.');
+      toast.success("Membro removido da equipe.");
     },
     onError: (error: any) => {
-      toast.error('Erro ao remover membro', { description: error.message });
+      toast.error("Erro ao remover membro", { description: error.message });
     },
   });
 
@@ -179,13 +198,13 @@ export default function TeamPage() {
   useEffect(() => {
     if (!showInviteModal && !showDeleteConfirm) return;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         if (showInviteModal) setShowInviteModal(false);
         else if (showDeleteConfirm) setShowDeleteConfirm(null);
       }
     };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [showInviteModal, showDeleteConfirm]);
 
   // Memoize filtered users for performance
@@ -194,24 +213,26 @@ export default function TeamPage() {
       usersData?.data?.filter(
         (user) =>
           user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchQuery.toLowerCase())
+          user.email.toLowerCase().includes(searchQuery.toLowerCase()),
       ),
-    [usersData?.data, searchQuery]
+    [usersData?.data, searchQuery],
   );
 
   // Memoize stats computations
   const stats = useMemo(
     () => ({
-      adminCount: usersData?.data?.filter((u) => u.role === 'ADMIN' || u.role === 'OWNER')
-        .length || 0,
-      vendorCount: usersData?.data?.filter((u) => u.role === 'VENDOR').length || 0,
+      adminCount:
+        usersData?.data?.filter((u) => u.role === "ADMIN" || u.role === "OWNER")
+          .length || 0,
+      vendorCount:
+        usersData?.data?.filter((u) => u.role === "VENDOR").length || 0,
     }),
-    [usersData?.data]
+    [usersData?.data],
   );
 
   const handleDeleteUser = (user: UserType) => {
-    if (user.role === 'OWNER') {
-      toast.error('Não é possível remover o proprietário da conta.');
+    if (user.role === "OWNER") {
+      toast.error("Não é possível remover o proprietário da conta.");
       return;
     }
     setShowDeleteConfirm(user);
@@ -228,7 +249,9 @@ export default function TeamPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Equipe</h1>
-          <p className="text-muted-foreground">Gerencie os membros da sua equipe de vendas.</p>
+          <p className="text-muted-foreground">
+            Gerencie os membros da sua equipe de vendas.
+          </p>
         </div>
         <Button onClick={() => setShowInviteModal(true)}>
           <UserPlus className="mr-2 h-4 w-4" />
@@ -242,8 +265,12 @@ export default function TeamPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total de Usuários</p>
-                <p className="text-2xl font-bold">{usersData?.meta?.total || 0}</p>
+                <p className="text-sm text-muted-foreground">
+                  Total de Usuários
+                </p>
+                <p className="text-2xl font-bold">
+                  {usersData?.meta?.total || 0}
+                </p>
               </div>
               <Users className="h-8 w-8 text-muted-foreground/30" />
             </div>
@@ -291,13 +318,14 @@ export default function TeamPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">Uso de Usuários</span>
               <span className="text-sm text-muted-foreground">
-                {usage.users.used} de {usage.users.limit} ({usage.users.percentage}%)
+                {usage.users.used} de {usage.users.limit} (
+                {usage.users.percentage}%)
               </span>
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
-                  usage.users.percentage > 80 ? 'bg-red-500' : 'bg-primary'
+                  usage.users.percentage > 80 ? "bg-red-500" : "bg-primary"
                 }`}
                 style={{ width: `${Math.min(usage.users.percentage, 100)}%` }}
               />
@@ -322,7 +350,9 @@ export default function TeamPage() {
       <Card>
         <CardHeader>
           <CardTitle>Membros da Equipe</CardTitle>
-          <CardDescription>{filteredUsers?.length || 0} membros encontrados</CardDescription>
+          <CardDescription>
+            {filteredUsers?.length || 0} membros encontrados
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -330,15 +360,23 @@ export default function TeamPage() {
           ) : filteredUsers && filteredUsers.length > 0 ? (
             <div className="space-y-2">
               {filteredUsers.map((user) => (
-                <UserRow key={user.id} user={user} onDelete={handleDeleteUser} />
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  onDelete={handleDeleteUser}
+                />
               ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-16 w-16 text-muted-foreground/20 mb-4" />
-              <h3 className="text-lg font-medium mb-2">Nenhum membro encontrado</h3>
+              <h3 className="text-lg font-medium mb-2">
+                Nenhum membro encontrado
+              </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                {searchQuery ? 'Nenhum resultado para sua busca.' : 'Comece convidando membros.'}
+                {searchQuery
+                  ? "Nenhum resultado para sua busca."
+                  : "Comece convidando membros."}
               </p>
               {!searchQuery && (
                 <Button onClick={() => setShowInviteModal(true)}>
@@ -372,8 +410,12 @@ export default function TeamPage() {
                   <UserPlus className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h2 id="invite-modal-title" className="text-lg font-semibold">Convidar Membro</h2>
-                  <p className="text-sm text-muted-foreground">Envie um convite por email</p>
+                  <h2 id="invite-modal-title" className="text-lg font-semibold">
+                    Convidar Membro
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Envie um convite por email
+                  </p>
                 </div>
               </div>
               <Button
@@ -388,7 +430,9 @@ export default function TeamPage() {
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Email</label>
+                <label className="text-sm font-medium mb-1.5 block">
+                  Email
+                </label>
                 <input
                   ref={emailInputRef}
                   type="email"
@@ -396,11 +440,13 @@ export default function TeamPage() {
                   className="w-full px-4 py-2.5 border rounded-lg bg-background text-sm"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
+                  onKeyDown={(e) => e.key === "Enter" && handleInvite()}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Função</label>
+                <label className="text-sm font-medium mb-1.5 block">
+                  Função
+                </label>
                 <select
                   className="w-full px-4 py-2.5 border rounded-lg bg-background text-sm"
                   value={inviteRole}
@@ -412,7 +458,11 @@ export default function TeamPage() {
                 </select>
               </div>
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => setShowInviteModal(false)}>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowInviteModal(false)}
+                >
                   Cancelar
                 </Button>
                 <Button
@@ -454,25 +504,38 @@ export default function TeamPage() {
                 <AlertTriangle className="h-6 w-6 text-red-600" />
               </div>
               <div>
-                <h3 id="delete-modal-title" className="text-lg font-semibold">Remover membro</h3>
-                <p id="delete-modal-desc" className="text-sm text-muted-foreground mt-1">
-                  Tem certeza que deseja remover <strong>{showDeleteConfirm.name}</strong> da equipe? Esta ação não pode ser desfeita.
+                <h3 id="delete-modal-title" className="text-lg font-semibold">
+                  Remover membro
+                </h3>
+                <p
+                  id="delete-modal-desc"
+                  className="text-sm text-muted-foreground mt-1"
+                >
+                  Tem certeza que deseja remover{" "}
+                  <strong>{showDeleteConfirm.name}</strong> da equipe? Esta ação
+                  não pode ser desfeita.
                 </p>
               </div>
               <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setShowDeleteConfirm(null)}>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowDeleteConfirm(null)}
+                >
                   Cancelar
                 </Button>
                 <Button
                   variant="destructive"
                   className="flex-1"
-                  onClick={() => deleteUserMutation.mutate(showDeleteConfirm.id)}
+                  onClick={() =>
+                    deleteUserMutation.mutate(showDeleteConfirm.id)
+                  }
                   disabled={deleteUserMutation.isPending}
                 >
                   {deleteUserMutation.isPending ? (
                     <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
                   ) : (
-                    'Remover'
+                    "Remover"
                   )}
                 </Button>
               </div>

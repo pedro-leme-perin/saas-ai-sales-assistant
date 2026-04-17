@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { reportWebVitals } from '@/lib/web-vitals';
+import { useEffect } from "react";
+import { reportWebVitals } from "@/lib/web-vitals";
 
 /**
  * WebVitalsReporter — Client component that initializes Core Web Vitals tracking.

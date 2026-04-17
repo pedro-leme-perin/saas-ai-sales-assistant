@@ -512,6 +512,38 @@
       "showing": "Showing",
       "to": "to",
       "of": "of"
+    },
+    "detail": {
+      "title": "Record Details",
+      "resource": "Resource",
+      "timestamp": "Date & Time",
+      "user": "User",
+      "description": "Description",
+      "ipAddress": "IP Address",
+      "userAgent": "Browser",
+      "requestId": "Request ID",
+      "copyRequestId": "Copy request ID",
+      "changes": "Changes",
+      "oldValues": "Previous Values",
+      "newValues": "New Values"
+    }
+  },
+  "team": {
+    "invite": {
+      "title": "Invite Member",
+      "subtitle": "Send an invitation by email",
+      "emailLabel": "Email",
+      "emailPlaceholder": "email@example.com",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Invalid email format",
+      "roleLabel": "Role",
+      "roleVendor": "Vendor",
+      "roleManager": "Manager",
+      "roleAdmin": "Administrator",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Add a custom message to the invitation...",
+      "optional": "optional",
+      "submit": "Send Invite"
     }
   },
   "errors": {
@@ -678,5 +710,20 @@
         }
       }
     }
+  },
+  "analyticsOverview": {
+    "title": "Performance Overview",
+    "aiAdoption": "AI Adoption Rate",
+    "avgSentiment": "Avg Sentiment Score",
+    "activeChannels": "Active Channels",
+    "conversionRate": "Conversion Rate"
+  },
+  "activityFeed": {
+    "title": "Recent Activity",
+    "noActivity": "No recent activity",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   }
 }

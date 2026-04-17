@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { logger } from '@/lib/logger';
+import { useEffect } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { logger } from "@/lib/logger";
 
 interface SegmentErrorProps {
   error: Error & { digest?: string };
@@ -19,9 +19,17 @@ interface SegmentErrorProps {
  * Each segment renders its own error UI, preventing a single
  * failure from crashing the entire dashboard (Release It! — Bulkheads).
  */
-export function SegmentError({ error, reset, segment, title, description }: SegmentErrorProps) {
+export function SegmentError({
+  error,
+  reset,
+  segment,
+  title,
+  description,
+}: SegmentErrorProps) {
   useEffect(() => {
-    logger.ui.error(`[${segment}] Error boundary triggered`, error, { digest: error.digest });
+    logger.ui.error(`[${segment}] Error boundary triggered`, error, {
+      digest: error.digest,
+    });
   }, [error, segment]);
 
   return (
@@ -38,7 +46,12 @@ export function SegmentError({ error, reset, segment, title, description }: Segm
               ID: {error.digest}
             </p>
           )}
-          <Button onClick={reset} variant="outline" size="sm" className="gap-2 mt-1">
+          <Button
+            onClick={reset}
+            variant="outline"
+            size="sm"
+            className="gap-2 mt-1"
+          >
             <RefreshCw className="h-3.5 w-3.5" /> Tentar novamente
           </Button>
         </CardContent>

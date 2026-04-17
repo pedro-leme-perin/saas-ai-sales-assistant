@@ -56,6 +56,12 @@ export const PAGINATION_KEY = 'pagination';
 export const Paginated = () => SetMetadata(PAGINATION_KEY, true);
 
 // =============================================
+// @RateLimit() - Granular per-endpoint rate limiting
+// =============================================
+export { RateLimit, RATE_LIMIT_KEY } from './rate-limit.decorator';
+export type { RateLimitOptions } from './rate-limit.decorator';
+
+// =============================================
 // TYPE DEFINITIONS
 // =============================================
 export interface AuthenticatedUser {

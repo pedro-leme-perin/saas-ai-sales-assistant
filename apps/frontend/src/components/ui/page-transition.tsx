@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 /**
  * CSS-based page transition — replaces framer-motion (~180KB) with pure CSS animations.
@@ -19,9 +19,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={isAnimating ? 'animate-fade-in-up' : ''}
+      className={isAnimating ? "animate-fade-in-up" : ""}
       style={{
-        animation: isAnimating ? 'fadeInUp 0.2s ease-in-out' : 'none',
+        animation: isAnimating ? "fadeInUp 0.2s ease-in-out" : "none",
       }}
     >
       <style jsx global>{`

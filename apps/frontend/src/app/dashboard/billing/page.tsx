@@ -1,50 +1,77 @@
-'use client';
-import { Suspense, useMemo } from 'react';
-import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { useBilling } from '@/hooks/useBilling';
-import { formatCurrency, formatDate } from '@/lib/utils';
+"use client";
+import { Suspense, useMemo } from "react";
+import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useBilling } from "@/hooks/useBilling";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  CreditCard, CheckCircle, XCircle, AlertCircle,
-  FileText, Zap, Building2, Rocket, ExternalLink,
-  Loader2, RefreshCw, Users, Phone, MessageSquare, X,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+  CreditCard,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  FileText,
+  Zap,
+  Building2,
+  Rocket,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  Users,
+  Phone,
+  MessageSquare,
+  X,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 // Dynamically import heavy sections
 const PlansSection = dynamic(
-  () => import('@/components/billing/plans-section'),
-  { ssr: false, loading: () => <PlansSkeleton /> }
+  () => import("@/components/billing/plans-section"),
+  { ssr: false, loading: () => <PlansSkeleton /> },
 );
 
 const InvoicesSection = dynamic(
-  () => import('@/components/billing/invoices-section'),
-  { ssr: false, loading: () => <InvoicesSkeleton /> }
+  () => import("@/components/billing/invoices-section"),
+  { ssr: false, loading: () => <InvoicesSkeleton /> },
 );
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
-  STARTER:      <Zap className="w-6 h-6" />,
+  STARTER: <Zap className="w-6 h-6" />,
   PROFESSIONAL: <Rocket className="w-6 h-6" />,
-  ENTERPRISE:   <Building2 className="w-6 h-6" />,
+  ENTERPRISE: <Building2 className="w-6 h-6" />,
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  ACTIVE:   { label: 'Ativo',     color: 'text-green-700 bg-green-100 border-green-200' },
-  active:   { label: 'Ativo',     color: 'text-green-700 bg-green-100 border-green-200' },
-  trialing: { label: 'Trial',     color: 'text-blue-700 bg-blue-100 border-blue-200' },
-  canceled: { label: 'Cancelado', color: 'text-red-700 bg-red-100 border-red-200' },
-  past_due: { label: 'Em atraso', color: 'text-orange-700 bg-orange-100 border-orange-200' },
+  ACTIVE: {
+    label: "Ativo",
+    color: "text-green-700 bg-green-100 border-green-200",
+  },
+  active: {
+    label: "Ativo",
+    color: "text-green-700 bg-green-100 border-green-200",
+  },
+  trialing: {
+    label: "Trial",
+    color: "text-blue-700 bg-blue-100 border-blue-200",
+  },
+  canceled: {
+    label: "Cancelado",
+    color: "text-red-700 bg-red-100 border-red-200",
+  },
+  past_due: {
+    label: "Em atraso",
+    color: "text-orange-700 bg-orange-100 border-orange-200",
+  },
 };
 
 const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
-  paid:          { label: 'Pago',       color: 'text-green-700 bg-green-100' },
-  PAID:          { label: 'Pago',       color: 'text-green-700 bg-green-100' },
-  open:          { label: 'Pendente',   color: 'text-yellow-700 bg-yellow-100' },
-  void:          { label: 'Cancelado',  color: 'text-muted-foreground bg-muted' },
-  uncollectible: { label: 'Incobrável', color: 'text-red-700 bg-red-100' },
+  paid: { label: "Pago", color: "text-green-700 bg-green-100" },
+  PAID: { label: "Pago", color: "text-green-700 bg-green-100" },
+  open: { label: "Pendente", color: "text-yellow-700 bg-yellow-100" },
+  void: { label: "Cancelado", color: "text-muted-foreground bg-muted" },
+  uncollectible: { label: "Incobrável", color: "text-red-700 bg-red-100" },
 };
 
 function PlansSkeleton() {
@@ -118,51 +145,70 @@ function BillingSkeleton() {
 
 function BillingPageContent() {
   const {
-    subscription, plans, invoices, loading, error, currentPlan,
-    startCheckout, openPortal, cancelSubscription, changePlan, reload,
+    subscription,
+    plans,
+    invoices,
+    loading,
+    error,
+    currentPlan,
+    startCheckout,
+    openPortal,
+    cancelSubscription,
+    changePlan,
+    reload,
   } = useBilling();
 
   const searchParams = useSearchParams();
-  const [banner, setBanner] = useState<'success' | 'canceled' | null>(null);
+  const [banner, setBanner] = useState<"success" | "canceled" | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Memoize subscription data for child components
   const subscriptionMemo = useMemo(
-    () => ({ subscription: subscription?.subscription, company: subscription?.company }),
-    [subscription]
+    () => ({
+      subscription: subscription?.subscription,
+      company: subscription?.company,
+    }),
+    [subscription],
   );
 
   useEffect(() => {
-    if (searchParams.get('success') === 'true') setBanner('success');
-    if (searchParams.get('canceled') === 'true') setBanner('canceled');
+    if (searchParams.get("success") === "true") setBanner("success");
+    if (searchParams.get("canceled") === "true") setBanner("canceled");
   }, [searchParams]);
 
   const handleAction = async (key: string, fn: () => Promise<void>) => {
     setActionLoading(key);
-    try { await fn(); }
-    catch (e: any) { toast.error(`Erro: ${e.message}`); }
-    finally { setActionLoading(null); }
+    try {
+      await fn();
+    } catch (e: any) {
+      toast.error(`Erro: ${e.message}`);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   if (loading) return <BillingSkeleton />;
 
-  if (error) return (
-    <div className="max-w-5xl mx-auto">
-      <Card className="border-red-200 bg-red-50/50">
-        <CardContent className="p-6 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-red-800">Erro ao carregar cobrança</p>
-            <p className="text-xs text-red-600 mt-1">{error}</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={reload}>
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  if (error)
+    return (
+      <div className="max-w-5xl mx-auto">
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="p-6 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">
+                Erro ao carregar cobrança
+              </p>
+              <p className="text-xs text-red-600 mt-1">{error}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={reload}>
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
 
   const activeSub = subscription?.subscription;
   const company = subscription?.company;
@@ -172,15 +218,23 @@ function BillingPageContent() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Faturamento</h1>
-        <p className="text-muted-foreground">Gerencie sua assinatura e pagamentos.</p>
+        <p className="text-muted-foreground">
+          Gerencie sua assinatura e pagamentos.
+        </p>
       </div>
 
       {/* Banners */}
-      {banner === 'success' && (
-        <Card className="border-green-200 bg-green-50/50" role="status" aria-live="polite">
+      {banner === "success" && (
+        <Card
+          className="border-green-200 bg-green-50/50"
+          role="status"
+          aria-live="polite"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <span className="text-sm font-medium text-green-800 flex-1">Assinatura ativada com sucesso!</span>
+            <span className="text-sm font-medium text-green-800 flex-1">
+              Assinatura ativada com sucesso!
+            </span>
             <Button
               variant="ghost"
               size="icon"
@@ -193,11 +247,17 @@ function BillingPageContent() {
           </CardContent>
         </Card>
       )}
-      {banner === 'canceled' && (
-        <Card className="border-yellow-200 bg-yellow-50/50" role="status" aria-live="polite">
+      {banner === "canceled" && (
+        <Card
+          className="border-yellow-200 bg-yellow-50/50"
+          role="status"
+          aria-live="polite"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-            <span className="text-sm font-medium text-yellow-800 flex-1">Checkout cancelado. Nenhuma cobrança realizada.</span>
+            <span className="text-sm font-medium text-yellow-800 flex-1">
+              Checkout cancelado. Nenhuma cobrança realizada.
+            </span>
             <Button
               variant="ghost"
               size="icon"
@@ -219,7 +279,9 @@ function BillingPageContent() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-primary/10 text-primary rounded-lg">
-                  {PLAN_ICONS[currentPlan] || <CreditCard className="w-6 h-6" />}
+                  {PLAN_ICONS[currentPlan] || (
+                    <CreditCard className="w-6 h-6" />
+                  )}
                 </div>
                 <div>
                   <p className="font-semibold text-lg capitalize">
@@ -227,10 +289,14 @@ function BillingPageContent() {
                   </p>
                   {activeSub ? (
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                        STATUS_CONFIG[activeSub.status]?.color || 'text-muted-foreground bg-muted'
-                      }`}>
-                        {STATUS_CONFIG[activeSub.status]?.label || activeSub.status}
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                          STATUS_CONFIG[activeSub.status]?.color ||
+                          "text-muted-foreground bg-muted"
+                        }`}
+                      >
+                        {STATUS_CONFIG[activeSub.status]?.label ||
+                          activeSub.status}
                       </span>
                       {activeSub.currentPeriodEnd && (
                         <span className="text-xs text-muted-foreground">
@@ -239,7 +305,9 @@ function BillingPageContent() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground mt-1">Plano gratuito</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Plano gratuito
+                    </p>
                   )}
                 </div>
               </div>
@@ -249,15 +317,24 @@ function BillingPageContent() {
                 <div className="flex gap-4 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Users className="w-3.5 h-3.5" />
-                    {company.limits.users === 1000 ? '∞' : company.limits.users} usuários
+                    {company.limits.users === 1000
+                      ? "∞"
+                      : company.limits.users}{" "}
+                    usuários
                   </div>
                   <div className="flex items-center gap-1">
                     <Phone className="w-3.5 h-3.5" />
-                    {company.limits.callsPerMonth === 10000 ? '∞' : company.limits.callsPerMonth} ligações
+                    {company.limits.callsPerMonth === 10000
+                      ? "∞"
+                      : company.limits.callsPerMonth}{" "}
+                    ligações
                   </div>
                   <div className="flex items-center gap-1">
                     <MessageSquare className="w-3.5 h-3.5" />
-                    {company.limits.chatsPerMonth === 10000 ? '∞' : company.limits.chatsPerMonth} chats
+                    {company.limits.chatsPerMonth === 10000
+                      ? "∞"
+                      : company.limits.chatsPerMonth}{" "}
+                    chats
                   </div>
                 </div>
               )}
@@ -267,15 +344,19 @@ function BillingPageContent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleAction('portal', openPortal)}
+                    onClick={() => handleAction("portal", openPortal)}
                     disabled={!!actionLoading}
                     className="gap-2"
                   >
-                    {actionLoading === 'portal' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                    {actionLoading === "portal" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="w-4 h-4" />
+                    )}
                     Gerenciar
                   </Button>
                 )}
-                {activeSub?.status === 'active' && (
+                {activeSub?.status === "active" && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -283,7 +364,11 @@ function BillingPageContent() {
                     disabled={!!actionLoading}
                     className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
                   >
-                    {actionLoading === 'cancel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                    {actionLoading === "cancel" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
                     Cancelar
                   </Button>
                 )}
@@ -336,11 +421,16 @@ function BillingPageContent() {
               <div>
                 <h3 className="text-lg font-semibold">Cancelar assinatura</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  O acesso ao plano atual permanece até o fim do período de cobrança.
+                  O acesso ao plano atual permanece até o fim do período de
+                  cobrança.
                 </p>
               </div>
               <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setShowCancelConfirm(false)}>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowCancelConfirm(false)}
+                >
                   Voltar
                 </Button>
                 <Button
@@ -348,7 +438,7 @@ function BillingPageContent() {
                   className="flex-1"
                   onClick={() => {
                     setShowCancelConfirm(false);
-                    handleAction('cancel', cancelSubscription);
+                    handleAction("cancel", cancelSubscription);
                   }}
                   disabled={!!actionLoading}
                 >

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Sparkles, ArrowLeft } from 'lucide-react';
-import { useTranslation } from '@/i18n/use-translation';
+import Link from "next/link";
+import { Sparkles, ArrowLeft } from "lucide-react";
+import { useTranslation } from "@/i18n/use-translation";
 
 const DATA_COLLECTED_ITEMS = [1, 2, 3, 4, 5, 6] as const;
 const DATA_SHARING_ITEMS = [1, 2, 3, 4, 5, 6] as const;
@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            {t('common.back')}
+            {t("common.back")}
           </Link>
         </div>
       </nav>
@@ -35,42 +35,39 @@ export default function PrivacyPolicy() {
         <div className="max-w-3xl mx-auto">
           <header className="mb-10">
             <h1 className="text-3xl font-bold tracking-tight mb-2">
-              {t('privacy.title')}
+              {t("privacy.title")}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {t('privacy.lastUpdated')}
+              {t("privacy.lastUpdated")}
             </p>
           </header>
 
           <p className="text-muted-foreground leading-relaxed mb-8">
-            {t('privacy.intro')}
+            {t("privacy.intro")}
           </p>
 
           <div className="space-y-8">
             {/* Section 1 - Data Controller */}
             <section>
               <h2 className="text-lg font-semibold mb-3">
-                {t('privacy.section1Title')}
+                {t("privacy.section1Title")}
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                {t('privacy.section1Text')}
+                {t("privacy.section1Text")}
               </p>
             </section>
 
             {/* Section 2 - Data Collected (with list) */}
             <section>
               <h2 className="text-lg font-semibold mb-3">
-                {t('privacy.section2Title')}
+                {t("privacy.section2Title")}
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-3">
-                {t('privacy.section2Intro')}
+                {t("privacy.section2Intro")}
               </p>
               <ul className="list-disc pl-6 space-y-2">
                 {DATA_COLLECTED_ITEMS.map((i) => (
-                  <li
-                    key={i}
-                    className="text-muted-foreground leading-relaxed"
-                  >
+                  <li key={i} className="text-muted-foreground leading-relaxed">
                     {t(`privacy.section2Item${i}`)}
                   </li>
                 ))}
@@ -92,56 +89,50 @@ export default function PrivacyPolicy() {
             {/* Section 5 - Data Sharing (with list) */}
             <section>
               <h2 className="text-lg font-semibold mb-3">
-                {t('privacy.section5Title')}
+                {t("privacy.section5Title")}
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-3">
-                {t('privacy.section5Intro')}
+                {t("privacy.section5Intro")}
               </p>
               <ul className="list-disc pl-6 space-y-2">
                 {DATA_SHARING_ITEMS.map((i) => (
-                  <li
-                    key={i}
-                    className="text-muted-foreground leading-relaxed"
-                  >
+                  <li key={i} className="text-muted-foreground leading-relaxed">
                     {t(`privacy.section5Item${i}`)}
                   </li>
                 ))}
               </ul>
               <p className="text-muted-foreground leading-relaxed mt-3 font-medium">
-                {t('privacy.section5Footer')}
+                {t("privacy.section5Footer")}
               </p>
             </section>
 
             {/* Section 6 - Retention */}
             <section>
               <h2 className="text-lg font-semibold mb-3">
-                {t('privacy.section6Title')}
+                {t("privacy.section6Title")}
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                {t('privacy.section6Text')}
+                {t("privacy.section6Text")}
               </p>
             </section>
 
             {/* Section 7 - Rights (with list) */}
             <section>
               <h2 className="text-lg font-semibold mb-3">
-                {t('privacy.section7Title')}
+                {t("privacy.section7Title")}
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-3">
-                {t('privacy.section7Intro')}
+                {t("privacy.section7Intro")}
               </p>
               <ul className="list-disc pl-6 space-y-1">
                 {RIGHTS_ITEMS.map((i) => (
-                  <li
-                    key={i}
-                    className="text-muted-foreground leading-relaxed"
-                  >
+                  <li key={i} className="text-muted-foreground leading-relaxed">
                     {t(`privacy.section7Item${i}`)}
                   </li>
                 ))}
               </ul>
               <p className="text-muted-foreground leading-relaxed mt-3">
-                {t('privacy.section7Footer')}
+                {t("privacy.section7Footer")}
               </p>
             </section>
 
@@ -173,11 +164,11 @@ export default function PrivacyPolicy() {
               href="/terms"
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              {t('landing.termsOfService')}
+              {t("landing.termsOfService")}
             </Link>
             <span className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} TheIAdvisor.{' '}
-              {t('landing.footerRights')}
+              &copy; {new Date().getFullYear()} TheIAdvisor.{" "}
+              {t("landing.footerRights")}
             </span>
           </div>
         </div>

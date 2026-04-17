@@ -1,11 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { notificationsService } from '@/services/api';
-import { logger } from '@/lib/logger';
+import { useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { toast } from "sonner";
+import { notificationsService } from "@/services/api";
+import { logger } from "@/lib/logger";
 
 interface NotificationsTabProps {
   t: (key: string) => string;
@@ -33,32 +39,32 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
   const notificationItems = useMemo(
     () => [
       {
-        id: 'emailCalls',
-        titleKey: 'settings.notifications.missedCalls',
-        descKey: 'settings.notifications.missedCallsDesc',
+        id: "emailCalls",
+        titleKey: "settings.notifications.missedCalls",
+        descKey: "settings.notifications.missedCallsDesc",
       },
       {
-        id: 'emailMessages',
-        titleKey: 'settings.notifications.newMessages',
-        descKey: 'settings.notifications.newMessagesDesc',
+        id: "emailMessages",
+        titleKey: "settings.notifications.newMessages",
+        descKey: "settings.notifications.newMessagesDesc",
       },
       {
-        id: 'pushSuggestions',
-        titleKey: 'settings.notifications.aiSuggestions',
-        descKey: 'settings.notifications.aiSuggestionsDesc',
+        id: "pushSuggestions",
+        titleKey: "settings.notifications.aiSuggestions",
+        descKey: "settings.notifications.aiSuggestionsDesc",
       },
       {
-        id: 'emailReports',
-        titleKey: 'settings.notifications.weeklyReports',
-        descKey: 'settings.notifications.weeklyReportsDesc',
+        id: "emailReports",
+        titleKey: "settings.notifications.weeklyReports",
+        descKey: "settings.notifications.weeklyReportsDesc",
       },
       {
-        id: 'emailBilling',
-        titleKey: 'settings.notifications.billingUpdates',
-        descKey: 'settings.notifications.billingUpdatesDesc',
+        id: "emailBilling",
+        titleKey: "settings.notifications.billingUpdates",
+        descKey: "settings.notifications.billingUpdatesDesc",
       },
     ],
-    []
+    [],
   );
 
   // Load preferences on mount
@@ -75,8 +81,8 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
           emailBilling: prefs.emailBilling ?? true,
         });
       } catch (error) {
-        logger.ui.error('Failed to load notification preferences', error);
-        toast.error(t('common.error'));
+        logger.ui.error("Failed to load notification preferences", error);
+        toast.error(t("common.error"));
       } finally {
         setLoading(false);
       }
@@ -95,12 +101,12 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
 
     try {
       await notificationsService.updatePreferences(updatedPreferences);
-      toast.success(t('common.saveChanges'));
+      toast.success(t("common.saveChanges"));
     } catch (error) {
-      logger.ui.error('Failed to update notification preferences', error);
+      logger.ui.error("Failed to update notification preferences", error);
       // Revert on error
       setPreferences(preferences);
-      toast.error(t('common.error'));
+      toast.error(t("common.error"));
     } finally {
       setSaving(false);
     }
@@ -110,8 +116,10 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t('settings.notifications.title')}</CardTitle>
-          <CardDescription>{t('settings.notifications.subtitle')}</CardDescription>
+          <CardTitle>{t("settings.notifications.title")}</CardTitle>
+          <CardDescription>
+            {t("settings.notifications.subtitle")}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -123,12 +131,17 @@ export default function NotificationsTab({ t }: NotificationsTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('settings.notifications.title')}</CardTitle>
-        <CardDescription>{t('settings.notifications.subtitle')}</CardDescription>
+        <CardTitle>{t("settings.notifications.title")}</CardTitle>
+        <CardDescription>
+          {t("settings.notifications.subtitle")}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {notificationItems.map((item) => (
-          <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+          <div
+            key={item.id}
+            className="flex items-center justify-between p-4 border rounded-lg"
+          >
             <div>
               <p className="font-medium">{t(item.titleKey)}</p>
               <p className="text-sm text-muted-foreground">{t(item.descKey)}</p>

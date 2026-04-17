@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
-import { FileText } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { useMemo } from "react";
+import { FileText } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { formatDate, formatCurrency } from "@/lib/utils";
 
 const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
-  paid: { label: 'Pago', color: 'text-green-700 bg-green-100' },
-  PAID: { label: 'Pago', color: 'text-green-700 bg-green-100' },
-  open: { label: 'Pendente', color: 'text-yellow-700 bg-yellow-100' },
-  void: { label: 'Cancelado', color: 'text-muted-foreground bg-muted' },
-  uncollectible: { label: 'Incobrável', color: 'text-red-700 bg-red-100' },
+  paid: { label: "Pago", color: "text-green-700 bg-green-100" },
+  PAID: { label: "Pago", color: "text-green-700 bg-green-100" },
+  open: { label: "Pendente", color: "text-yellow-700 bg-yellow-100" },
+  void: { label: "Cancelado", color: "text-muted-foreground bg-muted" },
+  uncollectible: { label: "Incobrável", color: "text-red-700 bg-red-100" },
 };
 
 interface InvoicesSectionProps {
@@ -59,13 +59,15 @@ export default function InvoicesSection({ invoices }: InvoicesSectionProps) {
             </thead>
             <tbody className="divide-y">
               {memoizedInvoices.map((inv) => {
-                const st =
-                  INVOICE_STATUS[inv.status] || {
-                    label: inv.status,
-                    color: 'text-muted-foreground bg-muted',
-                  };
+                const st = INVOICE_STATUS[inv.status] || {
+                  label: inv.status,
+                  color: "text-muted-foreground bg-muted",
+                };
                 return (
-                  <tr key={inv.id} className="hover:bg-muted/50 transition-colors">
+                  <tr
+                    key={inv.id}
+                    className="hover:bg-muted/50 transition-colors"
+                  >
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatDate(inv.createdAt)}
                     </td>

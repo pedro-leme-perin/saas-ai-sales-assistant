@@ -1,15 +1,16 @@
 {
   "name": "TheIAdvisor — Assistente de Vendas com IA",
   "short_name": "TheIAdvisor",
-  "description": "Sugestões em tempo real durante ligações e WhatsApp. Sua equipe vende mais com menos esforço.",
+  "description": "Sugestoes em tempo real durante ligacoes e WhatsApp. Sua equipe vende mais com menos esforco.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "scope": "/",
   "lang": "pt-BR",
   "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/favicon.svg",
@@ -34,6 +35,63 @@
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Painel principal com KPIs e atividade recente",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ligacoes",
+      "short_name": "Ligacoes",
+      "description": "Gerenciar ligacoes e transcricoes com IA",
+      "url": "/dashboard/calls",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "WhatsApp",
+      "short_name": "WhatsApp",
+      "description": "Conversas e sugestoes de resposta via WhatsApp",
+      "url": "/dashboard/whatsapp",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard com KPIs de vendas e sugestoes de IA"
+    },
+    {
+      "src": "/screenshots/dashboard-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard mobile com metricas em tempo real"
     }
   ]
 }

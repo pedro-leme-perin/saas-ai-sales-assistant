@@ -1,14 +1,14 @@
-import { SignUp } from '@clerk/nextjs';
-import Link from 'next/link';
+import { SignUp } from "@clerk/nextjs";
+import Link from "next/link";
 
-export const dynamic = 'force-dynamic';
-import { Sparkles, CheckCircle2 } from 'lucide-react';
+export const dynamic = "force-dynamic";
+import { Sparkles, CheckCircle2 } from "lucide-react";
 
 const benefits = [
-  'IA para ligaÃ§Ãµes em tempo real',
-  'WhatsApp com sugestÃµes inteligentes',
-  'Dashboard de analytics',
-  '7 dias de teste grÃ¡tis',
+  "IA para ligaÃ§Ãµes em tempo real",
+  "WhatsApp com sugestÃµes inteligentes",
+  "Dashboard de analytics",
+  "7 dias de teste grÃ¡tis",
 ];
 
 export default function RegisterPage() {
@@ -17,9 +17,7 @@ export default function RegisterPage() {
       {/* Left side - Benefits */}
       <div className="hidden lg:flex flex-1 gradient-primary items-center justify-center p-12">
         <div className="text-white max-w-md">
-          <h2 className="text-3xl font-bold mb-6">
-            Comece a vender mais hoje
-          </h2>
+          <h2 className="text-3xl font-bold mb-6">Comece a vender mais hoje</h2>
           <ul className="space-y-4">
             {benefits.map((benefit) => (
               <li key={benefit} className="flex items-center gap-3">
@@ -30,8 +28,9 @@ export default function RegisterPage() {
           </ul>
           <div className="mt-8 p-4 rounded-lg bg-white/10 backdrop-blur">
             <p className="text-sm text-white/90">
-              &ldquo;O TheIAdvisor aumentou nossas conversÃµes em 40% no primeiro mÃªs.
-              A IA realmente entende o contexto das conversas.&rdquo;
+              &ldquo;O TheIAdvisor aumentou nossas conversÃµes em 40% no
+              primeiro mÃªs. A IA realmente entende o contexto das
+              conversas.&rdquo;
             </p>
             <p className="text-sm font-medium mt-2">
               â Maria S., Gerente de Vendas
@@ -49,7 +48,7 @@ export default function RegisterPage() {
             </div>
             <span className="font-bold text-xl">TheIAdvisor</span>
           </Link>
-          
+
           <h1 className="text-2xl font-bold mb-2">Criar conta</h1>
           <p className="text-muted-foreground mb-8">
             Comece seu teste grÃ¡tis de 7 dias
@@ -59,15 +58,14 @@ export default function RegisterPage() {
             appearance={{
               elements: {
                 formButtonPrimary:
-                  'bg-primary hover:bg-primary/90 text-primary-foreground',
-                card: 'shadow-none p-0',
-                headerTitle: 'hidden',
-                headerSubtitle: 'hidden',
+                  "bg-primary hover:bg-primary/90 text-primary-foreground",
+                card: "shadow-none p-0",
+                headerTitle: "hidden",
+                headerSubtitle: "hidden",
                 socialButtonsBlockButton:
-                  'border border-input bg-background hover:bg-accent',
-                formFieldInput:
-                  'border-input bg-background focus:ring-ring',
-                footerActionLink: 'text-primary hover:text-primary/90',
+                  "border border-input bg-background hover:bg-accent",
+                formFieldInput: "border-input bg-background focus:ring-ring",
+                footerActionLink: "text-primary hover:text-primary/90",
               },
             }}
             routing="path"
@@ -77,8 +75,11 @@ export default function RegisterPage() {
           />
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            JÃ¡ tem uma conta?{' '}
-            <Link href="/login" className="text-primary hover:underline font-medium">
+            JÃ¡ tem uma conta?{" "}
+            <Link
+              href="/login"
+              className="text-primary hover:underline font-medium"
+            >
               Fazer login
             </Link>
           </p>

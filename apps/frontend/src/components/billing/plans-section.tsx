@@ -1,15 +1,32 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
-import { CreditCard, Loader2, CheckCircle } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/utils';
+import { useMemo } from "react";
+import { CreditCard, Loader2, CheckCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
-  STARTER: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" /></svg>,
-  PROFESSIONAL: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M13 7H7v6h6V7z" /><path fillRule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2V2a1 1 0 112 0v1a2 2 0 012 2v2h1a2 2 0 012 2v2h1a2 2 0 012 2v6a2 2 0 01-2 2h-1v1a1 1 0 11-2 0v-1h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H4a2 2 0 01-2-2v-6a2 2 0 012-2h1V7a2 2 0 012-2h1V2a1 1 0 010-2h2V2z" clipRule="evenodd" /></svg>,
-  ENTERPRISE: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>,
+  STARTER: (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+    </svg>
+  ),
+  PROFESSIONAL: (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M13 7H7v6h6V7z" />
+      <path
+        fillRule="evenodd"
+        d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2V2a1 1 0 112 0v1a2 2 0 012 2v2h1a2 2 0 012 2v2h1a2 2 0 012 2v6a2 2 0 01-2 2h-1v1a1 1 0 11-2 0v-1h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H4a2 2 0 01-2-2v-6a2 2 0 012-2h1V7a2 2 0 012-2h1V2a1 1 0 010-2h2V2z"
+        clipRule="evenodd"
+      />
+    </svg>
+  ),
+  ENTERPRISE: (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+    </svg>
+  ),
 };
 
 interface PlansSectionProps {
@@ -47,7 +64,7 @@ export default function PlansSection({
           <Card
             key={plan.plan}
             className={`relative flex flex-col transition-shadow hover:shadow-md ${
-              plan.isPopular ? 'border-primary ring-2 ring-primary' : ''
+              plan.isPopular ? "border-primary ring-2 ring-primary" : ""
             }`}
           >
             {plan.isPopular && (
@@ -61,8 +78,8 @@ export default function PlansSection({
                 <div
                   className={`p-2 rounded-lg ${
                     plan.isPopular
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground'
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {PLAN_ICONS[plan.plan] || <CreditCard className="w-5 h-5" />}
@@ -101,18 +118,26 @@ export default function PlansSection({
                     }
                   }}
                   disabled={!!actionLoading}
-                  variant={plan.isPopular ? 'default' : 'outline'}
+                  variant={plan.isPopular ? "default" : "outline"}
                   className="w-full gap-2"
                 >
                   {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {hasStripe ? 'Mudar plano' : 'Fazer upgrade'}
+                  {hasStripe ? "Mudar plano" : "Fazer upgrade"}
                 </Button>
               )}
             </CardContent>
           </Card>
         );
       }),
-    [plans, currentPlan, hasStripe, actionLoading, onAction, startCheckout, changePlan]
+    [
+      plans,
+      currentPlan,
+      hasStripe,
+      actionLoading,
+      onAction,
+      startCheckout,
+      changePlan,
+    ],
   );
 
   if (plans.length === 0) {
@@ -125,5 +150,7 @@ export default function PlansSection({
     );
   }
 
-  return <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{planCards}</div>;
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{planCards}</div>
+  );
 }

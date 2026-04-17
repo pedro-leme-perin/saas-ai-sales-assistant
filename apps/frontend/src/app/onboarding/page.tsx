@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import { useTranslation } from '@/i18n/use-translation';
-import { companiesService } from '@/services/api';
-import { useUserStore } from '@/stores';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useTranslation } from "@/i18n/use-translation";
+import { companiesService } from "@/services/api";
+import { useUserStore } from "@/stores";
 
 interface OnboardingData {
   companyName: string;
@@ -15,13 +15,13 @@ interface OnboardingData {
   selectedPlan: string;
 }
 
-const TEAM_SIZES = ['1-5', '6-20', '21-50', '50+'];
-const INDUSTRIES = ['sales', 'realEstate', 'insurance', 'saas', 'other'];
-const CHANNELS = ['phone', 'whatsapp'];
+const TEAM_SIZES = ["1-5", "6-20", "21-50", "50+"];
+const INDUSTRIES = ["sales", "realEstate", "insurance", "saas", "other"];
+const CHANNELS = ["phone", "whatsapp"];
 const PLANS = [
-  { id: 'STARTER', price: 0, highlight: false },
-  { id: 'PROFESSIONAL', price: 297, highlight: true },
-  { id: 'ENTERPRISE', price: 697, highlight: false },
+  { id: "STARTER", price: 0, highlight: false },
+  { id: "PROFESSIONAL", price: 297, highlight: true },
+  { id: "ENTERPRISE", price: 697, highlight: false },
 ];
 
 export default function OnboardingPage() {
@@ -31,11 +31,11 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<OnboardingData>({
-    companyName: company?.name || '',
-    teamSize: '',
-    industry: '',
+    companyName: company?.name || "",
+    teamSize: "",
+    industry: "",
     channels: [],
-    selectedPlan: 'STARTER',
+    selectedPlan: "STARTER",
   });
 
   const totalSteps = 4;
@@ -67,10 +67,10 @@ export default function OnboardingPage() {
         channels: data.channels,
         selectedPlan: data.selectedPlan,
       });
-      toast.success(t('onboarding.success'));
-      router.push('/dashboard');
+      toast.success(t("onboarding.success"));
+      router.push("/dashboard");
     } catch {
-      toast.error(t('onboarding.error'));
+      toast.error(t("onboarding.error"));
     } finally {
       setSaving(false);
     }
@@ -82,7 +82,11 @@ export default function OnboardingPage() {
         {/* Progress */}
         <div className="mb-8">
           <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-2">
-            <span>{t('onboarding.stepOf').replace('{{current}}', String(step + 1)).replace('{{total}}', String(totalSteps))}</span>
+            <span>
+              {t("onboarding.stepOf")
+                .replace("{{current}}", String(step + 1))
+                .replace("{{total}}", String(totalSteps))}
+            </span>
             <span>{Math.round(progress)}%</span>
           </div>
           <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -97,19 +101,21 @@ export default function OnboardingPage() {
         {step === 0 && (
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              {t('onboarding.welcome.title')}
+              {t("onboarding.welcome.title")}
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {t('onboarding.welcome.subtitle')}
+              {t("onboarding.welcome.subtitle")}
             </p>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('onboarding.welcome.companyLabel')}
+              {t("onboarding.welcome.companyLabel")}
             </label>
             <input
               type="text"
               value={data.companyName}
-              onChange={(e) => setData({ ...data, companyName: e.target.value })}
-              placeholder={t('onboarding.welcome.companyPlaceholder')}
+              onChange={(e) =>
+                setData({ ...data, companyName: e.target.value })
+              }
+              placeholder={t("onboarding.welcome.companyPlaceholder")}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -119,14 +125,14 @@ export default function OnboardingPage() {
         {step === 1 && (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              {t('onboarding.team.title')}
+              {t("onboarding.team.title")}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {t('onboarding.team.subtitle')}
+              {t("onboarding.team.subtitle")}
             </p>
 
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              {t('onboarding.team.sizeLabel')}
+              {t("onboarding.team.sizeLabel")}
             </label>
             <div className="grid grid-cols-2 gap-3 mb-6">
               {TEAM_SIZES.map((size) => (
@@ -135,17 +141,17 @@ export default function OnboardingPage() {
                   onClick={() => setData({ ...data, teamSize: size })}
                   className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
                     data.teamSize === size
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                      : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400"
                   }`}
                 >
-                  {size} {t('onboarding.team.people')}
+                  {size} {t("onboarding.team.people")}
                 </button>
               ))}
             </div>
 
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              {t('onboarding.team.industryLabel')}
+              {t("onboarding.team.industryLabel")}
             </label>
             <div className="grid grid-cols-2 gap-3">
               {INDUSTRIES.map((ind) => (
@@ -154,8 +160,8 @@ export default function OnboardingPage() {
                   onClick={() => setData({ ...data, industry: ind })}
                   className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
                     data.industry === ind
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                      : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400"
                   }`}
                 >
                   {t(`onboarding.team.industries.${ind}`)}
@@ -169,10 +175,10 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              {t('onboarding.channels.title')}
+              {t("onboarding.channels.title")}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {t('onboarding.channels.subtitle')}
+              {t("onboarding.channels.subtitle")}
             </p>
             <div className="space-y-4">
               {CHANNELS.map((ch) => (
@@ -181,8 +187,8 @@ export default function OnboardingPage() {
                   onClick={() => toggleChannel(ch)}
                   className={`w-full p-5 rounded-lg border text-left transition-all ${
                     data.channels.includes(ch)
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                      : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -194,14 +200,26 @@ export default function OnboardingPage() {
                         {t(`onboarding.channels.${ch}.desc`)}
                       </p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      data.channels.includes(ch)
-                        ? 'border-blue-600 bg-blue-600'
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}>
+                    <div
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        data.channels.includes(ch)
+                          ? "border-blue-600 bg-blue-600"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}
+                    >
                       {data.channels.includes(ch) && (
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        <svg
+                          className="w-4 h-4 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
                         </svg>
                       )}
                     </div>
@@ -216,10 +234,10 @@ export default function OnboardingPage() {
         {step === 3 && (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              {t('onboarding.plan.title')}
+              {t("onboarding.plan.title")}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {t('onboarding.plan.subtitle')}
+              {t("onboarding.plan.subtitle")}
             </p>
             <div className="space-y-4">
               {PLANS.map((plan) => (
@@ -228,9 +246,9 @@ export default function OnboardingPage() {
                   onClick={() => setData({ ...data, selectedPlan: plan.id })}
                   className={`w-full p-5 rounded-lg border text-left transition-all ${
                     data.selectedPlan === plan.id
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
-                  } ${plan.highlight ? 'ring-2 ring-blue-200 dark:ring-blue-800' : ''}`}
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                      : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+                  } ${plan.highlight ? "ring-2 ring-blue-200 dark:ring-blue-800" : ""}`}
                 >
                   <div className="flex justify-between items-center">
                     <div>
@@ -260,7 +278,7 @@ export default function OnboardingPage() {
             disabled={step === 0}
             className="px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {t('onboarding.back')}
+            {t("onboarding.back")}
           </button>
 
           {step < totalSteps - 1 ? (
@@ -269,7 +287,7 @@ export default function OnboardingPage() {
               disabled={!canProceed()}
               className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {t('onboarding.next')}
+              {t("onboarding.next")}
             </button>
           ) : (
             <button
@@ -277,7 +295,7 @@ export default function OnboardingPage() {
               disabled={saving}
               className="px-6 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-60 transition-colors"
             >
-              {saving ? t('common.loading') : t('onboarding.finish')}
+              {saving ? t("common.loading") : t("onboarding.finish")}
             </button>
           )}
         </div>

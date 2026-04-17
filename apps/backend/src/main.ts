@@ -131,6 +131,8 @@ async function bootstrap() {
       'Content-Type',
       'Authorization',
       'X-Requested-With',
+      'X-Request-Id',
+      'X-API-Key',
       'sentry-trace',
       'baggage',
     ],

@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { logger } from '@/lib/logger';
-import { useTranslation } from '@/i18n/use-translation';
+import { useEffect } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { logger } from "@/lib/logger";
+import { useTranslation } from "@/i18n/use-translation";
 
 export default function DashboardError({
   error,
@@ -17,7 +17,9 @@ export default function DashboardError({
   const { t } = useTranslation();
 
   useEffect(() => {
-    logger.ui.error('Dashboard error boundary triggered', error, { digest: error.digest });
+    logger.ui.error("Dashboard error boundary triggered", error, {
+      digest: error.digest,
+    });
   }, [error]);
 
   return (
@@ -27,17 +29,19 @@ export default function DashboardError({
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mx-auto mb-4">
             <AlertTriangle className="h-6 w-6 text-red-600" />
           </div>
-          <h2 className="text-lg font-semibold mb-2">{t('errors.somethingWentWrong')}</h2>
+          <h2 className="text-lg font-semibold mb-2">
+            {t("errors.somethingWentWrong")}
+          </h2>
           <p className="text-sm text-muted-foreground mb-1">
-            {t('errors.unexpectedDashboardError')}
+            {t("errors.unexpectedDashboardError")}
           </p>
           {error.digest && (
             <p className="text-xs text-muted-foreground mb-4 font-mono">
-              {t('errors.errorCode')}: {error.digest}
+              {t("errors.errorCode")}: {error.digest}
             </p>
           )}
           <Button onClick={reset} className="gap-2 mt-2">
-            <RefreshCw className="h-4 w-4" /> {t('errors.tryAgain')}
+            <RefreshCw className="h-4 w-4" /> {t("errors.tryAgain")}
           </Button>
         </CardContent>
       </Card>

@@ -1,30 +1,33 @@
-'use client';
+"use client";
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import dynamic from 'next/dynamic';
-import { useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
+import { useEffect } from "react";
 
 const ReactQueryDevtools =
-  process.env.NODE_ENV === 'development'
+  process.env.NODE_ENV === "development"
     ? dynamic(
         () =>
-          import('@tanstack/react-query-devtools').then((m) => ({
+          import("@tanstack/react-query-devtools").then((m) => ({
             default: m.ReactQueryDevtools,
           })),
         { ssr: false },
       )
     : null;
-import { useAuth } from '@clerk/nextjs';
-import { usePathname, useRouter } from 'next/navigation';
-import { Toaster } from 'sonner';
-import apiClient, { setClerkGetToken } from '@/lib/api-client';
-import { wsClient } from '@/lib/websocket';
+import { useAuth } from "@clerk/nextjs";
+import { usePathname, useRouter } from "next/navigation";
+import { Toaster } from "sonner";
+import apiClient, { setClerkGetToken } from "@/lib/api-client";
+import { wsClient } from "@/lib/websocket";
 import {
-  useUserStore, useNotificationsStore,
-  useAISuggestionsStore, useActiveCallStore, useUIStore,
-} from '@/stores';
-import { authService } from '@/services/api';
-import { logger } from '@/lib/logger';
+  useUserStore,
+  useNotificationsStore,
+  useAISuggestionsStore,
+  useActiveCallStore,
+  useUIStore,
+} from "@/stores";
+import { authService } from "@/services/api";
+import { logger } from "@/lib/logger";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -41,7 +44,7 @@ function makeQueryClient() {
 let browserQueryClient: QueryClient | undefined = undefined;
 
 function getQueryClient() {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return makeQueryClient();
   } else {
     if (!browserQueryClient) browserQueryClient = makeQueryClient();
@@ -58,25 +61,25 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
 
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else if (theme === 'light') {
-      root.classList.remove('dark');
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else if (theme === "light") {
+      root.classList.remove("dark");
     } else {
       // system: respeita preferência do OS
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
       const applySystem = () => {
         if (mediaQuery.matches) {
-          root.classList.add('dark');
+          root.classList.add("dark");
         } else {
-          root.classList.remove('dark');
+          root.classList.remove("dark");
         }
       };
 
       applySystem();
-      mediaQuery.addEventListener('change', applySystem);
-      return () => mediaQuery.removeEventListener('change', applySystem);
+      mediaQuery.addEventListener("change", applySystem);
+      return () => mediaQuery.removeEventListener("change", applySystem);
     }
   }, [theme]);
 
@@ -91,9 +94,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        {children}
-      </ThemeProvider>
+      <ThemeProvider>{children}</ThemeProvider>
       <Toaster position="top-right" richColors closeButton />
       {ReactQueryDevtools && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
@@ -138,10 +139,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Redirect to onboarding if not completed
           // Schema: Company.settings (Json) holds onboarded flag — NOT metadata
-          const settings = user.company.settings as { onboarded?: boolean } | undefined;
+          const settings = user.company.settings as
+            | { onboarded?: boolean }
+            | undefined;
           const isOnboarded = settings?.onboarded === true;
-          if (!isOnboarded && !pathname.startsWith('/onboarding')) {
-            router.push('/onboarding');
+          if (!isOnboarded && !pathname.startsWith("/onboarding")) {
+            router.push("/onboarding");
           }
         }
         if (user.companyId) {
@@ -159,12 +162,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           wsClient.onAISuggestion((data: any) => {
             addSuggestion(data.suggestion || data);
             if (data.transcript) {
-              addTranscriptEntry({ text: data.transcript, speaker: 'customer' });
+              addTranscriptEntry({
+                text: data.transcript,
+                speaker: "customer",
+              });
             }
           });
         }
       } catch (error) {
-        logger.auth.error('Auth sync failed', error);
+        logger.auth.error("Auth sync failed", error);
         clear();
       } finally {
         setLoading(false);
@@ -176,7 +182,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       wsClient.disconnect();
     };
-  }, [isLoaded, isSignedIn, getToken, setUser, setCompany, setLoading, clear, addNotification, addSuggestion, addTranscriptEntry, pathname, router]);
+  }, [
+    isLoaded,
+    isSignedIn,
+    getToken,
+    setUser,
+    setCompany,
+    setLoading,
+    clear,
+    addNotification,
+    addSuggestion,
+    addTranscriptEntry,
+    pathname,
+    router,
+  ]);
 
   return <>{children}</>;
 }

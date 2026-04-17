@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { SegmentError } from '@/components/dashboard/segment-error';
+import { SegmentError } from "@/components/dashboard/segment-error";
 
 export default function CallsError({
   error,

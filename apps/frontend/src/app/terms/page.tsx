@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Sparkles, ArrowLeft } from 'lucide-react';
-import { useTranslation } from '@/i18n/use-translation';
+import Link from "next/link";
+import { Sparkles, ArrowLeft } from "lucide-react";
+import { useTranslation } from "@/i18n/use-translation";
 
 const SECTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -24,7 +24,7 @@ export default function TermsOfService() {
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            {t('common.back')}
+            {t("common.back")}
           </Link>
         </div>
       </nav>
@@ -33,15 +33,15 @@ export default function TermsOfService() {
         <div className="max-w-3xl mx-auto">
           <header className="mb-10">
             <h1 className="text-3xl font-bold tracking-tight mb-2">
-              {t('terms.title')}
+              {t("terms.title")}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {t('terms.lastUpdated')}
+              {t("terms.lastUpdated")}
             </p>
           </header>
 
           <p className="text-muted-foreground leading-relaxed mb-8">
-            {t('terms.intro')}
+            {t("terms.intro")}
           </p>
 
           <div className="space-y-8">
@@ -72,11 +72,11 @@ export default function TermsOfService() {
               href="/privacy"
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              {t('landing.privacyPolicy')}
+              {t("landing.privacyPolicy")}
             </Link>
             <span className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} TheIAdvisor.{' '}
-              {t('landing.footerRights')}
+              &copy; {new Date().getFullYear()} TheIAdvisor.{" "}
+              {t("landing.footerRights")}
             </span>
           </div>
         </div>

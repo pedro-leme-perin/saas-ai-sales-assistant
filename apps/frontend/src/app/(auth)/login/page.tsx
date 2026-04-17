@@ -1,8 +1,8 @@
-import { SignIn } from '@clerk/nextjs';
-import Link from 'next/link';
+import { SignIn } from "@clerk/nextjs";
+import Link from "next/link";
 
-export const dynamic = 'force-dynamic';
-import { Sparkles } from 'lucide-react';
+export const dynamic = "force-dynamic";
+import { Sparkles } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -16,7 +16,7 @@ export default function LoginPage() {
             </div>
             <span className="font-bold text-xl">TheIAdvisor</span>
           </Link>
-          
+
           <h1 className="text-2xl font-bold mb-2">Bem-vindo de volta</h1>
           <p className="text-muted-foreground mb-8">
             Entre na sua conta para continuar
@@ -26,15 +26,14 @@ export default function LoginPage() {
             appearance={{
               elements: {
                 formButtonPrimary:
-                  'bg-primary hover:bg-primary/90 text-primary-foreground',
-                card: 'shadow-none p-0',
-                headerTitle: 'hidden',
-                headerSubtitle: 'hidden',
+                  "bg-primary hover:bg-primary/90 text-primary-foreground",
+                card: "shadow-none p-0",
+                headerTitle: "hidden",
+                headerSubtitle: "hidden",
                 socialButtonsBlockButton:
-                  'border border-input bg-background hover:bg-accent',
-                formFieldInput:
-                  'border-input bg-background focus:ring-ring',
-                footerActionLink: 'text-primary hover:text-primary/90',
+                  "border border-input bg-background hover:bg-accent",
+                formFieldInput: "border-input bg-background focus:ring-ring",
+                footerActionLink: "text-primary hover:text-primary/90",
               },
             }}
             routing="path"
@@ -44,8 +43,11 @@ export default function LoginPage() {
           />
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            NÃ£o tem uma conta?{' '}
-            <Link href="/register" className="text-primary hover:underline font-medium">
+            NÃ£o tem uma conta?{" "}
+            <Link
+              href="/register"
+              className="text-primary hover:underline font-medium"
+            >
               Criar conta
             </Link>
           </p>
@@ -59,8 +61,8 @@ export default function LoginPage() {
             Transforme suas vendas com IA
           </h2>
           <p className="text-white/80 max-w-md">
-            Receba sugestÃµes inteligentes em tempo real durante suas ligaÃ§Ãµes e
-            conversas no WhatsApp.
+            Receba sugestÃµes inteligentes em tempo real durante suas ligaÃ§Ãµes
+            e conversas no WhatsApp.
           </p>
         </div>
       </div>

@@ -11,7 +11,7 @@ import {
   RawBodyRequest,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Webhook } from 'svix';
@@ -39,7 +39,40 @@ export class ClerkWebhookController {
   @Post()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  @ApiOperation({ summary: 'Clerk user events webhook (internal)' })
+  @ApiOperation({
+    summary: 'Clerk user events webhook (internal)',
+    description:
+      'Receives Clerk webhook events for user lifecycle management (user.created, user.updated, user.deleted). ' +
+      'Verifies Svix signature before processing. Idempotent via Redis deduplication on svix-id. ' +
+      'Server-to-server only -- not intended for direct client consumption.',
+  })
+  @ApiHeader({
+    name: 'svix-id',
+    required: true,
+    description: 'Unique webhook delivery ID from Svix (used for idempotency)',
+  })
+  @ApiHeader({
+    name: 'svix-timestamp',
+    required: true,
+    description: 'Unix timestamp of webhook delivery',
+  })
+  @ApiHeader({
+    name: 'svix-signature',
+    required: true,
+    description: 'HMAC signature for webhook payload verification',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Webhook received and processed (or deduplicated)',
+    schema: {
+      type: 'object',
+      properties: { received: { type: 'boolean', example: true } },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing svix headers or invalid webhook signature',
+  })
   async handleWebhook(
     @Req() req: RawBodyRequest<Request>,
     @Headers('svix-id') svixId: string,

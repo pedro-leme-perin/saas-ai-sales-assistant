@@ -29,7 +29,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | (pendente) (16/04/2026) | Webhook idempotency + DTO hardening + error boundaries (session 39) |
+| Último commit | `0019960` (17/04/2026) | LGPD endpoints + legal pages + CI green (session 40) |
 | Backend (NestJS) | ✅ Produção | Railway — 11 módulos, 37 test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — domínio `theiadvisor.com`, 9 E2E specs |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
@@ -43,7 +43,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules, plano Developer (free) |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
 | CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview deploys + smoke tests) |
-| Testes | ✅ 50 suites + k6 | 41 backend + 9 E2E + 3 k6 load tests, ~882 tests |
+| Testes | ✅ 50 suites + k6 | 46 backend + 9 E2E + 3 k6 load tests, ~893 tests |
 | Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP, 16 traces verificados |
 
 ### 2.2 Infraestrutura de Produção
@@ -546,6 +546,70 @@ Sessão 33 fez 5 mudanças de código fonte (CacheService dependency, SQL aggreg
 - API standardization: ✅ TransformInterceptor applied globally
 - Testes: ~44 suites esperados (~882 tests)
 - CI Pipeline: ⏳ Pendente — requer `pnpm install` (lockfile sync) + push
+
+### 2.15 Sessão 40 — 17/04/2026
+
+**Objetivo:** Legal compliance pages, LGPD endpoints, CI green.
+
+**Commits desta sessão (7 commits):**
+- `3cd92ab` — feat: terms/privacy/help pages, LGPD endpoints, CI warnings fix (session 40)
+- `95965d4` — fix: prettier formatting in LGPD files (users controller/service, email service)
+- `9ca5e13` — fix: prettier indentation in Promise.all + lint warnings (as any → typed casts)
+- `82024aa` — fix: prettier formatting in notifications.controller.spec (shorten long lines)
+- `09f6de7` — fix: prettier — collapse single-line-fit args in LGPD + notifications specs
+- `4d928ee` — fix: run prettier on all session 40 files
+- `0019960` — fix: use correct Prisma field userId instead of assignedUserId in exportUserData
+
+**Itens executados (4):**
+
+**Item 1 — Legal Compliance Pages (Frontend):**
+- `app/terms/page.tsx`: Termos de Uso completos (15 seções, bilíngue pt-BR)
+- `app/privacy/page.tsx`: Política de Privacidade LGPD-compliant (14 seções, base legal Art. 7)
+- `app/help/page.tsx`: FAQ com 12 perguntas em accordion, categorias (Geral, Funcionalidades, Planos, Suporte)
+- Links adicionados no footer do landing page
+
+**Item 2 — LGPD Endpoints (Backend):**
+- `GET /users/me/export-data` — Art. 18, V: portabilidade de dados (exporta perfil, company, calls, chats, suggestions, notifications, audit logs)
+- `POST /users/me/request-deletion` — Art. 18, VI: eliminação de dados (suspende conta, agenda deleção em 30 dias)
+- `UsersService.exportUserData()` — coleta todos dados do tenant com audit log EXPORT
+- `UsersService.requestAccountDeletion()` — suspende user, cria audit log DELETE, envia email confirmação (non-blocking)
+- `EmailService.sendDeletionRequestEmail()` — template HTML com data de deleção agendada
+
+**Item 3 — Unit Tests LGPD:**
+- `test/unit/users-lgpd.spec.ts` (NOVO): 11 tests — controller (export data, request deletion, auth validation) + service (data structure, audit logs, NotFoundException, suspension, email sending, email failure resilience)
+
+**Item 4 — CI Warnings Fix:**
+- `notifications.controller.spec.ts`: `as any` → `as unknown as Record<string, unknown>` + `as unknown as Response`
+- `users.service.spec.ts`: eslint-disable comments for unavoidable `cb: any` in $transaction mocks
+- `notifications.service.spec.ts`: `null as any` → `null as unknown as string`
+- `whatsapp.controller.spec.ts`: `as any` → `as unknown as Record<string, unknown>`
+
+**Bug fix — Prisma schema mismatch:**
+- `users.service.ts`: `assignedUserId` → `userId` in WhatsappChat query (exportUserData). Field name in Prisma schema is `userId` (mapped to `user_id`), not `assignedUserId`.
+
+**Arquivos criados/modificados (~12 arquivos):**
+
+*Novos:*
+- `apps/frontend/src/app/terms/page.tsx`
+- `apps/frontend/src/app/privacy/page.tsx`
+- `apps/frontend/src/app/help/page.tsx`
+- `apps/backend/test/unit/users-lgpd.spec.ts`
+
+*Modificados:*
+- `apps/backend/src/modules/users/users.controller.ts` — LGPD endpoints
+- `apps/backend/src/modules/users/users.service.ts` — exportUserData, requestAccountDeletion
+- `apps/backend/src/modules/email/email.service.ts` — sendDeletionRequestEmail
+- `apps/backend/test/unit/notifications.controller.spec.ts` — lint fixes
+- `apps/backend/test/unit/users.service.spec.ts` — eslint-disable for $transaction mocks
+- `apps/backend/test/unit/notifications.service.spec.ts` — typed null cast
+- `apps/backend/test/unit/whatsapp.controller.spec.ts` — typed casts
+
+**Estado ao final da sessão:**
+- CI Pipeline: ✅ Green (CI #154 — commit `0019960`, 2m58s)
+- Testes: ~46 suites (~893 tests)
+- Legal pages: ✅ /terms, /privacy, /help live
+- LGPD: ✅ Export + Deletion endpoints funcionais
+- CI Runs na sessão: #148 ❌ → #149 ❌ → #150 ❌ → #151 ❌ → #152 ❌ → #153 ❌ → #154 ✅
 
 ---
 

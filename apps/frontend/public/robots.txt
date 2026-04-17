@@ -2,4 +2,8 @@ User-agent: *
 Allow: /
 Disallow: /dashboard
 Disallow: /api
+Disallow: /onboarding
+Disallow: /sign-in
+Disallow: /sign-up
+Crawl-delay: 1
 Sitemap: https://www.theiadvisor.com/sitemap.xml

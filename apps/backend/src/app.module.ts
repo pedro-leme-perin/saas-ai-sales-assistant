@@ -21,6 +21,8 @@ import { EmailModule } from './modules/email/email.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
+import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import configuration from './config/configuration';
 
 @Module({
@@ -59,6 +61,8 @@ import configuration from './config/configuration';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    // Security headers + request ID first (stateless, no DB dependency)
+    consumer.apply(RequestIdMiddleware, SecurityHeadersMiddleware).forRoutes('*');
     // Inject company.plan into request for rate limiting
     consumer.apply(CompanyPlanMiddleware).forRoutes('*');
   }

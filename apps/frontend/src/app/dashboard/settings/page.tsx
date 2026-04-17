@@ -1,47 +1,40 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import dynamic from 'next/dynamic';
-import { useUser } from '@clerk/nextjs';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Settings,
-  User,
-  Building,
-  Bell,
-  Shield,
-  Palette,
-} from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { companiesService } from '@/services/api';
-import { useUIStore } from '@/stores';
-import { useTranslation } from '@/i18n/use-translation';
-import { toast } from 'sonner';
+import { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
+import { useUser } from "@clerk/nextjs";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Settings, User, Building, Bell, Shield, Palette } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { companiesService } from "@/services/api";
+import { useUIStore } from "@/stores";
+import { useTranslation } from "@/i18n/use-translation";
+import { toast } from "sonner";
 
 // Dynamically import heavy form sections
 const ProfileTab = dynamic(
-  () => import('@/components/settings/tabs/profile-tab'),
-  { ssr: false, loading: () => <TabSkeleton /> }
+  () => import("@/components/settings/tabs/profile-tab"),
+  { ssr: false, loading: () => <TabSkeleton /> },
 );
 
 const CompanyTab = dynamic(
-  () => import('@/components/settings/tabs/company-tab'),
-  { ssr: false, loading: () => <TabSkeleton /> }
+  () => import("@/components/settings/tabs/company-tab"),
+  { ssr: false, loading: () => <TabSkeleton /> },
 );
 
 const NotificationsTab = dynamic(
-  () => import('@/components/settings/tabs/notifications-tab'),
-  { ssr: false, loading: () => <TabSkeleton /> }
+  () => import("@/components/settings/tabs/notifications-tab"),
+  { ssr: false, loading: () => <TabSkeleton /> },
 );
 
 const SecurityTab = dynamic(
-  () => import('@/components/settings/tabs/security-tab'),
-  { ssr: false, loading: () => <TabSkeleton /> }
+  () => import("@/components/settings/tabs/security-tab"),
+  { ssr: false, loading: () => <TabSkeleton /> },
 );
 
 const AppearanceTab = dynamic(
-  () => import('@/components/settings/tabs/appearance-tab'),
-  { ssr: false, loading: () => <TabSkeleton /> }
+  () => import("@/components/settings/tabs/appearance-tab"),
+  { ssr: false, loading: () => <TabSkeleton /> },
 );
 
 function TabSkeleton() {
@@ -59,48 +52,55 @@ function TabSkeleton() {
   );
 }
 
-type Tab = 'profile' | 'company' | 'notifications' | 'security' | 'appearance';
+type Tab = "profile" | "company" | "notifications" | "security" | "appearance";
 
 export default function SettingsPage() {
   const { user } = useUser();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<Tab>('profile');
+  const [activeTab, setActiveTab] = useState<Tab>("profile");
   const { theme, setTheme, locale, setLocale } = useUIStore();
   const { t } = useTranslation();
 
   const { data: company } = useQuery({
-    queryKey: ['company'],
+    queryKey: ["company"],
     queryFn: () => companiesService.getCurrent(),
   });
 
   const updateCompanyMutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => companiesService.update(data),
+    mutationFn: (data: Record<string, unknown>) =>
+      companiesService.update(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['company'] });
-      toast.success(t('common.saveChanges'));
+      queryClient.invalidateQueries({ queryKey: ["company"] });
+      toast.success(t("common.saveChanges"));
     },
     onError: () => {
-      toast.error(t('common.error'));
+      toast.error(t("common.error"));
     },
   });
 
   const tabs: { id: Tab; labelKey: string; icon: typeof User }[] = useMemo(
     () => [
-      { id: 'profile', labelKey: 'settings.tabs.profile', icon: User },
-      { id: 'company', labelKey: 'settings.tabs.company', icon: Building },
-      { id: 'notifications', labelKey: 'settings.tabs.notifications', icon: Bell },
-      { id: 'security', labelKey: 'settings.tabs.security', icon: Shield },
-      { id: 'appearance', labelKey: 'settings.tabs.appearance', icon: Palette },
+      { id: "profile", labelKey: "settings.tabs.profile", icon: User },
+      { id: "company", labelKey: "settings.tabs.company", icon: Building },
+      {
+        id: "notifications",
+        labelKey: "settings.tabs.notifications",
+        icon: Bell,
+      },
+      { id: "security", labelKey: "settings.tabs.security", icon: Shield },
+      { id: "appearance", labelKey: "settings.tabs.appearance", icon: Palette },
     ],
-    []
+    [],
   );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('settings.title')}</h1>
-        <p className="text-muted-foreground">{t('settings.subtitle')}</p>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {t("settings.title")}
+        </h1>
+        <p className="text-muted-foreground">{t("settings.subtitle")}</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -114,8 +114,8 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted'
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
                   }`}
                 >
                   <tab.icon className="h-4 w-4" />
@@ -129,27 +129,25 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="flex-1 space-y-6">
           {/* Profile Tab */}
-          {activeTab === 'profile' && (
-            <ProfileTab user={user} t={t} />
-          )}
+          {activeTab === "profile" && <ProfileTab user={user} t={t} />}
 
           {/* Company Tab */}
-          {activeTab === 'company' && (
-            <CompanyTab company={company} updateMutation={updateCompanyMutation} t={t} />
+          {activeTab === "company" && (
+            <CompanyTab
+              company={company}
+              updateMutation={updateCompanyMutation}
+              t={t}
+            />
           )}
 
           {/* Notifications Tab */}
-          {activeTab === 'notifications' && (
-            <NotificationsTab t={t} />
-          )}
+          {activeTab === "notifications" && <NotificationsTab t={t} />}
 
           {/* Security Tab */}
-          {activeTab === 'security' && (
-            <SecurityTab t={t} />
-          )}
+          {activeTab === "security" && <SecurityTab t={t} />}
 
           {/* Appearance Tab */}
-          {activeTab === 'appearance' && (
+          {activeTab === "appearance" && (
             <AppearanceTab
               theme={theme}
               setTheme={setTheme}

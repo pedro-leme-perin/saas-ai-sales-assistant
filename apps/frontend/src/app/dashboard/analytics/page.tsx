@@ -1,14 +1,23 @@
-'use client';
+"use client";
 
-import { Suspense, useMemo } from 'react';
-import dynamic from 'next/dynamic';
-import { useQuery } from '@tanstack/react-query';
+import { Suspense, useMemo } from "react";
+import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
 import {
-  TrendingUp, TrendingDown, Phone, MessageSquare,
-  Clock, Sparkles, Users, BarChart3, Brain, Heart,
-  Zap, Activity,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+  TrendingUp,
+  TrendingDown,
+  Phone,
+  MessageSquare,
+  Clock,
+  Sparkles,
+  Users,
+  BarChart3,
+  Brain,
+  Heart,
+  Zap,
+  Activity,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   analyticsService,
   type DashboardData,
@@ -16,19 +25,19 @@ import {
   type AnalyticsWhatsAppData,
   type AnalyticsSentimentData,
   type AnalyticsAIPerformanceData,
-} from '@/services/api';
-import { formatDuration } from '@/lib/utils';
-import { useTranslation } from '@/i18n/use-translation';
+} from "@/services/api";
+import { formatDuration } from "@/lib/utils";
+import { useTranslation } from "@/i18n/use-translation";
 
 // Dynamically import heavy detail sections
 const SentimentAnalytics = dynamic(
-  () => import('@/components/dashboard/analytics/sentiment-analytics'),
-  { ssr: false, loading: () => <AnalyticsDetailSkeleton /> }
+  () => import("@/components/dashboard/analytics/sentiment-analytics"),
+  { ssr: false, loading: () => <AnalyticsDetailSkeleton /> },
 );
 
 const AIPerformanceDetail = dynamic(
-  () => import('@/components/dashboard/analytics/ai-performance-detail'),
-  { ssr: false, loading: () => <AnalyticsDetailSkeleton /> }
+  () => import("@/components/dashboard/analytics/ai-performance-detail"),
+  { ssr: false, loading: () => <AnalyticsDetailSkeleton /> },
 );
 
 function KPISkeleton() {
@@ -94,89 +103,94 @@ export default function AnalyticsPage() {
   const { t } = useTranslation();
 
   const { data: dashboardRaw, isLoading } = useQuery({
-    queryKey: ['analytics-dashboard'],
+    queryKey: ["analytics-dashboard"],
     queryFn: () => analyticsService.getDashboard(),
   });
 
   const { data: callsData } = useQuery({
-    queryKey: ['analytics-calls'],
+    queryKey: ["analytics-calls"],
     queryFn: () => analyticsService.getCalls(),
   });
 
   const { data: waData } = useQuery({
-    queryKey: ['analytics-whatsapp'],
+    queryKey: ["analytics-whatsapp"],
     queryFn: () => analyticsService.getWhatsApp(),
   });
 
   const { data: sentimentData } = useQuery({
-    queryKey: ['analytics-sentiment'],
+    queryKey: ["analytics-sentiment"],
     queryFn: () => analyticsService.getSentiment(),
   });
 
   const { data: aiPerfData } = useQuery({
-    queryKey: ['analytics-ai-performance'],
+    queryKey: ["analytics-ai-performance"],
     queryFn: () => analyticsService.getAIPerformance(),
   });
 
   const dashboard = dashboardRaw;
 
   // Memoize KPI computation
-  const kpis = useMemo(() => [
-    {
-      title: t('analytics.totalCalls'),
-      value: dashboard?.calls?.total ?? 0,
-      sub: `${dashboard?.calls?.thisMonth ?? 0} ${t('analytics.thisMonth')}`,
-      growth: dashboard?.calls?.growth ?? 0,
-      icon: Phone,
-      color: 'text-blue-500',
-    },
-    {
-      title: t('analytics.whatsappChats'),
-      value: dashboard?.chats?.total ?? 0,
-      sub: `${dashboard?.chats?.thisMonth ?? 0} ${t('analytics.thisMonth')}`,
-      growth: dashboard?.chats?.growth ?? 0,
-      icon: MessageSquare,
-      color: 'text-green-500',
-    },
-    {
-      title: t('analytics.avgDuration'),
-      value: formatDuration(dashboard?.calls?.avgDuration ?? 0),
-      sub: t('analytics.perCall'),
-      growth: null,
-      icon: Clock,
-      color: 'text-orange-500',
-    },
-    {
-      title: t('analytics.users'),
-      value: dashboard?.users?.total ?? 0,
-      sub: t('analytics.onTeam'),
-      growth: null,
-      icon: Users,
-      color: 'text-purple-500',
-    },
-    {
-      title: t('analytics.aiSuggestions'),
-      value: dashboard?.ai?.total ?? 0,
-      sub: `${dashboard?.ai?.used ?? 0} ${t('analytics.used')}`,
-      growth: null,
-      icon: Sparkles,
-      color: 'text-primary',
-    },
-    {
-      title: t('analytics.aiAdoptionRate'),
-      value: `${dashboard?.ai?.adoptionRate ?? 0}%`,
-      sub: t('analytics.suggestionsAccepted'),
-      growth: null,
-      icon: BarChart3,
-      color: 'text-emerald-500',
-    },
-  ], [dashboard, t]);
+  const kpis = useMemo(
+    () => [
+      {
+        title: t("analytics.totalCalls"),
+        value: dashboard?.calls?.total ?? 0,
+        sub: `${dashboard?.calls?.thisMonth ?? 0} ${t("analytics.thisMonth")}`,
+        growth: dashboard?.calls?.growth ?? 0,
+        icon: Phone,
+        color: "text-blue-500",
+      },
+      {
+        title: t("analytics.whatsappChats"),
+        value: dashboard?.chats?.total ?? 0,
+        sub: `${dashboard?.chats?.thisMonth ?? 0} ${t("analytics.thisMonth")}`,
+        growth: dashboard?.chats?.growth ?? 0,
+        icon: MessageSquare,
+        color: "text-green-500",
+      },
+      {
+        title: t("analytics.avgDuration"),
+        value: formatDuration(dashboard?.calls?.avgDuration ?? 0),
+        sub: t("analytics.perCall"),
+        growth: null,
+        icon: Clock,
+        color: "text-orange-500",
+      },
+      {
+        title: t("analytics.users"),
+        value: dashboard?.users?.total ?? 0,
+        sub: t("analytics.onTeam"),
+        growth: null,
+        icon: Users,
+        color: "text-purple-500",
+      },
+      {
+        title: t("analytics.aiSuggestions"),
+        value: dashboard?.ai?.total ?? 0,
+        sub: `${dashboard?.ai?.used ?? 0} ${t("analytics.used")}`,
+        growth: null,
+        icon: Sparkles,
+        color: "text-primary",
+      },
+      {
+        title: t("analytics.aiAdoptionRate"),
+        value: `${dashboard?.ai?.adoptionRate ?? 0}%`,
+        sub: t("analytics.suggestionsAccepted"),
+        growth: null,
+        icon: BarChart3,
+        color: "text-emerald-500",
+      },
+    ],
+    [dashboard, t],
+  );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('analytics.title')}</h1>
-        <p className="text-muted-foreground">{t('analytics.subtitle')}</p>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {t("analytics.title")}
+        </h1>
+        <p className="text-muted-foreground">{t("analytics.subtitle")}</p>
       </div>
 
       {isLoading ? (
@@ -189,9 +203,14 @@ export default function AnalyticsPage() {
           {/* KPI Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {kpis.map((kpi) => (
-              <Card key={kpi.title} className="hover:shadow-sm transition-shadow">
+              <Card
+                key={kpi.title}
+                className="hover:shadow-sm transition-shadow"
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {kpi.title}
+                  </CardTitle>
                   <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
                 </CardHeader>
                 <CardContent>
@@ -200,15 +219,19 @@ export default function AnalyticsPage() {
                     {kpi.growth !== null ? (
                       kpi.growth >= 0 ? (
                         <span className="flex items-center text-xs text-green-600">
-                          <TrendingUp className="h-3 w-3 mr-1" />+{kpi.growth}% {t('analytics.vsPreviousMonth')}
+                          <TrendingUp className="h-3 w-3 mr-1" />+{kpi.growth}%{" "}
+                          {t("analytics.vsPreviousMonth")}
                         </span>
                       ) : (
                         <span className="flex items-center text-xs text-red-500">
-                          <TrendingDown className="h-3 w-3 mr-1" />{kpi.growth}% {t('analytics.vsPreviousMonth')}
+                          <TrendingDown className="h-3 w-3 mr-1" />
+                          {kpi.growth}% {t("analytics.vsPreviousMonth")}
                         </span>
                       )
                     ) : (
-                      <span className="text-xs text-muted-foreground">{kpi.sub}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {kpi.sub}
+                      </span>
                     )}
                   </div>
                 </CardContent>
@@ -222,19 +245,35 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-blue-500" />
-                  <CardTitle className="text-base">{t('analytics.calls30d')}</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("analytics.calls30d")}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { label: t('analytics.total'), value: callsData?.total ?? 0 },
-                  { label: t('analytics.completed'), value: callsData?.completed ?? 0 },
-                  { label: t('analytics.successRate'), value: `${callsData?.successRate ?? 0}%` },
-                  { label: t('analytics.avgDurationLabel'), value: formatDuration(callsData?.avgDuration ?? 0) },
+                  { label: t("analytics.total"), value: callsData?.total ?? 0 },
+                  {
+                    label: t("analytics.completed"),
+                    value: callsData?.completed ?? 0,
+                  },
+                  {
+                    label: t("analytics.successRate"),
+                    value: `${callsData?.successRate ?? 0}%`,
+                  },
+                  {
+                    label: t("analytics.avgDurationLabel"),
+                    value: formatDuration(callsData?.avgDuration ?? 0),
+                  },
                 ].map((item) => (
-                  <div key={item.label} className="flex justify-between text-sm">
+                  <div
+                    key={item.label}
+                    className="flex justify-between text-sm"
+                  >
                     <span className="text-muted-foreground">{item.label}</span>
-                    <span className="font-medium tabular-nums">{item.value}</span>
+                    <span className="font-medium tabular-nums">
+                      {item.value}
+                    </span>
                   </div>
                 ))}
               </CardContent>
@@ -244,18 +283,34 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-green-500" />
-                  <CardTitle className="text-base">{t('analytics.whatsapp30d')}</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("analytics.whatsapp30d")}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { label: t('analytics.newChats'), value: waData?.totalChats ?? 0 },
-                  { label: t('analytics.openChats'), value: waData?.openChats ?? 0 },
-                  { label: t('analytics.messagesExchanged'), value: waData?.messages ?? 0 },
+                  {
+                    label: t("analytics.newChats"),
+                    value: waData?.totalChats ?? 0,
+                  },
+                  {
+                    label: t("analytics.openChats"),
+                    value: waData?.openChats ?? 0,
+                  },
+                  {
+                    label: t("analytics.messagesExchanged"),
+                    value: waData?.messages ?? 0,
+                  },
                 ].map((item) => (
-                  <div key={item.label} className="flex justify-between text-sm">
+                  <div
+                    key={item.label}
+                    className="flex justify-between text-sm"
+                  >
                     <span className="text-muted-foreground">{item.label}</span>
-                    <span className="font-medium tabular-nums">{item.value}</span>
+                    <span className="font-medium tabular-nums">
+                      {item.value}
+                    </span>
                   </div>
                 ))}
               </CardContent>
@@ -267,22 +322,36 @@ export default function AnalyticsPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <CardTitle className="text-base">{t('analytics.aiPerformanceTitle')}</CardTitle>
+                <CardTitle className="text-base">
+                  {t("analytics.aiPerformanceTitle")}
+                </CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid gap-6 md:grid-cols-3">
                 <div className="text-center p-4 bg-primary/5 rounded-lg">
-                  <p className="text-3xl font-bold text-primary">{dashboard?.ai?.total ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('analytics.suggestionsGenerated')}</p>
+                  <p className="text-3xl font-bold text-primary">
+                    {dashboard?.ai?.total ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("analytics.suggestionsGenerated")}
+                  </p>
                 </div>
                 <div className="text-center p-4 bg-green-500/5 rounded-lg">
-                  <p className="text-3xl font-bold text-green-600">{dashboard?.ai?.used ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('analytics.suggestionsUsed')}</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {dashboard?.ai?.used ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("analytics.suggestionsUsed")}
+                  </p>
                 </div>
                 <div className="text-center p-4 bg-amber-500/5 rounded-lg">
-                  <p className="text-3xl font-bold text-amber-600">{dashboard?.ai?.adoptionRate ?? 0}%</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('analytics.adoptionRate')}</p>
+                  <p className="text-3xl font-bold text-amber-600">
+                    {dashboard?.ai?.adoptionRate ?? 0}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("analytics.adoptionRate")}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -291,16 +360,10 @@ export default function AnalyticsPage() {
           {/* Sentiment & AI Detail Row - Lazy loaded */}
           <div className="grid gap-4 md:grid-cols-2">
             <Suspense fallback={<AnalyticsDetailSkeleton />}>
-              <SentimentAnalytics
-                sentimentData={sentimentData}
-                t={t}
-              />
+              <SentimentAnalytics sentimentData={sentimentData} t={t} />
             </Suspense>
             <Suspense fallback={<AnalyticsDetailSkeleton />}>
-              <AIPerformanceDetail
-                aiPerfData={aiPerfData}
-                t={t}
-              />
+              <AIPerformanceDetail aiPerfData={aiPerfData} t={t} />
             </Suspense>
           </div>
         </>
