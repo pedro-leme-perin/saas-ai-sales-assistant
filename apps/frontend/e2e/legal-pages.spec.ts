@@ -103,13 +103,11 @@ test.describe("Help/FAQ Page", () => {
     await page.goto("/help", { waitUntil: "domcontentloaded" });
     await page.waitForSelector("h1", { timeout: 10_000 });
 
-    // Look for accordion triggers (button, summary, or details elements)
     const expandable = page.locator(
       'button[aria-expanded], details, [data-state="closed"], [data-state="open"], [role="button"][aria-expanded]',
     );
     await expect(expandable.first()).toBeVisible({ timeout: 10_000 });
 
-    // Click to expand and verify content appears
     await expandable.first().click();
     const expandedContent = page.locator(
       '[data-state="open"], details[open], [aria-expanded="true"]',
@@ -121,7 +119,6 @@ test.describe("Help/FAQ Page", () => {
     await page.goto("/help", { waitUntil: "domcontentloaded" });
     await page.waitForSelector("h1", { timeout: 10_000 });
 
-    // Expect at least 2 category headings (h2 or h3)
     const categoryHeadings = page.locator("h2, h3");
     const count = await categoryHeadings.count();
     expect(count).toBeGreaterThanOrEqual(2);
@@ -133,7 +130,7 @@ test.describe("Help/FAQ Page", () => {
 
     const body = page.locator("body");
     await expect(body).toContainText(
-      /contato|contact|suporte|support|email|team@theiadvisor\.com/i,
+      /contato|contact|suporte|support|email|team@theiadvisor/i,
       { timeout: 10_000 },
     );
   });

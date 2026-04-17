@@ -92,6 +92,19 @@ function JsonDiffView({
     new Set([...Object.keys(oldValues || {}), ...Object.keys(newValues || {})]),
   ).sort();
 
+  if (allKeys.length === 0) {
+    return (
+      <div className="mt-4">
+        <h4 className="text-sm font-medium mb-2">
+          {t("auditLogs.detail.changes")}
+        </h4>
+        <p className="text-sm text-muted-foreground italic">
+          {t("auditLogs.detail.noChanges")}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-4">
       <h4 className="text-sm font-medium mb-2">
@@ -357,25 +370,21 @@ export function AuditLogDetailModal({
                     )}
                   </Button>
                 </div>
+                {copiedRequestId && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    {t("auditLogs.detail.copied")}
+                  </p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Diff View */}
-          {(log.oldValues || log.newValues) && (
-            <JsonDiffView
-              oldValues={log.oldValues}
-              newValues={log.newValues}
-              t={t}
-            />
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 pt-0">
-          <Button variant="outline" className="w-full" onClick={onClose}>
-            {t("common.close")}
-          </Button>
+          {/* JSON Diff View */}
+          <JsonDiffView
+            oldValues={log.oldValues}
+            newValues={log.newValues}
+            t={t}
+          />
         </div>
       </div>
     </div>

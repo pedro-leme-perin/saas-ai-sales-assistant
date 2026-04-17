@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, ShieldCheck, Users, User } from "lucide-react";
+import { Shield, ShieldCheck, UserCog, User } from "lucide-react";
 import { UserRole } from "@/types";
 
 interface RoleBadgeProps {
@@ -28,7 +28,7 @@ const roleConfig: Record<
     label: "Admin",
   },
   [UserRole.MANAGER]: {
-    icon: Users,
+    icon: UserCog,
     colors:
       "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
     label: "Manager",

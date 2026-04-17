@@ -711,6 +711,171 @@
       }
     }
   },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: April 2026",
+    "intro": "Welcome to TheIAdvisor. By accessing and using our platform, you agree to the terms and conditions described in this document.",
+    "section1Title": "1. Acceptance of Terms",
+    "section1Text": "By creating an account or using any feature of TheIAdvisor, you fully accept these Terms of Service and our Privacy Policy.",
+    "section2Title": "2. Service Description",
+    "section2Text": "TheIAdvisor is a SaaS AI sales assistant platform that provides real-time call transcription, contextual AI suggestions, and WhatsApp Business integration.",
+    "section3Title": "3. Use of Service and Acceptable Use",
+    "section3Text": "You agree to use the service only for lawful purposes and in accordance with these terms. It is prohibited to use the platform for illegal, fraudulent, or rights-violating activities.",
+    "section4Title": "4. Account and Security",
+    "section4Text": "You are responsible for maintaining the confidentiality of your access credentials and for all activities conducted under your account.",
+    "section5Title": "5. Payment and Billing",
+    "section5Text": "Plans are billed monthly in Brazilian Reais (BRL). Payment is processed via Stripe. Invoices are generated automatically and sent by email.",
+    "section6Title": "6. Intellectual Property",
+    "section6Text": "All content, source code, design, trademarks, and materials of TheIAdvisor are exclusive intellectual property of the company. Reproduction without authorization is prohibited.",
+    "section7Title": "7. Data Protection",
+    "section7Text": "We collect and process personal data in compliance with LGPD (General Data Protection Law). See our Privacy Policy for details.",
+    "section8Title": "8. Service Availability",
+    "section8Text": "We will endeavor to keep the service available 24/7, but do not guarantee uninterrupted availability. Scheduled maintenance will be communicated in advance.",
+    "section9Title": "9. Limitation of Liability",
+    "section9Text": "TheIAdvisor shall not be liable for indirect, incidental, or consequential damages arising from the use or inability to use the service.",
+    "section10Title": "10. Cancellation and Termination",
+    "section10Text": "You may cancel your subscription at any time. Access remains active until the end of the paid period. We reserve the right to suspend accounts that violate these terms.",
+    "section11Title": "11. Changes to Terms",
+    "section11Text": "We may update these terms periodically. Significant changes will be notified by email or via the platform with 30 days advance notice.",
+    "section12Title": "12. Governing Law",
+    "section12Text": "These terms are governed by Brazilian law. The courts of Sao Paulo/SP are elected to resolve any disputes."
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: April 2026",
+    "intro": "TheIAdvisor is committed to protecting personal data in compliance with LGPD (General Data Protection Law — Law 13.709/2018).",
+    "section1Title": "1. Data Controller",
+    "section1Text": "TheIAdvisor, operated by its responsible company, is the data controller of personal data collected through the platform, as defined by LGPD.",
+    "section2Title": "2. Data Collected",
+    "section2Intro": "We collect the following types of personal data:",
+    "section2Item1": "Identification data: name, email, phone",
+    "section2Item2": "Usage data: access logs, platform interactions",
+    "section2Item3": "Communication data: call transcriptions, WhatsApp messages",
+    "section2Item4": "Payment data: processed directly by Stripe (PCI-compliant)",
+    "section2Item5": "Device data: browser, operating system, IP",
+    "section2Item6": "Authentication data: managed by Clerk (identity provider)",
+    "section3Title": "3. Legal Basis for Processing",
+    "section3Text": "Data processing is based on LGPD Art. 7: contract execution (Art. 7, V), data subject consent (Art. 7, I), and legitimate interest of the controller (Art. 7, IX).",
+    "section4Title": "4. Purpose of Processing",
+    "section4Text": "Data is used for: service delivery, platform improvement, transactional communications, legal compliance, and aggregate usage analysis.",
+    "section5Title": "5. Data Sharing",
+    "section5Intro": "Your data may be shared with:",
+    "section5Item1": "AI providers (OpenAI) — for contextual suggestions",
+    "section5Item2": "Telecom providers (Twilio) — for call features",
+    "section5Item3": "Transcription providers (Deepgram) — for speech-to-text",
+    "section5Item4": "Payment processor (Stripe) — for billing and invoices",
+    "section5Item5": "Auth provider (Clerk) — for identity management",
+    "section5Item6": "Email provider (Resend) — for transactional emails",
+    "section5Footer": "No personal data is sold to third parties.",
+    "section6Title": "6. Data Retention",
+    "section6Text": "Personal data is retained for the period necessary to fulfill the described purposes. After deletion request, data is removed within 30 days, except when retention is required by law.",
+    "section7Title": "7. Data Subject Rights (LGPD Art. 18)",
+    "section7Intro": "You have the right to:",
+    "section7Item1": "Confirmation of data processing",
+    "section7Item2": "Access to personal data",
+    "section7Item3": "Correction of incomplete or outdated data",
+    "section7Item4": "Anonymization or blocking of unnecessary data",
+    "section7Item5": "Data portability (export)",
+    "section7Item6": "Deletion of personal data",
+    "section7Item7": "Information about data sharing",
+    "section7Item8": "Consent revocation",
+    "section7Item9": "Objection to processing",
+    "section7Footer": "To exercise your rights, access account settings or contact us at team@theiadvisor.com.",
+    "section8Title": "8. Data Security",
+    "section8Text": "We implement technical and organizational measures to protect personal data: encryption in transit (TLS) and at rest, multi-factor authentication, role-based access control (RBAC), access auditing.",
+    "section9Title": "9. International Transfer",
+    "section9Text": "Some data may be processed by providers located outside Brazil. We ensure these transfers comply with LGPD Art. 33.",
+    "section10Title": "10. Cookies and Tracking Technologies",
+    "section10Text": "We use essential cookies for platform operation and performance cookies to improve the experience. You can manage cookie preferences in your browser settings.",
+    "section11Title": "11. Security Incidents",
+    "section11Text": "In case of a security incident involving personal data, we will notify ANPD and affected data subjects as per LGPD Art. 48, within a reasonable timeframe.",
+    "section12Title": "12. Data Protection Officer (DPO)",
+    "section12Text": "For questions related to personal data protection, contact our DPO at: dpo@theiadvisor.com.",
+    "section13Title": "13. Changes to this Policy",
+    "section13Text": "This policy may be updated periodically. Changes will be communicated by email or via the platform."
+  },
+  "help": {
+    "title": "Help Center",
+    "subtitle": "Find answers to the most frequently asked questions about TheIAdvisor.",
+    "contactTitle": "Need more help?",
+    "contactDesc": "Our support team is ready to help you.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy",
+    "categories": {
+      "gettingStarted": "Getting Started",
+      "phoneCalls": "Phone Calls",
+      "whatsapp": "WhatsApp",
+      "billing": "Plans and Billing",
+      "privacy": "Privacy and Data",
+      "support": "Support"
+    },
+    "faq": {
+      "whatIs": {
+        "q": "What is TheIAdvisor?",
+        "a": "TheIAdvisor is a SaaS AI sales assistant platform that helps salespeople close more deals through real-time suggestions during calls and WhatsApp conversations."
+      },
+      "howToStart": {
+        "q": "How to get started?",
+        "a": "Create your account, complete the 4-step onboarding, configure your channels (phone and/or WhatsApp), and start receiving AI suggestions in your customer interactions."
+      },
+      "channels": {
+        "q": "Which channels are supported?",
+        "a": "We currently support phone calls (via Twilio) with real-time transcription and WhatsApp Business with message analysis and contextual suggestions."
+      },
+      "callAI": {
+        "q": "How does AI work during calls?",
+        "a": "AI transcribes the call in real-time using Deepgram (~200ms latency) and generates contextual suggestions via GPT-4o-mini, displayed instantly on the salesperson's dashboard."
+      },
+      "countries": {
+        "q": "Which countries are supported for calls?",
+        "a": "We currently offer US numbers (+1). Brazilian numbers (+55) will be available soon."
+      },
+      "recording": {
+        "q": "Are calls recorded?",
+        "a": "Yes, calls can be recorded and stored securely on Cloudflare R2. Full transcriptions are available on the dashboard."
+      },
+      "whatsappConnect": {
+        "q": "How to connect my WhatsApp?",
+        "a": "You need a WhatsApp Business API account (via Meta Business Manager). Configure the Access Token and Phone Number ID in the platform settings."
+      },
+      "whatsappAI": {
+        "q": "Does AI respond automatically on WhatsApp?",
+        "a": "No. AI analyzes incoming messages and suggests responses to the salesperson. The salesperson decides whether to send the suggestion, edit it, or write their own response."
+      },
+      "messageLimits": {
+        "q": "Are there message limits?",
+        "a": "Limits vary by plan: Starter (1,000 suggestions/month), Professional (5,000/month), Enterprise (unlimited)."
+      },
+      "plans": {
+        "q": "What plans are available?",
+        "a": "We offer 3 plans: Starter (R$97/month), Professional (R$297/month), and Enterprise (R$697/month). All include AI access, dashboard, and support."
+      },
+      "payment": {
+        "q": "What payment methods are accepted?",
+        "a": "We accept credit cards (Visa, Mastercard, Amex) via Stripe. Billing is monthly in Brazilian Reais (BRL)."
+      },
+      "cancellation": {
+        "q": "How to cancel my subscription?",
+        "a": "You can cancel at any time in billing settings. Access continues until the end of the paid period."
+      },
+      "dataProtection": {
+        "q": "How is my data protected?",
+        "a": "We use TLS encryption in transit, multi-factor authentication via Clerk, RBAC, and all data is stored on secure servers with automatic backups."
+      },
+      "lgpd": {
+        "q": "Is TheIAdvisor LGPD compliant?",
+        "a": "Yes. We fully comply with the General Data Protection Law (LGPD). You can export or request deletion of your data at any time."
+      },
+      "getHelp": {
+        "q": "How to get technical support?",
+        "a": "Contact us at team@theiadvisor.com. Our average response time is 24 business hours."
+      },
+      "contact": {
+        "q": "What is the contact email?",
+        "a": "Our main support email is team@theiadvisor.com."
+      }
+    }
+  },
   "analyticsOverview": {
     "title": "Performance Overview",
     "aiAdoption": "AI Adoption Rate",

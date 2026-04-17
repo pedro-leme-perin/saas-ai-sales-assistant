@@ -245,7 +245,9 @@ export function InviteMemberModal({
               ) : (
                 <Mail className="h-4 w-4" />
               )}
-              {t("team.invite.submit")}
+              {isSubmitting
+                ? t("team.invite.sending")
+                : t("team.invite.send")}
             </Button>
           </div>
         </div>

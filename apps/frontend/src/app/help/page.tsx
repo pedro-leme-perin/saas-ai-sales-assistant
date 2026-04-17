@@ -104,6 +104,7 @@ function AccordionItem({
     <div className="border-b last:border-b-0">
       <button
         onClick={onToggle}
+        aria-expanded={isOpen}
         className="flex w-full items-center justify-between py-4 text-left text-sm font-medium hover:text-primary transition-colors"
       >
         <span>{question}</span>
@@ -250,11 +251,10 @@ export default function HelpPage() {
             >
               {t("help.privacy")}
             </Link>
+            <span>
+              &copy; {new Date().getFullYear()} TheIAdvisor
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} TheIAdvisor.{" "}
-            {t("landing.footerRights")}
-          </p>
         </div>
       </footer>
     </main>
