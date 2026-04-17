@@ -69,9 +69,7 @@ export class UsersController {
       throw new UnauthorizedException('User context not found');
     }
 
-    this.logger.log(
-      `LGPD data export requested by user ${userId} in company ${companyId}`,
-    );
+    this.logger.log(`LGPD data export requested by user ${userId} in company ${companyId}`);
 
     const data = await this.usersService.exportUserData(userId, companyId);
 
@@ -99,10 +97,7 @@ export class UsersController {
     status: 401,
     description: 'User context not found',
   })
-  async requestDeletion(
-    @Request() req: AuthenticatedRequest,
-    @Body() body: RequestDeletionDto,
-  ) {
+  async requestDeletion(@Request() req: AuthenticatedRequest, @Body() body: RequestDeletionDto) {
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
 
@@ -110,15 +105,9 @@ export class UsersController {
       throw new UnauthorizedException('User context not found');
     }
 
-    this.logger.log(
-      `LGPD deletion request by user ${userId} in company ${companyId}`,
-    );
+    this.logger.log(`LGPD deletion request by user ${userId} in company ${companyId}`);
 
-    return this.usersService.requestAccountDeletion(
-      userId,
-      companyId,
-      body.reason,
-    );
+    return this.usersService.requestAccountDeletion(userId, companyId, body.reason);
   }
 
   // ============================================
@@ -176,7 +165,8 @@ export class UsersController {
   @ApiOperation({
     summary: 'Invite a user to the company',
     description:
-      'Send an invitation to a new user. Creates a PENDING user record that becomes ACTIVE when the invited person signs up.',
+      'Send an invitation to a new user. Creates a PENDING user record ' +
+      'that becomes ACTIVE when the invited person signs up.',
   })
   @ApiResponse({
     status: 201,
@@ -272,5 +262,4 @@ export class UsersController {
       updatedAt: updated.updatedAt,
     };
   }
-
 }

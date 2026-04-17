@@ -544,10 +544,7 @@ export class UsersService {
    * LGPD Art. 18, V — Data portability.
    * Collects all user data within their tenant for export.
    */
-  async exportUserData(
-    userId: string,
-    companyId: string,
-  ): Promise<Record<string, unknown>> {
+  async exportUserData(userId: string, companyId: string): Promise<Record<string, unknown>> {
     this.logger.log(`Exporting data for user ${userId} in company ${companyId}`);
 
     const user = await this.findByIdOrThrow(userId, companyId);
@@ -644,9 +641,7 @@ export class UsersService {
     message: string;
     scheduledDeletionDate: Date;
   }> {
-    this.logger.log(
-      `Account deletion requested for user ${userId} in company ${companyId}`,
-    );
+    this.logger.log(`Account deletion requested for user ${userId} in company ${companyId}`);
 
     const user = await this.findByIdOrThrow(userId, companyId);
 

@@ -125,9 +125,7 @@ export class EmailService {
     const { recipientEmail, userName, scheduledDeletionDate } = params;
 
     if (!this.apiKey) {
-      this.logger.warn(
-        'RESEND_API_KEY not configured — skipping deletion request email',
-      );
+      this.logger.warn('RESEND_API_KEY not configured — skipping deletion request email');
       return { success: false };
     }
 
@@ -215,9 +213,7 @@ export class EmailService {
       return { success: true, messageId: result?.id };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Failed to send deletion request email to ${recipientEmail}: ${message}`,
-      );
+      this.logger.error(`Failed to send deletion request email to ${recipientEmail}: ${message}`);
       return { success: false };
     }
   }
