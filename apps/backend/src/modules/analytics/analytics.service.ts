@@ -509,6 +509,7 @@ export class AnalyticsService {
       if (batch.length === 0) return;
 
       for (const log of batch) {
+        if (emitted >= filters.maxRows) return;
         yield {
           id: log.id,
           createdAt: log.createdAt,
