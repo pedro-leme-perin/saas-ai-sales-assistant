@@ -21,7 +21,9 @@
     "user": "Usuário",
     "you": "Você",
     "customer": "Cliente",
-    "used": "Utilizada"
+    "used": "Utilizada",
+    "expand": "Expandir",
+    "collapse": "Recolher"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -709,6 +711,49 @@
           "price": "Sob consulta"
         }
       }
+    },
+    "checklist": {
+      "title": "Configure sua conta",
+      "subtitle": "{{completed}} de {{total}} etapas concluídas",
+      "dismiss": "Dispensar checklist",
+      "markComplete": "Marcar como concluída",
+      "alreadyCompleted": "Etapa concluída",
+      "skip": "Pular",
+      "steps": {
+        "COMPLETE_PROFILE": {
+          "title": "Complete seu perfil",
+          "description": "Adicione nome, foto e preferências pessoais"
+        },
+        "COMPANY_DETAILS": {
+          "title": "Detalhes da empresa",
+          "description": "Informe setor, tamanho e fuso horário"
+        },
+        "INVITE_TEAM": {
+          "title": "Convide sua equipe",
+          "description": "Adicione vendedores, gerentes e administradores"
+        },
+        "CONNECT_CHANNEL": {
+          "title": "Conecte um canal",
+          "description": "Ative ligações (Twilio) ou WhatsApp Business"
+        },
+        "FIRST_INTERACTION": {
+          "title": "Primeira interação",
+          "description": "Faça sua primeira ligação ou responda um chat"
+        },
+        "EXPLORE_ANALYTICS": {
+          "title": "Explore o Analytics",
+          "description": "Veja métricas de performance e sentimento"
+        }
+      }
+    }
+  },
+  "billing": {
+    "recovery": {
+      "dangerTitle": "Pagamento em atraso — ação urgente",
+      "warningTitle": "Falha no pagamento detectada",
+      "gracePeriodMessage": "Regularize até {{deadline}} para evitar a suspensão do serviço.",
+      "overdueMessage": "Sua conta pode ser suspensa a qualquer momento. Atualize o pagamento agora.",
+      "payNow": "Pagar agora"
     }
   },
   "analyticsOverview": {

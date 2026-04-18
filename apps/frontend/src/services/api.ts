@@ -383,6 +383,89 @@ export const billingService = {
   async getPortalUrl(): Promise<{ url: string }> {
     return apiClient.get('/billing/portal');
   },
+
+  // Session 42 — Dunning + self-service recovery
+  async getRecoveryStatus(): Promise<{
+    hasFailedPayments: boolean;
+    inGracePeriod: boolean;
+    subscriptionStatus: string | null;
+    openInvoices: Array<{
+      id: string;
+      amount: number;
+      currency: string;
+      paymentAttempts: number;
+      dunningStage: string | null;
+      nextDunningAt: string | null;
+      hostedInvoiceUrl: string | null;
+      graceDeadline: string | null;
+    }>;
+  }> {
+    return apiClient.get('/billing/recovery/status');
+  },
+
+  async pauseSubscription(reason?: string): Promise<{ success: boolean; status: string; resumableAt: string | null }> {
+    return apiClient.post('/billing/recovery/pause', { reason });
+  },
+
+  async resumeSubscription(): Promise<{ success: boolean; status: string }> {
+    return apiClient.post('/billing/recovery/resume', {});
+  },
+
+  async submitExitSurvey(reason: string, comment?: string): Promise<{ success: boolean }> {
+    return apiClient.post('/billing/recovery/exit-survey', { reason, comment });
+  },
+};
+
+// =============================================
+// ONBOARDING SERVICE (Session 42)
+// =============================================
+
+export type OnboardingStepId =
+  | 'COMPLETE_PROFILE'
+  | 'COMPANY_DETAILS'
+  | 'INVITE_TEAM'
+  | 'CONNECT_CHANNEL'
+  | 'FIRST_INTERACTION'
+  | 'EXPLORE_ANALYTICS';
+
+export interface OnboardingProgress {
+  percent: number;
+  isComplete: boolean;
+  isDismissed: boolean;
+  stepsCompleted: OnboardingStepId[];
+  stepsSkipped: OnboardingStepId[];
+  completedAt: string | null;
+  dismissedAt: string | null;
+  startedAt: string;
+  steps: Array<{
+    id: OnboardingStepId;
+    order: number;
+    actionUrl: string;
+    estimatedMinutes: number;
+    status: 'pending' | 'completed' | 'skipped';
+  }>;
+}
+
+export const onboardingService = {
+  async getProgress(): Promise<OnboardingProgress> {
+    return apiClient.get('/onboarding/progress');
+  },
+
+  async completeStep(stepId: OnboardingStepId): Promise<OnboardingProgress> {
+    return apiClient.post(`/onboarding/steps/${stepId}/complete`, {});
+  },
+
+  async skipStep(stepId: OnboardingStepId, reason?: string): Promise<OnboardingProgress> {
+    return apiClient.post(`/onboarding/steps/${stepId}/skip`, { reason });
+  },
+
+  async dismiss(feedback?: string): Promise<OnboardingProgress> {
+    return apiClient.post('/onboarding/dismiss', { feedback });
+  },
+
+  async reset(): Promise<OnboardingProgress> {
+    return apiClient.post('/onboarding/reset', {});
+  },
 };
 
 // =============================================

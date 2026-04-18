@@ -13,6 +13,8 @@ import { formatDuration, formatDateTime, formatPhone, getCallStatusColor } from 
 import type { Call } from '@/types';
 import Link from 'next/link';
 import { useTranslation } from '@/i18n/use-translation';
+import { OnboardingChecklist } from '@/components/onboarding/onboarding-checklist';
+import { PaymentRecoveryBanner } from '@/components/billing/payment-recovery-banner';
 
 function KPISkeleton() {
   return (
@@ -116,6 +118,12 @@ export default function DashboardPage() {
         </h1>
         <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
       </div>
+
+      {/* Payment recovery banner — shown only when hasFailedPayments */}
+      <PaymentRecoveryBanner />
+
+      {/* Onboarding checklist — auto-hides when complete or dismissed */}
+      <OnboardingChecklist />
 
       {/* KPIs */}
       {isLoading ? (

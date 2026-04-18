@@ -1,7 +1,14 @@
 // ==============================================
 // 💳 BILLING SERVICE
 // ==============================================
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+  forwardRef,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
@@ -11,6 +18,7 @@ import { AuthenticatedUser } from '@common/decorators';
 import { Plan, SubscriptionStatus, AuditAction, Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
+import { PaymentRecoveryService } from '@modules/payment-recovery/payment-recovery.service';
 
 export interface PlanDetails {
   name: string;
@@ -48,6 +56,7 @@ interface StripeInvoice {
   period_start?: number;
   period_end?: number;
   subscription?: string;
+  last_payment_error?: string;
   metadata?: { companyId?: string };
   subscription_details?: { metadata?: { companyId?: string } };
 }
@@ -70,6 +79,8 @@ export class BillingService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly webhookIdempotency: WebhookIdempotencyService,
+    @Inject(forwardRef(() => PaymentRecoveryService))
+    private readonly paymentRecovery: PaymentRecoveryService,
   ) {
     this.stripeSecretKey = this.configService.get<string>('stripe.secretKey') || '';
     this.stripePrices = {
@@ -574,7 +585,7 @@ export class BillingService {
         return;
       }
 
-      await this.prisma.invoice.upsert({
+      const invoice = await this.prisma.invoice.upsert({
         where: { stripeInvoiceId: stripeInvoice.id },
         create: {
           companyId,
@@ -612,6 +623,9 @@ export class BillingService {
           );
         }
       }
+
+      // Enroll invoice in dunning sequence (Session 42 — payment recovery)
+      await this.paymentRecovery.scheduleDunning(invoice.id, stripeInvoice.last_payment_error);
 
       this.logger.warn(`⚠️  Invoice payment failed: ${stripeInvoice.id} for company ${companyId}`);
     } catch (error) {

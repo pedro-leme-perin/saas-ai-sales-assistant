@@ -2,13 +2,14 @@
 // 💳 BILLING MODULE
 // =============================================
 
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
+import { PaymentRecoveryModule } from '@modules/payment-recovery/payment-recovery.module';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, forwardRef(() => PaymentRecoveryModule)],
   controllers: [BillingController],
   providers: [BillingService],
   exports: [BillingService],

@@ -5,6 +5,7 @@ import { BillingService } from '../../src/modules/billing/billing.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
 import { WebhookIdempotencyService } from '../../src/common/resilience/webhook-idempotency.service';
+import { PaymentRecoveryService } from '../../src/modules/payment-recovery/payment-recovery.service';
 import type { Plan } from '@prisma/client';
 import type Stripe from 'stripe';
 import type { AuthenticatedUser } from '../../src/common/decorators';
@@ -101,6 +102,10 @@ describe('BillingService', () => {
       .mockResolvedValue({ isDuplicate: false, correlationId: 'wh_stripe_test' }),
   };
 
+  const mockPaymentRecovery = {
+    scheduleDunning: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -109,6 +114,7 @@ describe('BillingService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: CacheService, useValue: mockCacheService },
         { provide: WebhookIdempotencyService, useValue: mockWebhookIdempotency },
+        { provide: PaymentRecoveryService, useValue: mockPaymentRecovery },
       ],
     }).compile();
 

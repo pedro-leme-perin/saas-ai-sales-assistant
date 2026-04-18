@@ -1,5 +1,5 @@
 # SaaS AI Sales Assistant — Project Instructions
-**Versão:** 5.0
+**Versão:** 5.1
 **Atualização:** Abril 2026
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
 **Histórico detalhado de sessões:** ver `PROJECT_HISTORY.md`
@@ -22,15 +22,15 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 18/04/2026 (sessão 41)
+> Última atualização: 18/04/2026 (sessão 42)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | `10ce054` (18/04/2026) | CI #159 GREEN — sessão 41 concluída |
-| Backend (NestJS) | ✅ Produção | Railway — 12 módulos, 44 test suites, 40 env vars |
+| Último commit | sessão 42 (18/04/2026) | Onboarding guiado + Payment recovery (dunning/grace/pause) |
+| Backend (NestJS) | ✅ Produção | Railway — 14 módulos, 46+ test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 18 routes |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
@@ -107,6 +107,38 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **CI:** #155 ❌ → #156 ❌ → #157 ❌ → #158 ❌ → #159 ✅
 
+### 2.5.1 Sessão 42 — 18/04/2026
+
+**Objetivo:** 2 features enterprise completas em profundidade (opção A) — Onboarding guiado pós-signup + Billing dunning/recovery.
+
+**Feature A — Onboarding guiado (módulo `onboarding`):**
+- `OnboardingService` com 6 steps (`COMPLETE_PROFILE`, `COMPANY_DETAILS`, `INVITE_TEAM`, `CONNECT_CHANNEL`, `FIRST_INTERACTION`, `EXPLORE_ANALYTICS`).
+- Auto-detecção self-healing: a cada `GET /onboarding/progress` infere completions a partir do estado do DB (usuário convidou via `/team`, ligou, configurou WhatsApp, etc.) via `promiseAllWithTimeout(10_000)`.
+- Persistência em `Company.settings.onboardingProgress` (JSON schema-on-read, sem nova tabela).
+- Endpoints: `GET /onboarding/progress`, `POST /onboarding/steps/:stepId/complete|skip`, `POST /onboarding/dismiss`, `POST /onboarding/reset` (OWNER/ADMIN).
+- Frontend: `useOnboardingProgress` (TanStack Query) + `<OnboardingChecklist />` (dismissable, colapsável, progress bar, auto-hide quando `isComplete||isDismissed`). Renderizado no topo do dashboard.
+- i18n: ~25 chaves (`onboarding.checklist.*`) em pt-BR + en.
+
+**Feature B — Payment recovery (módulo `payment-recovery`):**
+- Schema: 4 campos novos em `Invoice` (`paymentAttempts`, `lastPaymentError`, `nextDunningAt`, `dunningStage`) + índice em `nextDunningAt`. Migration `20260418203919_add_dunning_fields_to_invoice`.
+- `PaymentRecoveryService`:
+  - `scheduleDunning(invoiceId, error?)` — chamado por `BillingService.handleInvoicePaymentFailed` (via `forwardRef`) para enrolar invoice em sequência D1 → D3 → D7 → SUSPENDED.
+  - `@Cron(EVERY_10_MINUTES)` `processDunning()` — batch bounded de 100 invoices (Release It! bulkhead), envia email de cobrança, avança stage, suspende após D7.
+  - `pauseSubscription(companyId, user, reason?)` — usa Stripe `pause_collection: { behavior: 'mark_uncollectible' }` + `SubscriptionStatus.PAUSED`. `CircuitBreaker('Stripe-Recovery')`.
+  - `resumeSubscription()`, `submitExitSurvey(reason, comment?)` (7 reasons), `getRecoveryStatus()` — retorna `hasFailedPayments`, `openInvoices[]` com `graceDeadline`, `inGracePeriod`.
+- Grace period por plano: STARTER=3d, PROFESSIONAL=5d, ENTERPRISE=14d.
+- `ScheduleModule.forRoot()` adicionado em `AppModule` para habilitar `@Cron`.
+- `EmailService.sendDunningEmail({ stage, recipientEmail, companyName, amount, currency, hostedInvoiceUrl, graceDeadline })` com 3 templates HTML (cordial D1 / urgente D3 / final D7), `Intl.NumberFormat('pt-BR')` para BRL.
+- Endpoints: `GET /billing/recovery/status`, `POST /billing/recovery/pause|resume|exit-survey` (OWNER/ADMIN).
+- Frontend: `<PaymentRecoveryBanner />` — severidade adaptativa (amber in grace / red overdue), polling 5min, link direto para hosted invoice. Renderizado no topo do dashboard.
+- i18n: 5 chaves (`billing.recovery.*`) em pt-BR + en.
+
+**Testes:** `onboarding.service.spec.ts` (~22 cases), `payment-recovery.service.spec.ts` (~18 cases), `billing.service.spec.ts` atualizado com mock de `PaymentRecoveryService`.
+
+**Circular dep:** `BillingModule` → (forwardRef) → `PaymentRecoveryModule` via `@Inject(forwardRef(() => PaymentRecoveryService))`.
+
+**Resilience:** `CircuitBreaker` nas chamadas Stripe, `promiseAllWithTimeout(10_000)` em queries Prisma paralelas, audit log em todas mutações.
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -123,6 +155,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 39 | 16/04 | Webhook idempotency, DTO hardening, error boundaries | ⏳ |
 | 40 | 17/04 | Legal pages, LGPD endpoints | #154 ✅ |
 | 41 | 18/04 | 10 enterprise improvements + fixes | #159 ✅ |
+| 42 | 18/04 | Onboarding guiado + Payment recovery (dunning/grace/pause) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -136,7 +169,7 @@ Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
 Referências: *Building Microservices* Cap. 1 (monolith-first), *Fundamentals of Software Architecture* Cap. 13 (Service-Based), *Clean Architecture* (Dependency Rule).
 
-Justificativa: ACID transactions preservadas, sem overhead de orquestração, banco compartilhado permite joins SQL, 12 módulos NestJS com boundaries claros. Migração futura para microservices possível via *Building Microservices* Cap. 3 (incremental migration).
+Justificativa: ACID transactions preservadas, sem overhead de orquestração, banco compartilhado permite joins SQL, 14 módulos NestJS com boundaries claros. Migração futura para microservices possível via *Building Microservices* Cap. 3 (incremental migration).
 
 ### 3.2 Dependency Rule (*Clean Architecture* Cap. 22)
 
@@ -172,7 +205,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │  │  64+ endpoints documentados      │   │
 │  └─────────────────┬────────────────┘   │
 │  ┌─────────────────▼────────────────┐   │
-│  │  APPLICATION (12 Modules)        │   │
+│  │  APPLICATION (14 Modules)        │   │
 │  │  Services · Use Cases · DTOs     │   │
 │  └─────────────────┬────────────────┘   │
 │  ┌─────────────────▼────────────────┐   │
@@ -237,6 +270,8 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
 │   │       │   ├── email/          # Resend integration, templates
 │   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
+│   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
+│   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
 │   │       │   ├── users/          # CRUD, invites, roles, RBAC, LGPD
 │   │       │   └── whatsapp/       # WhatsApp API, chat, messages

@@ -402,6 +402,12 @@ model Invoice {
   dueDate             DateTime?     @map("due_date")
   paidAt              DateTime?     @map("paid_at")
 
+  // Dunning (Sessão 42 — payment recovery)
+  paymentAttempts     Int           @default(0) @map("payment_attempts")
+  lastPaymentError    String?       @map("last_payment_error")
+  nextDunningAt       DateTime?     @map("next_dunning_at")
+  dunningStage        String?       @map("dunning_stage") // D1 | D3 | D7 | SUSPENDED
+
   // Timestamps
   createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
@@ -409,6 +415,7 @@ model Invoice {
   @@index([companyId])
   @@index([stripeInvoiceId])
   @@index([status])
+  @@index([nextDunningAt]) // Dunning cron scans
   @@map("invoices")
 }
 

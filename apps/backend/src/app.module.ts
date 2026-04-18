@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -19,6 +20,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AuthModule } from './modules/auth/auth.module';
 import { EmailModule } from './modules/email/email.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { PaymentRecoveryModule } from './modules/payment-recovery/payment-recovery.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -36,6 +39,8 @@ import configuration from './config/configuration';
       { name: 'strict', ttl: 60000, limit: 20 },
       { name: 'auth', ttl: 60000, limit: 10 },
     ]),
+    // Scheduled jobs (dunning cron, cleanup tasks)
+    ScheduleModule.forRoot(),
     PrismaModule,
     CacheModule,
     TelemetryModule,
@@ -51,6 +56,8 @@ import configuration from './config/configuration';
     NotificationsModule,
     EmailModule,
     UploadModule,
+    OnboardingModule,
+    PaymentRecoveryModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

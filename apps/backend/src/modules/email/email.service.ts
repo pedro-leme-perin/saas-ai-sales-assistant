@@ -219,11 +219,178 @@ export class EmailService {
   }
 
   /**
+   * Send dunning email (payment recovery sequence D+1, D+3, D+7).
+   * Session 42: enterprise billing recovery.
+   */
+  async sendDunningEmail(params: {
+    stage: 'D1' | 'D3' | 'D7';
+    recipientEmail: string;
+    companyName: string;
+    amount: number; // cents
+    currency: string;
+    hostedInvoiceUrl: string | null;
+    graceDeadline: Date;
+  }): Promise<{ success: boolean; messageId?: string }> {
+    const { stage, recipientEmail, companyName, amount, currency, hostedInvoiceUrl, graceDeadline } =
+      params;
+
+    if (!this.apiKey) {
+      this.logger.warn(`RESEND_API_KEY not configured — skipping dunning ${stage} email`);
+      return { success: false };
+    }
+
+    const formattedAmount = this.formatCurrency(amount, currency);
+    const formattedDeadline = graceDeadline.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const subject = this.dunningSubject(stage, formattedAmount);
+    const html = this.buildDunningTemplate({
+      stage,
+      companyName,
+      amount: formattedAmount,
+      hostedInvoiceUrl,
+      graceDeadline: formattedDeadline,
+    });
+
+    try {
+      const result = await this.send({ to: recipientEmail, subject, html });
+      this.logger.log(
+        `Dunning ${stage} email sent to ${recipientEmail} (messageId: ${result?.id})`,
+      );
+      return { success: true, messageId: result?.id };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to send dunning ${stage} email to ${recipientEmail}: ${message}`);
+      return { success: false };
+    }
+  }
+
+  /**
    * Get circuit breaker status (for health check)
    */
   getCircuitBreakerStatus(): { name: string; state: string } {
     const info = this.circuitBreaker.getHealthInfo();
     return { name: info.name, state: info.state };
+  }
+
+  private formatCurrency(amountCents: number, currency: string): string {
+    const value = amountCents / 100;
+    try {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: currency.toUpperCase(),
+      }).format(value);
+    } catch {
+      return `${currency.toUpperCase()} ${value.toFixed(2)}`;
+    }
+  }
+
+  private dunningSubject(stage: 'D1' | 'D3' | 'D7', amount: string): string {
+    switch (stage) {
+      case 'D1':
+        return `Nao conseguimos processar seu pagamento de ${amount}`;
+      case 'D3':
+        return `Atencao: pagamento pendente de ${amount} — TheIAdvisor`;
+      case 'D7':
+        return `Ultimo aviso: sua conta sera suspensa em 48h`;
+    }
+  }
+
+  private buildDunningTemplate(params: {
+    stage: 'D1' | 'D3' | 'D7';
+    companyName: string;
+    amount: string;
+    hostedInvoiceUrl: string | null;
+    graceDeadline: string;
+  }): string {
+    const { stage, companyName, amount, hostedInvoiceUrl, graceDeadline } = params;
+    const cta = hostedInvoiceUrl ?? `${this.frontendUrl}/dashboard/billing`;
+
+    const { headline, tone, body, urgency } = this.dunningCopy(stage, amount, graceDeadline);
+    const accent = stage === 'D1' ? '#3b82f6' : stage === 'D3' ? '#f59e0b' : '#dc2626';
+
+    return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${headline}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f4f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5; padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background:${accent}; padding:24px 40px; text-align:center;">
+              <h1 style="color:#ffffff; margin:0; font-size:20px; font-weight:700;">TheIAdvisor</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px;">
+              <p style="color:#a1a1aa; font-size:12px; text-transform:uppercase; letter-spacing:0.1em; margin:0 0 8px;">${tone}</p>
+              <h2 style="color:#18181b; margin:0 0 16px; font-size:22px;">${headline}</h2>
+              <p style="color:#52525b; font-size:16px; line-height:1.6; margin:0 0 16px;">Ola, <strong>${companyName}</strong>.</p>
+              <p style="color:#52525b; font-size:16px; line-height:1.6; margin:0 0 24px;">${body}</p>
+              ${urgency ? `<p style="background:#fef2f2; border-left:4px solid #dc2626; padding:12px 16px; color:#7f1d1d; font-size:14px; margin:0 0 24px;">${urgency}</p>` : ''}
+              <p style="color:#52525b; font-size:14px; margin:0 0 8px;">Valor pendente:</p>
+              <p style="color:#18181b; font-size:28px; font-weight:700; margin:0 0 24px;">${amount}</p>
+              <p style="color:#71717a; font-size:13px; margin:0 0 32px;">Prazo para regularizar sem suspensao: <strong>${graceDeadline}</strong></p>
+              <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                <tr>
+                  <td style="background-color:${accent}; border-radius:8px;">
+                    <a href="${cta}" style="display:inline-block; padding:14px 32px; color:#ffffff; text-decoration:none; font-size:16px; font-weight:600;">Atualizar pagamento</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#fafafa; padding:20px 40px; border-top:1px solid #e4e4e7;">
+              <p style="color:#a1a1aa; font-size:12px; margin:0; text-align:center;">
+                Precisa de ajuda? Responda este email ou escreva para team@theiadvisor.com
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+  }
+
+  private dunningCopy(
+    stage: 'D1' | 'D3' | 'D7',
+    amount: string,
+    deadline: string,
+  ): { headline: string; tone: string; body: string; urgency: string | null } {
+    switch (stage) {
+      case 'D1':
+        return {
+          tone: 'Aviso de pagamento',
+          headline: 'Tivemos um problema com seu pagamento',
+          body: `Nao conseguimos processar a cobranca de ${amount} no cartao cadastrado. Isso acontece — cartao expirado, limite, ou erro temporario do banco. Atualize seu meio de pagamento para continuar usando o TheIAdvisor sem interrupcoes.`,
+          urgency: null,
+        };
+      case 'D3':
+        return {
+          tone: 'Atencao',
+          headline: 'Seu acesso esta em risco',
+          body: `Ja tentamos processar o pagamento de ${amount} algumas vezes sem sucesso. Se voce nao atualizar o meio de pagamento ate ${deadline}, sua conta sera suspensa.`,
+          urgency: 'Apos suspensao, seu time perde acesso ao dashboard, chamadas e analytics. A recuperacao e imediata assim que o pagamento e confirmado.',
+        };
+      case 'D7':
+        return {
+          tone: 'Ultimo aviso',
+          headline: 'Sua conta sera suspensa em 48 horas',
+          body: `Este e o aviso final. O valor de ${amount} continua pendente. Se nao recebermos o pagamento em 48h, suspenderemos o acesso de todos os usuarios da ${''}sua empresa ate regularizacao.`,
+          urgency: 'Todos os dados sao preservados. Voce podera reativar a conta a qualquer momento pagando a fatura em aberto.',
+        };
+    }
   }
 
   private translateRole(role: string): string {

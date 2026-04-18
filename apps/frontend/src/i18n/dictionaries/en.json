@@ -21,7 +21,9 @@
     "user": "User",
     "you": "You",
     "customer": "Customer",
-    "used": "Used"
+    "used": "Used",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -709,6 +711,49 @@
           "price": "Contact us"
         }
       }
+    },
+    "checklist": {
+      "title": "Set up your account",
+      "subtitle": "{{completed}} of {{total}} steps completed",
+      "dismiss": "Dismiss checklist",
+      "markComplete": "Mark as complete",
+      "alreadyCompleted": "Step completed",
+      "skip": "Skip",
+      "steps": {
+        "COMPLETE_PROFILE": {
+          "title": "Complete your profile",
+          "description": "Add your name, photo and personal preferences"
+        },
+        "COMPANY_DETAILS": {
+          "title": "Company details",
+          "description": "Provide industry, team size and timezone"
+        },
+        "INVITE_TEAM": {
+          "title": "Invite your team",
+          "description": "Add sellers, managers and administrators"
+        },
+        "CONNECT_CHANNEL": {
+          "title": "Connect a channel",
+          "description": "Enable phone calls (Twilio) or WhatsApp Business"
+        },
+        "FIRST_INTERACTION": {
+          "title": "First interaction",
+          "description": "Make your first call or reply to a chat"
+        },
+        "EXPLORE_ANALYTICS": {
+          "title": "Explore Analytics",
+          "description": "Review performance and sentiment metrics"
+        }
+      }
+    }
+  },
+  "billing": {
+    "recovery": {
+      "dangerTitle": "Payment overdue — urgent action required",
+      "warningTitle": "Payment failure detected",
+      "gracePeriodMessage": "Resolve by {{deadline}} to avoid service suspension.",
+      "overdueMessage": "Your account may be suspended at any moment. Update your payment now.",
+      "payNow": "Pay now"
     }
   },
   "analyticsOverview": {

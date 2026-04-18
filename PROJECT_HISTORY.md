@@ -4,7 +4,7 @@
 **Projeto:** SaaS AI Sales Assistant (TheIAdvisor)
 **Início:** 13/03/2026
 **Última atualização:** 18/04/2026
-**Total de sessões:** 41
+**Total de sessões:** 42
 
 ---
 
@@ -511,6 +511,41 @@ Sessão final de configuração de produção. 5 de 6 itens concluídos. WhatsAp
 
 ### Sessão 41 — 18/04/2026
 **10 enterprise improvements.** 5 commits (`bbac064`..`10ce054`), 94 arquivos, +6573/-2040 linhas. Itens: (1) E2E tests reescritos (10 specs), (2) SEO (sitemap, robots.txt, JSON-LD), (3) Dashboard analytics melhorias, (4) Onboarding UX, (5) Admin features (invite modal, role badge, audit log detail/filters), (6) PWA v2 (sw.js 446 linhas, offline.html), (7) Rate limiting granular (@RateLimit decorator, ApiKeyGuard), (8) Swagger docs, (9) Security headers middleware (CSP, HSTS), (10) Legal pages i18n + Clerk middleware fix. CI #159 green.
+
+### Sessão 42 — 18/04/2026
+**Onboarding guiado + Payment recovery (opção A — profundidade).** 2 features enterprise completas.
+
+**Feature A — Onboarding guiado pós-signup (módulo `onboarding`).**
+Backend: `OnboardingService` com 6 steps (`COMPLETE_PROFILE`, `COMPANY_DETAILS`, `INVITE_TEAM`, `CONNECT_CHANNEL`, `FIRST_INTERACTION`, `EXPLORE_ANALYTICS`). Estado persistido em `Company.settings.onboardingProgress` (JSON schema-on-read, sem tabela nova). Auto-detecção self-healing: a cada `GET /progress`, `promiseAllWithTimeout(10_000)` consulta DB (user count > 1 → INVITE_TEAM, calls/chats > 0 → FIRST_INTERACTION, logo+website+industry → COMPANY_DETAILS, whatsapp configurado → CONNECT_CHANNEL). Endpoints: `GET /onboarding/progress`, `POST /onboarding/steps/:stepId/complete|skip`, `POST /onboarding/dismiss`, `POST /onboarding/reset` (OWNER/ADMIN). AuditLog em cada mutação via `$transaction`.
+Frontend: `useOnboardingProgress` (TanStack Query) + `<OnboardingChecklist />` (dismissable, colapsável, progress bar, auto-hide quando `isComplete||isDismissed`). Renderizado no topo do dashboard.
+
+**Feature B — Billing dunning/recovery (módulo `payment-recovery`).**
+Schema: 4 campos novos em `Invoice` (`paymentAttempts`, `lastPaymentError`, `nextDunningAt`, `dunningStage`) + índice em `nextDunningAt`. Migration `20260418203919_add_dunning_fields_to_invoice`.
+`PaymentRecoveryService`:
+- `scheduleDunning(invoiceId, error?)` — chamado por `BillingService.handleInvoicePaymentFailed` via `@Inject(forwardRef(() => PaymentRecoveryService))`. Enrolara invoice em D1 → D3 → D7 → SUSPENDED. Idempotente.
+- `@Cron(EVERY_10_MINUTES)` `processDunning()` — batch bounded 100 (Release It! bulkhead), envia email (`EmailService.sendDunningEmail`), avança stage, suspende após D7. Erros isolados por invoice.
+- `pauseSubscription(companyId, user, reason?)` — Stripe `pause_collection: { behavior: 'mark_uncollectible' }` + `SubscriptionStatus.PAUSED`. `CircuitBreaker('Stripe-Recovery', failureThreshold=5, resetTimeoutMs=30_000, callTimeoutMs=15_000)`.
+- `resumeSubscription()` — Stripe reset `pause_collection: ''` + status ACTIVE.
+- `submitExitSurvey(reason, comment?)` — 7 reasons (too_expensive, missing_feature, switched_competitor, no_longer_needed, technical_issues, poor_support, other). Persiste `cancelReason` (não cancela subscription — apenas captura analytics).
+- `getRecoveryStatus()` — `hasFailedPayments`, `openInvoices[]` com `graceDeadline` por invoice, `inGracePeriod`, `subscriptionStatus`.
+Grace period por plano: STARTER=3d, PROFESSIONAL=5d, ENTERPRISE=14d.
+`ScheduleModule.forRoot()` adicionado ao `AppModule`.
+`EmailService.sendDunningEmail({ stage, recipientEmail, companyName, amount, currency, hostedInvoiceUrl, graceDeadline })` — 3 templates HTML stage-aware (cordial D1 azul / urgente D3 âmbar / final D7 vermelho), `Intl.NumberFormat('pt-BR', { style: 'currency' })`, CTAs contextuais.
+Endpoints: `GET /billing/recovery/status`, `POST /billing/recovery/pause|resume|exit-survey` (OWNER/ADMIN).
+Frontend: `<PaymentRecoveryBanner />` — severidade adaptativa (amber em grace / red overdue), polling 5min, link direto para Stripe hosted invoice.
+
+**Testes:** `onboarding.service.spec.ts` (~22 cases: domain helpers + getProgress auto-detect + complete/skip/dismiss/reset), `payment-recovery.service.spec.ts` (~18 cases: helpers + scheduleDunning idempotency + processDunning cron suspend + pause/resume/exit-survey + getRecoveryStatus grace logic), `billing.service.spec.ts` atualizado com `mockPaymentRecovery`.
+
+**i18n:** pt-BR + en — 25 chaves `onboarding.checklist.*`, 5 chaves `billing.recovery.*`, 2 chaves `common.expand/collapse`.
+
+**Circular dep:** `BillingModule` → (forwardRef) → `PaymentRecoveryModule` via `@Inject(forwardRef(() => PaymentRecoveryService))` em `BillingService.constructor`.
+
+**Arquivos novos (~18):**
+- Backend: `modules/onboarding/{constants,onboarding.service,onboarding.controller,onboarding.module}.ts` + `dto/onboarding.dto.ts`; `modules/payment-recovery/{constants,payment-recovery.service,payment-recovery.controller,payment-recovery.module}.ts` + `dto/payment-recovery.dto.ts`; `prisma/migrations/20260418203919_add_dunning_fields_to_invoice/migration.sql`.
+- Frontend: `hooks/useOnboardingProgress.ts`, `components/onboarding/onboarding-checklist.tsx`, `components/billing/payment-recovery-banner.tsx`.
+- Tests: `test/unit/onboarding.service.spec.ts`, `test/unit/payment-recovery.service.spec.ts`.
+
+**Arquivos modificados:** `prisma/schema.prisma`, `app.module.ts`, `modules/billing/{billing.service,billing.module}.ts`, `modules/email/email.service.ts`, `app/dashboard/page.tsx`, `services/api.ts`, `test/unit/billing.service.spec.ts`, `i18n/dictionaries/{pt-BR,en}.json`, `CLAUDE.md`, `PROJECT_HISTORY.md`.
 
 ---
 
