@@ -180,9 +180,7 @@ describe('LgpdDeletionService', () => {
         companyId: 'c1',
         scheduledDeletionAt: null,
       });
-      await expect(service.executeDeletionById('u1')).rejects.toThrow(
-        /no scheduled deletion/i,
-      );
+      await expect(service.executeDeletionById('u1')).rejects.toThrow(/no scheduled deletion/i);
     });
   });
 });

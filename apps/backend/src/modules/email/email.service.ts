@@ -341,9 +341,7 @@ export class EmailService {
         subject: 'Sua conta foi excluida — TheIAdvisor',
         html,
       });
-      this.logger.log(
-        `Account-deleted email sent to ${recipientEmail} (messageId: ${result?.id})`,
-      );
+      this.logger.log(`Account-deleted email sent to ${recipientEmail} (messageId: ${result?.id})`);
       return { success: true, messageId: result?.id };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

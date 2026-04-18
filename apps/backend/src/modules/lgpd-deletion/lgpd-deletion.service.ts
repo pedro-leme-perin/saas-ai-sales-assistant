@@ -18,10 +18,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { EmailService } from '@modules/email/email.service';
 import { AuditAction, Prisma } from '@prisma/client';
-import {
-  LGPD_DELETION_BATCH_SIZE,
-  type LgpdDeletionAuditMetadata,
-} from './constants';
+import { LGPD_DELETION_BATCH_SIZE, type LgpdDeletionAuditMetadata } from './constants';
 
 interface DeletionCandidate {
   id: string;
@@ -170,9 +167,7 @@ export class LgpdDeletionService {
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.warn(
-          `Non-blocking: account-deleted email failed for ${email}: ${msg}`,
-        );
+        this.logger.warn(`Non-blocking: account-deleted email failed for ${email}: ${msg}`);
       });
   }
 }
