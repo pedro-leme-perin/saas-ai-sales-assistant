@@ -351,6 +351,128 @@ export class EmailService {
   }
 
   /**
+   * Session 44 — Weekly coaching digest for a single vendor.
+   * Non-fatal: failures logged, never thrown.
+   */
+  async sendCoachingReportEmail(params: {
+    recipientEmail: string;
+    userName: string;
+    companyName: string;
+    weekStart: Date;
+    weekEnd: Date;
+    metrics: {
+      calls: { total: number; completed: number; missed: number; conversionRate: number };
+      whatsapp: { chats: number; messagesSent: number };
+      ai: { suggestionsShown: number; suggestionsUsed: number; adoptionRate: number };
+    };
+    insights: string[];
+    recommendations: string[];
+  }): Promise<{ success: boolean; messageId?: string }> {
+    const { recipientEmail, userName, weekStart, weekEnd, metrics, insights, recommendations } =
+      params;
+
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping coaching email');
+      return { success: false };
+    }
+
+    const fmtDate = (d: Date) =>
+      d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    const period = `${fmtDate(weekStart)} — ${fmtDate(new Date(weekEnd.getTime() - 1))}`;
+    const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+    const insightsHtml = insights
+      .map((s) => `<li style="margin-bottom:6px;">${this.escapeHtml(s)}</li>`)
+      .join('');
+    const recsHtml = recommendations
+      .map((s) => `<li style="margin-bottom:6px;">${this.escapeHtml(s)}</li>`)
+      .join('');
+
+    const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Seu coaching semanal — TheIAdvisor</title></head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="620" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:28px 40px;">
+          <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">Seu coaching semanal</h1>
+          <p style="color:#e0e7ff;margin:4px 0 0;font-size:13px;">${period}</p>
+        </td></tr>
+        <tr><td style="padding:32px 40px;">
+          <p style="color:#18181b;font-size:16px;margin:0 0 18px;">Ola <strong>${this.escapeHtml(userName)}</strong>,</p>
+          <p style="color:#52525b;font-size:14px;line-height:1.6;margin:0 0 24px;">
+            Aqui esta um resumo da sua performance com recomendacoes geradas por IA.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4e4e7;border-radius:8px;margin-bottom:24px;">
+            <tr>
+              <td style="padding:14px;border-bottom:1px solid #e4e4e7;width:50%;">
+                <div style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Ligacoes</div>
+                <div style="color:#18181b;font-size:18px;font-weight:700;margin-top:4px;">${metrics.calls.completed}/${metrics.calls.total}</div>
+                <div style="color:#a1a1aa;font-size:12px;">conversao ${pct(metrics.calls.conversionRate)}</div>
+              </td>
+              <td style="padding:14px;border-bottom:1px solid #e4e4e7;border-left:1px solid #e4e4e7;width:50%;">
+                <div style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">WhatsApp</div>
+                <div style="color:#18181b;font-size:18px;font-weight:700;margin-top:4px;">${metrics.whatsapp.messagesSent}</div>
+                <div style="color:#a1a1aa;font-size:12px;">mensagens em ${metrics.whatsapp.chats} chats</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px;width:50%;">
+                <div style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Adocao IA</div>
+                <div style="color:#18181b;font-size:18px;font-weight:700;margin-top:4px;">${pct(metrics.ai.adoptionRate)}</div>
+                <div style="color:#a1a1aa;font-size:12px;">${metrics.ai.suggestionsUsed}/${metrics.ai.suggestionsShown} sugestoes</div>
+              </td>
+              <td style="padding:14px;border-left:1px solid #e4e4e7;width:50%;">
+                <div style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Perdidas</div>
+                <div style="color:#ef4444;font-size:18px;font-weight:700;margin-top:4px;">${metrics.calls.missed}</div>
+                <div style="color:#a1a1aa;font-size:12px;">ligacoes nao atendidas</div>
+              </td>
+            </tr>
+          </table>
+          <h2 style="color:#18181b;font-size:15px;margin:0 0 10px;">Insights</h2>
+          <ul style="color:#52525b;font-size:14px;line-height:1.55;margin:0 0 22px;padding-left:20px;">${insightsHtml}</ul>
+          <h2 style="color:#18181b;font-size:15px;margin:0 0 10px;">Recomendacoes</h2>
+          <ul style="color:#52525b;font-size:14px;line-height:1.55;margin:0 0 8px;padding-left:20px;">${recsHtml}</ul>
+          <p style="color:#a1a1aa;font-size:12px;margin:24px 0 0;">
+            Voce recebe este resumo toda segunda-feira. Ajuste preferencias em Configuracoes.
+          </p>
+        </td></tr>
+        <tr><td style="background-color:#fafafa;padding:20px 40px;border-top:1px solid #e4e4e7;">
+          <p style="color:#a1a1aa;font-size:12px;margin:0;text-align:center;">TheIAdvisor — Coaching por IA</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+    try {
+      const result = await this.send({
+        to: recipientEmail,
+        subject: `Seu coaching da semana ${period}`,
+        html,
+      });
+      this.logger.log(`Coaching email sent to ${recipientEmail} (messageId: ${result?.id})`);
+      return { success: true, messageId: result?.id };
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to send coaching email to ${recipientEmail}: ${msg}`);
+      return { success: false };
+    }
+  }
+
+  private escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /**
    * Get circuit breaker status (for health check)
    */
   getCircuitBreakerStatus(): { name: string; state: string } {

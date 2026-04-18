@@ -617,5 +617,170 @@ Frontend: `<AuditLogsPage />` ganha botões "Export CSV" / "Export JSON" no head
 
 ---
 
+## Sessão 44 — 18/04/2026 — Conversation summaries on-demand + Weekly AI coaching reports
+
+**Contexto:** Pedro autorizou opção C (AI/Product features). Duas features enterprise em profundidade, seguindo a cadência "commit/push/docs a cada 2 features de profundidade".
+
+### C1 — Conversation summaries on-demand
+
+**Motivação:** vendedores precisam revisar rapidamente ligações longas (>5min) e threads WhatsApp extensos. Transcrição bruta é ruim como UX — sumário com `keyPoints`, `sentimentTimeline` e `nextBestAction` acelera follow-up.
+
+**Decisão arquitetural:** Redis-only cache (sem nova tabela). Chave cache `summary:{kind}:{id}:{contentHash16}` onde `contentHash16 = sha256(transcript).slice(0,16)` — qualquer mudança no transcript invalida automaticamente. TTL 24h. Source-of-truth permanece `Call.transcript` / `WhatsappMessage[]`. Elimina problemas de reconciliação e reduz custo (sem mais um `CoachingReport`-like para uma feature já efêmera por natureza).
+
+**Backend (`modules/summaries/`):**
+- `constants.ts`: `SUMMARY_CACHE_TTL_SECONDS=86400`, `SUMMARY_MAX_TRANSCRIPT_CHARS=20_000`, `SUMMARY_MAX_MESSAGE_CHARS=800`, `SUMMARY_MAX_MESSAGES=80`, `SUMMARY_LLM_TIMEOUT_MS=20_000`. Types: `ConversationSummary`, `SummarySentimentTick`, `SummarySource`, `summaryCacheKey()`.
+- `summaries.service.ts`:
+  - `summarizeCall(callId, companyId, userId)` / `summarizeChat(chatId, companyId, userId)` públicos.
+  - `loadCallSource`: `call.findFirst({ where: { id, companyId }, select: {id, transcript, phoneNumber, duration}})`. Throws `NotFoundException` se ausente, `BadRequestException` se transcrição vazia após trim.
+  - `loadChatSource`: `whatsappChat.findFirst({ where: { id, companyId }})`. Se `messages.length === 0` → `BadRequestException`. Fetch DESC `take: SUMMARY_MAX_MESSAGES` → `reverse()` para cronológico → formata `Cliente:/Vendedor:` com truncate por mensagem a 800 chars.
+  - `summarize(source, userId)`: cache lookup via `getJson` — HIT retorna `{...cached, cached: true}` (sem LLM, sem audit noise). MISS chama `generateSummary` → `cache.set(key, summary, SUMMARY_CACHE_TTL_SECONDS)` write-through → `writeAuditLog` fire-and-forget (`.catch` log warn).
+  - `generateSummary`: fallback determinístico se `!this.openai` (sem API key) ou se LLM throw. OpenAI `chat.completions.create` com `response_format: { type: 'json_object' }`, `temperature: 0.3`, `max_tokens: 600`, system prompt em pt-BR exigindo schema exato. Envelopa em `CircuitBreaker('Summaries-OpenAI', failureThreshold: 3, resetTimeoutMs: 30_000, callTimeoutMs: 20_000)`.
+  - `parseSummary(raw, provider)`: tolerante — `JSON.parse` em try/catch, clamp `keyPoints` a 8, `coerceTick` valida `position ∈ [0,1]` e `sentiment ∈ {positive,neutral,negative}` (não aceita aliases), fallback com 2 ticks neutros se timeline inválida. Nunca throws.
+  - `writeAuditLog`: `AuditAction.READ`, resource `CALL` ou `WHATSAPP_CHAT`, `resourceId`, description plain (sem transcript = sem PII leak).
+- `summaries.controller.ts`: `POST /summaries/calls/:callId` + `POST /summaries/chats/:chatId`. `@UseGuards(TenantGuard)`, `@ApiBearerAuth`, `@Throttle({ default: { ttl: 60_000, limit: 20 } })`. Extrai `companyId` + `userId` via `@Clerk` decorator.
+- `summaries.module.ts`: imports `CacheModule` + `ConfigModule`, registra controller + service.
+- Registrado em `AppModule.imports`.
+
+**Frontend:**
+- `services/summaries.service.ts`: `summarizeCall(callId)`, `summarizeChat(chatId)` retornando `ConversationSummary`. `ConversationSummary` exportado para uso em páginas/modal.
+- `components/dashboard/summary-modal.tsx`: modal acessível (aria-labelledby, role dialog). Estados: loading (skeleton + spinner), error (alerta destructive), success (3 seções):
+  1. **Key Points** — `<ul>` com bullets + ícone Sparkles primary.
+  2. **Sentiment Timeline** — barra horizontal segmentada: cada tick vira `<div>` de largura proporcional (entre posições), cor verde/cinza/vermelho. Escala fixa 0..1.
+  3. **Next Best Action** — card highlighted (primary/5 bg), 1 frase acionável.
+  - Badge "fresh" (primary) ou "cached" (muted) no header.
+  - Footer com `provider` + `generatedAt` em locale.
+- `app/dashboard/calls/page.tsx`: +imports `summariesService`, `ConversationSummary`, `SummaryModal`. Estados `summaryOpen/summary/summaryLoading/summaryError`. `handleGenerateSummary` useCallback chama `summariesService.summarizeCall(selectedCall.id)`. Botão "Sparkles / Resumir com IA" no header do detail (condicional: `callDetail?.transcript`). `<SummaryModal>` renderizado no return.
+- `app/dashboard/whatsapp/page.tsx`: mesmo pattern, botão Sparkles no header do chat.
+- i18n: `summaries.*` namespace — callTitle, chatTitle, generate, generating, errorGeneric, modal.{ariaLabel, loading, keyPoints, sentimentTimeline, start, end, nextBestAction, cached, fresh}. pt-BR + en.
+
+### C2 — Weekly AI coaching reports
+
+**Motivação:** gestores de vendas precisam de feedback contínuo e personalizado para cada vendedor. Review manual semanal não escala. GPT-4o-mini analisa métricas agregadas e gera insights + recommendations acionáveis, entregues por email toda segunda-feira às 07:00 BRT.
+
+**Schema (`CoachingReport`):**
+```prisma
+model CoachingReport {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart       DateTime @map("week_start")
+  weekEnd         DateTime @map("week_end")
+  metrics         Json
+  insights        String[]
+  recommendations String[]
+  provider        String   @default("openai")
+  emailSentAt     DateTime? @map("email_sent_at")
+  emailError      String?   @map("email_error")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  @@unique([userId, weekStart], name: "user_week_unique")
+  @@index([companyId, weekStart])
+  @@index([userId, weekStart])
+  @@map("coaching_reports")
+}
+```
+
+- `@@unique([userId, weekStart])` é o pilar da idempotência — retries de cron não criam duplicatas.
+- Migration `20260418230000_add_coaching_reports`.
+- `Company` e `User` ganharam relação reversa `coachingReports CoachingReport[]`.
+
+**Backend (`modules/coaching/`):**
+- `constants.ts`: `COACHING_BATCH_SIZE=50` (bulkhead per tick), `COACHING_LLM_TIMEOUT_MS=20_000`, `COACHING_MIN_ACTIVITY_EVENTS=3` (threshold para skip LLM). Types: `CoachingMetrics`, `CoachingLLMOutput`, `WeekRange`. `previousWeekRange(now = new Date())` helper — computa ISO week anterior em UTC (Monday 00:00Z inclusive, next Monday exclusive) evitando DST.
+- `coaching.service.ts`:
+  - `@Cron('0 10 * * 1', { name: 'coaching-weekly-reports' })` → Monday 10:00 UTC ≈ 07:00 BRT. Itera `listVendorCandidates` com `try/catch` per-user (error isolation — uma falha não aborta o lote).
+  - `listVendorCandidates`: `prisma.user.findMany({ where: { isActive: true, deletedAt: null, scheduledDeletionAt: null, role: { in: ['VENDOR','MANAGER'] }, company: { isActive: true, deletedAt: null } }, take: COACHING_BATCH_SIZE, select: {id,name,email,companyId,company:{select:{name:true}}} })`. Scheduled-for-deletion users são excluídos (conformidade com LGPD feature da sessão 43).
+  - `generateForVendor(vendor, week)`:
+    1. `coachingReport.findUnique({ where: { user_week_unique: { userId, weekStart } } })` → skip silenciosamente se existe.
+    2. `aggregateMetrics(userId, week)` — `Promise.all` de 5 queries:
+       - `call.groupBy({ by: ['status'], where: {userId, createdAt}, _count: {_all}, _avg: {duration} })` → total/completed/missed/avgDurationSeconds/conversionRate.
+       - `whatsappChat.count({ where: {userId, createdAt} })`.
+       - `whatsappMessage.count({ where: {direction:'OUTGOING', chat:{userId}, createdAt} })`.
+       - `aISuggestion.groupBy({ by:['wasUsed'], where:{userId,createdAt}, _count:{_all} })` → adoptionRate.
+       - `call.groupBy({ by:['sentimentLabel'], where:{userId, createdAt, sentimentLabel:{not:null}}, _count:{_all} })` → agrupa em `{positive, neutral, negative}` via `endsWith('POSITIVE')` / `endsWith('NEGATIVE')`.
+    3. Se `totalActivity < COACHING_MIN_ACTIVITY_EVENTS` → stub hardcoded (sem spam de email para vendedores inativos — ainda persiste para audit).
+    4. Senão chama `generateLLMInsights(vendor, metrics)` dentro de `CircuitBreaker('Coaching-OpenAI', failureThreshold:3, resetTimeoutMs:60_000, callTimeoutMs:20_000)`. Prompt pt-BR exigindo JSON `{ insights[3-5], recommendations[2-4] }`. Filtra não-strings. Fallback em throw.
+    5. `fallback(metrics)` determinístico: insights baseados em números brutos + recommendations condicionais: `adoptionRate < 0.4` → "aumente uso de sugestões"; `conversionRate < 0.5 && total > 0` → "pratique abertura das ligações"; nenhum → "mantenha o ritmo".
+    6. `coachingReport.create` com metrics JSON + insights[] + recommendations[] + provider (`this.model` ou `'fallback'`).
+    7. `sendReportEmail` fire-and-forget via `.catch(logger.warn)` — não bloqueia DB commit.
+    8. `auditLog.create` fire-and-forget com `AuditAction.CREATE`, resource `'COACHING_REPORT'`.
+  - `sendReportEmail` chama `email.sendCoachingReportEmail(...)` + `coachingReport.updateMany` com `emailSentAt` (success) ou `emailError: 'delivery_failed'` (falha) — observabilidade de entrega.
+- `coaching.controller.ts`: `GET /coaching/me?limit=12` (clamp [1,52], `findMany where: {userId, companyId}, orderBy: weekStart desc`) + `GET /coaching/:id` (`findFirst where: {id, companyId, userId}`, `NotFoundException` se ausente).
+- `coaching.module.ts`: imports ConfigModule + EmailModule (redundante com `@Global()` mas explícito). Registrado em `AppModule.imports` após `SummariesModule`.
+
+**Email template (`EmailService.sendCoachingReportEmail`):**
+- HTML artesanal com gradient header (`linear-gradient(135deg, #6366f1, #8b5cf6)`), título "Seu relatório semanal de coaching".
+- Grid 2x2 com métricas chave: Ligações (total/completed), WhatsApp (msgs/chats), AI adoption (%), Missed calls.
+- `<ul>` de insights (bolinha primary) e recommendations (número numerado, highlight primary/5).
+- Footer com CTA "Ver relatórios completos" → `/dashboard/coaching`.
+- `escapeHtml(s)` helper privado (`& → &amp;`, `< → &lt;`, etc).
+- Retorna `{success, error?}` — nunca throw, para não quebrar o fire-and-forget.
+
+**Frontend:**
+- `services/coaching.service.ts`: `listMine(limit=12)` → GET /coaching/me?limit=X, `getOne(id)` → GET /coaching/:id. Exporta interfaces `CoachingMetrics`, `CoachingReport`, `CoachingListResponse`.
+- `app/dashboard/coaching/page.tsx` (~230 linhas):
+  - `useTranslation` retornando `{t, locale}`.
+  - `formatWeek(start, end, locale)` via `Intl.DateTimeFormat('pt-BR' | 'en-US', { day:'2-digit', month:'short' })` — subtrai 1ms do end para renderizar Sunday em vez da próxima Monday.
+  - `pct(n)` helper `${Math.round(n*100)}%`.
+  - `MetricCell` subcomponent — icon + label (uppercase tracking-wide) + value (2xl bold) + hint; tone variants (`default` / `danger` / `primary`).
+  - Lista: `useQuery(['coaching','me'], () => coachingService.listMine(12))`. Cada report vira `<button>` clicável (ghost hover:bg-muted/50) com avatar Sparkles + week range + resumo de métricas inline (`chats · messages · AI adoption · conversion`).
+  - `ReportDetail` inline component: header com `<Button variant="ghost"><ArrowLeft/></Button>` back + `<h1>` + week range. Grid 4-col `<MetricCell>` (Calls/WhatsApp/AI Adoption/Missed — este último com tone='danger'). Card `Insights` com `<ul>` bulleted primary. Card `Recommendations` com `<ol>` numerado (badges circulares primary). Footer com provider + emailSentAt (se presente).
+- `app/dashboard/coaching/error.tsx`: error boundary usando `<SegmentError segment="coaching">`.
+- `app/dashboard/layout.tsx`: +`{ key: 'nav.coaching', href: '/dashboard/coaching', icon: Sparkles }` entre analytics e team no `navigationKeys[]`.
+- i18n: `coaching.*` namespace — title, subtitle, empty.{title,description}, list.{calls,messages,aiAdoption,conversion}, metrics.{calls,whatsapp,aiAdoption,missed,conversion,chats}, detail.{title,insights,recommendations,none,provider,emailSent} + `nav.coaching`. pt-BR + en.
+
+**Circular dependency management:** `CoachingModule` importa `EmailModule` (que é `@Global()` mas manter explícito é boa prática). Sem ciclos (EmailModule não depende de Coaching).
+
+**ScheduleModule:** já habilitado na sessão 42 (payment-recovery). Reutilizado para o `@Cron` de coaching.
+
+**Testes novos:**
+- `test/unit/summaries.service.spec.ts` (~10 cases):
+  - Setup: mocks para Prisma (`call.findFirst`, `whatsappChat.findFirst`, `whatsappMessage.findMany`, `auditLog.create`), `CacheService` (`getJson`, `set`), `ConfigService`. `jest.mock('openai', ...)` com `mockCreate` compartilhado.
+  - Casos:
+    - `summarizeCall` throw NotFoundException se call ausente.
+    - Throw BadRequestException se transcript vazio.
+    - Tenant isolation: findFirst chamado com `{id, companyId}`.
+    - Cache HIT: retorna `cached:true` sem chamar `mockCreate` nem `auditLog.create`.
+    - Cache MISS: chama OpenAI uma vez + `cache.set` + audit (flush via `setImmediate`).
+    - Fallback provider=`fallback:error` se LLM throw.
+    - JSON inválido do LLM → fallback minimal (não throw).
+    - Clamp keyPoints a ≤8.
+    - Filter invalid sentiment ticks (null, string position, missing sentiment).
+    - `summarizeChat` throw NotFound / BadRequest / sucesso chronological.
+- `test/unit/coaching.service.spec.ts` (~10 cases):
+  - Setup: mocks para Prisma (`user.findMany`, `call.groupBy`, `whatsappChat.count`, `whatsappMessage.count`, `aISuggestion.groupBy`, `coachingReport.findUnique/create/updateMany`, `auditLog.create`), `EmailService.sendCoachingReportEmail`, `ConfigService`. `jest.mock('openai', ...)`.
+  - Casos:
+    - `previousWeekRange` em Wed/Mon/Sun — verifica boundaries ISO week exatas.
+    - Cron no-op em empty vendor list.
+    - Query respeita `take: COACHING_BATCH_SIZE` + filtros (isActive, role in VENDOR/MANAGER, scheduledDeletionAt null).
+    - Error isolation: vendor1 throws (findUnique reject) → vendor2 segue e é processado (findUnique chamado 2x).
+    - Idempotente: skip create/email/aggregate se findUnique retorna report existente.
+    - Under-active (total < 3): skip LLM, stub insights/recommendations.
+    - Active vendor: valida metrics exatas (total=10, conversion=0.8, adoption=0.6, sentiment={positive:5, neutral:1, negative:2}), LLM chamado 1x, insights[3]/recommendations[2] persistidos, email+audit fire-and-forget invocados.
+    - LLM fallback: low adoption+conversion → recommendations contém "sugestões de IA".
+    - Email failure: `emailError:'delivery_failed'` persistido via `updateMany`.
+
+**Arquivos novos:**
+- Backend: `modules/summaries/{constants,summaries.service,summaries.controller,summaries.module}.ts`, `modules/coaching/{constants,coaching.service,coaching.controller,coaching.module}.ts`, `prisma/migrations/20260418230000_add_coaching_reports/migration.sql`.
+- Tests: `test/unit/summaries.service.spec.ts`, `test/unit/coaching.service.spec.ts`.
+- Frontend: `services/summaries.service.ts`, `services/coaching.service.ts`, `components/dashboard/summary-modal.tsx`, `app/dashboard/coaching/{page,error}.tsx`.
+
+**Arquivos modificados:** `prisma/schema.prisma` (+CoachingReport model, +relações Company/User), `app.module.ts` (+SummariesModule, +CoachingModule), `modules/email/email.service.ts` (+sendCoachingReportEmail + escapeHtml), `app/dashboard/calls/page.tsx` (+summary modal wiring), `app/dashboard/whatsapp/page.tsx` (+summary modal wiring), `app/dashboard/layout.tsx` (+nav.coaching), `i18n/dictionaries/{pt-BR,en}.json` (+summaries.* +coaching.* +nav.coaching), `CLAUDE.md`, `PROJECT_HISTORY.md`.
+
+**Resilience patterns aplicados:**
+- `CircuitBreaker` dedicado por integração (Summaries-OpenAI, Coaching-OpenAI) — falhas isoladas, fast-fail, timeout 20s.
+- `@@unique([userId, weekStart])` + pre-check `findUnique` — idempotência dupla do cron (cheap fast-path + DB constraint).
+- Bounded batch (`COACHING_BATCH_SIZE=50`) — Release It! bulkhead, não explode em tenants grandes.
+- Error isolation per-vendor (try/catch no loop) — uma falha não degrada o lote.
+- Fallback determinístico em LLM failure — UX nunca quebra.
+- Fire-and-forget para side-effects (audit, email) — latência do request ≠ latência de I/O periférico.
+- Email com status flag (`emailSentAt` / `emailError`) — observabilidade de entrega sem SMTP bouncing.
+- Cache-first com content hash — elimina LLM calls repetidos no mesmo transcript.
+- Timeout granular: `SUMMARY_LLM_TIMEOUT_MS` (20s) assíncrono, mais generoso que SLO de sugestão em tempo real (2s).
+- Tenant isolation rigorosa: todo `findFirst`/`findUnique` com `companyId` + `userId` (no caso de coaching).
+- PII/no-leak: transcripts nunca aparecem em logs/Sentry; audit log descreve ação, não conteúdo.
+
+---
+
 *Documento atualizado em 18/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

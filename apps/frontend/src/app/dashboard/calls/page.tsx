@@ -36,6 +36,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { callsService } from "@/services/api";
+import { summariesService, type ConversationSummary } from "@/services/summaries.service";
+import { SummaryModal } from "@/components/dashboard/summaries/summary-modal";
 import {
   formatDuration,
   formatDateTime,
@@ -181,6 +183,10 @@ export default function CallsPage() {
   const [newCallPhone, setNewCallPhone] = useState("");
   const [copiedSuggestion, setCopiedSuggestion] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summary, setSummary] = useState<ConversationSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -344,6 +350,25 @@ export default function CallsPage() {
     if (status === "IN_PROGRESS") return t("calls.statusInProgress");
     return status;
   };
+
+  const handleGenerateSummary = useCallback(async () => {
+    if (!selectedCall) return;
+    setSummary(null);
+    setSummaryError(null);
+    setSummaryLoading(true);
+    setSummaryOpen(true);
+    try {
+      const result = await summariesService.summarizeCall(selectedCall.id);
+      setSummary(result);
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : t("summaries.errorGeneric");
+      setSummaryError(msg);
+      logger.api.error("Summary generation failed", error);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [selectedCall, t]);
 
   const handleExportCsv = async () => {
     try {
@@ -843,13 +868,27 @@ export default function CallsPage() {
                   </p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSelectedCall(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {callDetail?.transcript && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleGenerateSummary}
+                    disabled={summaryLoading}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {t("summaries.generate")}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedCall(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="p-6 space-y-6">
@@ -939,6 +978,16 @@ export default function CallsPage() {
           </div>
         </div>
       )}
+
+      {/* Summary Modal (AI-generated) */}
+      <SummaryModal
+        isOpen={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        summary={summary}
+        loading={summaryLoading}
+        error={summaryError}
+        title={t("summaries.callTitle")}
+      />
     </div>
   );
 }

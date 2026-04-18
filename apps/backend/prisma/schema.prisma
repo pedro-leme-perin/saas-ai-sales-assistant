@@ -67,6 +67,7 @@ model Company {
   apiKeys          ApiKey[]
   auditLogs        AuditLog[]
   notifications    Notification[]
+  coachingReports  CoachingReport[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -124,6 +125,7 @@ model User {
   aiSuggestions           AISuggestion[]
   auditLogs               AuditLog[]
   notifications           Notification[]
+  coachingReports         CoachingReport[]
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -646,6 +648,53 @@ enum SuggestionFeedback {
   HELPFUL
   NOT_HELPFUL
   PARTIALLY_HELPFUL
+}
+
+// =============================================
+// 🧑‍🏫 COACHING REPORTS (Session 44)
+// =============================================
+// Weekly AI coaching digest per vendor — aggregated metrics + GPT insights.
+// Produced by cron Monday 07:00 BRT and emailed via Resend.
+// =============================================
+
+model CoachingReport {
+  id              String   @id @default(uuid())
+
+  // Tenant + Vendor
+  companyId       String   @map("company_id")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Period (ISO week boundaries, UTC)
+  weekStart       DateTime @map("week_start")
+  weekEnd         DateTime @map("week_end")
+
+  // Aggregated metrics (schema-on-read JSON):
+  //   {
+  //     calls: { total, completed, missed, avgDuration, conversionRate },
+  //     whatsapp: { chats, messagesSent, responseRateP50Minutes },
+  //     ai: { suggestionsShown, suggestionsUsed, adoptionRate },
+  //     sentiment: { positive, neutral, negative }
+  //   }
+  metrics         Json
+
+  // LLM output
+  insights        String[]  // 3-5 bullet-sized observations
+  recommendations String[]  // 2-4 actionable suggestions
+  provider        String    @default("openai")
+
+  // Email delivery tracking
+  emailSentAt     DateTime? @map("email_sent_at")
+  emailError      String?   @map("email_error")
+
+  // Timestamps
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@unique([userId, weekStart], name: "user_week_unique")
+  @@index([companyId, weekStart])
+  @@index([userId, weekStart])
+  @@map("coaching_reports")
 }
 
 enum SubscriptionStatus {

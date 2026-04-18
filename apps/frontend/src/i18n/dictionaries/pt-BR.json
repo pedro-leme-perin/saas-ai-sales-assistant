@@ -30,6 +30,7 @@
     "calls": "Ligações",
     "whatsapp": "WhatsApp",
     "analytics": "Analytics",
+    "coaching": "Coaching IA",
     "team": "Equipe",
     "billing": "Faturamento",
     "settings": "Configurações"
@@ -776,5 +777,53 @@
     "minutesAgo": "{{count}} min atras",
     "hoursAgo": "{{count}}h atras",
     "daysAgo": "{{count}}d atras"
+  },
+  "coaching": {
+    "title": "Coaching semanal",
+    "subtitle": "Insights e recomendacoes geradas por IA com base na sua semana.",
+    "empty": {
+      "title": "Ainda sem relatorios",
+      "description": "Os relatorios sao gerados toda segunda de manha. Assim que houver atividade na semana, ele aparece aqui."
+    },
+    "list": {
+      "calls": "ligacoes",
+      "messages": "mensagens",
+      "aiAdoption": "adocao IA",
+      "conversion": "conversao"
+    },
+    "metrics": {
+      "calls": "Ligacoes",
+      "whatsapp": "WhatsApp",
+      "aiAdoption": "Adocao IA",
+      "missed": "Perdidas",
+      "conversion": "conversao",
+      "chats": "chats"
+    },
+    "detail": {
+      "title": "Relatorio semanal",
+      "insights": "Insights",
+      "recommendations": "Recomendacoes",
+      "none": "Sem dados suficientes.",
+      "provider": "Gerado por",
+      "emailSent": "Email enviado em"
+    }
+  },
+  "summaries": {
+    "callTitle": "Resumo da ligacao",
+    "chatTitle": "Resumo da conversa",
+    "generate": "Resumir com IA",
+    "generating": "Gerando resumo...",
+    "errorGeneric": "Nao foi possivel gerar o resumo. Tente novamente.",
+    "modal": {
+      "ariaLabel": "Resumo da conversa",
+      "loading": "Analisando conversa e gerando resumo...",
+      "keyPoints": "Pontos-chave",
+      "sentimentTimeline": "Linha do tempo de sentimento",
+      "start": "Inicio",
+      "end": "Fim",
+      "nextBestAction": "Proxima melhor acao",
+      "cached": "Resumo em cache",
+      "fresh": "Gerado agora"
+    }
   }
 }

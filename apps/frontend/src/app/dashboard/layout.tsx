@@ -22,6 +22,7 @@ const navigationKeys = [
   { key: 'nav.calls', href: '/dashboard/calls', icon: Phone },
   { key: 'nav.whatsapp', href: '/dashboard/whatsapp', icon: MessageSquare },
   { key: 'nav.analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { key: 'nav.coaching', href: '/dashboard/coaching', icon: Sparkles },
   { key: 'nav.team', href: '/dashboard/team', icon: Users },
   { key: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
   { key: 'nav.settings', href: '/dashboard/settings', icon: Settings },

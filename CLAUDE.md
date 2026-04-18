@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 18/04/2026 (sessão 43)
+> Última atualização: 18/04/2026 (sessão 44)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 43 (18/04/2026) | LGPD scheduled deletion cron + Audit log export (CSV/NDJSON) |
-| Backend (NestJS) | ✅ Produção | Railway — 15 módulos, 48+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 18 routes |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma (+2 campos User: scheduledDeletionAt, deletionReason) |
+| Último commit | sessão 44 (18/04/2026) | Conversation summaries on-demand + Weekly AI coaching reports |
+| Backend (NestJS) | ✅ Produção | Railway — 17 módulos, 50+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 19 routes (+coaching) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 12 modelos (+CoachingReport), 19 enums Prisma |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -180,6 +180,47 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** batch bounded, error isolation per-user (uma falha não aborta lote), `$transaction` preserva ACID (AuditLog sobrevive ao cascade delete via userId=null), rate limit em export (prevent data exfiltration abuse), audit log em TODAS mutações (delete + cancel-deletion).
 
+### 2.5.3 Sessão 44 — 18/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção C — AI/Product) — Conversation summaries on-demand + Weekly AI coaching reports.
+
+**Feature C1 — Conversation summaries (módulo novo `summaries`):**
+- Redis-only (sem nova tabela). Cache key: `summary:{kind}:{id}:{contentHash16}` com TTL 24h. ContentHash SHA-256 do transcript invalida cache automaticamente quando a conversa muda.
+- `SummariesService`:
+  - `summarizeCall(callId, companyId, userId)` / `summarizeChat(chatId, companyId, userId)`.
+  - `loadCallSource` lê `Call.transcript` com filtro de tenant (`findFirst where {id, companyId}`); throws `NotFoundException` se call ausente, `BadRequestException` se transcrição vazia.
+  - `loadChatSource` lê as últimas `SUMMARY_MAX_MESSAGES=80` mensagens DESC, reverte para cronológico, formata `Cliente:/Vendedor:` e trunca a `SUMMARY_MAX_TRANSCRIPT_CHARS=20_000`.
+  - `generateSummary`: `CircuitBreaker('Summaries-OpenAI', callTimeoutMs=20_000, failureThreshold=3)` + OpenAI `chat.completions.create` com `response_format: { type: 'json_object' }`, `temperature=0.3`, prompt em pt-BR pedindo schema `{ keyPoints[3..6], sentimentTimeline[3..5], nextBestAction }`.
+  - `parseSummary`: tolerante a JSON inválido — clamp `keyPoints` a 8, `coerceTick` valida position ∈ [0,1] e sentiment ∈ {positive,neutral,negative}, fallback determinístico se LLM falhar.
+  - Write-through cache + AuditLog (`READ` resource `CALL` ou `WHATSAPP_CHAT`) fire-and-forget.
+- Endpoints: `POST /summaries/calls/:callId`, `POST /summaries/chats/:chatId`.
+- Frontend: `<SummaryModal />` renderizado no detail das páginas calls e whatsapp. Botão "Sparkles" Resumir com IA, mostra `keyPoints` como bullets + `sentimentTimeline` como barra horizontal segmentada (green/gray/red) + `nextBestAction`. Badge "cached" vs "fresh".
+- i18n: ~15 chaves (`summaries.*`) em pt-BR + en.
+
+**Feature C2 — Weekly AI coaching reports (módulo novo `coaching`):**
+- Schema: novo modelo `CoachingReport` (id, companyId, userId, weekStart, weekEnd, metrics JSON, insights[], recommendations[], provider, emailSentAt, emailError, createdAt). `@@unique([userId, weekStart])` garante idempotência do cron. Índices `[companyId, weekStart]` e `[userId, weekStart]`. Migration `20260418230000_add_coaching_reports`.
+- `CoachingService`:
+  - `@Cron('0 10 * * 1', { name: 'coaching-weekly-reports' })` — Monday 10:00 UTC ≈ 07:00 BRT. Itera `listVendorCandidates` com error isolation per-user (try/catch).
+  - `previousWeekRange()` helper: computa ISO week anterior em UTC (Mon 00:00Z inclusive, next Mon exclusive) — evita DST drift.
+  - `generateForVendor(vendor, week)`:
+    1. `findUnique` em `user_week_unique` → skip se já existe (idempotente).
+    2. `aggregateMetrics` — `Promise.all` de 5 queries paralelas (call groupBy status com `_count + _avg duration`, whatsappChat count, whatsappMessage count, aISuggestion groupBy wasUsed, call groupBy sentimentLabel).
+    3. Skip LLM se `totalActivity < COACHING_MIN_ACTIVITY_EVENTS=3` (stub report, sem spam).
+    4. `generateLLMInsights`: `CircuitBreaker('Coaching-OpenAI', callTimeoutMs=20_000, failureThreshold=3)` + OpenAI JSON schema `{ insights[3-5], recommendations[2-4] }`. `fallback()` determinístico baseado em thresholds (adoção IA < 40%, conversão < 50%) se LLM falhar.
+    5. `coachingReport.create` + `sendReportEmail` fire-and-forget + AuditLog fire-and-forget.
+    6. `sendReportEmail` atualiza `emailSentAt` ou `emailError='delivery_failed'` via `updateMany` (observabilidade).
+  - Bulkhead: `COACHING_BATCH_SIZE=50` vendedores/tick. Error isolation: uma falha não aborta o lote.
+- `EmailService.sendCoachingReportEmail`: template HTML com gradient header (indigo/violet), 2x2 metrics grid (Calls/WhatsApp/AI adoption/Missed), insights `<ul>`, recommendations `<ul>`, `escapeHtml` helper.
+- Endpoints: `GET /coaching/me?limit=12` (cap [1,52]), `GET /coaching/:id` (tenant-filtered).
+- Frontend: `/dashboard/coaching` novo route (Sparkles icon no sidebar nav entre analytics e team). Lista ordenada por `weekStart desc` com card por report (formato de semana via `Intl.DateTimeFormat` locale-aware, subtrai 1ms do end para mostrar Sunday). Click abre `<ReportDetail>` inline com 4 `MetricCell` + cards de Insights (bulleted) e Recommendations (numbered, primary/5 bg).
+- i18n: ~35 chaves (`coaching.*`, `nav.coaching`) em pt-BR + en.
+
+**Testes:**
+- `summaries.service.spec.ts` (~10 cases): cache HIT skip LLM, cache MISS invoca LLM + cache.set + audit, NotFoundException (call/chat missing), BadRequestException (transcript vazio / 0 messages), tenant isolation, fallback em LLM error, JSON inválido tolerado, clamp keyPoints≤8, filter ticks inválidos, chat pipeline chronological.
+- `coaching.service.spec.ts` (~10 cases): `previousWeekRange` (Wed/Mon/Sun), cron no-op em empty list, bounded batch + filtros corretos, error isolation per-vendor, idempotência (skip se exists), under-active skip LLM + stub, active vendor aggregates metrics corretamente (total/conversion/adoption/sentiment), LLM fallback determinístico preserva thresholds, email failure flags `emailError`.
+
+**Resilience:** CircuitBreakers dedicados por integração, `@@unique` para idempotência do cron, error isolation per-vendor (bulkhead), fallback determinístico em LLM failure, email non-blocking com status flag, audit non-blocking.
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -198,6 +239,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 41 | 18/04 | 10 enterprise improvements + fixes | #159 ✅ |
 | 42 | 18/04 | Onboarding guiado + Payment recovery (dunning/grace/pause) | ⏳ |
 | 43 | 18/04 | LGPD scheduled deletion cron + Audit log export (CSV/NDJSON) | ⏳ |
+| 44 | 18/04 | Conversation summaries on-demand + Weekly AI coaching reports | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -309,12 +351,14 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── auth/           # Clerk integration, guards, strategies
 │   │       │   ├── billing/        # Stripe subscriptions, invoices, webhooks
 │   │       │   ├── calls/          # Twilio calls, Deepgram STT, recordings
+│   │       │   ├── coaching/       # Weekly AI coaching reports cron + email
 │   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
 │   │       │   ├── email/          # Resend integration, templates
 │   │       │   ├── lgpd-deletion/  # Scheduled hard-delete cron (30d grace), AuditLog preservation
 │   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
 │   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
 │   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
+│   │       │   ├── summaries/      # Conversation summaries on-demand (Redis cache, OpenAI)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
 │   │       │   ├── users/          # CRUD, invites, roles, RBAC, LGPD
 │   │       │   └── whatsapp/       # WhatsApp API, chat, messages
@@ -368,7 +412,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (11)
+### 6.1 Modelos (12)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -383,6 +427,7 @@ Infrastructure (Prisma, API Clients, Redis)
 | **Notification** | Notificação multi-canal (in-app, email, push, SMS) | → Company, User |
 | **ApiKey** | Chave de API. Hash, escopos, expiração, uso | → Company |
 | **AuditLog** | Trail de auditoria. Ação, recurso, valores old/new, IP, requestId | → Company, User? |
+| **CoachingReport** | Relatório semanal de coaching por vendedor. Metrics JSON, insights[], recommendations[], email delivery status | → Company, User |
 
 ### 6.2 Enums (19)
 

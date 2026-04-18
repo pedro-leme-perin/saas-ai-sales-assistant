@@ -20,6 +20,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { whatsappService, aiService } from "@/services/api";
+import { summariesService, type ConversationSummary } from "@/services/summaries.service";
+import { SummaryModal } from "@/components/dashboard/summaries/summary-modal";
+import { logger } from "@/lib/logger";
 import { formatRelative, cn } from "@/lib/utils";
 import {
   useActiveChatStore,
@@ -80,6 +83,10 @@ export default function WhatsAppPage() {
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedSuggestion, setCopiedSuggestion] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summary, setSummary] = useState<ConversationSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -204,6 +211,25 @@ export default function WhatsAppPage() {
     setTimeout(() => setCopiedSuggestion(false), 2000);
   };
 
+  const handleGenerateSummary = async () => {
+    if (!selectedChat) return;
+    setSummary(null);
+    setSummaryError(null);
+    setSummaryLoading(true);
+    setSummaryOpen(true);
+    try {
+      const result = await summariesService.summarizeChat(selectedChat.id);
+      setSummary(result);
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : t("summaries.errorGeneric");
+      setSummaryError(msg);
+      logger.api.error("Chat summary generation failed", error);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   const handleGetSuggestion = () => {
     if (!selectedChat) return;
     setGenerating(true);
@@ -317,6 +343,15 @@ export default function WhatsAppPage() {
                 )}
               </p>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("summaries.generate")}
+              onClick={handleGenerateSummary}
+              disabled={summaryLoading}
+            >
+              <Sparkles className="h-5 w-5 text-primary" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -516,6 +551,16 @@ export default function WhatsAppPage() {
           </div>
         </Card>
       )}
+
+      {/* Summary Modal (AI-generated) */}
+      <SummaryModal
+        isOpen={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        summary={summary}
+        loading={summaryLoading}
+        error={summaryError}
+        title={t("summaries.chatTitle")}
+      />
     </div>
   );
 }

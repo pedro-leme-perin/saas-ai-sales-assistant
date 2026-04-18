@@ -23,6 +23,8 @@ import { UploadModule } from './modules/upload/upload.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { PaymentRecoveryModule } from './modules/payment-recovery/payment-recovery.module';
 import { LgpdDeletionModule } from './modules/lgpd-deletion/lgpd-deletion.module';
+import { SummariesModule } from './modules/summaries/summaries.module';
+import { CoachingModule } from './modules/coaching/coaching.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -60,6 +62,8 @@ import configuration from './config/configuration';
     OnboardingModule,
     PaymentRecoveryModule,
     LgpdDeletionModule,
+    SummariesModule,
+    CoachingModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId
