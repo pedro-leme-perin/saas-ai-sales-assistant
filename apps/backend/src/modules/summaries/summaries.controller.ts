@@ -5,7 +5,15 @@
 // Clean Architecture: thin HTTP adapter — logic lives in SummariesService.
 // =============================================
 
-import { Controller, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CompanyId, CurrentUser, type AuthenticatedUser } from '@common/decorators';

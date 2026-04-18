@@ -261,7 +261,11 @@ describe('SummariesService', () => {
       const result = await service.summarizeCall('c1', 'co1', 'u1');
       // Only 2 valid ticks should survive coercion.
       expect(result.sentimentTimeline).toHaveLength(2);
-      expect(result.sentimentTimeline.every((t) => ['positive', 'neutral', 'negative'].includes(t.sentiment))).toBe(true);
+      expect(
+        result.sentimentTimeline.every((t) =>
+          ['positive', 'neutral', 'negative'].includes(t.sentiment),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -281,7 +285,9 @@ describe('SummariesService', () => {
         customerName: 'Cliente X',
       });
       mockPrisma.whatsappMessage.findMany.mockResolvedValueOnce([]);
-      await expect(service.summarizeChat('chat1', 'co1', 'u1')).rejects.toThrow(BadRequestException);
+      await expect(service.summarizeChat('chat1', 'co1', 'u1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('summarises chat with chronological transcript and tenant filter', async () => {
@@ -292,8 +298,16 @@ describe('SummariesService', () => {
       });
       // Service fetches DESC, then reverses — provide DESC order here.
       mockPrisma.whatsappMessage.findMany.mockResolvedValueOnce([
-        { direction: 'OUTGOING', content: 'segunda mensagem', createdAt: new Date('2026-04-10T10:01:00Z') },
-        { direction: 'INCOMING', content: 'primeira mensagem', createdAt: new Date('2026-04-10T10:00:00Z') },
+        {
+          direction: 'OUTGOING',
+          content: 'segunda mensagem',
+          createdAt: new Date('2026-04-10T10:01:00Z'),
+        },
+        {
+          direction: 'INCOMING',
+          content: 'primeira mensagem',
+          createdAt: new Date('2026-04-10T10:00:00Z'),
+        },
       ]);
       mockCache.getJson.mockResolvedValueOnce(null);
       mockCreate.mockResolvedValueOnce({

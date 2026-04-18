@@ -102,7 +102,9 @@ export class SummariesService {
     // Audit non-blocking — summary generation is a user-initiated action.
     this.writeAuditLog(source, userId).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Non-blocking: summary audit log failed (${source.kind} ${source.id}): ${msg}`);
+      this.logger.warn(
+        `Non-blocking: summary audit log failed (${source.kind} ${source.id}): ${msg}`,
+      );
     });
 
     return summary;
@@ -154,7 +156,10 @@ export class SummariesService {
     const transcript = chronological
       .map((m) => {
         const role = m.direction === 'INCOMING' ? 'Cliente' : 'Vendedor';
-        const text = this.truncate((m.content ?? '').replace(/\s+/g, ' '), SUMMARY_MAX_MESSAGE_CHARS);
+        const text = this.truncate(
+          (m.content ?? '').replace(/\s+/g, ' '),
+          SUMMARY_MAX_MESSAGE_CHARS,
+        );
         return `${role}: ${text}`;
       })
       .join('\n');
@@ -242,7 +247,9 @@ export class SummariesService {
     }
 
     const keyPoints = Array.isArray(parsed.keyPoints)
-      ? (parsed.keyPoints as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 8)
+      ? (parsed.keyPoints as unknown[])
+          .filter((x): x is string => typeof x === 'string')
+          .slice(0, 8)
       : [];
 
     const sentimentTimeline: SummarySentimentTick[] = Array.isArray(parsed.sentimentTimeline)

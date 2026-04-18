@@ -100,7 +100,9 @@ export class CoachingService {
       where: { user_week_unique: { userId: vendor.id, weekStart: week.start } },
     });
     if (existing) {
-      this.logger.debug(`Coaching report already exists user=${vendor.id} week=${week.start.toISOString()}`);
+      this.logger.debug(
+        `Coaching report already exists user=${vendor.id} week=${week.start.toISOString()}`,
+      );
       return;
     }
 
@@ -323,9 +325,7 @@ export class CoachingService {
           : [],
       };
     } catch (err) {
-      this.logger.warn(
-        `Coaching LLM fallback (user=${vendor.id}): ${(err as Error).message}`,
-      );
+      this.logger.warn(`Coaching LLM fallback (user=${vendor.id}): ${(err as Error).message}`);
       return this.fallback(metrics);
     }
   }

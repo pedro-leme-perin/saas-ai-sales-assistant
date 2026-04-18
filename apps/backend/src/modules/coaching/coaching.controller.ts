@@ -55,7 +55,8 @@ export class CoachingController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Fetch a single coaching report',
-    description: 'Tenant-scoped. Returns 404 if the report does not belong to the caller\u2019s company.',
+    description:
+      'Tenant-scoped. Returns 404 if the report does not belong to the caller\u2019s company.',
   })
   @ApiResponse({ status: 200, description: 'Report returned' })
   @ApiResponse({ status: 404, description: 'Report not found' })

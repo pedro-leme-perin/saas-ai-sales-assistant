@@ -7,10 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { CoachingService } from '../../src/modules/coaching/coaching.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { EmailService } from '../../src/modules/email/email.service';
-import {
-  COACHING_BATCH_SIZE,
-  previousWeekRange,
-} from '../../src/modules/coaching/constants';
+import { COACHING_BATCH_SIZE, previousWeekRange } from '../../src/modules/coaching/constants';
 
 const mockCreate = jest.fn();
 jest.mock('openai', () =>
@@ -292,9 +289,9 @@ describe('CoachingService', () => {
       expect(createArg.data.insights.length).toBeGreaterThan(0);
       expect(createArg.data.recommendations.length).toBeGreaterThan(0);
       // Low adoption + low conversion triggers specific recommendations.
-      expect(
-        createArg.data.recommendations.some((r: string) => /sugestoes de IA/i.test(r)),
-      ).toBe(true);
+      expect(createArg.data.recommendations.some((r: string) => /sugestoes de IA/i.test(r))).toBe(
+        true,
+      );
     });
 
     it('email failure flags the report without throwing', async () => {
