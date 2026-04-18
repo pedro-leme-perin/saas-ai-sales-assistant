@@ -231,8 +231,15 @@ export class EmailService {
     hostedInvoiceUrl: string | null;
     graceDeadline: Date;
   }): Promise<{ success: boolean; messageId?: string }> {
-    const { stage, recipientEmail, companyName, amount, currency, hostedInvoiceUrl, graceDeadline } =
-      params;
+    const {
+      stage,
+      recipientEmail,
+      companyName,
+      amount,
+      currency,
+      hostedInvoiceUrl,
+      graceDeadline,
+    } = params;
 
     if (!this.apiKey) {
       this.logger.warn(`RESEND_API_KEY not configured — skipping dunning ${stage} email`);
@@ -381,14 +388,16 @@ export class EmailService {
           tone: 'Atencao',
           headline: 'Seu acesso esta em risco',
           body: `Ja tentamos processar o pagamento de ${amount} algumas vezes sem sucesso. Se voce nao atualizar o meio de pagamento ate ${deadline}, sua conta sera suspensa.`,
-          urgency: 'Apos suspensao, seu time perde acesso ao dashboard, chamadas e analytics. A recuperacao e imediata assim que o pagamento e confirmado.',
+          urgency:
+            'Apos suspensao, seu time perde acesso ao dashboard, chamadas e analytics. A recuperacao e imediata assim que o pagamento e confirmado.',
         };
       case 'D7':
         return {
           tone: 'Ultimo aviso',
           headline: 'Sua conta sera suspensa em 48 horas',
           body: `Este e o aviso final. O valor de ${amount} continua pendente. Se nao recebermos o pagamento em 48h, suspenderemos o acesso de todos os usuarios da ${''}sua empresa ate regularizacao.`,
-          urgency: 'Todos os dados sao preservados. Voce podera reativar a conta a qualquer momento pagando a fatura em aberto.',
+          urgency:
+            'Todos os dados sao preservados. Voce podera reativar a conta a qualquer momento pagando a fatura em aberto.',
         };
     }
   }

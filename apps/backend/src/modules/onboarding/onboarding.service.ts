@@ -50,8 +50,7 @@ export class OnboardingService {
     if (!company) throw new NotFoundException(`Company ${companyId} not found`);
 
     const settings = (company.settings ?? {}) as CompanySettingsShape;
-    let state: OnboardingProgressState =
-      settings.onboardingProgress ?? EMPTY_ONBOARDING_PROGRESS();
+    let state: OnboardingProgressState = settings.onboardingProgress ?? EMPTY_ONBOARDING_PROGRESS();
 
     // Auto-detect steps from DB state on every read (self-healing).
     state = await this.autoDetect(companyId, state, {
@@ -78,7 +77,13 @@ export class OnboardingService {
       // Remove from skipped if previously skipped (user changed mind).
       state.stepsSkipped = state.stepsSkipped.filter((s) => s !== stepId);
       this.touch(state);
-      await this.save(companyId, userId, state, AuditAction.UPDATE, `Onboarding step completed: ${stepId}`);
+      await this.save(
+        companyId,
+        userId,
+        state,
+        AuditAction.UPDATE,
+        `Onboarding step completed: ${stepId}`,
+      );
     }
     return this.toResponse(state);
   }

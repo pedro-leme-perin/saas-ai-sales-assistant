@@ -5,7 +5,16 @@
 // Clean Architecture: Interface Adapter layer (thin HTTP glue).
 // =============================================
 
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CompanyId, CurrentUser, Roles, type AuthenticatedUser } from '@common/decorators';

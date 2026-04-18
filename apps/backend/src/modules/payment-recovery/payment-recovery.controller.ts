@@ -71,7 +71,8 @@ export class PaymentRecoveryController {
   @UseGuards(RolesGuard)
   @ApiOperation({
     summary: 'Submit exit survey capturing why the user is leaving',
-    description: 'Retention analytics. Does not cancel the subscription — use /billing/cancel for that.',
+    description:
+      'Retention analytics. Does not cancel the subscription — use /billing/cancel for that.',
   })
   @ApiResponse({ status: 200, description: 'Survey recorded' })
   async exitSurvey(

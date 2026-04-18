@@ -15,12 +15,7 @@
 //  - Stripe Billing — pause_collection API
 // =============================================
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@infrastructure/database/prisma.service';
@@ -180,7 +175,8 @@ export class PaymentRecoveryService {
     }
 
     // Advance to next stage.
-    const schedule = stage in DUNNING_SCHEDULE ? DUNNING_SCHEDULE[stage as 'D1' | 'D3' | 'D7'] : null;
+    const schedule =
+      stage in DUNNING_SCHEDULE ? DUNNING_SCHEDULE[stage as 'D1' | 'D3' | 'D7'] : null;
     const nextStage = schedule?.nextStage ?? 'SUSPENDED';
     const nextAt = nextStage === 'SUSPENDED' ? null : computeNextDunningAt(nextStage);
 
