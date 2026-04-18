@@ -720,6 +720,8 @@ export class UsersService {
       return { success: false, message: 'No deletion is scheduled for this account.' };
     }
 
+    const previousScheduledAt = user.scheduledDeletionAt.toISOString();
+
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
@@ -740,7 +742,7 @@ export class UsersService {
           resourceId: userId,
           description: 'LGPD deletion request cancelled by user',
           oldValues: {
-            scheduledDeletionAt: user.scheduledDeletionAt.toISOString(),
+            scheduledDeletionAt: previousScheduledAt,
             status: 'SUSPENDED',
           },
           newValues: { scheduledDeletionAt: null, status: 'ACTIVE' },
