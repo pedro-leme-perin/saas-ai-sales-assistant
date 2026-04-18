@@ -647,12 +647,14 @@ export class UsersService {
     const scheduledDeletionDate = new Date();
     scheduledDeletionDate.setDate(scheduledDeletionDate.getDate() + 30);
 
-    // Suspend the user account
+    // Suspend the user account + persist scheduled deletion (LGPD cron picks it up)
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         status: 'SUSPENDED' as UserStatus,
         isActive: false,
+        scheduledDeletionAt: scheduledDeletionDate,
+        deletionReason: reason ?? null,
         updatedAt: new Date(),
       },
     });
@@ -702,6 +704,52 @@ export class UsersService {
         'You will receive a confirmation email shortly.',
       scheduledDeletionDate,
     };
+  }
+
+  /**
+   * Cancel a pending deletion request (user changed their mind within the 30d grace).
+   * LGPD Art. 18 — allows the subject to withdraw consent at any time.
+   */
+  async cancelAccountDeletion(
+    userId: string,
+    companyId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await this.findByIdOrThrow(userId, companyId);
+
+    if (!user.scheduledDeletionAt) {
+      return { success: false, message: 'No deletion is scheduled for this account.' };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          status: 'ACTIVE' as UserStatus,
+          isActive: true,
+          scheduledDeletionAt: null,
+          deletionReason: null,
+          updatedAt: new Date(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          companyId,
+          userId,
+          action: 'UPDATE' as AuditAction,
+          resource: 'USER',
+          resourceId: userId,
+          description: 'LGPD deletion request cancelled by user',
+          oldValues: {
+            scheduledDeletionAt: user.scheduledDeletionAt.toISOString(),
+            status: 'SUSPENDED',
+          },
+          newValues: { scheduledDeletionAt: null, status: 'ACTIVE' },
+        },
+      });
+    });
+
+    this.logger.log(`Account deletion cancelled for user ${userId}`);
+    return { success: true, message: 'Deletion request cancelled. Your account is active again.' };
   }
 
   // ============================================

@@ -1,5 +1,5 @@
 # SaaS AI Sales Assistant — Project Instructions
-**Versão:** 5.1
+**Versão:** 5.2
 **Atualização:** Abril 2026
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
 **Histórico detalhado de sessões:** ver `PROJECT_HISTORY.md`
@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 18/04/2026 (sessão 42)
+> Última atualização: 18/04/2026 (sessão 43)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 42 (18/04/2026) | Onboarding guiado + Payment recovery (dunning/grace/pause) |
-| Backend (NestJS) | ✅ Produção | Railway — 14 módulos, 46+ test suites, 40 env vars |
+| Último commit | sessão 43 (18/04/2026) | LGPD scheduled deletion cron + Audit log export (CSV/NDJSON) |
+| Backend (NestJS) | ✅ Produção | Railway — 15 módulos, 48+ test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 18 routes |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 11 modelos, 19 enums Prisma (+2 campos User: scheduledDeletionAt, deletionReason) |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -45,7 +45,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview) |
 | Testes | ✅ 57 suites + k6 | 44 backend + 10 E2E + 3 k6 load tests |
 | Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP |
-| LGPD | ✅ Produção | /terms, /privacy, /help + export/deletion endpoints |
+| LGPD | ✅ Produção | /terms, /privacy, /help + export/deletion endpoints + cron de deleção agendada (30d) |
 
 ### 2.2 Infraestrutura de Produção
 
@@ -83,7 +83,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - [ ] Sentry: migrar para plano pago quando tráfego crescer
 - [ ] Configurar Railway staging project + secrets para staging.yml workflow
 - [ ] Executar k6 load tests contra produção (baseline performance)
-- [ ] Implementar job de deleção agendada (LGPD — atualmente apenas suspende conta)
+- [x] ~~Implementar job de deleção agendada (LGPD — atualmente apenas suspende conta)~~ ✅ Sessão 43
 
 ### 2.5 Sessão 41 — 18/04/2026
 
@@ -139,6 +139,47 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** `CircuitBreaker` nas chamadas Stripe, `promiseAllWithTimeout(10_000)` em queries Prisma paralelas, audit log em todas mutações.
 
+### 2.5.2 Sessão 43 — 18/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A) — LGPD scheduled deletion cron + Audit log export.
+
+**Feature A1 — LGPD scheduled deletion (módulo novo `lgpd-deletion`):**
+- Schema: 2 campos novos em `User` (`scheduledDeletionAt`, `deletionReason`) + índice em `scheduledDeletionAt`. Migration `20260418211500_add_scheduled_deletion_to_user`.
+- `LgpdDeletionService`:
+  - `@Cron(EVERY_HOUR, { name: 'lgpd-deletion-processor' })` `processScheduledDeletions()` — batch bounded `LGPD_DELETION_BATCH_SIZE=50` (Release It! bulkhead), `WHERE scheduled_deletion_at <= NOW()`, error isolation per-user (try/catch).
+  - `executeDeletion(candidate)`: conta cascade counts (calls, whatsappChats, aiSuggestions, notifications, auditLogsRetained), `$transaction`:
+    1. `auditLog.create` com `userId: null` + metadata `{ scheduledAt, executedAt, cascadeCounts }` (preservação do trail)
+    2. `auditLog.updateMany({ where: { userId }, data: { userId: null } })` (anonimiza logs antigos)
+    3. `user.delete` (cascade via Prisma `onDelete: Cascade`)
+  - Email não-bloqueante via `EmailService.sendAccountDeletedEmail` (fire-and-forget).
+  - Método público `executeDeletionById(userId)` para ops/tests manuais.
+- `UsersService.requestAccountDeletion` agora persiste `scheduledDeletionAt` + `deletionReason`.
+- `UsersService.cancelAccountDeletion(userId, companyId)` — NOVO: reverte `scheduledDeletionAt=null`, `status=ACTIVE`, `isActive=true` em $transaction + AuditLog UPDATE.
+- Endpoint: `POST /users/me/cancel-deletion`.
+- Base legal: LGPD Art. 16, III (eliminação) + Art. 18, VI (direito de revogação do consentimento). Grace period: 30 dias (`LGPD_DELETION_GRACE_DAYS`).
+- `EmailService.sendAccountDeletedEmail({ recipientEmail, userName, deletedAt })` — template HTML pt-BR de confirmação.
+
+**Feature A2 — Audit log export (CSV/NDJSON streaming):**
+- `AnalyticsService.exportAuditLogs(companyId, filters)` — async generator, cursor pagination (`pageSize=500`, cursor por id + skip:1), `orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]` para determinismo, `maxRows=100_000` (bulkhead).
+- Flatten user relation: `userEmail`, `userName` inline nos registros exportados.
+- Endpoint: `GET /analytics/audit-logs/:companyId/export?format=csv|json&action=&resource=&userId=&startDate=&endDate=`
+  - `@Roles(OWNER, ADMIN)` + `@Throttle({ strict: { ttl: 60_000, limit: 5 } })` — 5 exports/min para prevenir abuse.
+  - Validação BadRequestException para format inválido, startDate/endDate malformadas.
+  - Streaming Express via `@Res()` + `res.write()` — CSV com header row ou NDJSON linha-a-linha.
+  - Headers: `Content-Disposition: attachment; filename=audit-logs-{date}.{ext}`, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`.
+  - Helper `escapeCsv(value)` para campos com `,`, `"`, `\n`, `\r`.
+- Frontend: `<AuditLogsPage />` ganha botões "Export CSV" / "Export JSON" no header.
+  - `analyticsService.exportAuditLogs({ format, ...filters })` retorna `Promise<Blob>` via `fetch` direto (evita JSON-envelope do interceptor).
+  - Download via `URL.createObjectURL` + `<a download>` + `revokeObjectURL`.
+  - Estado `isExporting` com toast on-error.
+- i18n: 4 chaves (`auditLogs.export.{ csv, json, inProgress, error }`) em pt-BR + en.
+
+**Testes:**
+- `lgpd-deletion.service.spec.ts` (~7 cases): empty batch no-op, bounded batch size, hard-delete + audit + email, error isolation per-user, findMany error swallow, executeDeletionById ghost returns silently, throws se scheduledDeletionAt null.
+- `analytics.service.spec.ts` (+5 cases para `exportAuditLogs`): empty db, cursor pagination (2 páginas, verify cursor={id:'p1-499'} + skip:1), maxRows hard limit, filtros aplicados, flatten user relation.
+
+**Resilience:** batch bounded, error isolation per-user (uma falha não aborta lote), `$transaction` preserva ACID (AuditLog sobrevive ao cascade delete via userId=null), rate limit em export (prevent data exfiltration abuse), audit log em TODAS mutações (delete + cancel-deletion).
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -156,6 +197,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 40 | 17/04 | Legal pages, LGPD endpoints | #154 ✅ |
 | 41 | 18/04 | 10 enterprise improvements + fixes | #159 ✅ |
 | 42 | 18/04 | Onboarding guiado + Payment recovery (dunning/grace/pause) | ⏳ |
+| 43 | 18/04 | LGPD scheduled deletion cron + Audit log export (CSV/NDJSON) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -169,7 +211,7 @@ Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
 Referências: *Building Microservices* Cap. 1 (monolith-first), *Fundamentals of Software Architecture* Cap. 13 (Service-Based), *Clean Architecture* (Dependency Rule).
 
-Justificativa: ACID transactions preservadas, sem overhead de orquestração, banco compartilhado permite joins SQL, 14 módulos NestJS com boundaries claros. Migração futura para microservices possível via *Building Microservices* Cap. 3 (incremental migration).
+Justificativa: ACID transactions preservadas, sem overhead de orquestração, banco compartilhado permite joins SQL, 15 módulos NestJS com boundaries claros. Migração futura para microservices possível via *Building Microservices* Cap. 3 (incremental migration).
 
 ### 3.2 Dependency Rule (*Clean Architecture* Cap. 22)
 
@@ -205,7 +247,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │  │  64+ endpoints documentados      │   │
 │  └─────────────────┬────────────────┘   │
 │  ┌─────────────────▼────────────────┐   │
-│  │  APPLICATION (14 Modules)        │   │
+│  │  APPLICATION (15 Modules)        │   │
 │  │  Services · Use Cases · DTOs     │   │
 │  └─────────────────┬────────────────┘   │
 │  ┌─────────────────▼────────────────┐   │
@@ -269,6 +311,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── calls/          # Twilio calls, Deepgram STT, recordings
 │   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
 │   │       │   ├── email/          # Resend integration, templates
+│   │       │   ├── lgpd-deletion/  # Scheduled hard-delete cron (30d grace), AuditLog preservation
 │   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
 │   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
 │   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
@@ -655,5 +698,5 @@ Documentação da API em `/api/docs` (64+ endpoints, 11 tags)
 
 ---
 
-*Versão: 5.0 — Abril 2026*
+*Versão: 5.2 — Abril 2026*
 *Histórico completo de sessões: ver `PROJECT_HISTORY.md`*

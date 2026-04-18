@@ -515,6 +515,12 @@
       "to": "to",
       "of": "of"
     },
+    "export": {
+      "csv": "Export CSV",
+      "json": "Export JSON",
+      "inProgress": "Exporting…",
+      "error": "Failed to export logs."
+    },
     "detail": {
       "title": "Record Details",
       "resource": "Resource",

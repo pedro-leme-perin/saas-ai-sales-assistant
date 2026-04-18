@@ -547,6 +547,74 @@ Frontend: `<PaymentRecoveryBanner />` — severidade adaptativa (amber em grace 
 
 **Arquivos modificados:** `prisma/schema.prisma`, `app.module.ts`, `modules/billing/{billing.service,billing.module}.ts`, `modules/email/email.service.ts`, `app/dashboard/page.tsx`, `services/api.ts`, `test/unit/billing.service.spec.ts`, `i18n/dictionaries/{pt-BR,en}.json`, `CLAUDE.md`, `PROJECT_HISTORY.md`.
 
+### Sessão 43 — 18/04/2026
+**LGPD scheduled deletion cron + Audit log export (opção A — profundidade).** 2 features enterprise completas. Fecha a dívida técnica listada em CLAUDE.md §2.4 ("Implementar job de deleção agendada") e adiciona capability de compliance export para auditores.
+
+**Feature A1 — LGPD scheduled hard-delete (módulo novo `lgpd-deletion`).**
+Schema: 2 campos novos em `User` (`scheduledDeletionAt DateTime?`, `deletionReason String?`) + índice `@@index([scheduledDeletionAt])`. Migration `20260418211500_add_scheduled_deletion_to_user`.
+
+`LgpdDeletionService`:
+- `@Cron(CronExpression.EVERY_HOUR, { name: 'lgpd-deletion-processor' })` `processScheduledDeletions()` — batch bounded `LGPD_DELETION_BATCH_SIZE=50` (Release It! bulkhead), query `WHERE scheduledDeletionAt <= NOW()`. Error isolation per-user via try/catch no loop — uma falha não aborta o lote. `swallows` findMany errors com log (fail gracefully no cron).
+- `executeDeletion(candidate)`:
+  1. `Promise.all` paralelo contando cascade counts: calls, whatsappChats, aiSuggestions, notifications, auditLogsRetained (para metadata do audit log preservado).
+  2. `$transaction`:
+     - `tx.auditLog.create({ data: { action: 'DELETE', resource: 'USER', resourceId: userId, userId: null, companyId, newValues: { scheduledAt, executedAt, cascadeCounts: {...} } } })` — cria novo audit log ANTES do cascade com `userId: null` (preserva trail).
+     - `tx.auditLog.updateMany({ where: { userId }, data: { userId: null } })` — anonimiza logs antigos do usuário.
+     - `tx.user.delete({ where: { id } })` — cascade via Prisma `onDelete: Cascade` em Call/WhatsappChat/AISuggestion/Notification.
+  3. Email fire-and-forget via `EmailService.sendAccountDeletedEmail({ recipientEmail, userName, deletedAt })` — não bloqueia o cron se SMTP cair.
+- Método público `executeDeletionById(userId)` para ops/manual trigger/tests. Throws `no scheduled deletion` se `scheduledDeletionAt === null`. Returns silently se user não encontrado.
+
+`UsersService.requestAccountDeletion` agora persiste `scheduledDeletionAt: new Date(now + 30 days)` + `deletionReason: reason ?? null` no update (antes apenas suspendia).
+`UsersService.cancelAccountDeletion(userId, companyId)` — NOVO: `$transaction` que reverte `scheduledDeletionAt: null`, `status: ACTIVE`, `isActive: true` + AuditLog UPDATE com oldValues/newValues para trail de compliance. Endpoint: `POST /users/me/cancel-deletion` (autenticado, qualquer role).
+
+`EmailService.sendAccountDeletedEmail` — template HTML pt-BR com data formatada `Intl.DateTimeFormat('pt-BR')`, copy baseado em LGPD Art. 16, III (eliminação dos dados) + Art. 18, VI.
+
+Base legal: LGPD Art. 16, III (eliminação) + Art. 18 (direitos do titular — revogação do consentimento, eliminação). Grace period: 30 dias (`LGPD_DELETION_GRACE_DAYS`) permite recuperação. Audit log preservado indefinidamente com `userId: null` (requisito legal de manutenção de trail).
+
+`ScheduleModule.forRoot()` já estava no `AppModule` desde sessão 42 — cron ativa automaticamente.
+
+**Feature A2 — Audit log export (CSV/NDJSON streaming).**
+`AnalyticsService.exportAuditLogs(companyId, { action?, resource?, userId?, startDate?, endDate?, maxRows = 100_000 })` — `async *` generator, cursor pagination determinístico.
+- pageSize=500, cursor por id + `skip: 1`, `orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]` (determinismo mesmo com ties em createdAt).
+- `maxRows=100_000` hard limit (bulkhead — prevent full-table dump).
+- Flatten user relation: cada registro tem `userEmail`, `userName` inline (evita N+1 no cliente).
+- Yield record-a-record — backpressure via async iterator.
+
+Endpoint: `GET /analytics/audit-logs/:companyId/export?format=csv|json&action=&resource=&userId=&startDate=&endDate=`
+- `@Roles(UserRole.OWNER, UserRole.ADMIN)` + `RolesGuard` — só gestão exporta.
+- `@Throttle({ strict: { ttl: 60_000, limit: 5 } })` — 5 exports por minuto (prevent data exfiltration abuse).
+- Validação `BadRequestException` para format inválido, startDate/endDate malformadas.
+- Streaming Express via `@Res()` + `res.write(line)` — CSV com header row ou NDJSON linha-a-linha.
+- Headers: `Content-Type: text/csv; charset=utf-8` ou `application/x-ndjson`, `Content-Disposition: attachment; filename=audit-logs-{yyyy-mm-dd}.{ext}`, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`.
+- Helper `escapeCsv(value)`: wrap em `"` + escape `"` → `""` quando contém `,`, `"`, `\n`, `\r`. `null/undefined → ''`. JSON-stringify para objetos.
+
+Frontend: `<AuditLogsPage />` ganha botões "Export CSV" / "Export JSON" no header flex (space-between com filtros).
+- `analyticsService.exportAuditLogs({ format, action?, resource?, userId?, startDate?, endDate? })` retorna `Promise<Blob>` via `fetch` direto com `credentials: 'include'` (contorna interceptor de envelope JSON que quebraria o streaming).
+- Path: `/api/backend/api/analytics/audit-logs/${companyId}/export?${qs}`.
+- Download via `URL.createObjectURL(blob)` + elemento `<a>` invisível com `download` attr + `.click()` + `revokeObjectURL`.
+- Estado `isExporting` desabilita botões durante download. Toast de erro via `useToast` em caso de falha.
+
+**i18n:** 4 chaves novas — `auditLogs.export.{ csv, json, inProgress, error }` em pt-BR + en.
+
+**Testes novos (`test/unit/lgpd-deletion.service.spec.ts`, ~7 cases):**
+- `processScheduledDeletions`: no-op em batch vazio; query respeita `take: LGPD_DELETION_BATCH_SIZE`; hard-delete com audit create (userId=null + cascadeCounts) + updateMany (anonimiza logs antigos) + user.delete + email fire-and-forget; isola erros per-user (u1 throw → u2 deleta OK, `$transaction` chamado 2x); swallows findMany errors (resolves undefined).
+- `executeDeletionById`: returns silently se user não encontrado; throws `/no scheduled deletion/i` se `scheduledDeletionAt === null`.
+
+**Testes atualizados (`test/unit/analytics.service.spec.ts`, +5 cases em `describe('exportAuditLogs')`):**
+- Empty DB: gerador não yield nada, `findMany` chamado 1x.
+- Cursor pagination: 500 registros na página 1, 250 na página 2, verifica chamada 2 de findMany com `cursor: { id: 'p1-499' }, skip: 1`.
+- `maxRows=10`: para após 10 yields mesmo que DB tenha mais.
+- Filtros: `{ action: 'DELETE', userId: 'u9', startDate: '2026-01-01', endDate: '2026-04-01' }` → `findMany` recebe `where: { companyId, action, userId, createdAt: { gte, lte } }`.
+- Flatten user relation: yields contêm `userEmail: 'x@y.com'`, `userName: 'Alice'` inline (não aninhado).
+
+**Arquivos novos (~6):**
+- Backend: `modules/lgpd-deletion/{constants,lgpd-deletion.service,lgpd-deletion.module}.ts`; `prisma/migrations/20260418211500_add_scheduled_deletion_to_user/migration.sql`.
+- Tests: `test/unit/lgpd-deletion.service.spec.ts`.
+
+**Arquivos modificados:** `prisma/schema.prisma` (User: +2 fields +index), `app.module.ts` (+LgpdDeletionModule), `modules/users/{users.service,users.controller}.ts` (requestAccountDeletion persist fields + cancelAccountDeletion endpoint), `modules/email/email.service.ts` (+sendAccountDeletedEmail), `modules/analytics/{analytics.service,analytics.controller}.ts` (+exportAuditLogs generator + endpoint streaming), `services/api.ts` (+analyticsService.exportAuditLogs → Blob), `app/dashboard/audit-logs/page.tsx` (+botões Export CSV/JSON), `i18n/dictionaries/{pt-BR,en}.json` (+4 chaves `auditLogs.export.*`), `test/unit/analytics.service.spec.ts` (+5 cases), `CLAUDE.md`, `PROJECT_HISTORY.md`.
+
+**Resilience patterns aplicados:** batch bounded (50 usuários / 100_000 rows export), error isolation per-user (try/catch no loop), `$transaction` preserva ACID (audit log sobrevive ao cascade via userId=null), rate limit em export (5/min = ~prevent exfiltration), audit log em TODAS mutações (requestAccountDeletion, cancelAccountDeletion, executeDeletion), cursor pagination (não offset — seek method, O(log n) estável).
+
 ---
 
 *Documento atualizado em 18/04/2026*

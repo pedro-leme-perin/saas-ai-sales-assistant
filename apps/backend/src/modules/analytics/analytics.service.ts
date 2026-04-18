@@ -445,4 +445,91 @@ export class AnalyticsService {
       },
     };
   }
+
+  /**
+   * Session 43 — Audit log export (compliance / regulator).
+   * Streams up to `maxRows` rows matching the filters, sorted oldest→newest
+   * so CSV consumers can process chronologically.
+   */
+  async *exportAuditLogs(
+    companyId: string,
+    filters: {
+      action?: string;
+      resource?: string;
+      userId?: string;
+      startDate?: Date;
+      endDate?: Date;
+      maxRows: number;
+    },
+  ): AsyncGenerator<{
+    id: string;
+    createdAt: Date;
+    action: string;
+    resource: string;
+    resourceId: string | null;
+    description: string | null;
+    userId: string | null;
+    userEmail: string | null;
+    userName: string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    requestId: string | null;
+    oldValues: unknown;
+    newValues: unknown;
+  }> {
+    const where: Record<string, unknown> = { companyId };
+    if (filters.action) where.action = filters.action;
+    if (filters.resource) where.resource = filters.resource;
+    if (filters.userId) where.userId = filters.userId;
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        (where.createdAt as Record<string, unknown>).gte = filters.startDate;
+      }
+      if (filters.endDate) {
+        (where.createdAt as Record<string, unknown>).lte = filters.endDate;
+      }
+    }
+
+    const pageSize = 500;
+    let emitted = 0;
+    let cursor: string | undefined;
+
+    while (emitted < filters.maxRows) {
+      const batch = await this.prisma.auditLog.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: Math.min(pageSize, filters.maxRows - emitted),
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+
+      if (batch.length === 0) return;
+
+      for (const log of batch) {
+        yield {
+          id: log.id,
+          createdAt: log.createdAt,
+          action: log.action,
+          resource: log.resource,
+          resourceId: log.resourceId,
+          description: log.description,
+          userId: log.userId,
+          userEmail: log.user?.email ?? null,
+          userName: log.user?.name ?? null,
+          ipAddress: log.ipAddress,
+          userAgent: log.userAgent,
+          requestId: log.requestId,
+          oldValues: log.oldValues,
+          newValues: log.newValues,
+        };
+        emitted++;
+      }
+
+      cursor = batch[batch.length - 1].id;
+      if (batch.length < pageSize) return;
+    }
+  }
 }

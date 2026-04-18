@@ -216,18 +216,69 @@ export default function AuditLogsPage() {
     setDateRange({ start: "", end: "" });
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async (format: "csv" | "json") => {
+    setIsExporting(true);
+    try {
+      const blob = await analyticsService.exportAuditLogs({
+        format,
+        action: action || undefined,
+        resource: resource || undefined,
+        userId: searchUser || undefined,
+        startDate: dateRange.start || undefined,
+        endDate: dateRange.end || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("audit log export failed", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const isFiltered =
     action || resource || searchUser || dateRange.start || dateRange.end;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Shield className="h-8 w-8 text-primary" />
-          {t("auditLogs.title")}
-        </h1>
-        <p className="text-muted-foreground mt-1">{t("auditLogs.subtitle")}</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Shield className="h-8 w-8 text-primary" />
+            {t("auditLogs.title")}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {t("auditLogs.subtitle")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleExport("csv")}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t("auditLogs.export.csv")}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleExport("json")}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t("auditLogs.export.json")}
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

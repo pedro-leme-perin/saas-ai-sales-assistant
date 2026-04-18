@@ -275,6 +275,84 @@ export class EmailService {
   }
 
   /**
+   * Send confirmation email after hard deletion was executed (LGPD Art. 16, III).
+   * Session 43: fires after the scheduled cron deletes the user account.
+   */
+  async sendAccountDeletedEmail(params: {
+    recipientEmail: string;
+    userName: string;
+    deletedAt: Date;
+  }): Promise<{ success: boolean; messageId?: string }> {
+    const { recipientEmail, userName, deletedAt } = params;
+
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping account-deleted email');
+      return { success: false };
+    }
+
+    const formattedDate = deletedAt.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Conta excluida — TheIAdvisor</title></head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background:linear-gradient(135deg,#64748b,#334155);padding:32px 40px;text-align:center;">
+          <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;">TheIAdvisor</h1>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <h2 style="color:#18181b;margin:0 0 16px;font-size:20px;">Sua conta foi excluida</h2>
+          <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 16px;">
+            Ola <strong>${userName}</strong>, confirmamos que sua conta e seus
+            dados pessoais foram <strong>excluidos permanentemente</strong> em
+            <strong>${formattedDate}</strong>, conforme sua solicitacao.
+          </p>
+          <p style="color:#52525b;font-size:14px;line-height:1.6;margin:0 0 16px;">
+            Esta acao cumpre a Lei Geral de Protecao de Dados (LGPD, Art. 16, III).
+            Mantemos apenas registros minimos exigidos por lei (obrigacoes fiscais,
+            auditoria de seguranca) de forma anonimizada.
+          </p>
+          <p style="color:#52525b;font-size:14px;line-height:1.6;margin:0 0 16px;">
+            Esta decisao e irreversivel. Se voce deseja voltar a usar o TheIAdvisor,
+            sera necessario criar uma nova conta do zero.
+          </p>
+        </td></tr>
+        <tr><td style="background-color:#fafafa;padding:24px 40px;border-top:1px solid #e4e4e7;">
+          <p style="color:#a1a1aa;font-size:12px;margin:0;text-align:center;">
+            Duvidas? Entre em contato com team@theiadvisor.com.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+    try {
+      const result = await this.send({
+        to: recipientEmail,
+        subject: 'Sua conta foi excluida — TheIAdvisor',
+        html,
+      });
+      this.logger.log(
+        `Account-deleted email sent to ${recipientEmail} (messageId: ${result?.id})`,
+      );
+      return { success: true, messageId: result?.id };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to send account-deleted email to ${recipientEmail}: ${message}`);
+      return { success: false };
+    }
+  }
+
+  /**
    * Get circuit breaker status (for health check)
    */
   getCircuitBreakerStatus(): { name: string; state: string } {

@@ -629,5 +629,35 @@ export const analyticsService = {
     const companyId = apiClient.getCompanyId();
     return apiClient.get(`/analytics/audit-logs/${companyId}`, params);
   },
+
+  /**
+   * Session 43 — trigger audit log export (CSV or JSON-NDJSON stream).
+   * Returns a Blob ready to be saved via FileSaver or an <a download>.
+   */
+  async exportAuditLogs(params: {
+    format: 'csv' | 'json';
+    action?: string;
+    resource?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Blob> {
+    if (!apiClient.getCompanyId()) await authService.getMe();
+    const companyId = apiClient.getCompanyId();
+    const qs = new URLSearchParams({ format: params.format });
+    if (params.action) qs.set('action', params.action);
+    if (params.resource) qs.set('resource', params.resource);
+    if (params.userId) qs.set('userId', params.userId);
+    if (params.startDate) qs.set('startDate', params.startDate);
+    if (params.endDate) qs.set('endDate', params.endDate);
+
+    const url = `/api/backend/api/analytics/audit-logs/${companyId}/export?${qs.toString()}`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Export failed (${res.status}): ${text.slice(0, 200)}`);
+    }
+    return res.blob();
+  },
 };
 

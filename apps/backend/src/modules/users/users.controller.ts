@@ -110,6 +110,29 @@ export class UsersController {
     return this.usersService.requestAccountDeletion(userId, companyId, body.reason);
   }
 
+  @Post('me/cancel-deletion')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cancel a pending deletion request (LGPD Art. 18)',
+    description:
+      'Withdraws a previously submitted deletion request and reactivates the account. ' +
+      'Only works while scheduledDeletionAt is still in the future.',
+  })
+  @ApiResponse({ status: 200, description: 'Deletion cancelled' })
+  @ApiResponse({ status: 401, description: 'User context not found' })
+  async cancelDeletion(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.id;
+    const companyId = req.user?.companyId;
+
+    if (!userId || !companyId) {
+      throw new UnauthorizedException('User context not found');
+    }
+
+    this.logger.log(`LGPD deletion CANCEL by user ${userId} in company ${companyId}`);
+
+    return this.usersService.cancelAccountDeletion(userId, companyId);
+  }
+
   // ============================================
   // CRUD ENDPOINTS
   // ============================================

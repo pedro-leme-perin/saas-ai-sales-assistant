@@ -293,4 +293,107 @@ describe('AnalyticsService', () => {
       expect(result.avgLatency).toBe(0);
     });
   });
+
+  // ─────────────────────────────────────────
+  // Session 43 — exportAuditLogs (streaming)
+  // ─────────────────────────────────────────
+  describe('exportAuditLogs', () => {
+    const buildRow = (id: string, i = 0) => ({
+      id,
+      companyId: COMPANY_ID,
+      userId: 'u1',
+      action: 'UPDATE',
+      resource: 'call',
+      resourceId: 'call-' + id,
+      description: 'updated',
+      oldValues: null,
+      newValues: { k: i },
+      ipAddress: '10.0.0.1',
+      userAgent: 'jest',
+      requestId: 'req-' + id,
+      createdAt: new Date(2026, 0, 1, 0, i),
+      user: { id: 'u1', name: 'Alice', email: 'alice@x.com' },
+    });
+
+    it('returns no rows when db is empty', async () => {
+      const auditLog = (prisma as { auditLog: Record<string, jest.Mock> }).auditLog;
+      auditLog.findMany.mockResolvedValueOnce([]);
+
+      const out: Array<{ id: string }> = [];
+      for await (const row of service.exportAuditLogs(COMPANY_ID, { maxRows: 10_000 })) {
+        out.push(row);
+      }
+      expect(out).toHaveLength(0);
+      expect(auditLog.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('streams rows across multiple pages using cursor pagination', async () => {
+      const auditLog = (prisma as { auditLog: Record<string, jest.Mock> }).auditLog;
+      const page1 = Array.from({ length: 500 }, (_, i) => buildRow('p1-' + i, i));
+      const page2 = Array.from({ length: 3 }, (_, i) => buildRow('p2-' + i, i));
+      auditLog.findMany.mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
+
+      const out: Array<{ id: string }> = [];
+      for await (const row of service.exportAuditLogs(COMPANY_ID, { maxRows: 10_000 })) {
+        out.push(row);
+      }
+      expect(out).toHaveLength(503);
+      expect(auditLog.findMany).toHaveBeenCalledTimes(2);
+      // Second call uses cursor from last row of page1
+      const secondCallArgs = auditLog.findMany.mock.calls[1][0];
+      expect(secondCallArgs.cursor).toEqual({ id: 'p1-499' });
+      expect(secondCallArgs.skip).toBe(1);
+    });
+
+    it('respects maxRows hard limit', async () => {
+      const auditLog = (prisma as { auditLog: Record<string, jest.Mock> }).auditLog;
+      const page = Array.from({ length: 500 }, (_, i) => buildRow('r-' + i, i));
+      auditLog.findMany.mockResolvedValue(page);
+
+      const out: Array<{ id: string }> = [];
+      for await (const row of service.exportAuditLogs(COMPANY_ID, { maxRows: 100 })) {
+        out.push(row);
+      }
+      expect(out).toHaveLength(100);
+      // Only one DB call: take = min(500, 100) = 100
+      expect(auditLog.findMany.mock.calls[0][0].take).toBe(100);
+    });
+
+    it('applies filters (action, resource, userId, date range)', async () => {
+      const auditLog = (prisma as { auditLog: Record<string, jest.Mock> }).auditLog;
+      auditLog.findMany.mockResolvedValueOnce([]);
+
+      const iter = service.exportAuditLogs(COMPANY_ID, {
+        action: 'DELETE',
+        resource: 'user',
+        userId: 'u42',
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-04-01'),
+        maxRows: 1_000,
+      });
+      // drain
+      for await (const _ of iter) {
+        // no-op
+      }
+
+      const where = auditLog.findMany.mock.calls[0][0].where;
+      expect(where.companyId).toBe(COMPANY_ID);
+      expect(where.action).toBe('DELETE');
+      expect(where.resource).toBe('user');
+      expect(where.userId).toBe('u42');
+      expect(where.createdAt.gte).toEqual(new Date('2026-01-01'));
+      expect(where.createdAt.lte).toEqual(new Date('2026-04-01'));
+    });
+
+    it('flattens user relation into email/name fields', async () => {
+      const auditLog = (prisma as { auditLog: Record<string, jest.Mock> }).auditLog;
+      auditLog.findMany.mockResolvedValueOnce([buildRow('only-one')]);
+
+      const out: Array<{ userEmail: string | null; userName: string | null }> = [];
+      for await (const row of service.exportAuditLogs(COMPANY_ID, { maxRows: 10 })) {
+        out.push({ userEmail: row.userEmail, userName: row.userName });
+      }
+      expect(out[0]).toEqual({ userEmail: 'alice@x.com', userName: 'Alice' });
+    });
+  });
 });

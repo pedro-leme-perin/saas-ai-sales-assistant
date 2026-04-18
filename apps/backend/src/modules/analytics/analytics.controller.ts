@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -6,9 +7,14 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiProduces,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AnalyticsService } from './analytics.service';
 import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('analytics')
 @ApiBearerAuth('JWT')
@@ -352,4 +358,121 @@ export class AnalyticsController {
       endDate: endDate ? new Date(endDate) : undefined,
     });
   }
+
+  // =============================================
+  // SESSION 43 — Audit log export (compliance)
+  // =============================================
+  @Get('audit-logs/:companyId/export')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @UseGuards(RolesGuard)
+  @Throttle({ strict: { ttl: 60_000, limit: 5 } })
+  @ApiProduces('text/csv', 'application/json')
+  @ApiOperation({
+    summary: 'Export audit logs (CSV or JSON) — compliance / regulator',
+    description:
+      'Streams the filtered audit trail. Hard limit of 100 000 rows. ' +
+      'Rate-limited to 5 requests/min per company. OWNER/ADMIN only.',
+  })
+  @ApiParam({ name: 'companyId', description: 'Company UUID' })
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'json'], example: 'csv' })
+  @ApiQuery({ name: 'action', required: false })
+  @ApiQuery({ name: 'resource', required: false })
+  @ApiQuery({ name: 'userId', required: false })
+  @ApiQuery({ name: 'startDate', required: false, example: '2026-01-01' })
+  @ApiQuery({ name: 'endDate', required: false, example: '2026-04-18' })
+  @ApiResponse({ status: 200, description: 'Stream started' })
+  @ApiResponse({ status: 403, description: 'Forbidden — tenant mismatch or role' })
+  async exportAuditLogs(
+    @Param('companyId') companyId: string,
+    @Res() res: Response,
+    @Query('format') format: 'csv' | 'json' = 'csv',
+    @Query('action') action?: string,
+    @Query('resource') resource?: string,
+    @Query('userId') userId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<void> {
+    if (format !== 'csv' && format !== 'json') {
+      throw new BadRequestException('format must be csv or json');
+    }
+
+    const parsedStart = startDate ? new Date(startDate) : undefined;
+    const parsedEnd = endDate ? new Date(endDate) : undefined;
+    if (parsedStart && Number.isNaN(parsedStart.getTime())) {
+      throw new BadRequestException('invalid startDate');
+    }
+    if (parsedEnd && Number.isNaN(parsedEnd.getTime())) {
+      throw new BadRequestException('invalid endDate');
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `audit-logs-${companyId.slice(0, 8)}-${timestamp}.${format}`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+
+    const iter = this.analyticsService.exportAuditLogs(companyId, {
+      action,
+      resource,
+      userId,
+      startDate: parsedStart,
+      endDate: parsedEnd,
+      maxRows: 100_000,
+    });
+
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.write(
+        [
+          'id',
+          'createdAt',
+          'action',
+          'resource',
+          'resourceId',
+          'description',
+          'userId',
+          'userEmail',
+          'userName',
+          'ipAddress',
+          'userAgent',
+          'requestId',
+          'oldValues',
+          'newValues',
+        ].join(',') + '\n',
+      );
+      for await (const row of iter) {
+        res.write(
+          [
+            row.id,
+            row.createdAt.toISOString(),
+            row.action,
+            row.resource,
+            row.resourceId ?? '',
+            escapeCsv(row.description ?? ''),
+            row.userId ?? '',
+            row.userEmail ?? '',
+            escapeCsv(row.userName ?? ''),
+            row.ipAddress ?? '',
+            escapeCsv(row.userAgent ?? ''),
+            row.requestId ?? '',
+            escapeCsv(JSON.stringify(row.oldValues ?? null)),
+            escapeCsv(JSON.stringify(row.newValues ?? null)),
+          ].join(',') + '\n',
+        );
+      }
+    } else {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      for await (const row of iter) {
+        res.write(JSON.stringify(row) + '\n');
+      }
+    }
+    res.end();
+  }
+}
+
+function escapeCsv(value: string): string {
+  if (value === null || value === undefined) return '';
+  const needsQuote = /[",\n\r]/.test(value);
+  const escaped = value.replace(/"/g, '""');
+  return needsQuote ? `"${escaped}"` : escaped;
 }

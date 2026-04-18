@@ -105,11 +105,15 @@ model User {
   
   // Soft Delete
   deletedAt               DateTime?  @map("deleted_at")
-  
+
+  // LGPD — Scheduled Hard Deletion (Art. 16, III — eliminação)
+  scheduledDeletionAt     DateTime?  @map("scheduled_deletion_at")
+  deletionReason          String?    @map("deletion_reason")
+
   // Tenant Relationship
   companyId               String     @map("company_id")
   company                 Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+
   // Timestamps
   createdAt               DateTime   @default(now()) @map("created_at")
   updatedAt               DateTime   @updatedAt @map("updated_at")
@@ -126,6 +130,7 @@ model User {
   @@index([companyId])
   @@index([companyId, status])
   @@index([companyId, role])
+  @@index([scheduledDeletionAt])
   @@map("users")
 }
 

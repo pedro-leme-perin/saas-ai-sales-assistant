@@ -515,6 +515,12 @@
       "to": "até",
       "of": "de"
     },
+    "export": {
+      "csv": "Exportar CSV",
+      "json": "Exportar JSON",
+      "inProgress": "Exportando…",
+      "error": "Falha ao exportar os logs."
+    },
     "detail": {
       "title": "Detalhes do Registro",
       "resource": "Recurso",
