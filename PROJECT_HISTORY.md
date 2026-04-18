@@ -3,8 +3,8 @@
 **Documento:** Registro detalhado de todas as sessões de desenvolvimento
 **Projeto:** SaaS AI Sales Assistant (TheIAdvisor)
 **Início:** 13/03/2026
-**Última atualização:** 31/03/2026
-**Total de sessões:** 29
+**Última atualização:** 18/04/2026
+**Total de sessões:** 41
 
 ---
 
@@ -472,5 +472,47 @@ Sessão final de configuração de produção. 5 de 6 itens concluídos. WhatsAp
 
 ---
 
-*Documento gerado em 31/03/2026*
+---
+
+## Fase 6 — Enterprise Quality & Produção (Sessões 30–41)
+
+### Sessão 30 — 05/04/2026
+**Rebrand SalesAI → TheIAdvisor.** Commits: `d2ab386`, `89027b8`. Fix runtime crash (AuthModule missing em UploadModule/NotificationsModule). Rebrand completo em 16 arquivos (frontend, backend, PWA, i18n, E2E, Sentry).
+
+### Sessão 31 — 05/04/2026
+**CI pipeline green pela primeira vez.** 8 commits. Root cause: pnpm-lock.yaml referenciava `@saas/shared` inexistente. 37+ arquivos com erros de lint/prettier nunca detectados. CI #93 green (com continue-on-error). 37 suites, 838 tests.
+
+### Sessão 32 — 13/04/2026
+**CI genuinamente green (0 continue-on-error).** 4 commits. Fix: ConfigService mock, mock poisoning (mockReset vs clearAllMocks), spy timing, emoji mismatch, CircuitBreakerStatus enum case. Limpeza Railway (2 projetos duplicados removidos). CI #105 green. 37 suites, 851 tests.
+
+### Sessão 33 — 13/04/2026
+**Security hardening completo.** 7 commits. 5 vulnerabilidades corrigidas: users.controller sem guards, cross-tenant URL manipulation, Twilio webhook spoofing, AuthGuard path whitelist frágil, billing/AI controllers sem TenantGuard. TenantGuard @Public()-aware via Reflector. Performance: SQL aggregations, cache KPIs, parallel AI calls. tsconfig.check.json para CI.
+
+### Sessão 34 — 13/04/2026
+**Observabilidade + k6 + staging CI/CD.** 16 arquivos. OpenTelemetry SDK com 6 auto-instrumentations, 14 deps OTel. 3 scripts k6 (load 100VU, stress 1000VU, AI 40VU). staging.yml workflow. TelemetryService com Four Golden Signals.
+
+### Sessão 35 — 13/04/2026
+**Axiom setup + OTel em produção.** 3 commits. Axiom org `theiadvisor-fxam`, dataset `theiadvisor-traces`. Fix: semantic-conventions v1.x API (SEMRESATTRS_* vs ATTR_*). 16 traces verificados em produção. Railway: 40 env vars.
+
+### Sessão 36 — 13/04/2026
+**CI fix — alinhar tests com sessão 33.** 5 commits. 7 root causes: missing CacheService mock, stale Prisma mocks, TwilioSignatureGuard DI crash, TenantGuard Reflector mock incompleto, AuthGuard @Public()-only refactor, flaky timing test, mock state leaking. CI #118 green. 37 suites, ~853 tests.
+
+### Sessão 37 — 13/04/2026
+**Resilience hardening + lint cleanup.** 6 commits. timing-safe token comparison, Deepgram session leak fix, promiseAllWithTimeout utility, timeout em 4 services, error logging em silent catches, composite index [companyId, sentiment]. 15 lint warnings → 0. CI #121 green.
+
+### Sessão 38 — 13/04/2026
+**Frontend enterprise quality.** 5 itens: zero `as any` no frontend (8 arquivos), hardcoded strings → i18n (17 keys), console.log → structured logging (lib/logger.ts, 10 arquivos migrados), backend unit tests (+2 suites: PrismaService 8 tests, TelemetryService 14 tests). 42 suites, ~875 tests.
+
+### Sessão 39 — 16/04/2026
+**Webhook idempotency + DTO hardening + error boundaries.** 5 itens: WebhookIdempotencyService (Redis SETNX 48h, Stripe/Clerk/WhatsApp), DTO validation (E.164, MaxLength, slug regex, IANA timezone, trim), SegmentError component + 7 error.tsx, TransformInterceptor (API envelope), Zod env validation. ~25 arquivos.
+
+### Sessão 40 — 17/04/2026
+**Legal compliance + LGPD.** 7 commits. /terms, /privacy, /help pages. LGPD endpoints: GET /users/me/export-data (Art. 18 V), POST /users/me/request-deletion (Art. 18 VI). 11 unit tests LGPD. CI warnings fix. Bug fix: assignedUserId → userId. CI #154 green. ~46 suites, ~893 tests.
+
+### Sessão 41 — 18/04/2026
+**10 enterprise improvements.** 5 commits (`bbac064`..`10ce054`), 94 arquivos, +6573/-2040 linhas. Itens: (1) E2E tests reescritos (10 specs), (2) SEO (sitemap, robots.txt, JSON-LD), (3) Dashboard analytics melhorias, (4) Onboarding UX, (5) Admin features (invite modal, role badge, audit log detail/filters), (6) PWA v2 (sw.js 446 linhas, offline.html), (7) Rate limiting granular (@RateLimit decorator, ApiKeyGuard), (8) Swagger docs, (9) Security headers middleware (CSP, HSTS), (10) Legal pages i18n + Clerk middleware fix. CI #159 green.
+
+---
+
+*Documento atualizado em 18/04/2026*
 *Próxima atualização: a cada sessão de trabalho*
