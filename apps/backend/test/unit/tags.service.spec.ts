@@ -21,7 +21,15 @@ import { SearchScope } from '../../src/modules/tags/dto/search-conversations.dto
 
 jest.setTimeout(10_000);
 
-const makeTag = (overrides: Partial<{ id: string; companyId: string; name: string; color: string; description: string | null }> = {}) => ({
+const makeTag = (
+  overrides: Partial<{
+    id: string;
+    companyId: string;
+    name: string;
+    color: string;
+    description: string | null;
+  }> = {},
+) => ({
   id: overrides.id ?? 'tag-1',
   companyId: overrides.companyId ?? 'company-1',
   createdById: 'user-1',
@@ -71,10 +79,7 @@ describe('TagsService', () => {
     mockPrisma.auditLog.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TagsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [TagsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<TagsService>(TagsService);
@@ -113,7 +118,9 @@ describe('TagsService', () => {
   describe('findById', () => {
     it('throws NotFoundException when tag missing or in another tenant', async () => {
       mockPrisma.conversationTag.findFirst.mockResolvedValueOnce(null);
-      await expect(service.findById('company-1', 'tag-x')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.findById('company-1', 'tag-x')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('returns row when owned', async () => {
@@ -152,9 +159,9 @@ describe('TagsService', () => {
       });
       mockPrisma.conversationTag.create.mockRejectedValueOnce(p2002);
 
-      await expect(
-        service.create('company-1', 'user-1', { name: 'Dup' }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create('company-1', 'user-1', { name: 'Dup' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 
@@ -232,10 +239,7 @@ describe('TagsService', () => {
 
     it('persists valid tags + returns count + audits', async () => {
       mockPrisma.call.findFirst.mockResolvedValueOnce({ id: 'call-1' });
-      mockPrisma.conversationTag.findMany.mockResolvedValueOnce([
-        { id: 'tag-1' },
-        { id: 'tag-2' },
-      ]);
+      mockPrisma.conversationTag.findMany.mockResolvedValueOnce([{ id: 'tag-1' }, { id: 'tag-2' }]);
       mockPrisma.callTag.createMany.mockResolvedValueOnce({ count: 2 });
 
       const res = await service.attachToCall('company-1', 'call-1', ['tag-1', 'tag-2'], 'user-1');
@@ -300,10 +304,7 @@ describe('TagsService', () => {
     });
 
     it('applies AND semantics for tagIds (one WHERE clause per id)', async () => {
-      mockPrisma.conversationTag.findMany.mockResolvedValueOnce([
-        { id: 'tag-1' },
-        { id: 'tag-2' },
-      ]);
+      mockPrisma.conversationTag.findMany.mockResolvedValueOnce([{ id: 'tag-1' }, { id: 'tag-2' }]);
       mockPrisma.call.findMany.mockResolvedValueOnce([]);
       mockPrisma.whatsappChat.findMany.mockResolvedValueOnce([]);
 

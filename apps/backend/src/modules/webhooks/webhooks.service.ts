@@ -322,15 +322,27 @@ export class WebhooksService {
   }
 
   protected sign(secret: string, body: string): string {
-    return 't=' + Math.floor(Date.now() / 1000) + ',v1=' + createHmac('sha256', secret).update(body).digest('hex');
+    return (
+      't=' +
+      Math.floor(Date.now() / 1000) +
+      ',v1=' +
+      createHmac('sha256', secret).update(body).digest('hex')
+    );
   }
 
   /**
    * Timing-safe verifier — exposed so customers can reuse in helpers/docs.
    */
-  static verifySignature(secret: string, body: string, header: string, toleranceSec = 300): boolean {
+  static verifySignature(
+    secret: string,
+    body: string,
+    header: string,
+    toleranceSec = 300,
+  ): boolean {
     try {
-      const parts = Object.fromEntries(header.split(',').map((kv) => kv.split('=', 2) as [string, string]));
+      const parts = Object.fromEntries(
+        header.split(',').map((kv) => kv.split('=', 2) as [string, string]),
+      );
       const t = Number(parts.t);
       const v1 = parts.v1;
       if (!Number.isFinite(t) || !v1) return false;

@@ -8,12 +8,7 @@
 // ApiKeyGuard via CacheService.checkRateLimit (sliding window).
 // =============================================
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ApiKey, AuditAction, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 
@@ -131,9 +126,7 @@ export class ApiKeysService {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.scopes !== undefined ? { scopes: dto.scopes } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        ...(dto.rateLimitPerMin !== undefined
-          ? { rateLimitPerMin: dto.rateLimitPerMin }
-          : {}),
+        ...(dto.rateLimitPerMin !== undefined ? { rateLimitPerMin: dto.rateLimitPerMin } : {}),
         ...(dto.expiresAt !== undefined
           ? { expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null }
           : {}),

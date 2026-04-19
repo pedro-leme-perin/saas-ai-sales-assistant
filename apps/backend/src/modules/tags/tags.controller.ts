@@ -88,10 +88,7 @@ export class TagsController {
   // ───────── ATTACH / DETACH — CALLS ─────────
   @Get('calls/:id/tags')
   @ApiOperation({ summary: 'List tags attached to a call' })
-  async listCallTags(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async listCallTags(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return { data: await this.service.listCallTags(companyId, id) };
   }
 
@@ -121,10 +118,7 @@ export class TagsController {
   // ───────── ATTACH / DETACH — CHATS ─────────
   @Get('whatsapp/chats/:id/tags')
   @ApiOperation({ summary: 'List tags attached to a chat' })
-  async listChatTags(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async listChatTags(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return { data: await this.service.listChatTags(companyId, id) };
   }
 

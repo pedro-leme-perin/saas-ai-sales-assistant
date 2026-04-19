@@ -13,10 +13,7 @@ import { SummariesService } from '../summaries/summaries.service';
 import { Twilio } from 'twilio';
 import { CallDirection, CallStatus, SuggestionType, WebhookEvent } from '@prisma/client';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
-import {
-  WEBHOOK_EVENT_NAME,
-  type WebhookEmitPayload,
-} from '../webhooks/events/webhook-events';
+import { WEBHOOK_EVENT_NAME, type WebhookEmitPayload } from '../webhooks/events/webhook-events';
 
 @Injectable()
 export class CallsService {
@@ -358,11 +355,7 @@ export class CallsService {
     return updated;
   }
 
-  private emitWebhook(
-    companyId: string,
-    event: WebhookEvent,
-    data: Record<string, unknown>,
-  ): void {
+  private emitWebhook(companyId: string, event: WebhookEvent, data: Record<string, unknown>): void {
     try {
       this.eventEmitter.emit(WEBHOOK_EVENT_NAME, {
         companyId,

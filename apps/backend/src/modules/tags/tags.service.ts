@@ -9,12 +9,7 @@
 // for backward compat; new code should use ConversationTag joins.
 // =============================================
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AuditAction, ConversationTag, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
@@ -45,7 +40,9 @@ export class TagsService {
   // =============================================
   // CRUD
   // =============================================
-  async list(companyId: string): Promise<Array<ConversationTag & { callCount: number; chatCount: number }>> {
+  async list(
+    companyId: string,
+  ): Promise<Array<ConversationTag & { callCount: number; chatCount: number }>> {
     const rows = await this.prisma.conversationTag.findMany({
       where: { companyId },
       orderBy: [{ name: 'asc' }],
@@ -54,7 +51,9 @@ export class TagsService {
       },
     });
     return rows.map((r) => {
-      const { _count, ...rest } = r as typeof r & { _count: { callLinks: number; chatLinks: number } };
+      const { _count, ...rest } = r as typeof r & {
+        _count: { callLinks: number; chatLinks: number };
+      };
       return { ...rest, callCount: _count.callLinks, chatCount: _count.chatLinks };
     });
   }
@@ -65,7 +64,11 @@ export class TagsService {
     return row;
   }
 
-  async create(companyId: string, createdById: string, dto: CreateTagDto): Promise<ConversationTag> {
+  async create(
+    companyId: string,
+    createdById: string,
+    dto: CreateTagDto,
+  ): Promise<ConversationTag> {
     try {
       const row = await this.prisma.conversationTag.create({
         data: {
@@ -76,7 +79,10 @@ export class TagsService {
           description: dto.description ?? null,
         },
       });
-      this.audit(companyId, createdById, AuditAction.CREATE, row.id, { name: row.name, color: row.color });
+      this.audit(companyId, createdById, AuditAction.CREATE, row.id, {
+        name: row.name,
+        color: row.color,
+      });
       return row;
     } catch (err: unknown) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -86,7 +92,12 @@ export class TagsService {
     }
   }
 
-  async update(companyId: string, id: string, actorId: string, dto: UpdateTagDto): Promise<ConversationTag> {
+  async update(
+    companyId: string,
+    id: string,
+    actorId: string,
+    dto: UpdateTagDto,
+  ): Promise<ConversationTag> {
     const existing = await this.findById(companyId, id);
     try {
       const row = await this.prisma.conversationTag.update({
@@ -98,7 +109,11 @@ export class TagsService {
         },
       });
       this.audit(companyId, actorId, AuditAction.UPDATE, id, {
-        oldValues: { name: existing.name, color: existing.color, description: existing.description },
+        oldValues: {
+          name: existing.name,
+          color: existing.color,
+          description: existing.description,
+        },
         newValues: { name: row.name, color: row.color, description: row.description },
       });
       return row;
@@ -199,7 +214,10 @@ export class TagsService {
   // =============================================
   // SEARCH — cross-channel
   // =============================================
-  async search(companyId: string, dto: SearchConversationsDto): Promise<{ calls: ConversationHit[]; chats: ConversationHit[] }> {
+  async search(
+    companyId: string,
+    dto: SearchConversationsDto,
+  ): Promise<{ calls: ConversationHit[]; chats: ConversationHit[] }> {
     const scope = dto.scope ?? SearchScope.BOTH;
     const limit = Math.min(dto.limit ?? SEARCH_DEFAULT_LIMIT, SEARCH_MAX_LIMIT);
     const tagIds = dto.tagIds && dto.tagIds.length > 0 ? dto.tagIds : null;
@@ -329,12 +347,18 @@ export class TagsService {
   // GUARDS (tenant isolation)
   // =============================================
   private async assertCallOwned(companyId: string, callId: string): Promise<void> {
-    const row = await this.prisma.call.findFirst({ where: { id: callId, companyId }, select: { id: true } });
+    const row = await this.prisma.call.findFirst({
+      where: { id: callId, companyId },
+      select: { id: true },
+    });
     if (!row) throw new NotFoundException(`Call ${callId} not found`);
   }
 
   private async assertChatOwned(companyId: string, chatId: string): Promise<void> {
-    const row = await this.prisma.whatsappChat.findFirst({ where: { id: chatId, companyId }, select: { id: true } });
+    const row = await this.prisma.whatsappChat.findFirst({
+      where: { id: chatId, companyId },
+      select: { id: true },
+    });
     if (!row) throw new NotFoundException(`Chat ${chatId} not found`);
   }
 

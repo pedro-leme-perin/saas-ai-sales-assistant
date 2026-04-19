@@ -155,7 +155,9 @@ export class ApiKeyGuard implements CanActivate {
         );
         throw new HttpException('API key rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
       }
-      const res = context.switchToHttp().getResponse<{ setHeader?: (k: string, v: string) => void }>();
+      const res = context
+        .switchToHttp()
+        .getResponse<{ setHeader?: (k: string, v: string) => void }>();
       res.setHeader?.('X-RateLimit-Limit', String(storedKey.rateLimitPerMin));
       res.setHeader?.('X-RateLimit-Remaining', String(Math.max(0, remaining)));
     }

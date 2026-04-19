@@ -20,7 +20,10 @@ jest.setTimeout(15000);
 
 // Tiny subclass so we can spy on the protected httpPost without real fetch.
 class TestableWebhooksService extends WebhooksService {
-  public postSpy = jest.fn<Promise<{ status: number; body: string }>, [string, string, Record<string, string>]>();
+  public postSpy = jest.fn<
+    Promise<{ status: number; body: string }>,
+    [string, string, Record<string, string>]
+  >();
   protected async httpPost(url: string, body: string, headers: Record<string, string>) {
     return this.postSpy(url, body, headers);
   }
@@ -60,10 +63,7 @@ describe('WebhooksService', () => {
     mockPrisma.$transaction.mockImplementation((ops: unknown[]) => Promise.all(ops));
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TestableWebhooksService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [TestableWebhooksService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get(TestableWebhooksService);
@@ -88,12 +88,15 @@ describe('WebhooksService', () => {
 
     it('findById throws NotFoundException when tenant mismatch', async () => {
       mockPrisma.webhookEndpoint.findFirst.mockResolvedValueOnce(null);
-      await expect(service.findById('company-1', 'ep-xyz')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.findById('company-1', 'ep-xyz')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('create stores endpoint + generates secret with whsec_ prefix + writes audit', async () => {
-      mockPrisma.webhookEndpoint.create.mockImplementation(({ data }: { data: { secret: string; events: WebhookEvent[] } }) =>
-        Promise.resolve({ id: 'ep-new', ...data, isActive: true }),
+      mockPrisma.webhookEndpoint.create.mockImplementation(
+        ({ data }: { data: { secret: string; events: WebhookEvent[] } }) =>
+          Promise.resolve({ id: 'ep-new', ...data, isActive: true }),
       );
       const created = await service.create('company-1', actor, {
         url: 'https://example.com/hook',
@@ -115,12 +118,24 @@ describe('WebhooksService', () => {
 
     it('update merges fields and logs old/new values', async () => {
       const existing = {
-        id: 'ep-1', companyId: 'company-1', url: 'https://a', events: [WebhookEvent.CALL_COMPLETED],
-        isActive: true, description: null, secret: 'whsec_x',
+        id: 'ep-1',
+        companyId: 'company-1',
+        url: 'https://a',
+        events: [WebhookEvent.CALL_COMPLETED],
+        isActive: true,
+        description: null,
+        secret: 'whsec_x',
       };
       mockPrisma.webhookEndpoint.findFirst.mockResolvedValueOnce(existing);
-      mockPrisma.webhookEndpoint.update.mockResolvedValueOnce({ ...existing, url: 'https://b', isActive: false });
-      const out = await service.update('company-1', 'ep-1', actor, { url: 'https://b', isActive: false });
+      mockPrisma.webhookEndpoint.update.mockResolvedValueOnce({
+        ...existing,
+        url: 'https://b',
+        isActive: false,
+      });
+      const out = await service.update('company-1', 'ep-1', actor, {
+        url: 'https://b',
+        isActive: false,
+      });
       expect(out.url).toBe('https://b');
       expect(mockPrisma.webhookEndpoint.update).toHaveBeenCalledWith({
         where: { id: 'ep-1' },
@@ -129,7 +144,10 @@ describe('WebhooksService', () => {
     });
 
     it('remove deletes and audits', async () => {
-      mockPrisma.webhookEndpoint.findFirst.mockResolvedValueOnce({ id: 'ep-1', companyId: 'company-1' });
+      mockPrisma.webhookEndpoint.findFirst.mockResolvedValueOnce({
+        id: 'ep-1',
+        companyId: 'company-1',
+      });
       mockPrisma.webhookEndpoint.delete.mockResolvedValueOnce({ id: 'ep-1' });
       const out = await service.remove('company-1', 'ep-1', actor);
       expect(out).toEqual({ ok: true });
@@ -137,11 +155,20 @@ describe('WebhooksService', () => {
     });
 
     it('rotateSecret writes new secret + audits "rotated: true"', async () => {
-      mockPrisma.webhookEndpoint.findFirst.mockResolvedValueOnce({ id: 'ep-1', companyId: 'company-1' });
-      mockPrisma.webhookEndpoint.update.mockResolvedValueOnce({ id: 'ep-1', secret: 'whsec_new', updatedAt: new Date() });
+      mockPrisma.webhookEndpoint.findFirst.mockResolvedValueOnce({
+        id: 'ep-1',
+        companyId: 'company-1',
+      });
+      mockPrisma.webhookEndpoint.update.mockResolvedValueOnce({
+        id: 'ep-1',
+        secret: 'whsec_new',
+        updatedAt: new Date(),
+      });
       const out = await service.rotateSecret('company-1', 'ep-1', actor);
       expect(out.secret).toBe('whsec_new');
-      const dataArg = (mockPrisma.webhookEndpoint.update.mock.calls[0] as Array<{ data: { secret: string } }>)[0].data;
+      const dataArg = (
+        mockPrisma.webhookEndpoint.update.mock.calls[0] as Array<{ data: { secret: string } }>
+      )[0].data;
       expect(dataArg.secret).toMatch(/^whsec_/);
     });
 
@@ -173,10 +200,15 @@ describe('WebhooksService', () => {
 
     it('fans out to every active endpoint subscribing to the event', async () => {
       mockPrisma.webhookEndpoint.findMany.mockResolvedValueOnce([
-        { id: 'ep-a', secret: 's' }, { id: 'ep-b', secret: 's' },
+        { id: 'ep-a', secret: 's' },
+        { id: 'ep-b', secret: 's' },
       ]);
       mockPrisma.webhookDelivery.createMany.mockResolvedValueOnce({ count: 2 });
-      await service.emit({ companyId: 'company-1', event: WebhookEvent.CALL_COMPLETED, data: { foo: 1 } });
+      await service.emit({
+        companyId: 'company-1',
+        event: WebhookEvent.CALL_COMPLETED,
+        data: { foo: 1 },
+      });
       expect(mockPrisma.webhookEndpoint.findMany).toHaveBeenCalledWith({
         where: {
           companyId: 'company-1',
@@ -184,7 +216,9 @@ describe('WebhooksService', () => {
           events: { has: WebhookEvent.CALL_COMPLETED },
         },
       });
-      const call = mockPrisma.webhookDelivery.createMany.mock.calls[0] as Array<{ data: unknown[] }>;
+      const call = mockPrisma.webhookDelivery.createMany.mock.calls[0] as Array<{
+        data: unknown[];
+      }>;
       expect(call[0].data).toHaveLength(2);
     });
   });
@@ -202,20 +236,28 @@ describe('WebhooksService', () => {
     it('marks DEAD_LETTER when endpoint is inactive', async () => {
       mockPrisma.webhookDelivery.findMany.mockResolvedValueOnce([
         {
-          id: 'dlv-1', attempts: 0, payload: { a: 1 }, event: WebhookEvent.CALL_COMPLETED,
+          id: 'dlv-1',
+          attempts: 0,
+          payload: { a: 1 },
+          event: WebhookEvent.CALL_COMPLETED,
           endpoint: { id: 'ep-1', url: 'https://x', secret: 's', isActive: false },
         },
       ]);
       await service.processPending();
       expect(service.postSpy).not.toHaveBeenCalled();
-      const updateArg = (mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{ data: { status: string } }>)[0];
+      const updateArg = (
+        mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{ data: { status: string } }>
+      )[0];
       expect(updateArg.data.status).toBe(WebhookDeliveryStatus.DEAD_LETTER);
     });
 
     it('HTTP 2xx → SUCCEEDED + resets failureCount', async () => {
       mockPrisma.webhookDelivery.findMany.mockResolvedValueOnce([
         {
-          id: 'dlv-ok', attempts: 0, payload: { a: 1 }, event: WebhookEvent.CALL_COMPLETED,
+          id: 'dlv-ok',
+          attempts: 0,
+          payload: { a: 1 },
+          event: WebhookEvent.CALL_COMPLETED,
           endpoint: { id: 'ep-1', url: 'https://ok', secret: 'whsec_test', isActive: true },
         },
       ]);
@@ -226,16 +268,23 @@ describe('WebhooksService', () => {
       await service.processPending();
 
       expect(service.postSpy).toHaveBeenCalledTimes(1);
-      const dlvUpdate = (mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{ data: { status: string } }>)[0];
+      const dlvUpdate = (
+        mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{ data: { status: string } }>
+      )[0];
       expect(dlvUpdate.data.status).toBe(WebhookDeliveryStatus.SUCCEEDED);
-      const epUpdate = (mockPrisma.webhookEndpoint.update.mock.calls[0] as Array<{ data: { failureCount: number } }>)[0];
+      const epUpdate = (
+        mockPrisma.webhookEndpoint.update.mock.calls[0] as Array<{ data: { failureCount: number } }>
+      )[0];
       expect(epUpdate.data.failureCount).toBe(0);
     });
 
     it('HTTP 5xx → FAILED + nextAttemptAt scheduled', async () => {
       mockPrisma.webhookDelivery.findMany.mockResolvedValueOnce([
         {
-          id: 'dlv-5xx', attempts: 1, payload: { a: 1 }, event: WebhookEvent.CALL_COMPLETED,
+          id: 'dlv-5xx',
+          attempts: 1,
+          payload: { a: 1 },
+          event: WebhookEvent.CALL_COMPLETED,
           endpoint: { id: 'ep-1', url: 'https://x', secret: 'whsec_test', isActive: true },
         },
       ]);
@@ -243,7 +292,11 @@ describe('WebhooksService', () => {
 
       await service.processPending();
 
-      const dlvUpdate = (mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{ data: { status: string; nextAttemptAt: Date | null } }>)[0];
+      const dlvUpdate = (
+        mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{
+          data: { status: string; nextAttemptAt: Date | null };
+        }>
+      )[0];
       expect(dlvUpdate.data.status).toBe(WebhookDeliveryStatus.FAILED);
       expect(dlvUpdate.data.nextAttemptAt).toBeInstanceOf(Date);
     });
@@ -251,7 +304,10 @@ describe('WebhooksService', () => {
     it('throw inside httpPost → FAILED + errorMessage', async () => {
       mockPrisma.webhookDelivery.findMany.mockResolvedValueOnce([
         {
-          id: 'dlv-thr', attempts: 0, payload: { a: 1 }, event: WebhookEvent.CALL_COMPLETED,
+          id: 'dlv-thr',
+          attempts: 0,
+          payload: { a: 1 },
+          event: WebhookEvent.CALL_COMPLETED,
           endpoint: { id: 'ep-1', url: 'https://x', secret: 's', isActive: true },
         },
       ]);
@@ -259,7 +315,11 @@ describe('WebhooksService', () => {
 
       await service.processPending();
 
-      const dlvUpdate = (mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{ data: { status: string; errorMessage: string } }>)[0];
+      const dlvUpdate = (
+        mockPrisma.webhookDelivery.update.mock.calls[0] as Array<{
+          data: { status: string; errorMessage: string };
+        }>
+      )[0];
       expect(dlvUpdate.data.status).toBe(WebhookDeliveryStatus.FAILED);
       expect(dlvUpdate.data.errorMessage).toContain('ECONNRESET');
     });
@@ -268,7 +328,10 @@ describe('WebhooksService', () => {
       // attempts=5 (pre-increment), WEBHOOK_MAX_ATTEMPTS default=6 → attemptNo=6 ≥ max
       mockPrisma.webhookDelivery.findMany.mockResolvedValueOnce([
         {
-          id: 'dlv-max', attempts: 5, payload: { a: 1 }, event: WebhookEvent.CALL_COMPLETED,
+          id: 'dlv-max',
+          attempts: 5,
+          payload: { a: 1 },
+          event: WebhookEvent.CALL_COMPLETED,
           endpoint: { id: 'ep-1', url: 'https://x', secret: 's', isActive: true },
         },
       ]);
@@ -277,7 +340,9 @@ describe('WebhooksService', () => {
       await service.processPending();
 
       // Second update call marks DLQ
-      const updates = mockPrisma.webhookDelivery.update.mock.calls as Array<Array<{ data: { status: string } }>>;
+      const updates = mockPrisma.webhookDelivery.update.mock.calls as Array<
+        Array<{ data: { status: string } }>
+      >;
       const statuses = updates.map((c) => c[0].data.status);
       expect(statuses).toContain(WebhookDeliveryStatus.DEAD_LETTER);
     });

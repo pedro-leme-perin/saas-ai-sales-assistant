@@ -33,7 +33,20 @@ jest.mock('openai', () => {
   };
 });
 
-const makeTemplate = (overrides: Partial<{ id: string; companyId: string; name: string; channel: ReplyTemplateChannel; category: string | null; content: string; variables: string[]; isActive: boolean; usageCount: number; createdById: string }> = {}) => ({
+const makeTemplate = (
+  overrides: Partial<{
+    id: string;
+    companyId: string;
+    name: string;
+    channel: ReplyTemplateChannel;
+    category: string | null;
+    content: string;
+    variables: string[];
+    isActive: boolean;
+    usageCount: number;
+    createdById: string;
+  }> = {},
+) => ({
   id: overrides.id ?? 'tmpl-1',
   companyId: overrides.companyId ?? 'company-1',
   createdById: overrides.createdById ?? 'user-1',
@@ -99,14 +112,20 @@ describe('ReplyTemplatesService', () => {
     it('filters BOTH-channel templates alongside CALL when channel=CALL', async () => {
       mockPrisma.replyTemplate.findMany.mockResolvedValueOnce([]);
       await service.list('company-1', ReplyTemplateChannel.CALL);
-      const arg = (mockPrisma.replyTemplate.findMany.mock.calls[0] as Array<{ where: { channel: unknown } }>)[0];
-      expect(arg.where.channel).toEqual({ in: [ReplyTemplateChannel.CALL, ReplyTemplateChannel.BOTH] });
+      const arg = (
+        mockPrisma.replyTemplate.findMany.mock.calls[0] as Array<{ where: { channel: unknown } }>
+      )[0];
+      expect(arg.where.channel).toEqual({
+        in: [ReplyTemplateChannel.CALL, ReplyTemplateChannel.BOTH],
+      });
     });
 
     it('applies exact BOTH filter when channel=BOTH', async () => {
       mockPrisma.replyTemplate.findMany.mockResolvedValueOnce([]);
       await service.list('company-1', ReplyTemplateChannel.BOTH);
-      const arg = (mockPrisma.replyTemplate.findMany.mock.calls[0] as Array<{ where: { channel: unknown } }>)[0];
+      const arg = (
+        mockPrisma.replyTemplate.findMany.mock.calls[0] as Array<{ where: { channel: unknown } }>
+      )[0];
       expect(arg.where.channel).toBe(ReplyTemplateChannel.BOTH);
     });
   });
@@ -114,14 +133,17 @@ describe('ReplyTemplatesService', () => {
   describe('findById', () => {
     it('throws NotFound when tenant mismatch', async () => {
       mockPrisma.replyTemplate.findFirst.mockResolvedValueOnce(null);
-      await expect(service.findById('company-1', 'tmpl-x')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.findById('company-1', 'tmpl-x')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
   describe('create', () => {
     it('persists + extracts {{variables}} from content', async () => {
-      mockPrisma.replyTemplate.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'tmpl-new', ...data }),
+      mockPrisma.replyTemplate.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'tmpl-new', ...data }),
       );
       const out = await service.create('company-1', 'user-1', {
         name: 'Fechamento',
@@ -133,12 +155,15 @@ describe('ReplyTemplatesService', () => {
 
     it('converts P2002 into BadRequestException', async () => {
       const p2002 = new Prisma.PrismaClientKnownRequestError('dupe', {
-        code: 'P2002', clientVersion: 'test',
+        code: 'P2002',
+        clientVersion: 'test',
       });
       mockPrisma.replyTemplate.create.mockRejectedValueOnce(p2002);
       await expect(
         service.create('company-1', 'user-1', {
-          name: 'dup', channel: ReplyTemplateChannel.WHATSAPP, content: 'x',
+          name: 'dup',
+          channel: ReplyTemplateChannel.WHATSAPP,
+          content: 'x',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
@@ -149,11 +174,14 @@ describe('ReplyTemplatesService', () => {
       mockPrisma.replyTemplate.findFirst.mockResolvedValueOnce(
         makeTemplate({ content: 'Hi {{a}}', variables: ['a'] }),
       );
-      mockPrisma.replyTemplate.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-        Promise.resolve({ ...makeTemplate(), ...data }),
+      mockPrisma.replyTemplate.update.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ ...makeTemplate(), ...data }),
       );
       await service.update('company-1', 'tmpl-1', 'user-1', { content: 'Hello {{x}} and {{y}}' });
-      const arg = (mockPrisma.replyTemplate.update.mock.calls[0] as Array<{ data: { variables: string[] } }>)[0];
+      const arg = (
+        mockPrisma.replyTemplate.update.mock.calls[0] as Array<{ data: { variables: string[] } }>
+      )[0];
       expect(arg.data.variables).toEqual(expect.arrayContaining(['x', 'y']));
     });
   });
@@ -171,7 +199,11 @@ describe('ReplyTemplatesService', () => {
       mockPrisma.replyTemplate.findFirst.mockResolvedValueOnce(makeTemplate());
       mockPrisma.replyTemplate.update.mockResolvedValueOnce(makeTemplate({ usageCount: 1 }));
       await service.markUsed('company-1', 'tmpl-1');
-      const arg = (mockPrisma.replyTemplate.update.mock.calls[0] as Array<{ data: { usageCount: unknown; lastUsedAt: unknown } }>)[0];
+      const arg = (
+        mockPrisma.replyTemplate.update.mock.calls[0] as Array<{
+          data: { usageCount: unknown; lastUsedAt: unknown };
+        }>
+      )[0];
       expect(arg.data.usageCount).toEqual({ increment: 1 });
       expect(arg.data.lastUsedAt).toBeInstanceOf(Date);
     });
@@ -203,8 +235,18 @@ describe('ReplyTemplatesService', () => {
     });
 
     it('no OPENAI_API_KEY → heuristic ranker (overlap ordering)', async () => {
-      const a = makeTemplate({ id: 'a', name: 'Preco starter', content: 'Plano starter custa 97 reais', usageCount: 1 });
-      const b = makeTemplate({ id: 'b', name: 'Onboarding', content: 'Como começar no sistema', usageCount: 5 });
+      const a = makeTemplate({
+        id: 'a',
+        name: 'Preco starter',
+        content: 'Plano starter custa 97 reais',
+        usageCount: 1,
+      });
+      const b = makeTemplate({
+        id: 'b',
+        name: 'Onboarding',
+        content: 'Como começar no sistema',
+        usageCount: 5,
+      });
       mockPrisma.replyTemplate.findMany.mockResolvedValueOnce([a, b]);
       const out = await service.suggest('company-1', {
         channel: ReplyTemplateChannel.WHATSAPP,
@@ -220,8 +262,8 @@ describe('ReplyTemplatesService', () => {
   // ─────────────────────────────────────────────
   describe('extractVariables', () => {
     it('ignores invalid tokens and caps at 30', async () => {
-      mockPrisma.replyTemplate.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'tmpl-n', ...data }),
+      mockPrisma.replyTemplate.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => Promise.resolve({ id: 'tmpl-n', ...data }),
       );
       const manyValid = Array.from({ length: 40 }, (_, i) => `v${i}`);
       const out = await service.create('company-1', 'user-1', {

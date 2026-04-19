@@ -45,10 +45,7 @@ export class ReplyTemplatesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single reply template' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 
@@ -95,20 +92,14 @@ export class ReplyTemplatesController {
   @Post(':id/used')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark a template as used (increments usageCount)' })
-  async markUsed(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @CompanyId() companyId: string,
-  ) {
+  async markUsed(@Param('id', new ParseUUIDPipe()) id: string, @CompanyId() companyId: string) {
     return this.service.markUsed(companyId, id);
   }
 
   @Post('suggest')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Suggest top-k templates for a given conversation context' })
-  async suggest(
-    @CompanyId() companyId: string,
-    @Body() dto: SuggestReplyTemplateDto,
-  ) {
+  async suggest(@CompanyId() companyId: string, @Body() dto: SuggestReplyTemplateDto) {
     return { data: await this.service.suggest(companyId, dto) };
   }
 }

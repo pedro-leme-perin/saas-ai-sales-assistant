@@ -1,8 +1,20 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+} from 'class-validator';
 import { WebhookEvent } from '@prisma/client';
 
 export class CreateWebhookDto {
-  @IsUrl({ require_protocol: true, require_tld: false }, { message: 'url must be a valid http(s) URL' })
+  @IsUrl(
+    { require_protocol: true, require_tld: false },
+    { message: 'url must be a valid http(s) URL' },
+  )
   @MaxLength(2048)
   url!: string;
 

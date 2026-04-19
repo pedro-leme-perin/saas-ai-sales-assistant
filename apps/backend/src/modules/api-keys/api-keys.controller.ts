@@ -40,10 +40,7 @@ export class ApiKeysController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single API key metadata (never plaintext)' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 

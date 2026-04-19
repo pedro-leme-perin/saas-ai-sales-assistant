@@ -24,7 +24,21 @@ import { PrismaService } from '../../src/infrastructure/database/prisma.service'
 
 jest.setTimeout(10_000);
 
-const makeKey = (overrides: Partial<{ id: string; companyId: string; name: string; keyHash: string; keyPrefix: string; scopes: string[]; isActive: boolean; rateLimitPerMin: number | null; expiresAt: Date | null; revokedAt: Date | null; usageCount: number }> = {}) => ({
+const makeKey = (
+  overrides: Partial<{
+    id: string;
+    companyId: string;
+    name: string;
+    keyHash: string;
+    keyPrefix: string;
+    scopes: string[];
+    isActive: boolean;
+    rateLimitPerMin: number | null;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    usageCount: number;
+  }> = {},
+) => ({
   id: overrides.id ?? 'key-1',
   companyId: overrides.companyId ?? 'company-1',
   createdById: 'user-1',
@@ -62,10 +76,7 @@ describe('ApiKeysService', () => {
     mockPrisma.auditLog.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ApiKeysService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [ApiKeysService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<ApiKeysService>(ApiKeysService);
@@ -113,13 +124,15 @@ describe('ApiKeysService', () => {
   describe('create', () => {
     it('generates sk_live_ plaintext + deterministic SHA-256 hash + 12-char display prefix', async () => {
       let captured: { keyHash?: string; keyPrefix?: string } = {};
-      mockPrisma.apiKey.create.mockImplementationOnce(async (args: { data: Record<string, unknown> }) => {
-        captured = args.data as { keyHash: string; keyPrefix: string };
-        return makeKey({
-          keyHash: captured.keyHash,
-          keyPrefix: captured.keyPrefix,
-        });
-      });
+      mockPrisma.apiKey.create.mockImplementationOnce(
+        async (args: { data: Record<string, unknown> }) => {
+          captured = args.data as { keyHash: string; keyPrefix: string };
+          return makeKey({
+            keyHash: captured.keyHash,
+            keyPrefix: captured.keyPrefix,
+          });
+        },
+      );
 
       const issued = await service.create('company-1', 'user-1', { name: 'CI bot' });
 
@@ -261,12 +274,24 @@ describe('ApiKeysService', () => {
 
     it('generates new hash + resets usage counters + returns new plaintext', async () => {
       const existing = makeKey({ keyHash: 'old-hash', usageCount: 99 });
-      let captured: { keyHash?: string; keyPrefix?: string; usageCount?: number; lastUsedAt?: Date | null } = {};
+      let captured: {
+        keyHash?: string;
+        keyPrefix?: string;
+        usageCount?: number;
+        lastUsedAt?: Date | null;
+      } = {};
       mockPrisma.apiKey.findFirst.mockResolvedValueOnce(existing);
-      mockPrisma.apiKey.update.mockImplementationOnce(async (args: { data: Record<string, unknown> }) => {
-        captured = args.data as { keyHash: string; keyPrefix: string; usageCount: number; lastUsedAt: Date | null };
-        return { ...existing, ...(args.data as object) };
-      });
+      mockPrisma.apiKey.update.mockImplementationOnce(
+        async (args: { data: Record<string, unknown> }) => {
+          captured = args.data as {
+            keyHash: string;
+            keyPrefix: string;
+            usageCount: number;
+            lastUsedAt: Date | null;
+          };
+          return { ...existing, ...(args.data as object) };
+        },
+      );
 
       const issued = await service.rotate('company-1', 'key-1', 'user-1');
 

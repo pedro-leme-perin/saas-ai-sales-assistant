@@ -9,12 +9,7 @@
 //  - CircuitBreaker isolates OpenAI; fallback to keyword heuristic.
 // =============================================
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditAction, Prisma, ReplyTemplate, ReplyTemplateChannel } from '@prisma/client';
 import OpenAI from 'openai';
@@ -203,10 +198,7 @@ export class ReplyTemplatesService {
   // =============================================
   // SUGGEST — LLM-ranked top-k templates
   // =============================================
-  async suggest(
-    companyId: string,
-    dto: SuggestReplyTemplateDto,
-  ): Promise<RankedReplyTemplate[]> {
+  async suggest(companyId: string, dto: SuggestReplyTemplateDto): Promise<RankedReplyTemplate[]> {
     const candidates = await this.prisma.replyTemplate.findMany({
       where: {
         companyId,
@@ -307,10 +299,7 @@ export class ReplyTemplatesService {
     return out;
   }
 
-  private heuristicRank(
-    candidates: ReplyTemplate[],
-    context: string,
-  ): RankedReplyTemplate[] {
+  private heuristicRank(candidates: ReplyTemplate[], context: string): RankedReplyTemplate[] {
     const tokens = this.tokenize(context);
     const scored = candidates.map((c) => {
       const docTokens = this.tokenize(`${c.name} ${c.category ?? ''} ${c.content}`);
@@ -319,13 +308,17 @@ export class ReplyTemplatesService {
       return { tmpl: c, score };
     });
     scored.sort((a, b) => b.score - a.score || b.tmpl.usageCount - a.tmpl.usageCount);
-    return scored.slice(0, SUGGEST_TOP_K).map(({ tmpl, score }) =>
-      this.toRanked(
-        tmpl,
-        Math.max(0.25, Math.min(1, score)),
-        score > 0 ? 'Sobreposição de palavras-chave com o contexto.' : 'Alta taxa de uso recente.',
-      ),
-    );
+    return scored
+      .slice(0, SUGGEST_TOP_K)
+      .map(({ tmpl, score }) =>
+        this.toRanked(
+          tmpl,
+          Math.max(0.25, Math.min(1, score)),
+          score > 0
+            ? 'Sobreposição de palavras-chave com o contexto.'
+            : 'Alta taxa de uso recente.',
+        ),
+      );
   }
 
   private tokenize(text: string): Set<string> {
@@ -340,11 +333,7 @@ export class ReplyTemplatesService {
     );
   }
 
-  private toRanked(
-    tmpl: ReplyTemplate,
-    score: number,
-    reason: string,
-  ): RankedReplyTemplate {
+  private toRanked(tmpl: ReplyTemplate, score: number, reason: string): RankedReplyTemplate {
     return {
       id: tmpl.id,
       name: tmpl.name,
