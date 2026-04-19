@@ -302,8 +302,8 @@ export class ReplyTemplatesService {
   private heuristicRank(candidates: ReplyTemplate[], context: string): RankedReplyTemplate[] {
     const tokens = this.tokenize(context);
     const scored = candidates.map((c) => {
-      const docTokens = this.tokenize(`${c.name} ${c.category ?? ''} ${c.content}`);
-      const overlap = tokens.reduce((acc, t) => (docTokens.has(t) ? acc + 1 : acc), 0);
+      const docTokens = new Set(this.tokenize(`${c.name} ${c.category ?? ''} ${c.content}`));
+      const overlap = tokens.reduce<number>((acc, t) => (docTokens.has(t) ? acc + 1 : acc), 0);
       const score = tokens.length === 0 ? 0.5 : overlap / tokens.length;
       return { tmpl: c, score };
     });
@@ -321,15 +321,17 @@ export class ReplyTemplatesService {
       );
   }
 
-  private tokenize(text: string): Set<string> {
-    return new Set(
-      text
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .split(/\s+/)
-        .filter((w) => w.length >= 3),
+  private tokenize(text: string): string[] {
+    return Array.from(
+      new Set(
+        text
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length >= 3),
+      ),
     );
   }
 
