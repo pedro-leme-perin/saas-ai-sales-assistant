@@ -15,12 +15,7 @@
 //     as coaching.service — avoids Prisma groupBy generics fragility).
 // =============================================
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   AuditAction,
   GoalMetric,
@@ -113,9 +108,7 @@ export class GoalsService {
   // =============================================
   async create(companyId: string, createdById: string, dto: CreateGoalDto) {
     if (this.isPercentageMetric(dto.metric) && dto.target > 100) {
-      throw new BadRequestException(
-        `Target for ${dto.metric} must be 0..100 (percentage)`,
-      );
+      throw new BadRequestException(`Target for ${dto.metric} must be 0..100 (percentage)`);
     }
     if (dto.userId) {
       const member = await this.prisma.user.findFirst({
@@ -187,12 +180,7 @@ export class GoalsService {
     });
   }
 
-  async updateTarget(
-    companyId: string,
-    goalId: string,
-    actorId: string,
-    dto: UpdateGoalDto,
-  ) {
+  async updateTarget(companyId: string, goalId: string, actorId: string, dto: UpdateGoalDto) {
     const goal = await this.prisma.teamGoal.findFirst({ where: { id: goalId, companyId } });
     if (!goal) throw new NotFoundException('Goal not found');
     if (this.isPercentageMetric(goal.metric) && dto.target > 100) {
@@ -348,13 +336,10 @@ export class GoalsService {
       };
       const conversionRate =
         b.callsTotal > 0 ? Math.round((b.callsCompleted / b.callsTotal) * 100) : 0;
-      const aiAdoptionRate =
-        b.aiShown > 0 ? Math.round((b.aiUsed / b.aiShown) * 100) : 0;
+      const aiAdoptionRate = b.aiShown > 0 ? Math.round((b.aiUsed / b.aiShown) * 100) : 0;
 
       // Collect goals applicable to this user (per-vendor goals + company-wide).
-      const applicableGoals = goals.filter(
-        (g) => g.userId === u.id || g.userId === null,
-      );
+      const applicableGoals = goals.filter((g) => g.userId === u.id || g.userId === null);
       const goalProgress = applicableGoals.map((g) => {
         const current = this.metricCurrentValue(g.metric, {
           callsTotal: b.callsTotal,
@@ -378,8 +363,7 @@ export class GoalsService {
       const compositeScore =
         goalProgress.length > 0
           ? Math.round(
-              goalProgress.reduce((sum, g) => sum + g.progressPct, 0) /
-                goalProgress.length,
+              goalProgress.reduce((sum, g) => sum + g.progressPct, 0) / goalProgress.length,
             )
           : 0;
 
@@ -405,8 +389,7 @@ export class GoalsService {
     // Rank: composite score DESC, then callsCompleted DESC as tiebreaker.
     rows.sort(
       (a, b) =>
-        b.compositeScore - a.compositeScore ||
-        b.metrics.callsCompleted - a.metrics.callsCompleted,
+        b.compositeScore - a.compositeScore || b.metrics.callsCompleted - a.metrics.callsCompleted,
     );
 
     return {

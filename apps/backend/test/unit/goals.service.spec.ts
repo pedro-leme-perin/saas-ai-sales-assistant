@@ -39,10 +39,7 @@ describe('GoalsService', () => {
     mockPrisma.auditLog.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GoalsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [GoalsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<GoalsService>(GoalsService);
@@ -58,10 +55,7 @@ describe('GoalsService', () => {
   describe('periodRange', () => {
     it('WEEKLY: maps Wednesday to Monday 00:00Z, end = next Monday 00:00Z', () => {
       const anchor = new Date('2026-04-15T15:30:00Z'); // Wednesday
-      const { periodStart, periodEnd } = service.periodRange(
-        GoalPeriodType.WEEKLY,
-        anchor,
-      );
+      const { periodStart, periodEnd } = service.periodRange(GoalPeriodType.WEEKLY, anchor);
       expect(periodStart.toISOString()).toBe('2026-04-13T00:00:00.000Z');
       expect(periodEnd.toISOString()).toBe('2026-04-20T00:00:00.000Z');
     });
@@ -80,10 +74,7 @@ describe('GoalsService', () => {
 
     it('MONTHLY: first of month inclusive, first of next month exclusive', () => {
       const anchor = new Date('2026-04-18T12:00:00Z');
-      const { periodStart, periodEnd } = service.periodRange(
-        GoalPeriodType.MONTHLY,
-        anchor,
-      );
+      const { periodStart, periodEnd } = service.periodRange(GoalPeriodType.MONTHLY, anchor);
       expect(periodStart.toISOString()).toBe('2026-04-01T00:00:00.000Z');
       expect(periodEnd.toISOString()).toBe('2026-05-01T00:00:00.000Z');
     });
@@ -187,9 +178,9 @@ describe('GoalsService', () => {
   describe('updateTarget', () => {
     it('throws NotFoundException when goal is from another tenant', async () => {
       mockPrisma.teamGoal.findFirst.mockResolvedValueOnce(null);
-      await expect(
-        service.updateTarget('co1', 'g1', 'u-actor', { target: 30 }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateTarget('co1', 'g1', 'u-actor', { target: 30 })).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockPrisma.teamGoal.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'g1', companyId: 'co1' } }),
       );
@@ -226,18 +217,16 @@ describe('GoalsService', () => {
         target: 80,
         metric: GoalMetric.AI_ADOPTION_RATE,
       });
-      await expect(
-        service.updateTarget('co1', 'g1', 'u-actor', { target: 150 }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.updateTarget('co1', 'g1', 'u-actor', { target: 150 })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('remove', () => {
     it('throws NotFoundException when goal is missing / tenant mismatch', async () => {
       mockPrisma.teamGoal.findFirst.mockResolvedValueOnce(null);
-      await expect(service.remove('co1', 'g1', 'u-actor')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('co1', 'g1', 'u-actor')).rejects.toThrow(NotFoundException);
     });
 
     it('deletes and writes audit', async () => {

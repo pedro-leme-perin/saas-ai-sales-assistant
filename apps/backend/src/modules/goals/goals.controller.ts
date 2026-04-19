@@ -24,12 +24,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GoalPeriodType, UserRole } from '@prisma/client';
-import {
-  CompanyId,
-  CurrentUser,
-  Roles,
-  type AuthenticatedUser,
-} from '@common/decorators';
+import { CompanyId, CurrentUser, Roles, type AuthenticatedUser } from '@common/decorators';
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { GoalsService } from './goals.service';
@@ -52,10 +47,7 @@ export class GoalsController {
       'Ranks vendors by composite goal progress. When no goals are set, rows still list raw activity metrics (rank = callsCompleted DESC).',
   })
   @ApiResponse({ status: 200, description: 'Leaderboard returned' })
-  async leaderboard(
-    @CompanyId() companyId: string,
-    @Query() query: LeaderboardQueryDto,
-  ) {
+  async leaderboard(@CompanyId() companyId: string, @Query() query: LeaderboardQueryDto) {
     const period = query.period ?? GoalPeriodType.WEEKLY;
     return this.goals.leaderboard(companyId, period);
   }
@@ -63,10 +55,7 @@ export class GoalsController {
   @Get('current')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'List goals for the active period' })
-  async current(
-    @CompanyId() companyId: string,
-    @Query() query: LeaderboardQueryDto,
-  ) {
+  async current(@CompanyId() companyId: string, @Query() query: LeaderboardQueryDto) {
     const period = query.period ?? GoalPeriodType.WEEKLY;
     return { data: await this.goals.listCurrent(companyId, period) };
   }
