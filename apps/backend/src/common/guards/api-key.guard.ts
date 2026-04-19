@@ -22,6 +22,8 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  HttpException,
+  HttpStatus,
   UnauthorizedException,
   Logger,
   SetMetadata,
@@ -32,6 +34,7 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { CacheService } from '@infrastructure/cache/cache.service';
 
 /** Metadata key for required API key scopes */
 export const API_KEY_SCOPES_KEY = 'api-key-scopes';
@@ -62,6 +65,7 @@ export class ApiKeyGuard implements CanActivate {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reflector: Reflector,
+    private readonly cache: CacheService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -135,6 +139,25 @@ export class ApiKeyGuard implements CanActivate {
       !timingSafeEqual(storedHashBuffer, providedHashBuffer)
     ) {
       throw new UnauthorizedException('Invalid API key');
+    }
+
+    // Per-key sliding-window rate limit (Release It! Bulkhead + SDI Cap.4).
+    // When `rateLimitPerMin` is null, fall back to plan-level CompanyThrottlerGuard.
+    if (storedKey.rateLimitPerMin && storedKey.rateLimitPerMin > 0) {
+      const { allowed, remaining } = await this.cache.checkRateLimit(
+        `ratelimit:apikey:${storedKey.id}`,
+        storedKey.rateLimitPerMin,
+        60,
+      );
+      if (!allowed) {
+        this.logger.warn(
+          `API key "${storedKey.name}" exceeded per-key limit (${storedKey.rateLimitPerMin}/min)`,
+        );
+        throw new HttpException('API key rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+      }
+      const res = context.switchToHttp().getResponse<{ setHeader?: (k: string, v: string) => void }>();
+      res.setHeader?.('X-RateLimit-Limit', String(storedKey.rateLimitPerMin));
+      res.setHeader?.('X-RateLimit-Remaining', String(Math.max(0, remaining)));
     }
 
     // Increment usage counter (non-blocking — fire and forget)

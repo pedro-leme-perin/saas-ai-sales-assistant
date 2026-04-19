@@ -15,6 +15,7 @@
     "back": "Voltar",
     "next": "Próximo",
     "close": "Fechar",
+    "dismiss": "Dispensar",
     "error": "Erro",
     "success": "Sucesso",
     "configure": "Configurar",
@@ -920,6 +921,60 @@
       "content": "Conteudo",
       "contentPlaceholder": "Ola {{customerName}}, segue nossa proposta...",
       "variablesHint": "Use {{nomeVariavel}} para placeholders dinamicos."
+    }
+  },
+  "tags": {
+    "title": "Tags de conversa",
+    "subtitle": "Organize ligacoes e conversas com tags reutilizaveis e cores.",
+    "new": "Nova tag",
+    "edit": "Editar tag",
+    "created": "Tag criada.",
+    "updated": "Tag atualizada.",
+    "deleted": "Tag removida.",
+    "empty": {
+      "title": "Sem tags",
+      "description": "Crie sua primeira tag para classificar e filtrar conversas rapidamente."
+    },
+    "form": {
+      "name": "Nome",
+      "color": "Cor",
+      "customColor": "Cor personalizada",
+      "description": "Descricao",
+      "descriptionPlaceholder": "Lead quente, objecao de preco, upsell..."
+    }
+  },
+  "apiKeys": {
+    "title": "Chaves de API",
+    "subtitle": "Gere chaves para integrar o TheIAdvisor com seus sistemas. Guarde em local seguro.",
+    "new": "Nova chave",
+    "created": "Chave criada. Copie agora — nao sera exibida novamente.",
+    "rotated": "Chave rotacionada. A anterior foi invalidada.",
+    "revoked": "Chave revogada.",
+    "revokedLabel": "revogada",
+    "expired": "expirada",
+    "rotate": "Rotacionar",
+    "revoke": "Revogar",
+    "usageCount": "Uso total",
+    "lastUsed": "Ultimo uso",
+    "never": "nunca",
+    "rateLimit": "Limite por minuto",
+    "rateLimitValue": "{{n}}/min",
+    "planDefault": "padrao do plano",
+    "keyCopied": "Chave copiada.",
+    "issuedTitle": "Chave emitida com sucesso",
+    "issuedWarning": "Copie esta chave agora. Ela NAO sera exibida novamente por motivos de seguranca.",
+    "empty": {
+      "title": "Nenhuma chave",
+      "description": "Crie uma chave de API para consumir o TheIAdvisor a partir dos seus sistemas."
+    },
+    "form": {
+      "name": "Nome",
+      "namePlaceholder": "CRM interno, script de backup...",
+      "scopes": "Escopos",
+      "scopesHint": "Selecione apenas os escopos necessarios. Sem escopos = acesso amplo.",
+      "rateLimit": "Rate limit (por minuto)",
+      "rateLimitPlaceholder": "Ex: 60 (vazio = padrao do plano)",
+      "expiresAt": "Expira em"
     }
   }
 }

@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 19/04/2026 (sessão 46)
+> Última atualização: 19/04/2026 (sessão 47)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 46 (19/04/2026) | Outbound webhooks (HMAC + retry + DLQ) + Saved reply templates (LLM suggest) |
-| Backend (NestJS) | ✅ Produção | Railway — 20 módulos (+webhooks, +reply-templates), 52+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 22 routes (+webhooks, +templates) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 16 modelos (+WebhookEndpoint, +WebhookDelivery, +ReplyTemplate), 24 enums Prisma |
+| Último commit | sessão 47 (19/04/2026) | Conversation tags + cross-channel search (pg_trgm) + API keys management (scopes + per-key rate limit) |
+| Backend (NestJS) | ✅ Produção | Railway — 22 módulos (+tags, +api-keys), 54+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 24 routes (+tags, +api-keys) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 19 modelos (+ConversationTag, +CallTag, +ChatTag), 24 enums Prisma + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -298,6 +298,52 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** CircuitBreaker per-endpoint isola falhas entre URLs de clientes, bulkhead bounded batch (100/tick), error isolation per-delivery no cron, exponential backoff schedule `[1m,2m,5m,15m,60m,240m]`, DLQ após MAX_ATTEMPTS, timing-safe HMAC verifier, fire-and-forget EventEmitter nunca quebra o pipeline de origem, idempotency via WebhookDelivery row per attempt, try/catch em cada emission-site protege hot path (webhook, call-end, message-in).
 
+### 2.5.6 Sessão 47 — 19/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — findability + integração) — Conversation tagging relacional + busca cross-channel acelerada por pg_trgm + API keys management UI (CRUD + scopes + per-key rate limit via Redis sliding window).
+
+**Feature A1 — Conversation tagging + full-text search (módulo novo `tags`):**
+- Schema: 3 modelos novos. Migration `20260419030000_add_conversation_tags_and_api_key_scopes`.
+  - `ConversationTag` (id, companyId, createdById, name, color default `#6366F1`, description, timestamps). `@@unique([companyId, name], name: "tag_name_unique")`. Relations: Company (CASCADE), User (RESTRICT).
+  - `CallTag` (composite PK `[callId, tagId]`, FKs CASCADE em ambos os lados). Legacy `Call.tags String[]` preservado para backward compat.
+  - `ChatTag` (composite PK `[chatId, tagId]`, FKs CASCADE). Legacy `WhatsappChat.tags String[]` preservado.
+  - Postgres: `CREATE EXTENSION IF NOT EXISTS pg_trgm` + GIN `gin_trgm_ops` indexes em `calls.transcript` e `whatsapp_messages.content` para acelerar ILIKE cross-channel.
+- `TagsService`:
+  - CRUD tenant-scoped: `list` com `_count.{callLinks,chatLinks}` mapeado para `callCount/chatCount`; `findById` NotFoundException; `create` default color + P2002 → BadRequestException; `update` merge seletivo (`dto.X !== undefined ? {X}: {}`) + audit oldValues/newValues; `remove` cascade via FK.
+  - `attachToCall / attachToChat`: valida ownership do call/chat + `assertTagsOwned` previne cross-tenant tag enumeration; `createMany` com `skipDuplicates: true`; retorna `{success, attached: count}`.
+  - `detachFromCall / detachFromChat`: valida call + tag ownership antes de `deleteMany`.
+  - `search(companyId, dto)`: `Promise.all` de `searchCalls + searchChats` baseado em `SearchScope` (CALL / CHAT / BOTH). **AND semantics** para `tagIds`: array de WHERE clauses (`where.AND = tagIds.map(id => ({ tagLinks: { some: { tagId: id } } }))`) — conversa precisa ter TODAS as tags. `q.length >= 2` filtra ILIKE em transcript/summary/contactName (calls) e customerName/customerPhone/messages.content (chats). `limit` default 20, cap 100.
+  - `makePreview(text, q)`: janela centrada em ±60/+120 chars em volta do primeiro match case-insensitive com elipses (…). Sem match → `text.slice(0, 180)` sem elipses. Empty query → `text.slice(0, 180)`.
+- Endpoints (`TagsController` com múltiplos paths base):
+  - `GET/POST /tags`, `GET/PATCH/DELETE /tags/:id` — CRUD (mutações: `@Roles(OWNER, ADMIN, MANAGER)` + `RolesGuard`).
+  - `GET/POST /calls/:id/tags`, `DELETE /calls/:id/tags/:tagId` — attach/list/detach em calls.
+  - `GET/POST /whatsapp/chats/:id/tags`, `DELETE /whatsapp/chats/:id/tags/:tagId` — attach/list/detach em chats.
+  - `GET /search/conversations?q=&scope=&tagIds=&limit=` — busca cross-channel.
+- Frontend: novo route `/dashboard/settings/tags` com grid de `TagCard` (bullet color + name + description + call/chat counts), `TagForm` com paleta de 8 cores presets + custom color picker. `tagsService` com CRUD + attach/detach + search (tagIds joined as comma-separated query string). Route listado em `/dashboard/settings` ao lado de webhooks/templates/api-keys.
+- i18n: ~15 chaves (`tags.*`) em pt-BR + en.
+
+**Feature A2 — API keys management (módulo novo `api-keys`):**
+- Schema: ALTER `ApiKey` adiciona `rateLimitPerMin Int?`, `createdById String?` (FK User SET NULL) + índice `[companyId, isActive]`. Legacy `scopes String[]` já existia.
+- `ApiKeysService`:
+  - `generateKey()`: `randomBytes(32).toString('base64url')` → plaintext `sk_live_{token}` + hash SHA-256 (hex) + display prefix (primeiros 12 chars). Entropia: 256 bits.
+  - `create` retorna `IssuedApiKey` (com plaintext **exibido UMA vez**); DB persiste apenas `keyHash`. `IssuedApiKey` e `ApiKeyView` são tipos separados — `ApiKeyView` NUNCA expõe `keyHash` ou `plaintextKey` (list/findById).
+  - `list` cap 200 rows, ordenado `[isActive DESC, createdAt DESC]`.
+  - `update`: merge seletivo + audit oldValues/newValues.
+  - `revoke`: soft delete (`isActive=false`, `revokedAt=now`). Idempotente (second call no-op se já revogado).
+  - `rotate`: valida `isActive` (BadRequest se revoked), gera novo plaintext + hash, reseta `usageCount=0` + `lastUsedAt=null`. Plaintext anterior deixa de funcionar imediatamente.
+  - P2002 em `keyHash` (colisão extremamente improvável) → BadRequest com retry instruction.
+- `ApiKeyGuard` (estendido): quando `storedKey.rateLimitPerMin > 0`, chama `CacheService.checkRateLimit(`ratelimit:apikey:${id}`, max, 60)` (Upstash ZSET sliding window). 429 com `X-RateLimit-Limit/Remaining` headers. Fallback para `CompanyThrottlerGuard` plan-level quando `rateLimitPerMin` null.
+- Endpoints (class-level `@UseGuards(TenantGuard, RolesGuard) @Roles(OWNER, ADMIN)`):
+  - `GET /api-keys`, `GET /api-keys/:id`, `POST /api-keys`, `PATCH /api-keys/:id`, `DELETE /api-keys/:id`, `POST /api-keys/:id/rotate`.
+- Frontend: novo route `/dashboard/settings/api-keys` com `ApiKeyRow` (keyPrefix + scopes chips + usage/lastUsed/rateLimit 3-col grid + rotate/revoke actions), `ApiKeyForm` (name + scopes multi-checkbox de 11 scopes + rateLimit + expiresAt date picker), `IssuedKeyBanner` (amber warning, copy button com check animation, dismiss) exibido **uma única vez** após create/rotate. `apiKeysService` + `API_KEY_SCOPES` const (11 scopes: calls:read/write, whatsapp:read/write, analytics:read, webhooks:read/write, templates:read/write, tags:read/write).
+- i18n: ~25 chaves (`apiKeys.*`) em pt-BR + en. Também adicionado `common.dismiss` para reuso.
+
+**Testes:**
+- `tags.service.spec.ts` (novo, ~20 cases): CRUD tenant isolation (list scope + counts mapping, findById NotFound, create + P2002 → BadRequest, update merge seletivo + audit, remove success). Attach/detach: call ownership guard + tag ownership guard (BadRequest cross-tenant), createMany com skipDuplicates, deleteMany scoped, chat path equivalente. Search: AND semantics (WHERE clause por tagId), BadRequest cross-tenant tagIds, scope CALL pula chat query, scope CHAT pula call query, maps call row para ConversationHit com preview + tagIds, `q < 2` chars → ignored (no OR clause). makePreview: wraps com elipses quando janela não está nas bordas, fallback 180 chars quando query não casa.
+- `api-keys.service.spec.ts` (novo, ~15 cases): list/findById nunca expõem keyHash ou plaintextKey (security assertion). create: sk_live_ plaintext + deterministic SHA-256(plaintext) → keyHash + 12-char display prefix (verified via `createHash('sha256').update(plaintextKey).digest('hex')` equality). P2002 → BadRequest. update: tenant isolation NotFound, merge seletivo (expiresAt:undefined não enviado), audit oldValues/newValues. revoke: tenant NotFound, isActive=false + revokedAt Date + audit DELETE, **idempotency** (second call no-op quando já revoked). rotate: tenant NotFound, BadRequest se inactive, gera novo hash != old, reseta usageCount=0 + lastUsedAt=null, plaintext novo sk_live_, audit `rotated:true`. generateKey randomness: 5 calls produzem 5 plaintexts distintos.
+
+**Resilience:** composite PK previne duplicate attachments, skipDuplicates torna attach idempotente, pg_trgm GIN reduz custo de ILIKE cross-channel de O(n) para ~O(log n), tenant isolation dupla (companyId + assertTagsOwned), plaintext jamais re-exibido após issuance (segurança), SHA-256 hash no DB invalida bulk leaks, per-key rate limit no guard é transparente ao controller, audit não-bloqueante em todas mutações, P2002 mapeado para BadRequest (não vaza Prisma internals), AND semantics em multi-tag filter (client-side UX) + OR seria trivial (single `{ tagLinks: { some: { tagId: { in: ids } } } }`).
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -319,6 +365,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 44 | 18/04 | Conversation summaries on-demand + Weekly AI coaching reports | ⏳ |
 | 45 | 18/04 | Auto-summary on call-end (durable) + Team leaderboard & goals | ⏳ |
 | 46 | 19/04 | Outbound webhooks (HMAC + retry + DLQ) + Saved reply templates (LLM suggest) | ⏳ |
+| 47 | 19/04 | Conversation tagging + cross-channel search (pg_trgm) + API keys mgmt (scopes + per-key rate limit) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -427,6 +474,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       ├── modules/
 │   │       │   ├── ai/             # LLM providers, suggestions, fallback
 │   │       │   ├── analytics/      # Dashboard stats, sentiment, AI perf
+│   │       │   ├── api-keys/       # API keys CRUD (sk_live_ + SHA-256 hash) + scopes + per-key rate limit
 │   │       │   ├── auth/           # Clerk integration, guards, strategies
 │   │       │   ├── billing/        # Stripe subscriptions, invoices, webhooks
 │   │       │   ├── calls/          # Twilio calls, Deepgram STT, recordings
@@ -440,6 +488,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
 │   │       │   ├── reply-templates/ # Saved reply library (CRUD) + LLM-ranked /suggest + heuristic fallback
 │   │       │   ├── summaries/      # Conversation summaries on-demand (Redis cache, OpenAI)
+│   │       │   ├── tags/           # ConversationTag library + CallTag/ChatTag joins + cross-channel search (pg_trgm)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
 │   │       │   ├── users/          # CRUD, invites, roles, RBAC, LGPD
 │   │       │   ├── webhooks/       # Outbound signed webhooks (HMAC + retry cron + CB per-URL + DLQ)
@@ -494,7 +543,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (16)
+### 6.1 Modelos (19)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -507,7 +556,7 @@ Infrastructure (Prisma, API Clients, Redis)
 | **Subscription** | Assinatura Stripe. Plano, status, período, trial, cancelamento | → Company |
 | **Invoice** | Fatura Stripe. Valor BRL, status, URLs de pagamento | → Company |
 | **Notification** | Notificação multi-canal (in-app, email, push, SMS) | → Company, User |
-| **ApiKey** | Chave de API. Hash, escopos, expiração, uso | → Company |
+| **ApiKey** | Chave de API. `sk_live_` plaintext emitido UMA vez; DB guarda SHA-256. Scopes[], rateLimitPerMin (Redis sliding window), expiresAt, usageCount, revokedAt | → Company, User (createdBy) |
 | **AuditLog** | Trail de auditoria. Ação, recurso, valores old/new, IP, requestId | → Company, User? |
 | **CoachingReport** | Relatório semanal de coaching por vendedor. Metrics JSON, insights[], recommendations[], email delivery status | → Company, User |
 | **CallSummary** | Resumo persistido por ligação. keyPoints[], sentimentTimeline, nextBestAction, contentHash (idempotency), provider | → Call (1:1), Company |
@@ -515,6 +564,9 @@ Infrastructure (Prisma, API Clients, Redis)
 | **WebhookEndpoint** | Endpoint HTTP registrado pelo cliente. URL, secret `whsec_…`, events[] (subscribed), isActive, failureCount. Unique (companyId, url) | → Company, Deliveries |
 | **WebhookDelivery** | Tentativa de entrega. event, payload JSON, status, attempts, nextAttemptAt, responseStatus, errorMessage, deliveredAt | → WebhookEndpoint, Company |
 | **ReplyTemplate** | Template salvo. channel (CALL/WHATSAPP/BOTH), category, content com `{{vars}}`, variables[], usageCount, lastUsedAt. Unique (companyId, name) | → Company, User (createdBy) |
+| **ConversationTag** | Biblioteca compartilhada por tenant. name (unique por companyId), color hex, description. Backward-compat com Call.tags String[] / WhatsappChat.tags String[] | → Company, User (createdBy), CallTag[], ChatTag[] |
+| **CallTag** | Join many-to-many entre Call e ConversationTag. Composite PK [callId, tagId], CASCADE em ambos | → Call, ConversationTag |
+| **ChatTag** | Join many-to-many entre WhatsappChat e ConversationTag. Composite PK [chatId, tagId], CASCADE em ambos | → WhatsappChat, ConversationTag |
 
 ### 6.2 Enums (24)
 
@@ -524,6 +576,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 - **Multi-tenancy obrigatório:** toda query inclui `companyId` como filtro (*DDIA* Cap. 2)
 - **Composite indexes:** ordenados por query pattern mais frequente. Inclui `[companyId, createdAt]`, `[callId, wasUsed]`, `[chatId, wasUsed]`, `[companyId, sentiment]`
+- **pg_trgm GIN indexes:** `calls.transcript` e `whatsapp_messages.content` (migration S47). Acelera ILIKE cross-channel search O(n) → ~O(log n).
 - **JSON para dados flexíveis:** `settings`, `metadata`, `aiSuggestions` — schema-on-read (*DDIA* Cap. 2)
 - **Soft delete:** `deletedAt` em Company, User, WhatsappChat. Hard delete apenas em PENDING users
 - **Schema é contrato:** não alterar sem ADR documentado

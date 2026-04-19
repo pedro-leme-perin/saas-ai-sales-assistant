@@ -29,6 +29,8 @@ import { CoachingModule } from './modules/coaching/coaching.module';
 import { GoalsModule } from './modules/goals/goals.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { ReplyTemplatesModule } from './modules/reply-templates/reply-templates.module';
+import { TagsModule } from './modules/tags/tags.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -79,6 +81,8 @@ import configuration from './config/configuration';
     GoalsModule,
     WebhooksModule,
     ReplyTemplatesModule,
+    TagsModule,
+    ApiKeysModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

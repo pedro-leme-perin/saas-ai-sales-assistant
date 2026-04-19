@@ -15,6 +15,7 @@
     "back": "Back",
     "next": "Next",
     "close": "Close",
+    "dismiss": "Dismiss",
     "error": "Error",
     "success": "Success",
     "configure": "Configure",
@@ -920,6 +921,60 @@
       "content": "Content",
       "contentPlaceholder": "Hi {{customerName}}, here is our proposal...",
       "variablesHint": "Use {{variableName}} for dynamic placeholders."
+    }
+  },
+  "tags": {
+    "title": "Conversation tags",
+    "subtitle": "Organize calls and chats with reusable, color-coded tags.",
+    "new": "New tag",
+    "edit": "Edit tag",
+    "created": "Tag created.",
+    "updated": "Tag updated.",
+    "deleted": "Tag deleted.",
+    "empty": {
+      "title": "No tags",
+      "description": "Create your first tag to classify and filter conversations quickly."
+    },
+    "form": {
+      "name": "Name",
+      "color": "Color",
+      "customColor": "Custom color",
+      "description": "Description",
+      "descriptionPlaceholder": "Hot lead, pricing objection, upsell..."
+    }
+  },
+  "apiKeys": {
+    "title": "API keys",
+    "subtitle": "Generate keys to integrate TheIAdvisor with your systems. Store them securely.",
+    "new": "New key",
+    "created": "Key created. Copy now — it will not be shown again.",
+    "rotated": "Key rotated. Previous key is invalid.",
+    "revoked": "Key revoked.",
+    "revokedLabel": "revoked",
+    "expired": "expired",
+    "rotate": "Rotate",
+    "revoke": "Revoke",
+    "usageCount": "Total usage",
+    "lastUsed": "Last used",
+    "never": "never",
+    "rateLimit": "Rate limit",
+    "rateLimitValue": "{{n}}/min",
+    "planDefault": "plan default",
+    "keyCopied": "Key copied.",
+    "issuedTitle": "Key issued successfully",
+    "issuedWarning": "Copy this key now. It will NOT be shown again for security reasons.",
+    "empty": {
+      "title": "No keys",
+      "description": "Create an API key to consume TheIAdvisor from your systems."
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "Internal CRM, backup script...",
+      "scopes": "Scopes",
+      "scopesHint": "Select only necessary scopes. No scopes = broad access.",
+      "rateLimit": "Rate limit (per minute)",
+      "rateLimitPlaceholder": "e.g. 60 (empty = plan default)",
+      "expiresAt": "Expires at"
     }
   }
 }

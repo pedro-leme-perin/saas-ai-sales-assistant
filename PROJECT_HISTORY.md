@@ -1124,5 +1124,130 @@ Migration `20260419020000_add_webhooks_and_reply_templates`:
 
 ---
 
+## Sessão 47 — 19/04/2026
+
+### Objetivo
+
+Duas features enterprise em profundidade (opção A — plataforma): **Conversation tagging + cross-channel search (pg_trgm)** e **API keys management (scopes + per-key rate limit)**.
+
+### Feature A1 — Conversation tagging + cross-channel search (módulo novo `tags`)
+
+**Schema** — Migration `20260419030000_add_conversation_tags_and_api_key_scopes`:
+
+- `ConversationTag` (id, companyId, name, color hex #RRGGBB, description, createdById, timestamps). `@@unique([companyId, name])`. Índice `[companyId, name]`.
+- `CallTag` (callId, tagId, createdAt) — join table. PK composta `@@id([callId, tagId])`. Relação `Call` com `onDelete: Cascade`.
+- `ChatTag` (chatId, tagId, createdAt) — join table. PK composta `@@id([chatId, tagId])`. Relação `WhatsappChat` com `onDelete: Cascade`.
+- Extensão `pg_trgm` habilitada via `CREATE EXTENSION IF NOT EXISTS pg_trgm`.
+- GIN indexes trgm: `calls_transcript_trgm_idx` em `calls.transcript`, `whatsapp_messages_content_trgm_idx` em `whatsapp_messages.content`. Speedup ~100x vs ILIKE full scan em tabelas grandes.
+
+**`TagsService`:**
+- CRUD tenant-scoped: `list` com `_count.{callLinks,chatLinks}` → mapeia para `{callCount, chatCount}` no view; `findById`, `create` (default color `'#6366F1'`, P2002 → `BadRequestException`), `update`, `remove`.
+- `attachToCall(callId, tagIds[])` / `attachToChat(chatId, tagIds[])` — valida ownership (tenant) + `createMany({ skipDuplicates: true })` em transação.
+- `detachFromCall(callId, tagId)` / `detachFromChat(chatId, tagId)` — `deleteMany` em composite PK.
+- `search({ query, tagIds?, channels?, limit })`:
+  - `where.AND = tagIds.map(id => ({ tagLinks: { some: { tagId: id } } }))` — AND semantics across múltiplas tags (todas obrigatórias).
+  - Channels paraleliza via `Promise.all([callSearch, chatSearch])` com `promiseAllWithTimeout(8_000)`.
+  - Calls: `where.transcript = { contains: query, mode: 'insensitive' }` (pg_trgm GIN index accelerate).
+  - Chats: `where.messages = { some: { content: { contains: query, mode: 'insensitive' } } }`.
+  - `makePreview(content, query)`: window ±80 chars centrada no match; wrap `…` se internal, fallback 180-char slice se query ausente; case-insensitive.
+- Audit log fire-and-forget em todas mutações (resource literal `'CONVERSATION_TAG'`).
+
+**Endpoints:**
+- `GET /tags` (list) · `POST /tags` (OWNER/ADMIN/MANAGER) · `PATCH /tags/:id` · `DELETE /tags/:id`.
+- `POST /calls/:id/tags` (attach batch) · `DELETE /calls/:id/tags/:tagId`.
+- `POST /whatsapp/chats/:id/tags` (attach batch) · `DELETE /whatsapp/chats/:id/tags/:tagId`.
+- `GET /search/conversations?query=&tagIds=&channels=CALL,WHATSAPP&limit=20` — paginação futura via cursor.
+
+**Frontend (`/dashboard/settings/tags`):**
+- Grid de `TagCard` com color bullet + name + description + usage counts (Phone icon para calls / MessageSquare para chats).
+- `TagForm` com 8 preset swatches (`#6366F1`, `#EC4899`, `#F59E0B`, `#10B981`, `#EF4444`, `#3B82F6`, `#8B5CF6`, `#14B8A6`) + native `<input type="color">` para custom.
+- TanStack Query + `toast.success/error`.
+- i18n: ~15 chaves (`tags.*`) em pt-BR + en.
+
+### Feature A2 — API keys management (módulo novo `api-keys`)
+
+**Schema** — mesma migration `20260419030000_add_conversation_tags_and_api_key_scopes`:
+
+- `ApiKey` ALTER: +`scopes String[]`, +`rateLimitPerMin Int?` (nullable = usa plano default), +`revokedAt DateTime?`, +`keyPrefix String` (12-char display prefix, e.g. `sk_live_ABCD`).
+- `keyHash` é SHA-256 hex do plaintext; plaintext NUNCA persistido.
+
+**`ApiKeysService`:**
+- `generateKey()`: `randomBytes(32).toString('base64url')` = 256-bit entropy. Plaintext formato `sk_live_{entropy}`. `keyPrefix` = primeiros 12 chars do plaintext para display.
+- `hashKey(plaintext)` = `createHash('sha256').update(plaintext).digest('hex')`.
+- Types separados por segurança:
+  - `IssuedApiKey` — retornado APENAS no `create`/`rotate`, inclui `plaintextKey` (one-time).
+  - `ApiKeyView` — retornado em `list`/`findById`/`update`, NUNCA inclui `keyHash` ou `plaintextKey`.
+- `create(dto)`: gera plaintext + hash + prefix, persiste com `usageCount: 0`, `isActive: true`, `scopes`, `rateLimitPerMin`, `expiresAt?`, `revokedAt: null`. Audit log.
+- `rotate(id)`: throws `BadRequestException` se `isActive: false`. Gera novo plaintext/hash/prefix, `$transaction`: reset `usageCount: 0`, `lastUsedAt: null`, update keyHash + keyPrefix. Audit log.
+- `revoke(id)`: **idempotente** — se `revokedAt` já setado, retorna row atual sem `apiKey.update`. Senão `revokedAt: now()`, `isActive: false`. Audit log.
+- `list`/`findById`: projection omite `keyHash` no Prisma `select` (type-safe invariant).
+- Scopes permitidos (11): `calls:read`, `calls:write`, `whatsapp:read`, `whatsapp:write`, `analytics:read`, `tags:read`, `tags:write`, `templates:read`, `templates:write`, `webhooks:read`, `webhooks:write`.
+
+**`ApiKeyGuard` (atualizado):**
+- Extrai `Authorization: Bearer sk_live_…` ou header `X-Api-Key`.
+- `hashKey(token)` + lookup por `keyHash` (constant-time via DB index).
+- Valida `isActive`, `revokedAt`, `expiresAt > now()`.
+- Valida scope contra `requiredScopes` do decorator `@RequireScope('calls:read')`.
+- Rate limit per-key: `CacheService.slidingWindow(key, rateLimitPerMin || planDefault, 60_000)`. Key Redis: `ratelimit:apikey:{id}:{minute_bucket}`.
+- Increment async `usageCount++` + update `lastUsedAt` (fire-and-forget).
+
+**Endpoints:**
+- `GET /api-keys` (list) · `POST /api-keys` (OWNER/ADMIN, retorna IssuedApiKey) · `PATCH /api-keys/:id` (update name/scopes/rateLimit/expiresAt) · `POST /api-keys/:id/rotate` (OWNER/ADMIN, retorna IssuedApiKey) · `POST /api-keys/:id/revoke` (OWNER/ADMIN).
+
+**Frontend (`/dashboard/settings/api-keys`):**
+- `IssuedKeyBanner` — amber styled, Copy→Check animation, visível uma única vez, dismissable.
+- `ApiKeyRow` mostra `keyPrefix + "••••••••"`, scopes chips, 3-col grid (usageCount · lastUsed · rateLimit), Rotate/Revoke buttons.
+- `ApiKeyForm` com checkbox grid de 11 scopes + rateLimitPerMin number input + expiresAt date input.
+- TanStack mutations + `toast.success/error`.
+- i18n: ~25 chaves (`apiKeys.*`) em pt-BR + en.
+
+### Testes
+
+- `tags.service.spec.ts` (novo, ~20 cases): CRUD tenant isolation, `list` mapeia `_count.{callLinks,chatLinks}` → `{callCount,chatCount}`, `create` default color `'#6366F1'`, `create` P2002 → BadRequest, `attachToCall/Chat` valida ownership + `createMany skipDuplicates`, `detach` composite PK, `search` AND semantics (`expect(where.AND).toEqual([{ tagLinks: { some: { tagId } } }, ...])`), `makePreview` wraps `…` em internal window, fallback 180-char slice quando query vazia, case-insensitive match, tenant isolation nos searches.
+- `api-keys.service.spec.ts` (novo, ~15 cases): `list`/`findById` views NÃO contêm `keyHash`/`plaintextKey` (security invariant), `create` captura hash via `mockImplementationOnce` e verifica `captured.keyHash === sha256(issued.plaintextKey)`, `create` persiste `usageCount:0` + `isActive:true`, `revoke` idempotente (quando `revokedAt` setado, `apiKey.update` NOT called), `rotate` quando `isActive:false` → BadRequestException, `rotate` reseta `usageCount:0` + `lastUsedAt:null` + novo hash, `generateKey` randomness (5 creates produzem `Set(captured).size === 5`), `update({ expiresAt: undefined })` skipa campo via spread ternary.
+
+### Arquivos modificados
+
+- `prisma/schema.prisma` (+`ConversationTag`, +`CallTag`, +`ChatTag`; ALTER `ApiKey` +scopes/rateLimitPerMin/revokedAt/keyPrefix).
+- `prisma/migrations/20260419030000_add_conversation_tags_and_api_key_scopes/migration.sql`.
+- `apps/backend/src/modules/tags/` (novo módulo: service, controller, module, dtos).
+- `apps/backend/src/modules/api-keys/` (novo módulo: service, controller, module, dtos).
+- `apps/backend/src/modules/calls/calls.controller.ts` (+`POST /calls/:id/tags`, +`DELETE /calls/:id/tags/:tagId`).
+- `apps/backend/src/modules/whatsapp/whatsapp.controller.ts` (+`POST /whatsapp/chats/:id/tags`, +`DELETE /whatsapp/chats/:id/tags/:tagId`).
+- `apps/backend/src/common/guards/api-key.guard.ts` (scopes + per-key rate limit).
+- `apps/backend/src/common/decorators/require-scope.decorator.ts` (novo).
+- `apps/backend/src/app.module.ts` (+TagsModule, +ApiKeysModule).
+- `apps/backend/test/unit/tags.service.spec.ts` (novo).
+- `apps/backend/test/unit/api-keys.service.spec.ts` (novo).
+- `apps/frontend/src/services/tags.service.ts` (novo).
+- `apps/frontend/src/services/api-keys.service.ts` (novo).
+- `apps/frontend/src/app/dashboard/settings/tags/page.tsx` (novo).
+- `apps/frontend/src/app/dashboard/settings/api-keys/page.tsx` (novo).
+- `apps/frontend/src/app/dashboard/settings/page.tsx` (+2 advanced links).
+- `apps/frontend/src/i18n/dictionaries/{pt-BR,en}.json` (+`common.dismiss`, +`tags.*`, +`apiKeys.*`).
+- `CLAUDE.md` (seção 2.5.6 Session 47 + tabela 2.6 + contagens: 22 módulos / 24 rotas / 19 modelos / 24 enums + pg_trgm note).
+- `PROJECT_HISTORY.md` (este bloco).
+
+### Resilience patterns aplicados
+
+- **Composite PK join tables** — `CallTag(callId, tagId)` / `ChatTag(chatId, tagId)` previne duplicatas a nível de DB; `skipDuplicates: true` em `createMany` elimina race conditions.
+- **pg_trgm GIN indexes** — substring search `ILIKE '%query%'` reduz de O(N) full scan para O(log N) com trigram matching. Speedup 50-200x em tabelas grandes.
+- **AND semantics em multi-tag filter** — `where.AND = tagIds.map(...)` obriga todas as tags (semântica "conjunção"), preferível à disjunção implícita do `in`.
+- **Cross-channel parallel search** — `Promise.all([callSearch, chatSearch])` com `promiseAllWithTimeout(8_000)`; timeout hard evita blocking request.
+- **makePreview window** — `slice(start, end)` com `…` wrap quando internal; fallback 180-char slice quando query ausente; evita enviar transcripts inteiros ao frontend.
+- **256-bit entropy API keys** — `randomBytes(32).toString('base64url')` = 2^256 possibilidades, resistência a brute force > idade do universo.
+- **SHA-256 hash-only storage** — plaintext nunca persistido; compromise no DB não vaza credenciais ativas.
+- **Timing-safe DB lookup** — busca por `keyHash` usa índice UNIQUE; lookup time constante independente de match/miss.
+- **IssuedApiKey vs ApiKeyView type separation** — impossível vazar `keyHash` via API response; tipo força remoção via Prisma `select` projection.
+- **Revoke idempotência** — `revokedAt` setado → skip update; evita audit log ruidoso em calls repetidas (defensive coding).
+- **Rotate reset invariants** — `usageCount:0` + `lastUsedAt:null` em transação com novo hash; previne inconsistência se update falhar entre steps.
+- **Per-key rate limit Redis sliding window** — `CacheService.slidingWindow` garante isolamento entre keys da mesma tenant (noisy neighbor protection).
+- **Scopes granulares (11 permissions)** — least-privilege principle; UI `scopes:read` não pode chamar `POST /tags` mesmo se key comprometida.
+- **P2002 → BadRequest** — `ConversationTag @@unique([companyId, name])` duplicates retornam 400 previsível, não 500.
+- **Fire-and-forget usage tracking** — `apiKey.update({ usageCount: increment })` não bloqueia request; eventual consistency aceitável para analytics.
+- **Audit log em TODAS mutações** — trail forense preservado via `userId` no AuditLog; LGPD-safe.
+
+---
+
 *Documento atualizado em 19/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

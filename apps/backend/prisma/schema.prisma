@@ -72,6 +72,7 @@ model Company {
   callSummaries    CallSummary[]
   webhookEndpoints WebhookEndpoint[]
   replyTemplates   ReplyTemplate[]
+  conversationTags ConversationTag[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -134,6 +135,8 @@ model User {
   teamGoalsAssigned       TeamGoal[]        @relation("TeamGoalAssignee")
   webhookEndpointsCreated WebhookEndpoint[] @relation("WebhookEndpointCreator")
   replyTemplatesCreated   ReplyTemplate[]   @relation("ReplyTemplateCreator")
+  conversationTagsCreated ConversationTag[] @relation("ConversationTagCreator")
+  apiKeysCreated          ApiKey[]          @relation("ApiKeyCreator")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -194,6 +197,7 @@ model Call {
   // Relations
   aiSuggestions       AISuggestion[]
   callSummary         CallSummary?
+  tagLinks            CallTag[]
 
   @@index([companyId])
   @@index([userId])
@@ -247,6 +251,7 @@ model WhatsappChat {
   // Relations
   messages            WhatsappMessage[]
   aiSuggestions       AISuggestion[]
+  tagLinks            ChatTag[]
 
   @@unique([companyId, customerPhone])
   @@index([companyId])
@@ -476,32 +481,40 @@ model Notification {
 // =============================================
 
 model ApiKey {
-  id            String    @id @default(uuid())
-  
+  id               String    @id @default(uuid())
+
   // Company
-  companyId     String    @map("company_id")
-  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId        String    @map("company_id")
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Key
-  name          String
-  keyHash       String    @unique @map("key_hash")
-  keyPrefix     String    @map("key_prefix")
-  
+  name             String
+  keyHash          String    @unique @map("key_hash")
+  keyPrefix        String    @map("key_prefix")
+
   // Permissions
-  scopes        String[]  @default([])
-  
+  scopes           String[]  @default([])
+
+  // Per-key rate limit (requests per minute). NULL = plan default.
+  rateLimitPerMin  Int?      @map("rate_limit_per_min")
+
+  // Who created it (nullable for legacy rows)
+  createdById      String?   @map("created_by_id")
+  createdBy        User?     @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
   // Status
-  isActive      Boolean   @default(true) @map("is_active")
-  expiresAt     DateTime? @map("expires_at")
-  lastUsedAt    DateTime? @map("last_used_at")
-  usageCount    Int       @default(0) @map("usage_count")
+  isActive         Boolean   @default(true) @map("is_active")
+  expiresAt        DateTime? @map("expires_at")
+  lastUsedAt       DateTime? @map("last_used_at")
+  usageCount       Int       @default(0) @map("usage_count")
 
   // Timestamps
-  createdAt     DateTime  @default(now()) @map("created_at")
-  revokedAt     DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  revokedAt        DateTime? @map("revoked_at")
 
   @@index([companyId])
   @@index([keyHash])
+  @@index([companyId, isActive])
   @@map("api_keys")
 }
 
@@ -946,6 +959,60 @@ enum ReplyTemplateChannel {
   CALL
   WHATSAPP
   BOTH
+}
+
+// =============================================
+// 🏷️ CONVERSATION TAGS (session 47)
+// =============================================
+// Relational tag library (shared per tenant) for cross-channel classification.
+// Coexists with legacy flat `Call.tags`/`WhatsappChat.tags` string arrays
+// (kept for backward compat — new code should use join tables).
+
+model ConversationTag {
+  id          String     @id @default(uuid())
+  companyId   String     @map("company_id")
+  createdById String     @map("created_by_id")
+  name        String
+  color       String     @default("#6366F1") // indigo-500
+  description String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt
+
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User       @relation("ConversationTagCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  callLinks   CallTag[]
+  chatLinks   ChatTag[]
+
+  @@unique([companyId, name], name: "tag_name_unique")
+  @@index([companyId])
+  @@map("conversation_tags")
+}
+
+model CallTag {
+  callId      String          @map("call_id")
+  tagId       String          @map("tag_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  call        Call            @relation(fields: [callId], references: [id], onDelete: Cascade)
+  tag         ConversationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([callId, tagId])
+  @@index([tagId])
+  @@map("call_tags")
+}
+
+model ChatTag {
+  chatId      String          @map("chat_id")
+  tagId       String          @map("tag_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  chat        WhatsappChat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  tag         ConversationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, tagId])
+  @@index([tagId])
+  @@map("chat_tags")
 }
 
 
