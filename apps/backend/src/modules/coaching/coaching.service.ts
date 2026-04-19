@@ -200,12 +200,12 @@ export class CoachingService {
   private async aggregateMetrics(userId: string, week: WeekRange): Promise<CoachingMetrics> {
     const createdAtFilter = { gte: week.start, lt: week.end };
 
-    const [callStats, chatStats, msgAgg, aiAgg, sentimentAgg] = await Promise.all([
-      this.prisma.call.groupBy({
-        by: ['status'],
+    // Prisma's `groupBy` has overly strict generics across versions; using
+    // `findMany` + local aggregation is deterministic and dialect-agnostic.
+    const [calls, chatStats, msgAgg, aiRows, sentimentRows] = await Promise.all([
+      this.prisma.call.findMany({
         where: { userId, createdAt: createdAtFilter },
-        _count: { _all: true },
-        _avg: { duration: true },
+        select: { status: true, duration: true },
       }),
       this.prisma.whatsappChat.count({
         where: { userId, createdAt: createdAtFilter },
@@ -217,35 +217,33 @@ export class CoachingService {
           createdAt: createdAtFilter,
         },
       }),
-      this.prisma.aISuggestion.groupBy({
-        by: ['wasUsed'],
+      this.prisma.aISuggestion.findMany({
         where: { userId, createdAt: createdAtFilter },
-        _count: { _all: true },
+        select: { wasUsed: true },
       }),
-      this.prisma.call.groupBy({
-        by: ['sentimentLabel'],
+      this.prisma.call.findMany({
         where: { userId, createdAt: createdAtFilter, sentimentLabel: { not: null } },
-        _count: { _all: true },
+        select: { sentimentLabel: true },
       }),
     ]);
 
-    const total = callStats.reduce((acc, row) => acc + row._count._all, 0);
-    const completed = callStats.find((r) => r.status === 'COMPLETED')?._count._all ?? 0;
-    const missed = callStats.find((r) => r.status === 'MISSED')?._count._all ?? 0;
-    const avgDurationSeconds = Math.round(
-      callStats.reduce((acc, row) => acc + (row._avg.duration ?? 0) * row._count._all, 0) /
-        Math.max(total, 1),
-    );
+    const total = calls.length;
+    const completed = calls.filter((c) => c.status === 'COMPLETED').length;
+    const missed = calls.filter(
+      (c) => c.status === 'NO_ANSWER' || c.status === 'BUSY' || c.status === 'FAILED',
+    ).length;
+    const avgDurationSeconds =
+      total > 0 ? Math.round(calls.reduce((acc, c) => acc + (c.duration ?? 0), 0) / total) : 0;
 
-    const shown = aiAgg.reduce((acc, row) => acc + row._count._all, 0);
-    const used = aiAgg.find((r) => r.wasUsed === true)?._count._all ?? 0;
+    const shown = aiRows.length;
+    const used = aiRows.filter((r) => r.wasUsed === true).length;
 
     const sentiment = { positive: 0, neutral: 0, negative: 0 };
-    for (const row of sentimentAgg) {
+    for (const row of sentimentRows) {
       const label = (row.sentimentLabel ?? '').toString();
-      if (label.endsWith('POSITIVE')) sentiment.positive += row._count._all;
-      else if (label.endsWith('NEGATIVE')) sentiment.negative += row._count._all;
-      else sentiment.neutral += row._count._all;
+      if (label.endsWith('POSITIVE')) sentiment.positive += 1;
+      else if (label.endsWith('NEGATIVE')) sentiment.negative += 1;
+      else sentiment.neutral += 1;
     }
 
     return {

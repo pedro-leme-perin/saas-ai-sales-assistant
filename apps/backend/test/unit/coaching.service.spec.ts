@@ -23,10 +23,10 @@ describe('CoachingService', () => {
 
   const mockPrisma = {
     user: { findMany: jest.fn() },
-    call: { groupBy: jest.fn() },
+    call: { findMany: jest.fn() },
     whatsappChat: { count: jest.fn() },
     whatsappMessage: { count: jest.fn() },
-    aISuggestion: { groupBy: jest.fn() },
+    aISuggestion: { findMany: jest.fn() },
     coachingReport: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -162,18 +162,18 @@ describe('CoachingService', () => {
 
       await service.generateForVendor(vendor, week);
 
-      expect(mockPrisma.call.groupBy).not.toHaveBeenCalled();
+      expect(mockPrisma.call.findMany).not.toHaveBeenCalled();
       expect(mockPrisma.coachingReport.create).not.toHaveBeenCalled();
       expect(mockEmail.sendCoachingReportEmail).not.toHaveBeenCalled();
     });
 
     it('under-active vendors skip the LLM and get a stub report', async () => {
       mockPrisma.coachingReport.findUnique.mockResolvedValueOnce(null);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([]); // total=0
+      mockPrisma.call.findMany.mockResolvedValueOnce([]); // total=0
       mockPrisma.whatsappChat.count.mockResolvedValueOnce(0);
       mockPrisma.whatsappMessage.count.mockResolvedValueOnce(0);
-      mockPrisma.aISuggestion.groupBy.mockResolvedValueOnce([]);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([]); // sentiment
+      mockPrisma.aISuggestion.findMany.mockResolvedValueOnce([]);
+      mockPrisma.call.findMany.mockResolvedValueOnce([]); // sentiment
 
       mockPrisma.coachingReport.create.mockResolvedValueOnce({ id: 'rep1' });
 
@@ -194,20 +194,22 @@ describe('CoachingService', () => {
 
     it('active vendor: aggregates metrics + invokes LLM + sends email', async () => {
       mockPrisma.coachingReport.findUnique.mockResolvedValueOnce(null);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([
-        { status: 'COMPLETED', _count: { _all: 8 }, _avg: { duration: 180 } },
-        { status: 'MISSED', _count: { _all: 2 }, _avg: { duration: 0 } },
-      ]);
+      // 8 completed + 2 no-answer
+      const callRows = [
+        ...Array.from({ length: 8 }, () => ({ status: 'COMPLETED', duration: 180 })),
+        ...Array.from({ length: 2 }, () => ({ status: 'NO_ANSWER', duration: 0 })),
+      ];
+      mockPrisma.call.findMany.mockResolvedValueOnce(callRows);
       mockPrisma.whatsappChat.count.mockResolvedValueOnce(4);
       mockPrisma.whatsappMessage.count.mockResolvedValueOnce(32);
-      mockPrisma.aISuggestion.groupBy.mockResolvedValueOnce([
-        { wasUsed: true, _count: { _all: 18 } },
-        { wasUsed: false, _count: { _all: 12 } },
+      mockPrisma.aISuggestion.findMany.mockResolvedValueOnce([
+        ...Array.from({ length: 18 }, () => ({ wasUsed: true })),
+        ...Array.from({ length: 12 }, () => ({ wasUsed: false })),
       ]);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([
-        { sentimentLabel: 'POSITIVE', _count: { _all: 5 } },
-        { sentimentLabel: 'NEGATIVE', _count: { _all: 2 } },
-        { sentimentLabel: 'NEUTRAL', _count: { _all: 1 } },
+      mockPrisma.call.findMany.mockResolvedValueOnce([
+        ...Array.from({ length: 5 }, () => ({ sentimentLabel: 'POSITIVE' })),
+        ...Array.from({ length: 2 }, () => ({ sentimentLabel: 'NEGATIVE' })),
+        { sentimentLabel: 'NEUTRAL' },
       ]);
 
       mockCreate.mockResolvedValueOnce({
@@ -268,17 +270,17 @@ describe('CoachingService', () => {
 
     it('falls back deterministically when LLM throws', async () => {
       mockPrisma.coachingReport.findUnique.mockResolvedValueOnce(null);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([
-        { status: 'COMPLETED', _count: { _all: 2 }, _avg: { duration: 100 } },
-        { status: 'MISSED', _count: { _all: 5 }, _avg: { duration: 0 } },
+      mockPrisma.call.findMany.mockResolvedValueOnce([
+        ...Array.from({ length: 2 }, () => ({ status: 'COMPLETED', duration: 100 })),
+        ...Array.from({ length: 5 }, () => ({ status: 'NO_ANSWER', duration: 0 })),
       ]);
       mockPrisma.whatsappChat.count.mockResolvedValueOnce(1);
       mockPrisma.whatsappMessage.count.mockResolvedValueOnce(10);
-      mockPrisma.aISuggestion.groupBy.mockResolvedValueOnce([
-        { wasUsed: true, _count: { _all: 2 } },
-        { wasUsed: false, _count: { _all: 8 } },
+      mockPrisma.aISuggestion.findMany.mockResolvedValueOnce([
+        ...Array.from({ length: 2 }, () => ({ wasUsed: true })),
+        ...Array.from({ length: 8 }, () => ({ wasUsed: false })),
       ]);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([]);
+      mockPrisma.call.findMany.mockResolvedValueOnce([]);
 
       mockCreate.mockRejectedValueOnce(new Error('llm down'));
       mockPrisma.coachingReport.create.mockResolvedValueOnce({ id: 'rep1' });
@@ -296,11 +298,11 @@ describe('CoachingService', () => {
 
     it('email failure flags the report without throwing', async () => {
       mockPrisma.coachingReport.findUnique.mockResolvedValueOnce(null);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([]);
+      mockPrisma.call.findMany.mockResolvedValueOnce([]);
       mockPrisma.whatsappChat.count.mockResolvedValueOnce(0);
       mockPrisma.whatsappMessage.count.mockResolvedValueOnce(0);
-      mockPrisma.aISuggestion.groupBy.mockResolvedValueOnce([]);
-      mockPrisma.call.groupBy.mockResolvedValueOnce([]);
+      mockPrisma.aISuggestion.findMany.mockResolvedValueOnce([]);
+      mockPrisma.call.findMany.mockResolvedValueOnce([]);
 
       mockPrisma.coachingReport.create.mockResolvedValueOnce({ id: 'rep1' });
       mockEmail.sendCoachingReportEmail.mockResolvedValueOnce({
