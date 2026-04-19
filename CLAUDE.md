@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 18/04/2026 (sessão 44)
+> Última atualização: 18/04/2026 (sessão 45)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 44 (18/04/2026) | Conversation summaries on-demand + Weekly AI coaching reports |
-| Backend (NestJS) | ✅ Produção | Railway — 17 módulos, 50+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 19 routes (+coaching) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 12 modelos (+CoachingReport), 19 enums Prisma |
+| Último commit | sessão 45 (18/04/2026) | Auto-summary on call-end (durable) + Team leaderboard & goals |
+| Backend (NestJS) | ✅ Produção | Railway — 18 módulos (+goals), 50+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 20 routes (+goals) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 14 modelos (+CallSummary, +TeamGoal), 21 enums Prisma |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -221,6 +221,40 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** CircuitBreakers dedicados por integração, `@@unique` para idempotência do cron, error isolation per-vendor (bulkhead), fallback determinístico em LLM failure, email non-blocking com status flag, audit non-blocking.
 
+### 2.5.4 Sessão 45 — 18/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — AI/Product) — Auto-summary on call-end (persistente, estende S44 summaries) + Team leaderboard & goals (ativa dados de coaching com ranking + metas configuráveis).
+
+**Feature A1 — Auto-summary on call-end (módulo `summaries` estendido):**
+- Schema: novo modelo `CallSummary` (id, callId unique, companyId, keyPoints[], sentimentTimeline Json, nextBestAction Text, provider, contentHash, generatedAt, updatedAt). Índice `[companyId, generatedAt Desc]`. Relação 1:1 com `Call` (`onDelete: Cascade`). Migration `20260418240000_add_call_summaries_and_team_goals`.
+- `SummariesService` ganha 3 métodos novos:
+  - `autoSummarizeCall(callId)` — fire-and-forget chamado por `CallsService` após persistir transcript (em `handleRecordingCompleted` e `handleStatusWebhook` quando status=COMPLETED). Nunca throws. Idempotente: compara `contentHash` SHA-256 (prefix 16) do transcript contra `CallSummary.contentHash` existente — skip se igual.
+  - `getPersistedCallSummary(callId, companyId)` — lê do DB com filtro tenant, retorna `ConversationSummary | null` (sem custo LLM, sobrevive Redis TTL 24h).
+  - `persistCallSummary(source, summary)` — `prisma.callSummary.upsert` por callId, não-bloqueante (erro apenas loga).
+- `summarize()` modificado: quando `source.kind === 'call'`, primeiro checa CallSummary no DB com match de `contentHash`; HIT retorna direto, MISS cai no fluxo cache→LLM e persiste após sucesso (write-through: DB + Redis).
+- Endpoint novo: `GET /summaries/calls/:id` — retorna persisted summary, 404 se não existe.
+- `CallsService` injeta `SummariesService` via `SummariesModule` + dispara `void this.summariesService.autoSummarizeCall(callId).catch(() => {})` após transcript salvo.
+- Frontend (`app/dashboard/calls/page.tsx`): `useEffect` sobre `selectedCall.id + callDetail.transcript` faz prefetch silencioso de `getPersistedCallSummary`; se presente, hidrata o modal instantaneamente sem clique. `handleGenerateSummary` também prioriza DB antes de POST.
+
+**Feature A2 — Team leaderboard & goals (módulo novo `goals`):**
+- Schema: novo modelo `TeamGoal` (id, companyId, userId (nullable = company-wide), metric GoalMetric, target Int, periodType GoalPeriodType, periodStart, periodEnd, createdById, timestamps). `@@unique([companyId, userId, metric, periodStart])` como `goal_period_unique`. 3 índices: `[companyId, periodStart]`, `[companyId, userId]`, `[companyId, metric, periodStart]`. Novos enums `GoalMetric` (5 valores: CALLS_TOTAL, CALLS_COMPLETED, CONVERSION_RATE, AI_ADOPTION_RATE, WHATSAPP_MESSAGES) e `GoalPeriodType` (WEEKLY, MONTHLY).
+- `GoalsService`:
+  - `periodRange(periodType, anchor)` helper UTC-deterministic. WEEKLY: Monday 00:00Z inclusive, next Monday exclusive. MONTHLY: 1st of month 00:00Z inclusive, next month 1st exclusive. Sem DST drift.
+  - `create(companyId, createdById, dto)`: valida target ≤ 100 para métricas percentuais, valida `userId` pertence ao tenant (tenant isolation), upsert via unique constraint (`P2002` → `BadRequestException`), audit log fire-and-forget.
+  - `listCurrent(companyId, periodType)` — retorna goals do período atual com relations `user` + `createdBy`.
+  - `updateTarget(companyId, goalId, actorId, dto)` — NotFoundException se tenant mismatch, audit com `oldValues/newValues`.
+  - `remove(companyId, goalId, actorId)` — delete + audit.
+  - `leaderboard(companyId, periodType)` — fetch active users + `Promise.all` de 4 queries (calls findMany, aISuggestion findMany scope por `userId IN tenant users`, whatsappMessage findMany scope via `chat: { companyId }` + `direction: OUTGOING`, teamGoal findMany). Bucket per-user em Map, calcula `conversionRate` (callsCompleted/callsTotal), `aiAdoptionRate` (aiUsed/aiShown), aplica goals (per-vendor + company-wide), calcula `progressPct` capped 100 e `compositeScore` = avg(progressPct). Rank: composite DESC + callsCompleted DESC como tiebreaker.
+- Endpoints: `GET /goals/leaderboard?period=WEEKLY|MONTHLY`, `GET /goals/current?period=...`, `POST /goals` + `PATCH /goals/:id` + `DELETE /goals/:id` (últimos 3: `@Roles(OWNER/ADMIN/MANAGER)` + `RolesGuard`).
+- Frontend: nova rota `/dashboard/goals` com `Trophy` icon no sidebar. `<LeaderboardRowCard>` com RankBadge (gold/silver/bronze para top 3), 4 métricas KPI (calls/conversion/AI adoption/WhatsApp), ProgressBar por goal com cor semáforo. `<CreateGoalModal>` (managers only) com seletor metric/target/assignee (vendor específico ou equipe toda). Period toggle WEEKLY/MONTHLY. Role check via `user.publicMetadata.role`. TanStack Query com key `["goals", "leaderboard", period]`.
+- i18n: ~35 chaves (`nav.goals`, `goals.title/subtitle/teamWide`, `goals.period.{weekly,monthly}`, `goals.metrics.*`, `goals.metricLabel.{CALLS_TOTAL|CALLS_COMPLETED|CONVERSION_RATE|AI_ADOPTION_RATE|WHATSAPP_MESSAGES}`, `goals.leaderboard.composite`, `goals.empty.*`, `goals.create.*`) em pt-BR + en.
+
+**Testes:**
+- `summaries.service.spec.ts` — adicionadas ~10 novas cases: `getPersistedCallSummary` (null, tenant isolation, rehydration, invalid JSON coerção), `autoSummarizeCall` (missing call → false, empty transcript → false, idempotency via contentHash match, hash mismatch persiste nova versão, error swallow); + mock de `callSummary.findUnique` default null em `beforeEach` para preservar testes S44.
+- `goals.service.spec.ts` (novo, ~18 cases): `periodRange` (Wed/Mon/Sun mapeam correto para Mon 00:00Z, MONTHLY boundaries), `create` (percentage >100 reject, tenant isolation de userId, team-wide create + audit, P2002 → BadRequest, unknown errors rethrown), `updateTarget` (NotFound tenant mismatch, audit oldValues/newValues, percentage >100 reject), `remove` (NotFound, audit DELETE), `leaderboard` (empty users, bucket correto de calls/AI/WhatsApp com unassigned skip, goal progress cap 100 + composite score cross per-user + company-wide, ranking composite DESC + callsCompleted tiebreaker, AISuggestion scope via `userId IN` + WhatsappMessage scope via `chat: { companyId }`).
+
+**Resilience:** `CircuitBreaker('Summaries-OpenAI')` já existente, idempotency via contentHash evita regeneração desnecessária, auto-summary nunca throws (protege webhook hot path), persist é fire-and-forget (cache + resposta sobrevivem a falha de DB), `@@unique` TeamGoal previne duplicatas por período, audit não-bloqueante em todas mutações.
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -240,6 +274,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 42 | 18/04 | Onboarding guiado + Payment recovery (dunning/grace/pause) | ⏳ |
 | 43 | 18/04 | LGPD scheduled deletion cron + Audit log export (CSV/NDJSON) | ⏳ |
 | 44 | 18/04 | Conversation summaries on-demand + Weekly AI coaching reports | ⏳ |
+| 45 | 18/04 | Auto-summary on call-end (durable) + Team leaderboard & goals | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -354,6 +389,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── coaching/       # Weekly AI coaching reports cron + email
 │   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
 │   │       │   ├── email/          # Resend integration, templates
+│   │       │   ├── goals/          # TeamGoals CRUD + leaderboard (weekly/monthly)
 │   │       │   ├── lgpd-deletion/  # Scheduled hard-delete cron (30d grace), AuditLog preservation
 │   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
 │   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
@@ -412,7 +448,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (12)
+### 6.1 Modelos (14)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -428,10 +464,12 @@ Infrastructure (Prisma, API Clients, Redis)
 | **ApiKey** | Chave de API. Hash, escopos, expiração, uso | → Company |
 | **AuditLog** | Trail de auditoria. Ação, recurso, valores old/new, IP, requestId | → Company, User? |
 | **CoachingReport** | Relatório semanal de coaching por vendedor. Metrics JSON, insights[], recommendations[], email delivery status | → Company, User |
+| **CallSummary** | Resumo persistido por ligação. keyPoints[], sentimentTimeline, nextBestAction, contentHash (idempotency), provider | → Call (1:1), Company |
+| **TeamGoal** | Meta configurável por métrica+período. userId nullable = company-wide. Unique (company,user,metric,periodStart) | → Company, User?, Creator User |
 
-### 6.2 Enums (19)
+### 6.2 Enums (21)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2)
 
 ### 6.3 Regras de Schema
 

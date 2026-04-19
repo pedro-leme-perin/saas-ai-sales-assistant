@@ -23,4 +23,17 @@ export const summariesService = {
 
   summarizeChat: async (chatId: string) =>
     apiClient.post<ConversationSummary>(`/summaries/chats/${chatId}`, {}),
+
+  // Session 45 — Read persisted auto-summary (no LLM cost). Returns null on 404.
+  getPersistedCallSummary: async (
+    callId: string,
+  ): Promise<ConversationSummary | null> => {
+    try {
+      return await apiClient.get<ConversationSummary>(`/summaries/calls/${callId}`);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) return null;
+      throw err;
+    }
+  },
 };

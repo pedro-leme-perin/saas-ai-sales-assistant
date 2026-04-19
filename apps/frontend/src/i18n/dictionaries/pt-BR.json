@@ -31,6 +31,7 @@
     "whatsapp": "WhatsApp",
     "analytics": "Analytics",
     "coaching": "Coaching IA",
+    "goals": "Metas",
     "team": "Equipe",
     "billing": "Faturamento",
     "settings": "Configurações"
@@ -824,6 +825,46 @@
       "nextBestAction": "Proxima melhor acao",
       "cached": "Resumo em cache",
       "fresh": "Gerado agora"
+    }
+  },
+  "goals": {
+    "title": "Metas e ranking",
+    "subtitle": "Ranking da equipe por progresso composto das metas.",
+    "teamWide": "Equipe",
+    "period": {
+      "weekly": "Semanal",
+      "monthly": "Mensal"
+    },
+    "metrics": {
+      "calls": "Ligacoes",
+      "conversion": "Conversao",
+      "aiAdoption": "Adocao IA",
+      "whatsapp": "WhatsApp"
+    },
+    "metricLabel": {
+      "CALLS_TOTAL": "Ligacoes totais",
+      "CALLS_COMPLETED": "Ligacoes concluidas",
+      "CONVERSION_RATE": "Taxa de conversao",
+      "AI_ADOPTION_RATE": "Adocao de IA",
+      "WHATSAPP_MESSAGES": "Mensagens WhatsApp"
+    },
+    "leaderboard": {
+      "composite": "Progresso composto"
+    },
+    "empty": {
+      "title": "Sem dados ainda",
+      "description": "Assim que houver atividade (ligacoes, mensagens ou sugestoes de IA) no periodo selecionado, o ranking aparece aqui."
+    },
+    "create": {
+      "button": "Nova meta",
+      "title": "Criar meta",
+      "metric": "Metrica",
+      "target": "Alvo",
+      "assignee": "Responsavel",
+      "teamWide": "Equipe inteira",
+      "submit": "Criar",
+      "hintPercent": "Valor em porcentagem (0-100).",
+      "hintCount": "Contagem absoluta no periodo."
     }
   }
 }

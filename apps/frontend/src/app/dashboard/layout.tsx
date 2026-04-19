@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { formatRelative } from '@/lib/utils';
 import {
   LayoutDashboard, Phone, MessageSquare, BarChart3,
-  Users, CreditCard, Settings, Menu, X, Sparkles,
+  Users, CreditCard, Settings, Menu, X, Sparkles, Trophy,
   Bell, ChevronLeft, Moon, Sun, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ const navigationKeys = [
   { key: 'nav.whatsapp', href: '/dashboard/whatsapp', icon: MessageSquare },
   { key: 'nav.analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { key: 'nav.coaching', href: '/dashboard/coaching', icon: Sparkles },
+  { key: 'nav.goals', href: '/dashboard/goals', icon: Trophy },
   { key: 'nav.team', href: '/dashboard/team', icon: Users },
   { key: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
   { key: 'nav.settings', href: '/dashboard/settings', icon: Settings },

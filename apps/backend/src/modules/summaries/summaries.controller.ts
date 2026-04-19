@@ -7,8 +7,10 @@
 
 import {
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -45,6 +47,24 @@ export class SummariesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.summaries.summarizeCall(callId, companyId, user.id);
+  }
+
+  @Get('calls/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Fetch persisted summary for a call (no LLM cost)',
+    description:
+      'Returns the CallSummary row produced automatically after the call ended. 404 if none exists yet (use POST to force generation).',
+  })
+  @ApiResponse({ status: 200, description: 'Persisted summary returned' })
+  @ApiResponse({ status: 404, description: 'No summary persisted for this call' })
+  async getPersistedCallSummary(
+    @Param('id', new ParseUUIDPipe()) callId: string,
+    @CompanyId() companyId: string,
+  ) {
+    const persisted = await this.summaries.getPersistedCallSummary(callId, companyId);
+    if (!persisted) throw new NotFoundException(`No summary persisted for call ${callId}`);
+    return persisted;
   }
 
   @Post('chats/:id')

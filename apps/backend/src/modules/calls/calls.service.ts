@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
+import { SummariesService } from '../summaries/summaries.service';
 import { Twilio } from 'twilio';
 import { CallDirection, CallStatus, SuggestionType } from '@prisma/client';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
@@ -22,6 +23,7 @@ export class CallsService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly aiService: AiService,
+    private readonly summariesService: SummariesService,
   ) {
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
@@ -313,13 +315,29 @@ export class CallsService {
 
     const callStatus = statusMap[status] || CallStatus.INITIATED;
 
-    return this.prisma.call.update({
+    const updated = await this.prisma.call.update({
       where: { id: callId },
       data: {
         status: callStatus,
         ...(duration && { duration }),
       },
     });
+
+    // Session 45 — When call completes and we already have a transcript
+    // (e.g. streaming STT), trigger auto-summary. The recording webhook path
+    // (handleRecordingCompleted) also triggers it — both are idempotent via
+    // the CallSummary contentHash check inside SummariesService.
+    if (
+      callStatus === CallStatus.COMPLETED &&
+      typeof updated.transcript === 'string' &&
+      updated.transcript.trim().length > 0
+    ) {
+      void this.summariesService.autoSummarizeCall(callId).catch(() => {
+        /* already logged inside service */
+      });
+    }
+
+    return updated;
   }
 
   async getCallStats(companyId: string) {
@@ -405,6 +423,13 @@ export class CallsService {
           data: { transcript },
         });
         this.logger.log(`Transcript saved for call ${callId}: ${transcript.substring(0, 100)}...`);
+
+        // Session 45 — Fire-and-forget auto-summary (idempotent via contentHash).
+        // Never awaited: webhook hot path stays cheap, failures are swallowed by
+        // SummariesService.autoSummarizeCall (returns false, never throws).
+        void this.summariesService.autoSummarizeCall(callId).catch(() => {
+          /* already logged inside service */
+        });
       }
     } catch (error) {
       this.logger.error(`Transcription error for call ${callId}:`, error);

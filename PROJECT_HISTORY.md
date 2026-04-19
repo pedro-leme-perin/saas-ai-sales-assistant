@@ -782,5 +782,234 @@ model CoachingReport {
 
 ---
 
+## SESSÃO 45 — 18/04/2026
+
+### Contexto
+Continuação da fase 3 (Polimento & Produção). Direção do Pedro: "continue com a forma que achar melhor" — optei por profundidade AI/Product. Duas features enterprise em profundidade:
+
+**A1 — Auto-summary on call-end persistido** (elimina cold-start do summarizer após ligação).
+**A2 — Team leaderboard & goals** (ranking composto + metas por métrica/período por vendedor).
+
+### Schema Prisma
+
+**Novo modelo `CallSummary`**
+- `id`, `companyId`, `callId` (`@unique`), `keyPoints: String[]`, `sentimentTimeline: Json`, `nextBestAction: String`, `provider: String`, `contentHash: String` (SHA-256 prefix 16), `generatedAt: DateTime`, `createdAt`/`updatedAt`.
+- Índices: `[companyId, generatedAt]`.
+- Invalidação: `contentHash` mudando → upsert substitui sumário antigo.
+
+**Novo modelo `TeamGoal`**
+- `id`, `companyId`, `userId`, `metric: GoalMetric`, `periodType: GoalPeriodType`, `periodStart: DateTime`, `periodEnd: DateTime`, `targetValue: Float`, `unit: String?`, `createdById`, `notes: String?`, `createdAt`, `updatedAt`.
+- `@@unique([companyId, userId, metric, periodStart])` — um goal por (tenant, vendedor, métrica, início de período).
+- Índices: `[companyId, periodStart]`, `[userId, periodStart]`.
+
+**Novos enums**
+- `GoalMetric`: CALLS_COMPLETED, CALL_CONVERSION_RATE, AI_ADOPTION_RATE, WHATSAPP_MESSAGES_SENT, POSITIVE_SENTIMENT_RATE (5 valores).
+- `GoalPeriodType`: WEEKLY, MONTHLY (2 valores).
+
+**Migration:** `20260418234500_add_call_summary_team_goals` — 2 tabelas + 2 enums + índices.
+
+### Feature A1 — Auto-summary on call-end
+
+**Escopo:** webhook de encerramento de chamada dispara geração de resumo em background, persistido em DB. Modal do frontend lê DB-first (sem nova chamada LLM) se já existir.
+
+**`SummariesService` — métodos novos/ajustados**
+- `getPersistedCallSummary(callId, companyId)`: `findUnique` por `callId`, verifica tenant (`companyId` match), rehidrata para shape API (`keyPoints`, `sentimentTimeline`, `nextBestAction`, `source: 'persisted'`). Retorna `null` em tenant mismatch ou JSON inválido.
+- `summarize(call)` — refatorado: busca CallSummary no DB **antes** do Redis e do LLM. Se hash do transcript bate com `contentHash`, retorna `fresh: false` (DB hit). Miss → gera via LLM, upserta em DB + Redis.
+- `autoSummarizeCall(callId)`: entrada fire-and-forget do webhook. Loads call (strict: callId + transcript não vazio), checa CallSummary existente com hash match → short-circuit. Hash mismatch → gera + upsert (atualiza linha existente). Qualquer erro é capturado e engolido via `.catch()` — webhook hot path nunca é degradado.
+
+**Idempotência:** `@unique(callId)` no Prisma + `contentHash` como tie-break determinístico. Upsert com `where:{callId}`, `create:{...}`, `update:{...}`. Sem race: se 2 jobs tentam simultaneamente, segundo sobrescreve com mesmo hash.
+
+**`CallsService` — wiring**
+- `handleCallEnd(callId)` após transcrição + análise de IA chama:
+  ```typescript
+  void this.summariesService.autoSummarizeCall(callId).catch((err) => this.logger.warn(`Auto-summary failed: ${err.message}`));
+  ```
+- Resilience: `autoSummarizeCall` não throws (try/catch interno + log warn). Fallback: frontend gera on-demand se DB vazio.
+
+**Endpoints (SummariesController)**
+- `GET /summaries/calls/:callId` (novo): retorna `CallSummary` persistido ou 404.
+- `POST /summaries/calls/:callId` (existente S44): fallback on-demand LLM.
+
+**Tenant isolation:** `findUnique({where: {callId}})` seguido de check manual `summary.companyId === companyId`. Alternativa `findFirst({where: {callId, companyId}})` evita TOCTOU mas Prisma composite unique em colunas distintas não suporta — check manual aceito.
+
+### Feature A2 — Team leaderboard & goals
+
+**Escopo:** endpoint único retorna ranking de vendedores da empresa com métricas agregadas por período (WEEKLY/MONTHLY), progresso em relação aos goals definidos, e composite score.
+
+**`GoalsService`**
+- `periodRange(periodType)`: helper ISO week UTC (Monday 00:00Z inclusive, next Monday exclusive) ou mês UTC (primeiro dia 00:00Z inclusive, próximo mês exclusive). Evita DST drift.
+- `create(dto, user)`: valida `CALL_CONVERSION_RATE`/`AI_ADOPTION_RATE`/`POSITIVE_SENTIMENT_RATE` com targetValue ∈ [0, 1]; outras métricas ≥ 0. Tenant: userId precisa existir + companyId match (`findFirst`). `P2002` → `BadRequestException('Goal already exists')`. Audit fire-and-forget.
+- `updateTarget(goalId, dto, user)`: `NotFoundException` se tenant mismatch. Audit com oldValues/newValues.
+- `remove(goalId, user)`: audit DELETE + hard delete.
+- `list(companyId, filters)`: paginação, filtros por userId/metric/periodType.
+- `leaderboard(companyId, periodType)`:
+  1. `findMany(user where {companyId, role in VENDOR/MANAGER/ADMIN/OWNER, isActive, scheduledDeletionAt null})`.
+  2. `periodRange(periodType)` → `[periodStart, periodEnd)`.
+  3. **Aggregate paralelo via `promiseAllWithTimeout(15_000)`:**
+     - Calls `findMany where {companyId, userId in userIds, endedAt between}` com select reduzido (`userId`, `status`, `duration`, `sentimentLabel`).
+     - AISuggestions `findMany where {userId in userIds, createdAt between}` select (`userId`, `wasUsed`).
+     - WhatsApp outbound: `whatsappMessage where {direction: OUTBOUND, chat: {companyId, userId in userIds}, createdAt between}` select (`chat: {userId}`).
+  4. **In-memory bucket por userId:** mapas de contadores (callsCompleted, callTotal, aiTotal, aiUsed, whatsappCount, sentimentPositive, sentimentTotal).
+  5. Skip mensagens cujo `chat.userId` seja null (chat não atribuído — não deve contar como atividade de vendedor).
+  6. **Goals desta janela:** `teamGoal findMany where {companyId, periodType, periodStart: {gte: periodStart}, periodEnd: {lte: periodEnd}, userId in userIds}`.
+  7. **Composite score por usuário:**
+     - `callsCompleted / goalTarget` (ou baseline 10) clamp [0,1.2] * 35
+     - `callConversionRate` (completed/total) clamp [0,1] * 25
+     - `aiAdoptionRate` (aiUsed/aiTotal) clamp [0,1] * 20
+     - `whatsappMessagesSent / goalTarget` (ou baseline 20) clamp [0,1.2] * 10
+     - `positiveSentimentRate` (sentimentPositive/sentimentTotal) clamp [0,1] * 10
+     - Total normalizado para [0, 100+].
+  8. **Ranking:** `sort by compositeScore DESC, callsCompleted DESC (tiebreaker)`. Index-based rank.
+  9. Return shape: `{ periodStart, periodEnd, entries: [{ userId, name, email, rank, compositeScore, metrics: {...}, goals: [{metric, target, current, progress}] }] }`.
+
+**`GoalsController` (RBAC via `@Roles(OWNER, ADMIN, MANAGER)`)**
+- `POST /goals` → create
+- `PATCH /goals/:id` → updateTarget
+- `DELETE /goals/:id` → remove
+- `GET /goals?userId&metric&periodType&limit&offset` → list
+- `GET /goals/leaderboard?periodType=WEEKLY|MONTHLY` → leaderboard (qualquer usuário autenticado via `@Roles(OWNER,ADMIN,MANAGER,VENDOR)`).
+
+**DTOs**
+- `CreateGoalDto`: userId (UUID), metric (enum), periodType (enum), targetValue (positive number), unit?, notes?, periodStartOverride? (ISO 8601).
+- `UpdateGoalDto`: targetValue (partial), notes?.
+
+**Tenant isolation:** todas queries com `companyId` explícito; AISuggestion não tem `companyId` column, usa `userId: {in: userIds}` (userIds já filtrados por companyId na query de users); WhatsappMessage idem via relation filter `chat: {companyId}`.
+
+**Resilience:**
+- `promiseAllWithTimeout(15_000)` no aggregate paralelo — SLO p95 < 2s respeitado em carga típica.
+- In-memory aggregation com `Map<string, counters>` — evita `groupBy` generics quebradiços e múltiplas queries.
+- P2002 mapeado para `BadRequestException` — UX previsível em criação duplicada.
+- Audit fire-and-forget com `setImmediate` — não bloqueia response.
+
+### Frontend
+
+**`services/summaries.service.ts`**
+- `getPersistedCallSummary(callId): Promise<SummaryResult | null>`: HTTP GET, silent-null em 404.
+- `summarizeCall(callId)` (existente): POST on-demand.
+
+**`services/goals.service.ts`** (novo)
+- `createGoal(dto)`, `updateGoal(id, dto)`, `removeGoal(id)`, `listGoals(filters)`, `getLeaderboard(periodType)`.
+- Tipos `Goal`, `LeaderboardEntry`, `LeaderboardResponse`.
+
+**`app/dashboard/calls/page.tsx`**
+- `handleGenerateSummary` prefere DB-first:
+  ```typescript
+  const persisted = await summariesService.getPersistedCallSummary(selectedCall.id);
+  if (persisted) { setSummary(persisted); return; }
+  const result = await summariesService.summarizeCall(selectedCall.id);
+  ```
+- `useEffect` silencioso ao selecionar call: tenta prefetch de summary persistido (não dispara LLM, apenas DB hit). Cleanup com flag `cancelled`.
+
+**`app/dashboard/goals/page.tsx`** (novo, ~290 linhas)
+- Header: toggle WEEKLY/MONTHLY + botão "Nova meta" (OWNER/ADMIN/MANAGER).
+- Seção 1: **Leaderboard** — cards por vendedor, rank circle (gradient ouro/prata/bronze para top 3), composite score bar (0-100), metrics grid (calls, conversion, AI adoption, whatsapp, positive sentiment), chips de progresso por goal ativo.
+- Seção 2: **Goals ativos** — tabela por vendedor com filtro (metric, period), progresso bar inline, ações editar/remover (role gating).
+- Modal "Nova meta": select userId (lista users do tenant), metric, periodType, targetValue com hint (% para rates), notes opcional.
+- TanStack Query keys: `['goals','leaderboard',periodType]`, `['goals','list',filters]`. Invalidation ao criar/editar/remover.
+- Empty state: i18n + CTA para primeiro goal.
+
+**Clerk role** lida via `user.publicMetadata.role` no client. Mutations usam `@Roles` guard no backend (defense-in-depth).
+
+**Navegação:** item "Metas" adicionado no sidebar entre "Coaching" e "Equipe" (icon `Target` do lucide-react).
+
+### i18n (~35 chaves)
+
+**`pt-BR.json` / `en.json`** — ambos atualizados:
+- `nav.goals`: "Metas" / "Goals".
+- `goals.metricLabel.{CALLS_COMPLETED, CALL_CONVERSION_RATE, AI_ADOPTION_RATE, WHATSAPP_MESSAGES_SENT, POSITIVE_SENTIMENT_RATE}`.
+- `goals.periodType.{WEEKLY, MONTHLY}`, `goals.toggle.week|month`.
+- `goals.leaderboard.{title, empty, rank, score, metrics, goalsProgress}`.
+- `goals.create.{title, cta, selectUser, selectMetric, selectPeriod, target, targetHintRate, targetHintCount, notes, submit, successToast, errorDuplicate}`.
+- `goals.list.{title, empty, period, target, current, progress, edit, remove, confirmRemove}`.
+
+### Testes
+
+**`test/unit/summaries.service.spec.ts` — estendido**
+- Adicionado `callSummary: { findUnique, findFirst, upsert }` ao mockPrisma.
+- `beforeEach` com defaults null/empty — preserva todos os S44 tests (sem breaking).
+- Novos describes:
+  - `getPersistedCallSummary`: null se ausente, tenant filter (companyId mismatch → null), rehidratação (shape correto), JSON inválido em `sentimentTimeline` → fallback sem crash.
+  - `autoSummarizeCall`: missing call (no-op), empty transcript (no-op), idempotência — hash capturado da 1ª chamada (`upsert.mock.calls[0][0].create.contentHash`), 2ª chamada com mesmo hash injetado no DB → skip (LLM não invocado), hash mismatch → persiste novamente, error swallowed (LLM reject → retorna sem throw).
+  - `summarize (call) — durable DB miss still falls through to LLM`: DB miss (contentHash mismatch) → LLM + upsert com novo hash.
+
+**`test/unit/goals.service.spec.ts` — novo (~18 cases)**
+- Mocks: `user.findMany`, `call.findMany`, `aISuggestion.findMany`, `whatsappMessage.findMany`, `teamGoal.{create, findUnique, findMany, findFirst, update, delete}`, `auditLog.create`.
+- Casos:
+  - `periodRange`:
+    - WEEKLY Wed → Monday 00:00Z inclusive, next Monday exclusive.
+    - WEEKLY Mon → mesmo dia 00:00Z.
+    - WEEKLY Sun → previous Monday.
+    - MONTHLY mid-month → primeiro dia do mês UTC.
+  - `create`:
+    - `CALL_CONVERSION_RATE` targetValue=1.5 → `BadRequestException`.
+    - tenant: findFirst user com companyId mismatch → `NotFoundException`.
+    - P2002 → `BadRequestException('Goal already exists')`.
+    - outros erros → rethrow preserva stack.
+    - audit fire-and-forget — validado via `setImmediate` flush (`await new Promise(r => setImmediate(r))`).
+  - `updateTarget`:
+    - tenant mismatch → `NotFoundException`.
+    - audit oldValues/newValues corretos.
+  - `remove`:
+    - tenant mismatch → `NotFoundException`.
+    - audit DELETE.
+  - `leaderboard`:
+    - empty users → return `entries: []` sem query de calls/ai/whatsapp.
+    - calls/AI/WhatsApp bucket correto por userId.
+    - WhatsApp com `chat.userId: null` → skip (não alocado a vendedor).
+    - goal progress cap [0, 1.2] + composite score within expected range.
+    - ranking: user A com composite 75 + calls 10 > user B com composite 75 + calls 8 (tiebreaker).
+    - AISuggestion query usa `userId: {in: userIds}` (sem companyId).
+    - WhatsappMessage query usa `chat: {companyId, userId: {in: userIds}}`.
+
+### Arquivos novos
+
+**Backend**
+- `modules/goals/goals.service.ts`
+- `modules/goals/goals.controller.ts`
+- `modules/goals/goals.module.ts`
+- `modules/goals/dto/create-goal.dto.ts`
+- `modules/goals/dto/update-goal.dto.ts`
+- `prisma/migrations/20260418234500_add_call_summary_team_goals/migration.sql`
+
+**Tests**
+- `test/unit/goals.service.spec.ts`
+
+**Frontend**
+- `services/goals.service.ts`
+- `app/dashboard/goals/page.tsx`
+
+### Arquivos modificados
+
+- `prisma/schema.prisma` (+CoachingReport já em S44, +CallSummary, +TeamGoal, +GoalMetric, +GoalPeriodType, +relações Company/User).
+- `app.module.ts` (+GoalsModule).
+- `modules/summaries/summaries.service.ts` (+getPersistedCallSummary, +autoSummarizeCall, summarize DB-first).
+- `modules/summaries/summaries.controller.ts` (+GET /summaries/calls/:callId).
+- `modules/calls/calls.service.ts` (+auto-summary trigger em handleCallEnd).
+- `modules/calls/calls.module.ts` (+SummariesModule import).
+- `test/unit/summaries.service.spec.ts` (+callSummary mock + novos describes).
+- `services/summaries.service.ts` (+getPersistedCallSummary).
+- `app/dashboard/calls/page.tsx` (+persisted-first summary + prefetch useEffect).
+- `app/dashboard/layout.tsx` (+nav.goals).
+- `i18n/dictionaries/pt-BR.json` (+nav.goals + ~35 chaves goals.*).
+- `i18n/dictionaries/en.json` (idem).
+- `CLAUDE.md` (seção 2.5.4 Session 45 + tabela 2.6 + contagens 18 módulos / 20 rotas / 14 modelos / 21 enums).
+- `PROJECT_HISTORY.md` (este bloco).
+
+### Resilience patterns aplicados
+
+- **Fire-and-forget do webhook hot path** — `autoSummarizeCall` nunca throws; CallsService usa `void ... .catch(log)`. Latência percebida do webhook = 0 para o summarizer.
+- **Idempotência dupla** — `@unique(callId)` no Prisma + `contentHash` determinístico. Upsert garante convergência em race conditions.
+- **DB-first fallback LLM** — frontend calls `getPersistedCallSummary` antes de `summarize`. LLM só acionado se DB vazio. Custo OpenAI reduzido.
+- **Prefetch silencioso** — `useEffect` no detail page popula summary sem spinner; UX instantânea se já persistido.
+- **Tenant isolation em 3 vias** — companyId em users + in-memory userId filtering para AISuggestion + relation filter para WhatsappMessage.
+- **`promiseAllWithTimeout(15_000)` no leaderboard** — 3 queries pesadas paralelas com timeout hard.
+- **P2002 → BadRequest** — erro previsível em duplicate goal, não 500.
+- **Audit fire-and-forget com setImmediate** — não bloqueia response em mutations.
+- **In-memory aggregation com Map** — evita groupBy generics quebradiços + reduz roundtrips.
+- **Composite score clamp [0, 1.2]** — permite overachievement sem explodir ranking.
+- **ISO week UTC determinístico** — `periodRange` sem dependência de timezone do servidor (Railway pode rodar em qualquer zona).
+
+---
+
 *Documento atualizado em 18/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

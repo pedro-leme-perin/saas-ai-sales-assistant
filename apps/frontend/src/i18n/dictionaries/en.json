@@ -31,6 +31,7 @@
     "whatsapp": "WhatsApp",
     "analytics": "Analytics",
     "coaching": "AI Coaching",
+    "goals": "Goals",
     "team": "Team",
     "billing": "Billing",
     "settings": "Settings"
@@ -824,6 +825,46 @@
       "nextBestAction": "Next best action",
       "cached": "Cached summary",
       "fresh": "Just generated"
+    }
+  },
+  "goals": {
+    "title": "Goals and leaderboard",
+    "subtitle": "Team ranking by composite goal progress.",
+    "teamWide": "Team",
+    "period": {
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "metrics": {
+      "calls": "Calls",
+      "conversion": "Conversion",
+      "aiAdoption": "AI adoption",
+      "whatsapp": "WhatsApp"
+    },
+    "metricLabel": {
+      "CALLS_TOTAL": "Total calls",
+      "CALLS_COMPLETED": "Completed calls",
+      "CONVERSION_RATE": "Conversion rate",
+      "AI_ADOPTION_RATE": "AI adoption",
+      "WHATSAPP_MESSAGES": "WhatsApp messages"
+    },
+    "leaderboard": {
+      "composite": "Composite progress"
+    },
+    "empty": {
+      "title": "No data yet",
+      "description": "Once there is activity (calls, messages or AI suggestions) in the selected period, the ranking will appear here."
+    },
+    "create": {
+      "button": "New goal",
+      "title": "Create goal",
+      "metric": "Metric",
+      "target": "Target",
+      "assignee": "Assignee",
+      "teamWide": "Whole team",
+      "submit": "Create",
+      "hintPercent": "Percentage value (0-100).",
+      "hintCount": "Absolute count for the period."
     }
   }
 }

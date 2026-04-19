@@ -80,10 +80,133 @@ export class SummariesService {
     return this.summarize(source, userId);
   }
 
+  /**
+   * Session 45 — Read persisted CallSummary (no LLM cost, tenant-scoped).
+   * Returns null when no summary has been produced yet.
+   */
+  async getPersistedCallSummary(
+    callId: string,
+    companyId: string,
+  ): Promise<ConversationSummary | null> {
+    const row = await this.prisma.callSummary.findFirst({
+      where: { callId, companyId },
+      select: {
+        keyPoints: true,
+        sentimentTimeline: true,
+        nextBestAction: true,
+        provider: true,
+        generatedAt: true,
+      },
+    });
+    if (!row) return null;
+    return {
+      keyPoints: row.keyPoints,
+      sentimentTimeline: this.coerceTimelineFromJson(row.sentimentTimeline),
+      nextBestAction: row.nextBestAction,
+      generatedAt: row.generatedAt.toISOString(),
+      cached: true,
+      provider: row.provider,
+    };
+  }
+
+  /**
+   * Session 45 — Auto-summary on call completion.
+   *
+   * Called fire-and-forget from CallsService after transcript is persisted.
+   * Idempotent: skips if a CallSummary already exists with the same contentHash
+   * (i.e. the transcript hasn't changed since the last summary).
+   *
+   * Returns true on persist, false on skip/failure (never throws — used from
+   * webhook hot path).
+   */
+  async autoSummarizeCall(callId: string): Promise<boolean> {
+    try {
+      const call = await this.prisma.call.findUnique({
+        where: { id: callId },
+        select: {
+          id: true,
+          companyId: true,
+          userId: true,
+          transcript: true,
+          phoneNumber: true,
+          duration: true,
+        },
+      });
+      if (!call) {
+        this.logger.warn(`autoSummarizeCall: call ${callId} not found`);
+        return false;
+      }
+      const transcript = (call.transcript ?? '').trim();
+      if (!transcript) {
+        this.logger.debug(`autoSummarizeCall: skip ${callId} — no transcript`);
+        return false;
+      }
+
+      const truncated = this.truncate(transcript, SUMMARY_MAX_TRANSCRIPT_CHARS);
+      const contentHash = this.shortHash(truncated);
+
+      // Idempotency: same transcript → skip.
+      const existing = await this.prisma.callSummary.findUnique({
+        where: { callId },
+        select: { contentHash: true },
+      });
+      if (existing && existing.contentHash === contentHash) {
+        this.logger.debug(`autoSummarizeCall: ${callId} already persisted, hash match`);
+        return false;
+      }
+
+      const source: SummarySource = {
+        kind: 'call',
+        id: call.id,
+        companyId: call.companyId,
+        label: `call ${call.phoneNumber ?? call.id} (${call.duration ?? 0}s)`,
+        transcript: truncated,
+        contentHash,
+      };
+      const summary = await this.summarize(source, call.userId);
+      // Persistence happens inside summarize() via persistCallSummary().
+      void summary;
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`autoSummarizeCall(${callId}) failed: ${msg}`);
+      return false;
+    }
+  }
+
   // =============================================
   // INTERNAL — cache + LLM + audit pipeline
   // =============================================
   private async summarize(source: SummarySource, userId: string): Promise<ConversationSummary> {
+    // Session 45 — Durable read for calls: prefer persisted CallSummary.
+    // Survives Redis TTL and provides immediate render on first load.
+    if (source.kind === 'call') {
+      const persisted = await this.prisma.callSummary
+        .findUnique({
+          where: { callId: source.id },
+          select: {
+            keyPoints: true,
+            sentimentTimeline: true,
+            nextBestAction: true,
+            provider: true,
+            contentHash: true,
+            generatedAt: true,
+          },
+        })
+        .catch(() => null);
+      if (persisted && persisted.contentHash === source.contentHash) {
+        this.logger.debug(`Summary DB HIT call ${source.id}`);
+        return {
+          keyPoints: persisted.keyPoints,
+          sentimentTimeline: this.coerceTimelineFromJson(persisted.sentimentTimeline),
+          nextBestAction: persisted.nextBestAction,
+          generatedAt: persisted.generatedAt.toISOString(),
+          cached: true,
+          provider: persisted.provider,
+        };
+      }
+    }
+
     const key = summaryCacheKey(source.kind, source.id, source.contentHash);
 
     // Cache hit — return fast, no LLM call, no audit noise.
@@ -99,6 +222,14 @@ export class SummariesService {
     // Write-through cache (fire-and-forget friendly).
     await this.cache.set(key, summary as unknown as object, SUMMARY_CACHE_TTL_SECONDS);
 
+    // Persist durable copy for calls (non-blocking — cache still works on failure).
+    if (source.kind === 'call') {
+      this.persistCallSummary(source, summary).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Non-blocking: persist CallSummary failed (${source.id}): ${msg}`);
+      });
+    }
+
     // Audit non-blocking — summary generation is a user-initiated action.
     this.writeAuditLog(source, userId).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
@@ -108,6 +239,39 @@ export class SummariesService {
     });
 
     return summary;
+  }
+
+  private async persistCallSummary(
+    source: SummarySource,
+    summary: ConversationSummary,
+  ): Promise<void> {
+    await this.prisma.callSummary.upsert({
+      where: { callId: source.id },
+      create: {
+        callId: source.id,
+        companyId: source.companyId,
+        keyPoints: summary.keyPoints,
+        sentimentTimeline: summary.sentimentTimeline as unknown as object,
+        nextBestAction: summary.nextBestAction,
+        provider: summary.provider,
+        contentHash: source.contentHash,
+      },
+      update: {
+        keyPoints: summary.keyPoints,
+        sentimentTimeline: summary.sentimentTimeline as unknown as object,
+        nextBestAction: summary.nextBestAction,
+        provider: summary.provider,
+        contentHash: source.contentHash,
+        generatedAt: new Date(),
+      },
+    });
+  }
+
+  private coerceTimelineFromJson(input: unknown): SummarySentimentTick[] {
+    if (!Array.isArray(input)) return [{ position: 0, sentiment: 'neutral' }];
+    return input
+      .map((p) => this.coerceTick(p))
+      .filter((t): t is SummarySentimentTick => t !== null);
   }
 
   // =============================================

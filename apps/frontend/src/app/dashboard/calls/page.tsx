@@ -358,6 +358,14 @@ export default function CallsPage() {
     setSummaryLoading(true);
     setSummaryOpen(true);
     try {
+      // Session 45 — Prefer persisted auto-summary (zero LLM cost, instant).
+      const persisted = await summariesService.getPersistedCallSummary(
+        selectedCall.id,
+      );
+      if (persisted) {
+        setSummary(persisted);
+        return;
+      }
       const result = await summariesService.summarizeCall(selectedCall.id);
       setSummary(result);
     } catch (error) {
@@ -369,6 +377,26 @@ export default function CallsPage() {
       setSummaryLoading(false);
     }
   }, [selectedCall, t]);
+
+  // Session 45 — Silently prefetch persisted auto-summary when a call detail
+  // opens so the "Resumir com IA" button is instant if cron already ran.
+  useEffect(() => {
+    setSummary(null);
+    setSummaryError(null);
+    if (!selectedCall?.id || !callDetail?.transcript) return;
+    let cancelled = false;
+    void summariesService
+      .getPersistedCallSummary(selectedCall.id)
+      .then((persisted) => {
+        if (!cancelled && persisted) setSummary(persisted);
+      })
+      .catch(() => {
+        /* non-blocking prefetch */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCall?.id, callDetail?.transcript]);
 
   const handleExportCsv = async () => {
     try {

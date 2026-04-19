@@ -6,9 +6,10 @@ import { DeepgramService } from '../../infrastructure/stt/deepgram.service';
 import { AiModule } from '../ai/ai.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../../infrastructure/database/prisma.module';
+import { SummariesModule } from '../summaries/summaries.module';
 
 @Module({
-  imports: [AiModule, NotificationsModule, PrismaModule],
+  imports: [AiModule, NotificationsModule, PrismaModule, SummariesModule],
   controllers: [CallsController],
   providers: [CallsService, DeepgramService, MediaStreamsGateway],
   exports: [CallsService, DeepgramService, MediaStreamsGateway],
