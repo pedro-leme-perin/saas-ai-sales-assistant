@@ -4,6 +4,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CallsService } from '../../src/modules/calls/calls.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { AiService } from '../../src/modules/ai/ai.service';
+import { SummariesService } from '../../src/modules/summaries/summaries.service';
 
 describe('CallsService', () => {
   let service: CallsService;
@@ -50,6 +51,10 @@ describe('CallsService', () => {
     generateSuggestion: jest.fn(),
   };
 
+  const mockSummariesService = {
+    autoSummarizeCall: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +62,7 @@ describe('CallsService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: ConfigService, useValue: { get: jest.fn(() => null) } },
         { provide: AiService, useValue: mockAiService },
+        { provide: SummariesService, useValue: mockSummariesService },
       ],
     }).compile();
 
