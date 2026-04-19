@@ -2,10 +2,13 @@
   "common": {
     "loading": "Carregando...",
     "save": "Salvar",
+    "saving": "Salvando...",
     "saveChanges": "Salvar Alterações",
     "cancel": "Cancelar",
     "delete": "Excluir",
     "edit": "Editar",
+    "show": "Mostrar",
+    "hide": "Ocultar",
     "search": "Buscar",
     "noResults": "Nenhum resultado encontrado",
     "confirm": "Confirmar",
@@ -865,6 +868,58 @@
       "submit": "Criar",
       "hintPercent": "Valor em porcentagem (0-100).",
       "hintCount": "Contagem absoluta no periodo."
+    }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "subtitle": "Receba notificacoes em tempo real dos eventos do TheIAdvisor em seus proprios endpoints HTTP.",
+    "newEndpoint": "Novo endpoint",
+    "created": "Endpoint criado.",
+    "deleted": "Endpoint removido.",
+    "secret": "Segredo",
+    "secretCopied": "Segredo copiado.",
+    "secretRotated": "Novo segredo gerado e copiado.",
+    "rotateSecret": "Rotacionar segredo",
+    "lastSuccess": "Ultimo sucesso",
+    "failures": "Falhas",
+    "empty": {
+      "title": "Nenhum endpoint configurado",
+      "description": "Adicione um endpoint HTTPS para receber eventos (ligacoes, mensagens, resumos, coaching)."
+    },
+    "form": {
+      "url": "URL",
+      "description": "Descricao",
+      "descriptionPlaceholder": "Integracao com CRM interno",
+      "events": "Eventos"
+    },
+    "signingGuide": {
+      "title": "Verificacao de assinatura",
+      "header": "Cada requisicao inclui o cabecalho HMAC-SHA256 a seguir. Rejeite requisicoes sem assinatura valida ou com drift >5min.",
+      "retries": "Politica de retry: 1m, 2m, 5m, 15m, 60m, 240m. Apos 6 tentativas falhas o payload vai para dead-letter."
+    }
+  },
+  "templates": {
+    "title": "Templates de resposta",
+    "subtitle": "Biblioteca de respostas prontas com variaveis e sugestao inteligente.",
+    "new": "Novo template",
+    "edit": "Editar template",
+    "created": "Template criado.",
+    "updated": "Template atualizado.",
+    "deleted": "Template removido.",
+    "copied": "Conteudo copiado.",
+    "usageCount": "Utilizado {{count}} vezes",
+    "empty": {
+      "title": "Sem templates",
+      "description": "Crie seu primeiro template e ative sugestoes em tempo real durante ligacoes e conversas."
+    },
+    "form": {
+      "name": "Nome",
+      "channel": "Canal",
+      "category": "Categoria",
+      "categoryPlaceholder": "Follow-up, objecao, desconto...",
+      "content": "Conteudo",
+      "contentPlaceholder": "Ola {{customerName}}, segue nossa proposta...",
+      "variablesHint": "Use {{nomeVariavel}} para placeholders dinamicos."
     }
   }
 }

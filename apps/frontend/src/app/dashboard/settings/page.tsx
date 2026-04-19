@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, User, Building, Bell, Shield, Palette } from "lucide-react";
+import {
+  Settings,
+  User,
+  Building,
+  Bell,
+  Shield,
+  Palette,
+  Webhook,
+  FileText,
+  ChevronRight,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { companiesService } from "@/services/api";
 import { useUIStore } from "@/stores";
@@ -156,6 +167,36 @@ export default function SettingsPage() {
               t={t}
             />
           )}
+
+          {/* Session 46 — Advanced integrations links */}
+          <div className="grid md:grid-cols-2 gap-3">
+            <Link
+              href="/dashboard/settings/webhooks"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Webhook className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("webhooks.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("webhooks.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/settings/templates"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <FileText className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("templates.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("templates.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+          </div>
         </div>
       </div>
     </div>

@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 18/04/2026 (sessão 45)
+> Última atualização: 19/04/2026 (sessão 46)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 45 (18/04/2026) | Auto-summary on call-end (durable) + Team leaderboard & goals |
-| Backend (NestJS) | ✅ Produção | Railway — 18 módulos (+goals), 50+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 20 routes (+goals) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 14 modelos (+CallSummary, +TeamGoal), 21 enums Prisma |
+| Último commit | sessão 46 (19/04/2026) | Outbound webhooks (HMAC + retry + DLQ) + Saved reply templates (LLM suggest) |
+| Backend (NestJS) | ✅ Produção | Railway — 20 módulos (+webhooks, +reply-templates), 52+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 22 routes (+webhooks, +templates) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 16 modelos (+WebhookEndpoint, +WebhookDelivery, +ReplyTemplate), 24 enums Prisma |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -255,6 +255,49 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** `CircuitBreaker('Summaries-OpenAI')` já existente, idempotency via contentHash evita regeneração desnecessária, auto-summary nunca throws (protege webhook hot path), persist é fire-and-forget (cache + resposta sobrevivem a falha de DB), `@@unique` TeamGoal previne duplicatas por período, audit não-bloqueante em todas mutações.
 
+### 2.5.5 Sessão 46 — 19/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — plataforma) — Outbound webhooks assinados (HMAC + retry com exponential backoff + circuit breaker por URL + DLQ) + Saved reply templates (CRUD + LLM-ranked `/suggest` com fallback heurístico).
+
+**Feature A1 — Outbound webhooks (módulo novo `webhooks`):**
+- Schema: 2 modelos novos + 2 enums. Migration `20260419020000_add_webhooks_and_reply_templates`.
+  - `WebhookEndpoint` (id, companyId, createdById, url, description, secret `whsec_…`, events `WebhookEvent[]`, isActive, failureCount, lastSuccessAt, lastFailureAt, timestamps). `@@unique([companyId, url])`.
+  - `WebhookDelivery` (id, endpointId, companyId, event, payload Json, status `WebhookDeliveryStatus`, attempts, nextAttemptAt, lastAttemptAt, responseStatus, responseBody Text, errorMessage, deliveredAt, timestamps). Índices `[companyId, status]`, `[endpointId, status]`, `[status, nextAttemptAt]`.
+  - Enums: `WebhookEvent` (CALL_COMPLETED, CHAT_MESSAGE_RECEIVED, SUMMARY_READY, COACHING_REPORT_CREATED) + `WebhookDeliveryStatus` (PENDING, SUCCEEDED, FAILED, DEAD_LETTER).
+- Event bus in-process: `EventEmitterModule.forRoot()` global no AppModule. Produtores (`SummariesService`, `CoachingService`, `WhatsappService`) emitem `WEBHOOK_EVENT_NAME='webhooks.emit'` com `{companyId, event, data}` — todas as emissões envoltas em try/catch para nunca quebrar o hot path.
+- `WebhooksService`:
+  - `@OnEvent(WEBHOOK_EVENT_NAME)` → `emit(payload)` busca endpoints ativos com `events: { has: event }` e faz `createMany` de deliveries PENDING.
+  - `@Cron(EVERY_MINUTE, { name: 'webhook-retry-loop' })` → `processPending` busca batch bounded `WEBHOOK_DELIVERY_BATCH=100` com `status IN (PENDING, FAILED)`, `nextAttemptAt <= NOW`, `attempts < MAX_ATTEMPTS=6`. Error-isolated per-delivery.
+  - `dispatch(delivery)`: CircuitBreaker per-endpoint cached em `Map<endpointId, CB>` (failureThreshold=5, resetTimeoutMs=60s, callTimeoutMs=WEBHOOK_HTTP_TIMEOUT_MS+2s). HTTP via global `fetch` + `AbortController` (timeout `WEBHOOK_HTTP_TIMEOUT_MS=8_000`). 2xx → SUCCEEDED (`deliveredAt=now`, reset `failureCount`). 4xx/5xx → FAILED com `nextAttemptAt` exponencial `[60,120,300,900,3600,14400]s`. Throw → FAILED com `errorMessage`. attemptNo ≥ MAX → `markDeadLetter`. `$transaction` cobre delivery.update + endpoint.update.
+  - HMAC: header `X-TheIAdvisor-Signature: t={unix},v1={hmac_sha256_hex}` (estilo Stripe). `static verifySignature(secret, body, header, toleranceSec=300)` timing-safe via `crypto.timingSafeEqual`.
+  - CRUD: `list`, `findById` (tenant NotFoundException), `create` (auto-gera `whsec_` + randomBytes(24).toString('hex')), `update`, `remove`, `rotateSecret`, `listDeliveries` (cursor pagination, take cap 100). Audit log em todas mutações (resource literal `'WEBHOOK_ENDPOINT'`).
+- Endpoints: `GET /webhooks/endpoints`, `POST /webhooks/endpoints`, `PATCH /webhooks/endpoints/:id`, `DELETE /webhooks/endpoints/:id`, `POST /webhooks/endpoints/:id/rotate-secret`, `GET /webhooks/endpoints/:id/deliveries`. Guards: TenantGuard + RolesGuard (OWNER/ADMIN para mutações).
+- Frontend: `/dashboard/settings/webhooks` com `CreateEndpointForm` (URL + description + events checkboxes), `EndpointRow` com copy secret / rotate / delete, `SigningGuide` Card com snippet de verificação Node.js. Banner de secret visível uma única vez após criação. `webhooksService` no frontend com list/create/update/remove/rotateSecret + tipos fortes.
+- i18n: ~25 chaves (`webhooks.*`) em pt-BR + en.
+
+**Feature A2 — Saved reply templates (módulo novo `reply-templates`):**
+- Schema: modelo `ReplyTemplate` (id, companyId, createdById, name, channel `ReplyTemplateChannel`, category, content Text, variables `String[]`, isActive, usageCount, lastUsedAt, timestamps). `@@unique([companyId, name])`. Índices `[companyId, channel, isActive]`, `[companyId, usageCount]`. Enum `ReplyTemplateChannel` (CALL, WHATSAPP, BOTH).
+- `ReplyTemplatesService`:
+  - CRUD: `list` filtra por channel (BOTH sempre incluído para CALL/WHATSAPP queries via `{ in: [channel, BOTH] }`), `findById` tenant-scoped, `create` (auto-extrai `{{variables}}` via regex `/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g`, cap 30, P2002 → `BadRequestException`), `update` (re-extrai variables se content muda), `remove`, `markUsed` (increment usageCount + stamp lastUsedAt).
+  - `suggest(companyId, dto)`: busca top 20 candidates por `usageCount DESC`, filtrados por channel + optional category. Empty → `[]`. Single → passthrough com score=1. Múltiplos + `OPENAI_API_KEY` configurado → `CircuitBreaker('ReplyTemplates-OpenAI')` (failureThreshold=3, callTimeoutMs=10s) + OpenAI `chat.completions.create` com `response_format: json_object`, temperature 0.2, max_tokens 400. Catalog serializado como `[{idx, name, category, preview(300)}]`. Parse `{picks: [{idx, score, reason}]}` → clamp score ∈ [0,1], top 3. Fallback heurístico se LLM falhar ou retornar JSON inválido.
+  - `heuristicRank`: tokenizer NFD-normalizado (remove acentos), filter tokens `length ≥ 3`, overlap score vs `name + category + content`, ordenado por score DESC + usageCount DESC.
+  - Audit log em todas mutações (resource literal `'REPLY_TEMPLATE'`), non-blocking.
+- Endpoints: `GET /reply-templates` (query `channel?`, `category?`), `GET /reply-templates/:id`, `POST /reply-templates` (OWNER/ADMIN/MANAGER), `PATCH /reply-templates/:id`, `DELETE /reply-templates/:id`, `POST /reply-templates/:id/used`, `POST /reply-templates/suggest`.
+- Frontend: `/dashboard/settings/templates` com grid de `TemplateCard` (channel badge CALL/WHATSAPP/BOTH, category pill, variables chips `{{var}}`, usage count), `TemplateForm` para create/edit. Helper `applyTemplateVariables(content, values)` no `reply-templates.service.ts` interpola placeholders e preserva os não-fornecidos.
+- i18n: ~15 chaves (`templates.*`) em pt-BR + en.
+
+**Integração com features prévias:**
+- `SummariesService` agora injeta `EventEmitter2` e emite `SUMMARY_READY` após sucesso do summarize (non-blocking).
+- `CoachingService` agora injeta `EventEmitter2` e emite `COACHING_REPORT_CREATED` após `coachingReport.create` (non-blocking). Mock `coachingReport.create` ganhou default `{id: 'default-report-id'}` em beforeEach para preservar testes S44.
+- `WhatsappService` agora injeta `EventEmitter2` e emite `CHAT_MESSAGE_RECEIVED` após processamento da mensagem de entrada (payload: chatId, messageId, customerPhone, customerName, type, hasMedia, contentPreview).
+
+**Testes:**
+- `webhooks.service.spec.ts` (novo, ~15 cases): CRUD tenant isolation (list scope, findById NotFound, create gera whsec_ secret + audit, update merge fields, remove delete + audit, rotateSecret + audit 'rotated:true', listDeliveries cap 100). emit() empty → skip createMany, match filter por event, fan-out múltiplos endpoints. dispatch: 2xx → SUCCEEDED + reset failureCount, 5xx → FAILED + nextAttemptAt, throw → FAILED + errorMessage, inactive endpoint → DEAD_LETTER, attemptNo ≥ MAX → escalação DLQ. Signing: sign/verifySignature roundtrip, tampered body rejected, expired timestamp rejected, malformed header rejected. Subclass `TestableWebhooksService` expõe `postSpy` em vez de `httpPost` real.
+- `reply-templates.service.spec.ts` (novo, ~12 cases): list com BOTH filter para CALL, findById NotFound, create + extract `{{vars}}` + P2002 → BadRequest, update re-extract variables, remove success, markUsed increment + lastUsedAt, suggest empty → [], single → passthrough, no OPENAI_API_KEY → heuristic ranker (token overlap ordering), extractVariables cap 30 + rejeita tokens inválidos. Mock OpenAI SDK at module level.
+- `summaries.service.spec.ts`, `coaching.service.spec.ts`, `whatsapp.service.spec.ts`: EventEmitter2 mock adicionado (import + provider) — compatibilidade com novos construtores.
+
+**Resilience:** CircuitBreaker per-endpoint isola falhas entre URLs de clientes, bulkhead bounded batch (100/tick), error isolation per-delivery no cron, exponential backoff schedule `[1m,2m,5m,15m,60m,240m]`, DLQ após MAX_ATTEMPTS, timing-safe HMAC verifier, fire-and-forget EventEmitter nunca quebra o pipeline de origem, idempotency via WebhookDelivery row per attempt, try/catch em cada emission-site protege hot path (webhook, call-end, message-in).
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -275,6 +318,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 43 | 18/04 | LGPD scheduled deletion cron + Audit log export (CSV/NDJSON) | ⏳ |
 | 44 | 18/04 | Conversation summaries on-demand + Weekly AI coaching reports | ⏳ |
 | 45 | 18/04 | Auto-summary on call-end (durable) + Team leaderboard & goals | ⏳ |
+| 46 | 19/04 | Outbound webhooks (HMAC + retry + DLQ) + Saved reply templates (LLM suggest) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -394,9 +438,11 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
 │   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
 │   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
+│   │       │   ├── reply-templates/ # Saved reply library (CRUD) + LLM-ranked /suggest + heuristic fallback
 │   │       │   ├── summaries/      # Conversation summaries on-demand (Redis cache, OpenAI)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
 │   │       │   ├── users/          # CRUD, invites, roles, RBAC, LGPD
+│   │       │   ├── webhooks/       # Outbound signed webhooks (HMAC + retry cron + CB per-URL + DLQ)
 │   │       │   └── whatsapp/       # WhatsApp API, chat, messages
 │   │       ├── common/
 │   │       │   ├── decorators/     # @RateLimit(), @Public(), @Roles()
@@ -448,7 +494,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (14)
+### 6.1 Modelos (16)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -466,10 +512,13 @@ Infrastructure (Prisma, API Clients, Redis)
 | **CoachingReport** | Relatório semanal de coaching por vendedor. Metrics JSON, insights[], recommendations[], email delivery status | → Company, User |
 | **CallSummary** | Resumo persistido por ligação. keyPoints[], sentimentTimeline, nextBestAction, contentHash (idempotency), provider | → Call (1:1), Company |
 | **TeamGoal** | Meta configurável por métrica+período. userId nullable = company-wide. Unique (company,user,metric,periodStart) | → Company, User?, Creator User |
+| **WebhookEndpoint** | Endpoint HTTP registrado pelo cliente. URL, secret `whsec_…`, events[] (subscribed), isActive, failureCount. Unique (companyId, url) | → Company, Deliveries |
+| **WebhookDelivery** | Tentativa de entrega. event, payload JSON, status, attempts, nextAttemptAt, responseStatus, errorMessage, deliveredAt | → WebhookEndpoint, Company |
+| **ReplyTemplate** | Template salvo. channel (CALL/WHATSAPP/BOTH), category, content com `{{vars}}`, variables[], usageCount, lastUsedAt. Unique (companyId, name) | → Company, User (createdBy) |
 
-### 6.2 Enums (21)
+### 6.2 Enums (24)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (4) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3)
 
 ### 6.3 Regras de Schema
 

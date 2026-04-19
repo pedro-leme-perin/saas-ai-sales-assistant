@@ -17,12 +17,17 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron } from '@nestjs/schedule';
 import OpenAI from 'openai';
-import { AuditAction, Prisma } from '@prisma/client';
+import { AuditAction, Prisma, WebhookEvent } from '@prisma/client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CircuitBreaker } from '@/common/resilience/circuit-breaker';
 import { EmailService } from '@modules/email/email.service';
+import {
+  WEBHOOK_EVENT_NAME,
+  type WebhookEmitPayload,
+} from '@modules/webhooks/events/webhook-events';
 import {
   COACHING_BATCH_SIZE,
   COACHING_LLM_TIMEOUT_MS,
@@ -52,6 +57,7 @@ export class CoachingService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly email: EmailService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     const apiKey = this.config.get<string>('OPENAI_API_KEY');
     this.model = this.config.get<string>('OPENAI_MODEL') ?? 'gpt-4o-mini';
@@ -121,7 +127,7 @@ export class CoachingService {
           }
         : await this.generateLLMInsights(vendor, metrics);
 
-    await this.prisma.coachingReport.create({
+    const report = await this.prisma.coachingReport.create({
       data: {
         companyId: vendor.companyId,
         userId: vendor.id,
@@ -133,6 +139,27 @@ export class CoachingService {
         provider: this.openai ? this.model : 'fallback',
       },
     });
+
+    // Session 46 — outbound webhook fan-out (in-process bus, fire-and-forget).
+    try {
+      const payload: WebhookEmitPayload = {
+        companyId: vendor.companyId,
+        event: WebhookEvent.COACHING_REPORT_CREATED,
+        data: {
+          reportId: report.id,
+          userId: vendor.id,
+          weekStart: week.start.toISOString(),
+          weekEnd: week.end.toISOString(),
+          insightsCount: llmOutput.insights.length,
+          recommendationsCount: llmOutput.recommendations.length,
+          totalActivity,
+        },
+      };
+      this.eventEmitter.emit(WEBHOOK_EVENT_NAME, payload);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Non-blocking: coaching webhook emit failed: ${msg}`);
+    }
 
     // Fire-and-forget email (non-blocking; logs on failure).
     this.sendReportEmail(vendor, week, metrics, llmOutput).catch((err) => {

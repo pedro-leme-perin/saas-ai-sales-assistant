@@ -70,6 +70,8 @@ model Company {
   coachingReports  CoachingReport[]
   teamGoals        TeamGoal[]
   callSummaries    CallSummary[]
+  webhookEndpoints WebhookEndpoint[]
+  replyTemplates   ReplyTemplate[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -130,6 +132,8 @@ model User {
   coachingReports         CoachingReport[]
   teamGoalsCreated        TeamGoal[]        @relation("TeamGoalCreator")
   teamGoalsAssigned       TeamGoal[]        @relation("TeamGoalAssignee")
+  webhookEndpointsCreated WebhookEndpoint[] @relation("WebhookEndpointCreator")
+  replyTemplatesCreated   ReplyTemplate[]   @relation("ReplyTemplateCreator")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -841,6 +845,107 @@ enum GoalMetric {
 enum GoalPeriodType {
   WEEKLY
   MONTHLY
+}
+
+// =============================================
+// 🔔 OUTBOUND WEBHOOKS (session 46)
+// =============================================
+
+model WebhookEndpoint {
+  id            String           @id @default(uuid())
+  companyId     String           @map("company_id")
+  url           String
+  description   String?
+  secret        String           // HMAC SHA-256 secret
+  events        WebhookEvent[]
+  isActive      Boolean          @default(true) @map("is_active")
+  createdById   String           @map("created_by_id")
+  lastSuccessAt DateTime?        @map("last_success_at")
+  lastFailureAt DateTime?        @map("last_failure_at")
+  failureCount  Int              @default(0) @map("failure_count")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt
+
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy     User             @relation("WebhookEndpointCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  deliveries    WebhookDelivery[]
+
+  @@index([companyId, isActive])
+  @@index([companyId, createdAt])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id               String                @id @default(uuid())
+  endpointId       String                @map("endpoint_id")
+  companyId        String                @map("company_id")
+  event            WebhookEvent
+  payload          Json
+  status           WebhookDeliveryStatus @default(PENDING)
+  attempts         Int                   @default(0)
+  lastAttemptAt    DateTime?             @map("last_attempt_at")
+  nextAttemptAt    DateTime?             @map("next_attempt_at")
+  responseStatus   Int?                  @map("response_status")
+  responseBody     String?               @map("response_body") @db.Text
+  errorMessage     String?               @map("error_message") @db.Text
+  deliveredAt      DateTime?             @map("delivered_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt
+
+  endpoint         WebhookEndpoint       @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([endpointId, createdAt(sort: Desc)])
+  @@index([status, nextAttemptAt])
+  @@map("webhook_deliveries")
+}
+
+enum WebhookEvent {
+  CALL_COMPLETED
+  CHAT_MESSAGE_RECEIVED
+  SUMMARY_READY
+  COACHING_REPORT_CREATED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+}
+
+// =============================================
+// 💬 REPLY TEMPLATES (session 46)
+// =============================================
+
+model ReplyTemplate {
+  id          String                 @id @default(uuid())
+  companyId   String                 @map("company_id")
+  createdById String                 @map("created_by_id")
+  name        String
+  channel     ReplyTemplateChannel
+  category    String?                // e.g. "objection", "greeting", "follow-up"
+  content     String                 @db.Text
+  variables   String[]               // variable keys allowed, e.g. ["customerName","product"]
+  isActive    Boolean                @default(true) @map("is_active")
+  usageCount  Int                    @default(0) @map("usage_count")
+  lastUsedAt  DateTime?              @map("last_used_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt
+
+  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User                   @relation("ReplyTemplateCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, name], name: "template_name_unique")
+  @@index([companyId, channel, isActive])
+  @@index([companyId, category])
+  @@map("reply_templates")
+}
+
+enum ReplyTemplateChannel {
+  CALL
+  WHATSAPP
+  BOTH
 }
 
 

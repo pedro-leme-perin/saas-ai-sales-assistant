@@ -4,6 +4,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CoachingService } from '../../src/modules/coaching/coaching.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { EmailService } from '../../src/modules/email/email.service';
@@ -56,7 +57,10 @@ describe('CoachingService', () => {
     jest.clearAllMocks();
     mockEmail.sendCoachingReportEmail.mockResolvedValue({ success: true });
     mockPrisma.coachingReport.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.coachingReport.create.mockResolvedValue({ id: 'default-report-id' });
     mockPrisma.auditLog.create.mockResolvedValue({});
+
+    const mockEventEmitter = { emit: jest.fn().mockReturnValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -67,6 +71,7 @@ describe('CoachingService', () => {
           provide: ConfigService,
           useValue: { get: jest.fn((k: string) => mockConfigValues[k]) },
         },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
 

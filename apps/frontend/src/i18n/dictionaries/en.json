@@ -2,10 +2,13 @@
   "common": {
     "loading": "Loading...",
     "save": "Save",
+    "saving": "Saving...",
     "saveChanges": "Save Changes",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
+    "show": "Show",
+    "hide": "Hide",
     "search": "Search",
     "noResults": "No results found",
     "confirm": "Confirm",
@@ -865,6 +868,58 @@
       "submit": "Create",
       "hintPercent": "Percentage value (0-100).",
       "hintCount": "Absolute count for the period."
+    }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "subtitle": "Receive real-time notifications of TheIAdvisor events on your own HTTP endpoints.",
+    "newEndpoint": "New endpoint",
+    "created": "Endpoint created.",
+    "deleted": "Endpoint removed.",
+    "secret": "Secret",
+    "secretCopied": "Secret copied.",
+    "secretRotated": "New secret generated and copied.",
+    "rotateSecret": "Rotate secret",
+    "lastSuccess": "Last success",
+    "failures": "Failures",
+    "empty": {
+      "title": "No endpoints configured",
+      "description": "Add an HTTPS endpoint to receive events (calls, messages, summaries, coaching)."
+    },
+    "form": {
+      "url": "URL",
+      "description": "Description",
+      "descriptionPlaceholder": "Internal CRM integration",
+      "events": "Events"
+    },
+    "signingGuide": {
+      "title": "Signature verification",
+      "header": "Every request includes the HMAC-SHA256 header below. Reject requests without a valid signature or with drift >5min.",
+      "retries": "Retry policy: 1m, 2m, 5m, 15m, 60m, 240m. After 6 failed attempts the payload moves to dead-letter."
+    }
+  },
+  "templates": {
+    "title": "Reply templates",
+    "subtitle": "Library of saved replies with variables and smart suggestions.",
+    "new": "New template",
+    "edit": "Edit template",
+    "created": "Template created.",
+    "updated": "Template updated.",
+    "deleted": "Template removed.",
+    "copied": "Content copied.",
+    "usageCount": "Used {{count}} times",
+    "empty": {
+      "title": "No templates",
+      "description": "Create your first template and enable real-time suggestions during calls and chats."
+    },
+    "form": {
+      "name": "Name",
+      "channel": "Channel",
+      "category": "Category",
+      "categoryPlaceholder": "Follow-up, objection, discount...",
+      "content": "Content",
+      "contentPlaceholder": "Hi {{customerName}}, here is our proposal...",
+      "variablesHint": "Use {{variableName}} for dynamic placeholders."
     }
   }
 }

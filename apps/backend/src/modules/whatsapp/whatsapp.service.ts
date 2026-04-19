@@ -18,13 +18,24 @@
 
 import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { MessageType, MessageDirection, MessageStatus, WhatsappChat } from '@prisma/client';
+import {
+  MessageType,
+  MessageDirection,
+  MessageStatus,
+  WebhookEvent,
+  WhatsappChat,
+} from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import twilio = require('twilio');
 import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
+import {
+  WEBHOOK_EVENT_NAME,
+  type WebhookEmitPayload,
+} from '@modules/webhooks/events/webhook-events';
 
 // =====================================================
 // TWILIO WEBHOOK PAYLOAD TYPES
@@ -73,6 +84,7 @@ export class WhatsappService {
     private readonly configService: ConfigService,
     private readonly aiService: AiService,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
@@ -183,6 +195,28 @@ export class WhatsappService {
         this.generateAndSendAISuggestion(chat, content, chat.userId).catch((err) =>
           this.logger.error('AI suggestion failed', err),
         );
+      }
+
+      // Session 46 — outbound webhook fan-out (in-process bus).
+      try {
+        const payload: WebhookEmitPayload = {
+          companyId: company.id,
+          event: WebhookEvent.CHAT_MESSAGE_RECEIVED,
+          data: {
+            chatId: chat.id,
+            messageId: savedMessage.id,
+            customerPhone,
+            customerName,
+            type: messageType,
+            hasMedia,
+            contentPreview: messageContent.substring(0, 200),
+            receivedAt: savedMessage.createdAt.toISOString(),
+          },
+        };
+        this.eventEmitter.emit(WEBHOOK_EVENT_NAME, payload);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Non-blocking: whatsapp webhook emit failed: ${msg}`);
       }
     } catch (error) {
       this.logger.error('Error processing Twilio webhook', error);

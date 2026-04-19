@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WhatsappService } from '../../src/modules/whatsapp/whatsapp.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { AiService } from '../../src/modules/ai/ai.service';
@@ -61,6 +62,10 @@ describe('WhatsappService', () => {
     }),
   };
 
+  const mockEventEmitter = {
+    emit: jest.fn().mockReturnValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -80,6 +85,10 @@ describe('WhatsappService', () => {
         {
           provide: NotificationsGateway,
           useValue: mockNotificationsGateway,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: mockEventEmitter,
         },
       ],
     }).compile();

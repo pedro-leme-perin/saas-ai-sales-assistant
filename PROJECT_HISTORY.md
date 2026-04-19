@@ -3,8 +3,8 @@
 **Documento:** Registro detalhado de todas as sessões de desenvolvimento
 **Projeto:** SaaS AI Sales Assistant (TheIAdvisor)
 **Início:** 13/03/2026
-**Última atualização:** 18/04/2026
-**Total de sessões:** 42
+**Última atualização:** 19/04/2026
+**Total de sessões:** 46
 
 ---
 
@@ -1011,5 +1011,118 @@ Continuação da fase 3 (Polimento & Produção). Direção do Pedro: "continue 
 
 ---
 
-*Documento atualizado em 18/04/2026*
+## Sessão 46 — 19/04/2026
+
+**Tema:** Outbound webhooks assinados + Saved reply templates com LLM ranking
+
+### Objetivo
+
+Duas features enterprise em profundidade (opção A — plataforma):
+- **A1 — Outbound webhooks**: endpoints HTTP configuráveis pelo cliente, HMAC-SHA256 estilo Stripe (`t=,v1=`), retry com exponential backoff via cron, circuit breaker por URL, dead-letter após 6 tentativas.
+- **A2 — Saved reply templates**: biblioteca per-empresa de respostas salvas, canal (CALL/WHATSAPP/BOTH), categorias, `{{variables}}`, endpoint `/suggest` rankeado por LLM com fallback heurístico.
+
+### Schema Prisma
+
+Migration `20260419020000_add_webhooks_and_reply_templates`:
+- `WebhookEndpoint` + `WebhookDelivery` + `ReplyTemplate` (3 modelos novos).
+- 3 enums: `WebhookEvent` (4), `WebhookDeliveryStatus` (4), `ReplyTemplateChannel` (3).
+- Unique `[companyId, url]` em endpoints; unique `[companyId, name]` em templates.
+- Índices `[status, nextAttemptAt]` para cron scan eficiente.
+
+### Backend
+
+**Webhooks (`modules/webhooks/`)**
+- `EventEmitterModule.forRoot()` global no AppModule — event bus in-process para desacoplamento.
+- `WebhooksService.onEmit` com `@OnEvent('webhooks.emit')` fanout para deliveries PENDING via `createMany`.
+- `@Cron(EVERY_MINUTE)` retry loop bounded (`WEBHOOK_DELIVERY_BATCH=100`), error-isolated per-delivery.
+- CircuitBreaker per-endpoint cached em `Map<endpointId, CB>` (failureThreshold=5, resetTimeoutMs=60s).
+- HTTP via global `fetch` + `AbortController` (timeout 8s).
+- Backoff schedule `[60s, 120s, 300s, 900s, 3600s, 14400s]`; attemptNo ≥ 6 → DEAD_LETTER.
+- `static verifySignature` timing-safe via `crypto.timingSafeEqual`.
+- CRUD com audit log (resource literal `'WEBHOOK_ENDPOINT'`).
+
+**Reply templates (`modules/reply-templates/`)**
+- CRUD com auto-extração de `{{variables}}` (regex, cap 30).
+- P2002 → `BadRequestException` (duplicate name).
+- `/suggest` — CircuitBreaker('ReplyTemplates-OpenAI') + OpenAI `response_format: json_object`; fallback heurístico NFD-normalizado (overlap score + usageCount tiebreaker).
+- Audit log em todas mutações (resource literal `'REPLY_TEMPLATE'`).
+
+**Integração com features prévias**
+- `SummariesService` + `CoachingService` + `WhatsappService` injetam `EventEmitter2` e emitem webhooks após sucesso (non-blocking, try/catch wraps cada emission-site).
+- Auto-summary dispara `SUMMARY_READY`; weekly cron dispara `COACHING_REPORT_CREATED`; WhatsApp inbound dispara `CHAT_MESSAGE_RECEIVED`.
+
+### Frontend
+
+- `/dashboard/settings/webhooks` — `CreateEndpointForm` + `EndpointRow` + `SigningGuide` Card com snippet Node.js de verificação HMAC.
+- `/dashboard/settings/templates` — grid de `TemplateCard` (channel badge, category pill, variables chips, usage count).
+- Helper `applyTemplateVariables(content, values)` — interpolação com fallback para placeholders não-fornecidos.
+- Settings page ganha 2 advanced integration links (Webhooks + Templates) via `lucide-react` icons.
+- i18n: ~40 chaves novas (`webhooks.*` + `templates.*`) em pt-BR + en.
+
+### Testes
+
+- `webhooks.service.spec.ts` (novo, ~15 cases): CRUD tenant isolation, emit fanout, dispatch 2xx/5xx/throw/inactive, MAX_ATTEMPTS → DLQ, sign/verifySignature roundtrip + tamper detection + expiry.
+- `reply-templates.service.spec.ts` (novo, ~12 cases): CRUD + P2002, extractVariables cap, suggest empty/single/heuristic, update re-extract.
+- `summaries.service.spec.ts`, `coaching.service.spec.ts`, `whatsapp.service.spec.ts`: EventEmitter2 mock adicionado para compatibilidade com novos construtores.
+
+### Arquivos novos
+
+**Backend**
+- `modules/webhooks/webhooks.service.ts`
+- `modules/webhooks/webhooks.controller.ts`
+- `modules/webhooks/webhooks.module.ts`
+- `modules/webhooks/events/webhook-events.ts`
+- `modules/webhooks/dto/create-webhook.dto.ts`
+- `modules/webhooks/dto/update-webhook.dto.ts`
+- `modules/reply-templates/reply-templates.service.ts`
+- `modules/reply-templates/reply-templates.controller.ts`
+- `modules/reply-templates/reply-templates.module.ts`
+- `modules/reply-templates/dto/create-reply-template.dto.ts`
+- `modules/reply-templates/dto/update-reply-template.dto.ts`
+- `modules/reply-templates/dto/suggest-reply-template.dto.ts`
+- `prisma/migrations/20260419020000_add_webhooks_and_reply_templates/migration.sql`
+
+**Tests**
+- `test/unit/webhooks.service.spec.ts`
+- `test/unit/reply-templates.service.spec.ts`
+
+**Frontend**
+- `services/webhooks.service.ts`
+- `services/reply-templates.service.ts`
+- `app/dashboard/settings/webhooks/page.tsx`
+- `app/dashboard/settings/templates/page.tsx`
+
+### Arquivos modificados
+
+- `prisma/schema.prisma` (+3 modelos, +3 enums).
+- `app.module.ts` (+EventEmitterModule.forRoot + WebhooksModule + ReplyTemplatesModule).
+- `modules/summaries/summaries.service.ts` (+EventEmitter2 + SUMMARY_READY emission).
+- `modules/coaching/coaching.service.ts` (+EventEmitter2 + COACHING_REPORT_CREATED emission).
+- `modules/whatsapp/whatsapp.service.ts` (+EventEmitter2 + CHAT_MESSAGE_RECEIVED emission).
+- `test/unit/{summaries,coaching,whatsapp}.service.spec.ts` (+EventEmitter2 provider).
+- `test/unit/calls.service.spec.ts` (compat).
+- `app/dashboard/settings/page.tsx` (+2 advanced links).
+- `i18n/dictionaries/{pt-BR,en}.json` (+webhooks.* + templates.*).
+- `CLAUDE.md` (seção 2.5.5 Session 46 + tabela 2.6 + contagens: 20 módulos / 22 rotas / 16 modelos / 24 enums).
+- `PROJECT_HISTORY.md` (este bloco).
+
+### Resilience patterns aplicados
+
+- **CircuitBreaker per-endpoint** — URL com falhas repetidas não afeta outras URLs da mesma company. Isolamento horizontal entre clientes.
+- **Bulkhead bounded batch** — `WEBHOOK_DELIVERY_BATCH=100/tick` previne cron overload com fila gigante.
+- **Error-isolated per-delivery** — `for`/`try/catch` individual no `processPending`; falha em uma delivery não aborta o batch.
+- **Exponential backoff com cap** — `[1m, 2m, 5m, 15m, 60m, 240m]`; DLQ após 6 tentativas (preserva evidência forense).
+- **Timing-safe HMAC** — `crypto.timingSafeEqual` + buffer length check evita timing attacks.
+- **Fire-and-forget EventEmitter** — produtor (summaries/coaching/whatsapp) nunca aguarda webhook; falha silenciosa com log.
+- **Try/catch em emission-site** — cada `this.eventEmitter.emit` envolto; nunca propaga erro para hot path.
+- **Redis-less design** — EventEmitter2 é in-process (NestJS), adequado para monolith modular; futura extração microservice usaria Bull/Redis stream.
+- **Global `fetch` + AbortController** — timeout hard sem deps externas, aborta socket imediatamente.
+- **JSON schema-on-read** — payload persistido como Json; wrapPayload adiciona `id`, `event`, `createdAt` para cliente idempotência.
+- **P2002 → BadRequest** — duplicate template name previsível, não 500.
+- **Fallback determinístico no suggest** — heurística NFD + token overlap sobrevive a OpenAI down; score nunca é negativo.
+- **Catalog preview truncation** — `content.slice(0, 300)` limita tokens enviados ao LLM; max_tokens 400 na resposta.
+
+---
+
+*Documento atualizado em 19/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

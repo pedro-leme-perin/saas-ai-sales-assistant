@@ -5,6 +5,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SummariesService } from '../../src/modules/summaries/summaries.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
@@ -55,6 +56,8 @@ describe('SummariesService', () => {
     mockPrisma.callSummary.findFirst.mockResolvedValue(null);
     mockPrisma.callSummary.upsert.mockResolvedValue({});
 
+    const mockEventEmitter = { emit: jest.fn().mockReturnValue(true) };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SummariesService,
@@ -64,6 +67,7 @@ describe('SummariesService', () => {
           provide: ConfigService,
           useValue: { get: jest.fn((k: string) => mockConfigValues[k]) },
         },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
 

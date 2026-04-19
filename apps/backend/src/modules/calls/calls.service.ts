@@ -6,12 +6,17 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { SummariesService } from '../summaries/summaries.service';
 import { Twilio } from 'twilio';
-import { CallDirection, CallStatus, SuggestionType } from '@prisma/client';
+import { CallDirection, CallStatus, SuggestionType, WebhookEvent } from '@prisma/client';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
+import {
+  WEBHOOK_EVENT_NAME,
+  type WebhookEmitPayload,
+} from '../webhooks/events/webhook-events';
 
 @Injectable()
 export class CallsService {
@@ -24,6 +29,7 @@ export class CallsService {
     private readonly configService: ConfigService,
     private readonly aiService: AiService,
     private readonly summariesService: SummariesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
@@ -337,7 +343,35 @@ export class CallsService {
       });
     }
 
+    // Session 46 — Fan-out to outbound webhooks (best-effort, never throws)
+    if (callStatus === CallStatus.COMPLETED) {
+      this.emitWebhook(updated.companyId, WebhookEvent.CALL_COMPLETED, {
+        callId: updated.id,
+        userId: updated.userId,
+        direction: updated.direction,
+        status: updated.status,
+        duration: updated.duration,
+        hasTranscript: !!updated.transcript,
+      });
+    }
+
     return updated;
+  }
+
+  private emitWebhook(
+    companyId: string,
+    event: WebhookEvent,
+    data: Record<string, unknown>,
+  ): void {
+    try {
+      this.eventEmitter.emit(WEBHOOK_EVENT_NAME, {
+        companyId,
+        event,
+        data,
+      } satisfies WebhookEmitPayload);
+    } catch {
+      /* EventEmitter ignoreErrors=true, safe */
+    }
   }
 
   async getCallStats(companyId: string) {

@@ -17,12 +17,17 @@
 
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import OpenAI from 'openai';
 import { createHash } from 'node:crypto';
-import { AuditAction } from '@prisma/client';
+import { AuditAction, WebhookEvent } from '@prisma/client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
 import { CircuitBreaker } from '@/common/resilience/circuit-breaker';
+import {
+  WEBHOOK_EVENT_NAME,
+  type WebhookEmitPayload,
+} from '@modules/webhooks/events/webhook-events';
 import {
   ConversationSummary,
   SUMMARY_CACHE_TTL_SECONDS,
@@ -46,6 +51,7 @@ export class SummariesService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly config: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     const apiKey = this.config.get<string>('OPENAI_API_KEY');
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
@@ -238,7 +244,36 @@ export class SummariesService {
       );
     });
 
+    // Session 46 — outbound webhook fan-out (fresh summaries only).
+    this.emitWebhook(source, summary);
+
     return summary;
+  }
+
+  /**
+   * Session 46 — Emit SUMMARY_READY into the in-process event bus so
+   * WebhooksService can fan out to configured endpoints. Swallows errors
+   * — webhook delivery is never allowed to break the summary pipeline.
+   */
+  private emitWebhook(source: SummarySource, summary: ConversationSummary): void {
+    try {
+      const payload: WebhookEmitPayload = {
+        companyId: source.companyId,
+        event: WebhookEvent.SUMMARY_READY,
+        data: {
+          kind: source.kind,
+          id: source.id,
+          keyPoints: summary.keyPoints,
+          nextBestAction: summary.nextBestAction,
+          provider: summary.provider,
+          generatedAt: summary.generatedAt,
+        },
+      };
+      this.eventEmitter.emit(WEBHOOK_EVENT_NAME, payload);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Non-blocking: summary webhook emit failed: ${msg}`);
+    }
   }
 
   private async persistCallSummary(

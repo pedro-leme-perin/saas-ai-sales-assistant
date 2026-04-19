@@ -1,6 +1,7 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -26,6 +27,8 @@ import { LgpdDeletionModule } from './modules/lgpd-deletion/lgpd-deletion.module
 import { SummariesModule } from './modules/summaries/summaries.module';
 import { CoachingModule } from './modules/coaching/coaching.module';
 import { GoalsModule } from './modules/goals/goals.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { ReplyTemplatesModule } from './modules/reply-templates/reply-templates.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -45,6 +48,14 @@ import configuration from './config/configuration';
     ]),
     // Scheduled jobs (dunning cron, cleanup tasks)
     ScheduleModule.forRoot(),
+    // In-process event bus (loose coupling for webhooks fan-out)
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      maxListeners: 20,
+      verboseMemoryLeak: false,
+      ignoreErrors: true,
+    }),
     PrismaModule,
     CacheModule,
     TelemetryModule,
@@ -66,6 +77,8 @@ import configuration from './config/configuration';
     SummariesModule,
     CoachingModule,
     GoalsModule,
+    WebhooksModule,
+    ReplyTemplatesModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId
