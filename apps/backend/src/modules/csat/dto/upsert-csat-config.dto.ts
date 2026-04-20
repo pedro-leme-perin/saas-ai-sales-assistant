@@ -31,7 +31,11 @@ export class UpsertCsatConfigDto {
   @IsEnum(CsatChannel)
   channel!: CsatChannel;
 
-  @ApiProperty({ description: 'Template with {{link}} placeholder', minLength: 10, maxLength: 1000 })
+  @ApiProperty({
+    description: 'Template with {{link}} placeholder',
+    minLength: 10,
+    maxLength: 1000,
+  })
   @IsString()
   @MinLength(10)
   @MaxLength(1000)

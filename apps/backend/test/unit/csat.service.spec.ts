@@ -17,12 +17,7 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  CsatChannel,
-  CsatResponseStatus,
-  CsatTrigger,
-  Prisma,
-} from '@prisma/client';
+import { CsatChannel, CsatResponseStatus, CsatTrigger, Prisma } from '@prisma/client';
 import { CsatService } from '../../src/modules/csat/csat.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { WhatsappService } from '../../src/modules/whatsapp/whatsapp.service';
@@ -129,9 +124,9 @@ describe('CsatService', () => {
   describe('removeConfig', () => {
     it('throws NotFound when tenant mismatch', async () => {
       mockPrisma.csatSurveyConfig.findFirst.mockResolvedValueOnce(null);
-      await expect(
-        service.removeConfig('co1', 'u1', 'ghost'),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.removeConfig('co1', 'u1', 'ghost')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('deletes + audits DELETE', async () => {
@@ -260,9 +255,7 @@ describe('CsatService', () => {
       mockWhats.sendMessage.mockRejectedValueOnce(new Error('twilio down'));
       await service.dispatchTick();
       const updateCalls = mockPrisma.csatResponse.update.mock.calls;
-      const failUpdate = updateCalls.find(
-        (c) => c[0].data.status === CsatResponseStatus.FAILED,
-      );
+      const failUpdate = updateCalls.find((c) => c[0].data.status === CsatResponseStatus.FAILED);
       expect(failUpdate).toBeDefined();
       expect(failUpdate![0].data.lastError).toContain('twilio down');
     });
@@ -271,9 +264,7 @@ describe('CsatService', () => {
   // ==== lookupPublicByToken =============================================
   describe('lookupPublicByToken', () => {
     it('rejects short tokens with NotFound', async () => {
-      await expect(service.lookupPublicByToken('abc')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(service.lookupPublicByToken('abc')).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('lazy-expires SCHEDULED row past deadline', async () => {
@@ -301,9 +292,9 @@ describe('CsatService', () => {
         status: CsatResponseStatus.RESPONDED,
         expiresAt: new Date(Date.now() + 3_600_000),
       });
-      await expect(
-        service.submitPublic('x'.repeat(20), { score: 5 }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.submitPublic('x'.repeat(20), { score: 5 })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects expired', async () => {
@@ -312,9 +303,9 @@ describe('CsatService', () => {
         status: CsatResponseStatus.SENT,
         expiresAt: new Date(Date.now() - 1000),
       });
-      await expect(
-        service.submitPublic('x'.repeat(20), { score: 5 }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.submitPublic('x'.repeat(20), { score: 5 })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('persists RESPONDED with score + comment', async () => {

@@ -98,11 +98,7 @@ export class CsatService {
     }
   }
 
-  async removeConfig(
-    companyId: string,
-    actorId: string,
-    id: string,
-  ): Promise<{ success: true }> {
+  async removeConfig(companyId: string, actorId: string, id: string): Promise<{ success: true }> {
     this.assertTenant(companyId);
     const cfg = await this.prisma.csatSurveyConfig.findFirst({ where: { id, companyId } });
     if (!cfg) throw new NotFoundException('CSAT config not found');
@@ -339,10 +335,7 @@ export class CsatService {
     if (!row) throw new NotFoundException('Survey not found');
 
     // Side-effect: expire lazily if discovered past deadline.
-    if (
-      row.status === CsatResponseStatus.SCHEDULED &&
-      row.expiresAt.getTime() < Date.now()
-    ) {
+    if (row.status === CsatResponseStatus.SCHEDULED && row.expiresAt.getTime() < Date.now()) {
       await this.prisma.csatResponse.update({
         where: { id: row.id },
         data: { status: CsatResponseStatus.EXPIRED },

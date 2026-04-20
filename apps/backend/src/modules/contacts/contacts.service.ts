@@ -21,10 +21,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { AuditAction, Contact, ContactNote, Prisma } from '@prisma/client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
-import {
-  CONTACT_TOUCH_EVENT,
-  type ContactTouchPayload,
-} from './events/contacts-events';
+import { CONTACT_TOUCH_EVENT, type ContactTouchPayload } from './events/contacts-events';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { MergeContactsDto } from './dto/merge-contacts.dto';
 
@@ -53,7 +50,10 @@ export class ContactsService {
 
   // ===== PUBLIC API =====================================================
 
-  async list(companyId: string, query: ListContactsQuery): Promise<{ data: Contact[]; nextCursor: string | null }> {
+  async list(
+    companyId: string,
+    query: ListContactsQuery,
+  ): Promise<{ data: Contact[]; nextCursor: string | null }> {
     this.assertTenant(companyId);
     const take = Math.max(1, Math.min(ContactsService.LIST_MAX, query.limit ?? 50));
 
@@ -411,5 +411,4 @@ export class ContactsService {
       this.logger.warn(`Non-blocking: contact audit failed: ${msg}`);
     }
   }
-
 }

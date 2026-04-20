@@ -81,19 +81,13 @@ export class ContactsController {
 
   @Get(':id/timeline')
   @ApiOperation({ summary: 'Unified timeline: calls + chats + notes, desc, capped at 200' })
-  async timeline(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async timeline(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return { data: await this.service.timeline(companyId, id) };
   }
 
   @Get(':id/notes')
   @ApiOperation({ summary: 'List internal notes for a contact' })
-  async listNotes(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async listNotes(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return { data: await this.service.listNotes(companyId, id) };
   }
 

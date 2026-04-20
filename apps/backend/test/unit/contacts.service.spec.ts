@@ -173,9 +173,7 @@ describe('ContactsService', () => {
         totalChats: 5,
         lastInteractionAt: new Date('2026-04-15'),
       };
-      mockPrisma.contact.findFirst
-        .mockResolvedValueOnce(primary)
-        .mockResolvedValueOnce(secondary);
+      mockPrisma.contact.findFirst.mockResolvedValueOnce(primary).mockResolvedValueOnce(secondary);
       mockPrisma.contactNote.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.csatResponse.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.contact.update.mockResolvedValue(primary);
@@ -215,9 +213,9 @@ describe('ContactsService', () => {
     it('removeNote NotFound when tenant mismatch', async () => {
       mockPrisma.contact.findFirst.mockResolvedValueOnce({ id: 'c1', companyId: 'co1' });
       mockPrisma.contactNote.findFirst.mockResolvedValueOnce(null);
-      await expect(
-        service.removeNote('co1', 'u1', 'c1', 'ghost'),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.removeNote('co1', 'u1', 'c1', 'ghost')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -230,10 +228,24 @@ describe('ContactsService', () => {
         phone: '+551199',
       });
       mockPrisma.call.findMany.mockResolvedValueOnce([
-        { id: 'cl1', createdAt: new Date('2026-04-10'), direction: 'IN', status: 'COMPLETED', duration: 60, sentimentLabel: 'POSITIVE' },
+        {
+          id: 'cl1',
+          createdAt: new Date('2026-04-10'),
+          direction: 'IN',
+          status: 'COMPLETED',
+          duration: 60,
+          sentimentLabel: 'POSITIVE',
+        },
       ]);
       mockPrisma.whatsappChat.findMany.mockResolvedValueOnce([
-        { id: 'ch1', createdAt: new Date('2026-04-15'), status: 'OPEN', priority: 'NORMAL', lastMessageAt: null, lastMessagePreview: null },
+        {
+          id: 'ch1',
+          createdAt: new Date('2026-04-15'),
+          status: 'OPEN',
+          priority: 'NORMAL',
+          lastMessageAt: null,
+          lastMessagePreview: null,
+        },
       ]);
       mockPrisma.contactNote.findMany.mockResolvedValueOnce([
         { id: 'n1', createdAt: new Date('2026-04-05'), content: 'n', authorId: 'u' },

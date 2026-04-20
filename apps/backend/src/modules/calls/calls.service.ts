@@ -11,17 +11,17 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { SummariesService } from '../summaries/summaries.service';
 import { Twilio } from 'twilio';
-import { CallDirection, CallStatus, CsatTrigger, SuggestionType, WebhookEvent } from '@prisma/client';
+import {
+  CallDirection,
+  CallStatus,
+  CsatTrigger,
+  SuggestionType,
+  WebhookEvent,
+} from '@prisma/client';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { WEBHOOK_EVENT_NAME, type WebhookEmitPayload } from '../webhooks/events/webhook-events';
-import {
-  CONTACT_TOUCH_EVENT,
-  type ContactTouchPayload,
-} from '../contacts/events/contacts-events';
-import {
-  CSAT_SCHEDULE_EVENT,
-  type CsatScheduleEventPayload,
-} from '../csat/events/csat-events';
+import { CONTACT_TOUCH_EVENT, type ContactTouchPayload } from '../contacts/events/contacts-events';
+import { CSAT_SCHEDULE_EVENT, type CsatScheduleEventPayload } from '../csat/events/csat-events';
 
 @Injectable()
 export class CallsService {
