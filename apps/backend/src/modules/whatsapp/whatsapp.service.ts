@@ -46,6 +46,10 @@ import {
   CSAT_SCHEDULE_EVENT,
   type CsatScheduleEventPayload,
 } from '@modules/csat/events/csat-events';
+import {
+  CHAT_CREATED_EVENT,
+  type ChatCreatedPayload,
+} from '@modules/assignment-rules/events/assignment-events';
 
 // =====================================================
 // TWILIO WEBHOOK PAYLOAD TYPES
@@ -481,7 +485,7 @@ export class WhatsappService {
       return existing;
     }
 
-    return this.prisma.whatsappChat.create({
+    const created = await this.prisma.whatsappChat.create({
       data: {
         companyId: params.companyId,
         customerPhone: params.customerPhone,
@@ -493,6 +497,24 @@ export class WhatsappService {
         lastMessagePreview: '',
       },
     });
+
+    // Session 54 — fire chat.created so AssignmentRulesService can
+    // auto-assign a vendor based on tenant rule set.
+    try {
+      const payload: ChatCreatedPayload = {
+        companyId: created.companyId,
+        chatId: created.id,
+        customerPhone: created.customerPhone,
+        customerName: created.customerName,
+        priority: created.priority,
+        tags: created.tags,
+      };
+      this.eventEmitter.emit(CHAT_CREATED_EVENT, payload);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Non-blocking: chat.created emit failed: ${msg}`);
+    }
+    return created;
   }
 
   // =====================================================

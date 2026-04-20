@@ -44,6 +44,8 @@ import { ApiRequestLogsInterceptor } from './modules/api-request-logs/api-reques
 import { BulkActionsModule } from './modules/bulk-actions/bulk-actions.module';
 import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { DataImportModule } from './modules/data-import/data-import.module';
+import { AssignmentRulesModule } from './modules/assignment-rules/assignment-rules.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -108,6 +110,8 @@ import configuration from './config/configuration';
     BulkActionsModule,
     FeatureFlagsModule,
     AnnouncementsModule,
+    DataImportModule,
+    AssignmentRulesModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

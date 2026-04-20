@@ -1525,5 +1525,66 @@ Duas features enterprise em profundidade (opção A — plataforma): **Conversat
 
 ---
 
+## Sessão 54 — 20/04/2026
+
+**Tema:** Data import CSV → Contacts + Assignment rules auto-assign (operações/produtividade)
+
+### Feature A1 — Data import CSV → Contacts (módulo novo `data-import`)
+
+- Zero nova tabela. Reusa `Contact` (S50) + `BackgroundJob` (S49). Enum `BackgroundJobType` ganha valor `IMPORT_CONTACTS`. Migration `20260421040000_add_import_contacts_and_assignment_rules`.
+- `DataImportService` implements `OnModuleInit` — registra handler `IMPORT_CONTACTS` via `jobs.registerHandler` (handler registry S49, zero circular dep).
+- `parseCsv`: parser RFC 4180-ish sem lib externa. Suporta quoted fields, escaped quotes `""`, CRLF/LF. Header obrigatório com coluna `phone`. Mapeia `name/email/tags/timezone`. Row 1-based (header=1, data=2+).
+- `normalizePhone`: strip `whatsapp:`, `00` → `+`, reject `<6 digits`.
+- `enqueueContactImport`: `parseCsv` → `BadRequest` em empty/oversize (>10_000), depois `jobs.enqueue({type: IMPORT_CONTACTS, payload: {rows}, maxAttempts: 3})`.
+- `handleImportContacts`: chunked upsert `IMPORT_CHUNK_SIZE=100`, try/catch per-row isolation, `ctx.updateProgress` a cada chunk, audit `CREATE` fire-and-forget, aggregate `{successRows, errorRows, errors}` persistido em `BackgroundJob.result`.
+- `upsertContact`: composite key `contact_phone_unique` (S50). Preserva `totalCalls/totalChats/lastInteractionAt` (atualizados apenas via `contacts.touch` event).
+- Endpoint: `POST /contacts/import` (OWNER/ADMIN/MANAGER) → `{jobId, status}`.
+- Frontend: `/dashboard/contacts/import` com drag-drop + polling via `backgroundJobsService.findById(jobId)` a cada 2s com terminal-state detection (`refetchInterval` callback). Cards imported/skipped + errors table quando terminal. i18n ~15 chaves (`dataImport.*`).
+
+### Feature A2 — Assignment rules (módulo novo `assignment-rules`)
+
+- Schema: `AssignmentRule` (name, priority Int, strategy enum, conditions Json, targetUserIds[], isActive). `@@unique([companyId, name], name: "assignment_rule_name_unique")`. Índices `[companyId, isActive, priority]`, `[companyId, priority]`. Enum `AssignmentStrategy` (ROUND_ROBIN, LEAST_BUSY, MANUAL_ONLY).
+- `AssignmentRulesService`:
+  - CRUD: list orderBy `[priority asc]` + cap 200, findById NotFound cross-tenant, create com `assertTargetsOwned` (previne cross-tenant enum) + P2002 → BadRequest + audit, update partial merge, remove.
+  - `@OnEvent('chat.created')` `handleChatCreated` → `tryAutoAssign`. Try/catch blanket (nunca quebra hot path do whatsapp).
+  - `tryAutoAssign`: load chat → already-assigned returns; else itera active rules orderBy priority asc, first-match wins via `matchesConditions` (priority/tags/phonePrefix/keywordsAny), dispatch por strategy.
+  - `matchesConditions`: priority equality, tags any-overlap, phonePrefix startsWith, keywordsAny case-insensitive includes em `lastMessagePreview`. Empty conditions = broadcast (true).
+  - `pickRoundRobin`: Redis counter `assign:rr:${ruleId}` (TTL 24h) → index `counter % len`. Fallback para in-memory Map se Redis falhar (get + set).
+  - `pickLeastBusy`: `prisma.whatsappChat.groupBy` por userId com `status IN [OPEN, PENDING, ACTIVE]`. Min count wins (tie-break first-in-array). Users ausentes da groupBy = zero chats (pick first).
+  - `assertTargetsOwned`: `findMany {id in, companyId}` → count mismatch → BadRequest.
+- Endpoints: `GET /assignment-rules`, `GET /assignment-rules/:id`, `POST` (OWNER/ADMIN/MANAGER), `PATCH` (OWNER/ADMIN/MANAGER), `DELETE` (OWNER/ADMIN).
+- Frontend: `/dashboard/settings/assignment-rules` com list sorted priority asc + inline Card form. Conditions estruturadas (priorityCond select, tagsCond comma, phonePrefix text, keywordsAny comma) compilados para JSON. TargetUserIds multi-checkbox (fetch via `usersService.getAll({limit: 200})`). Strategy color badges. i18n ~25 chaves (`assignmentRules.*`).
+
+### Integração
+
+- `WhatsappService.processIncomingMessage` (new-chat branch) emite `eventEmitter.emit('chat.created', {companyId, chatId})` após persistir chat novo. Try/catch envolve emissão — hot path protegido.
+- `DataImportModule` importa `BackgroundJobsModule` (handler registry pattern S49, mesmo de coaching/summaries/bulk-actions).
+- `AssignmentRulesModule` zero deps de whatsapp (listener via event bus global S46).
+- Enum `BackgroundJobType` expandido (+IMPORT_CONTACTS) sem quebrar handlers existentes.
+- `Contact.upsert` reusa composite `contact_phone_unique` (S50). Preserva counters (touch events mantêm lastInteractionAt).
+
+### Testes
+
+- `data-import.service.spec.ts` (~14 cases): `parseCsv` empty/header-only/missing phone col → [], basic rows com name/email/tags/timezone, escaped quotes `""`, CRLF, skip empty phone, 1-based rows. `enqueueContactImport` BadRequest empty/oversize, enqueues IMPORT_CONTACTS type + payload.rows length. `handleImportContacts` empty zero, valid upserts + successRows aggregate, per-row error isolation (invalid phone + db fail coexistem), composite `contact_phone_unique` nos upsert args. `normalizePhone` via handler path — `whatsapp:` strip, `00` → `+`, `<6 digits` rejeitado.
+- `assignment-rules.service.spec.ts` (~15 cases): CRUD scope + orderBy + cap 200, findById NotFound, create rejects cross-tenant targetUserIds, P2002 → BadRequest, create audits CREATE (flush via `await new Promise(r => setImmediate(r))`), update partial merge, remove audits DELETE. `tryAutoAssign`: empty rules null, already-assigned returns existing, MANUAL_ONLY leaves unassigned, ROUND_ROBIN Redis counter rotation, ROUND_ROBIN fallback Map em Redis down (ambos get+set throw), LEAST_BUSY picks user absent from groupBy, LEAST_BUSY picks min count, first-match priority asc wins, tags any-overlap, phonePrefix startsWith mismatch, keywordsAny case-insensitive em lastMessagePreview, persiste userId via update + audit UPDATE. `handleChatCreated` swallows errors.
+
+### Resilience notes
+
+- `@@unique([companyId, name])` previne duplicate rule names.
+- `assertTargetsOwned` em create/update previne cross-tenant enumeration via payload.
+- `@OnEvent('chat.created')` com try/catch blanket protege hot path do whatsapp.
+- Idempotent: re-assign skipped quando `chat.userId` already set.
+- First-match priority asc evita ambiguidade + permite segmentação hierárquica (VIP priority=10 antes de broadcast priority=1000).
+- Redis graceful degradation — ROUND_ROBIN counter cai para in-memory Map se Upstash down.
+- LEAST_BUSY via Prisma `groupBy` (indexed query em `[companyId, status, userId]`).
+- MANUAL_ONLY strategy intencional para bloquear auto-assign em segmentos sensíveis.
+- Chunked import `IMPORT_CHUNK_SIZE=100` evita long transactions + lock contention.
+- Per-row error isolation → imports parciais (1000 válidas + 50 inválidas = 1000 contatos + 50 errors).
+- `IMPORT_MAX_ROWS=10_000` (bulkhead anti-DoS).
+- `Contact.upsert` preserva counters históricos (imports não sobrescrevem atividade real).
+- Audit fire-and-forget + aggregate result persistido no BackgroundJob (observability via `/background-jobs/:id`).
+
+---
+
 *Documento atualizado em 20/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

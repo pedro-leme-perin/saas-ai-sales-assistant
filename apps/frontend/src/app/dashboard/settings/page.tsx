@@ -24,6 +24,8 @@ import {
   Activity,
   Flag,
   Megaphone,
+  Upload,
+  Users,
   ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -332,6 +334,32 @@ export default function SettingsPage() {
                 <p className="font-medium">{t("announcements.title")}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {t("announcements.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/contacts/import"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Upload className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("dataImport.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("dataImport.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/settings/assignment-rules"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Users className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("assignmentRules.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("assignmentRules.subtitle")}
                 </p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />

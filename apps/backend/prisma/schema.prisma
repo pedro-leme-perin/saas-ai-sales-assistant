@@ -85,6 +85,7 @@ model Company {
   apiRequestLogs   ApiRequestLog[]
   featureFlags     FeatureFlag[]
   announcements    Announcement[]
+  assignmentRules  AssignmentRule[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -157,6 +158,7 @@ model User {
   featureFlagsCreated     FeatureFlag[]     @relation("FeatureFlagCreator")
   announcementsCreated    Announcement[]    @relation("AnnouncementCreator")
   announcementReads       AnnouncementRead[]
+  assignmentRulesCreated  AssignmentRule[]  @relation("AssignmentRuleCreatedBy")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -1156,6 +1158,7 @@ enum BackgroundJobType {
   BULK_TAG_CALLS
   BULK_ASSIGN_CHATS
   EXPORT_ANALYTICS
+  IMPORT_CONTACTS
 }
 
 enum BackgroundJobStatus {
@@ -1500,4 +1503,37 @@ enum AnnouncementLevel {
   INFO
   WARNING
   URGENT
+}
+
+// =============================================
+// 🎯 ASSIGNMENT RULES (session 54)
+// =============================================
+// Auto-assign inbound WhatsApp chats to agents via strategy + conditions.
+// Evaluated by priority asc; first matching rule wins. Redis ZSET persists round-robin cursor per rule.
+
+model AssignmentRule {
+  id             String              @id @default(uuid())
+  companyId      String              @map("company_id")
+  createdById    String?             @map("created_by_id")
+  name           String
+  priority       Int                 @default(100) // lower wins; unique per tenant enforced via @@unique
+  strategy       AssignmentStrategy
+  conditions     Json                @default("{}") // { priorities?: ChatPriority[], tagIds?: string[], keywords?: string[] }
+  targetUserIds  String[]            @map("target_user_ids")
+  isActive       Boolean             @default(true) @map("is_active")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("AssignmentRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, name], name: "assignment_rule_name_unique")
+  @@index([companyId, isActive, priority])
+  @@map("assignment_rules")
+}
+
+enum AssignmentStrategy {
+  ROUND_ROBIN
+  LEAST_BUSY
+  MANUAL_ONLY
 }

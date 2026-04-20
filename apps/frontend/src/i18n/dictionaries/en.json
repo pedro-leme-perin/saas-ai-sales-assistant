@@ -1382,5 +1382,60 @@
       "deleteOk": "Announcement deleted.",
       "deleteErr": "Failed to delete announcement."
     }
+  },
+  "dataImport": {
+    "title": "Import contacts",
+    "subtitle": "Upload a CSV with phone, name, email, tags columns.",
+    "dropzone": "CSV file",
+    "selectFile": "Drag a file or click to select",
+    "rowCount": "rows",
+    "submit": "Import",
+    "progress": "Progress",
+    "imported": "Imported",
+    "skipped": "Skipped",
+    "errors": "Errors",
+    "another": "Import another file",
+    "col": {
+      "row": "Row",
+      "reason": "Reason"
+    },
+    "toast": {
+      "success": "Import enqueued.",
+      "error": "Failed to enqueue import."
+    }
+  },
+  "assignmentRules": {
+    "title": "Assignment rules",
+    "subtitle": "Define how incoming chats are routed automatically.",
+    "new": "New rule",
+    "edit": "Edit rule",
+    "name": "Name",
+    "priority": "Priority (lower = applied first)",
+    "strategy": "Strategy",
+    "strategies": {
+      "ROUND_ROBIN": "Round-robin",
+      "LEAST_BUSY": "Least busy",
+      "MANUAL_ONLY": "Manual only"
+    },
+    "conditions": "Conditions",
+    "cond": {
+      "priority": "Chat priority",
+      "tags": "Tags (comma-separated)",
+      "phonePrefix": "Phone prefix",
+      "keywordsAny": "Keywords (comma-separated)"
+    },
+    "targets": "Target agents",
+    "noUsers": "No users found.",
+    "isActive": "Active",
+    "inactive": "Inactive",
+    "agents": "agents",
+    "empty": "No rules configured.",
+    "confirmDelete": "Delete this rule?",
+    "toast": {
+      "created": "Rule created.",
+      "updated": "Rule updated.",
+      "deleted": "Rule deleted.",
+      "error": "Failed to save rule."
+    }
   }
 }

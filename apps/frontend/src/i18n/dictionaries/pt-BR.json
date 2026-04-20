@@ -1382,5 +1382,60 @@
       "deleteOk": "Anuncio removido.",
       "deleteErr": "Erro ao remover anuncio."
     }
+  },
+  "dataImport": {
+    "title": "Importar contatos",
+    "subtitle": "Envie um CSV com colunas phone, name, email, tags.",
+    "dropzone": "Arquivo CSV",
+    "selectFile": "Arraste um arquivo ou clique para selecionar",
+    "rowCount": "linhas",
+    "submit": "Importar",
+    "progress": "Progresso",
+    "imported": "Importados",
+    "skipped": "Ignorados",
+    "errors": "Erros",
+    "another": "Importar outro arquivo",
+    "col": {
+      "row": "Linha",
+      "reason": "Motivo"
+    },
+    "toast": {
+      "success": "Importacao enfileirada.",
+      "error": "Erro ao enfileirar importacao."
+    }
+  },
+  "assignmentRules": {
+    "title": "Regras de atribuicao",
+    "subtitle": "Defina como novos chats sao distribuidos automaticamente.",
+    "new": "Nova regra",
+    "edit": "Editar regra",
+    "name": "Nome",
+    "priority": "Prioridade (menor = aplicada primeiro)",
+    "strategy": "Estrategia",
+    "strategies": {
+      "ROUND_ROBIN": "Round-robin",
+      "LEAST_BUSY": "Menor carga",
+      "MANUAL_ONLY": "Manual"
+    },
+    "conditions": "Condicoes",
+    "cond": {
+      "priority": "Prioridade do chat",
+      "tags": "Tags (virgulas)",
+      "phonePrefix": "Prefixo do telefone",
+      "keywordsAny": "Palavras-chave (virgulas)"
+    },
+    "targets": "Agentes alvo",
+    "noUsers": "Nenhum usuario encontrado.",
+    "isActive": "Ativa",
+    "inactive": "Inativa",
+    "agents": "agentes",
+    "empty": "Nenhuma regra configurada.",
+    "confirmDelete": "Excluir esta regra?",
+    "toast": {
+      "created": "Regra criada.",
+      "updated": "Regra atualizada.",
+      "deleted": "Regra removida.",
+      "error": "Erro ao salvar regra."
+    }
   }
 }

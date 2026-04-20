@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 20/04/2026 (sessão 53)
+> Última atualização: 20/04/2026 (sessão 54)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 53 (20/04/2026) | Feature flags com rollout determinístico (SHA-256 bucket + allowlist + Redis cache 60s) + Announcements in-app (targetRoles + AnnouncementRead composite PK + banner polling 2min + admin CRUD) |
-| Backend (NestJS) | ✅ Produção | Railway — 34 módulos (+feature-flags, +announcements), 66+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 35 routes (+settings/feature-flags, +settings/announcements) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 31 modelos (+FeatureFlag, +Announcement, +AnnouncementRead), 34 enums Prisma + pg_trgm |
+| Último commit | sessão 54 (20/04/2026) | Data import CSV → Contacts (chunked upsert via S49 BackgroundJobs + contact_phone_unique dedupe + per-row error isolation) + Assignment rules (round-robin Redis counter + least-busy groupBy + @OnEvent chat.created auto-assign com first-match priority) |
+| Backend (NestJS) | ✅ Produção | Railway — 36 módulos (+data-import, +assignment-rules), 68+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 37 routes (+contacts/import, +settings/assignment-rules) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 32 modelos (+AssignmentRule), 35 enums Prisma (+AssignmentStrategy, BackgroundJobType +IMPORT_CONTACTS) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -620,6 +620,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 51 | 20/04 | Scheduled exports (preset cron + CSV/JSON email delivery + error-isolated worker) + Retention policies (per-resource TTL + hourly auto-purge + LGPD floor 180d AUDIT_LOGS) | ⏳ |
 | 52 | 20/04 | Per-tenant API request logs (buffered writer + métricas p50/p95 + cursor list) + Bulk actions (tag/delete/assign wired ao S49 BackgroundJobs) | ⏳ |
 | 53 | 20/04 | Feature flags (rollout determinístico SHA-256 + allowlist + Redis cache 60s) + Announcements in-app (targetRoles + AnnouncementRead composite + banner polling 2min) | ⏳ |
+| 54 | 20/04 | Data import CSV → Contacts (chunked upsert via S49 BG jobs + contact_phone_unique + per-row error isolation) + Assignment rules (round-robin Redis counter + least-busy groupBy + @OnEvent chat.created auto-assign) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -729,6 +730,92 @@ Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
 **Resilience:** `@@unique([companyId, key])` + composite PK `[announcementId, userId]` previnem duplicatas naturalmente, cache write-through com TTL 60s reduz carga do DB sem sacrificar consistency (rollout changes propagam em até 1min), deterministic hash bucket garante cohort stability (critical para experimentos A/B), audit fire-and-forget em todas mutações (hot path protegido), BadRequest em `expireAt <= publishAt` previne anúncios zombie, broadcast default (targetRoles=[]) reduz friction de config, markRead/dismiss via upsert idempotente (second call no-op), `include: {reads: {where: {userId}}}` em listActive elimina N+1 (1 round-trip para lista + estado), P2002 mapeado para BadRequest (não vaza Prisma internals), cache invalidation apenas da chave anonymous (per-user keys idade out em 60s — trade-off de simplicidade vs SCAN Redis infra).
 
+### 2.5.13 Sessão 54 — 20/04/2026
+
+**Objetivo:** 2 features enterprise (opção A — operações/produtividade) — Data import CSV → Contacts (chunked upsert via S49 BackgroundJobs + dedupe por `contact_phone_unique` + per-row error isolation) + Assignment rules (round-robin Redis counter + least-busy groupBy + `@OnEvent('chat.created')` auto-assign com first-match priority).
+
+**Feature A1 — Data import CSV → Contacts (módulo novo `data-import`):**
+- Zero nova tabela. Reusa `Contact` (S50) + `BackgroundJob` (S49). Enum `BackgroundJobType` ganha valor `IMPORT_CONTACTS`. Migration `20260421040000_add_import_contacts_and_assignment_rules`.
+- `DataImportService` implementa `OnModuleInit` e registra handler `IMPORT_CONTACTS` via `this.jobs.registerHandler(IMPORT_CONTACTS, (job, ctx) => this.handleImportContacts(job, ctx))` — zero circular dep, segue pattern S49.
+- `parseCsv(raw: string)`: parser RFC 4180-ish sem dependência externa.
+  - Split por `/\r?\n/`, trim linhas vazias, header obrigatório com coluna `phone` (case-insensitive). Missing `phone` col → retorna `[]`.
+  - Tokenizer char-a-char suporta quoted fields `"..."`, escaped quotes `""` → `"`, CRLF/LF.
+  - Mapeia colunas opcionais: `name`, `email`, `tags` (comma-separated inside quotes), `timezone`.
+  - Retorna `ParsedRow[] = {row: number (1-based, header=1), phone, name?, email?, tags: string[], timezone?}`. Rows com phone empty são skipadas (não entram no payload).
+- `normalizePhone(raw)`: strip `whatsapp:` prefix, `00` prefix → `+`, reject `< 6 digits` (throws internal error capturado no handler).
+- `enqueueContactImport(companyId, actorId, csv)`:
+  - `parseCsv` primeiro — empty → `BadRequestException('empty csv or missing phone column')`.
+  - Cap `IMPORT_MAX_ROWS=10_000` → `BadRequestException('too many rows')`.
+  - `jobs.enqueue(companyId, actorId, {type: IMPORT_CONTACTS, payload: {rows: parsedRows}, maxAttempts: 3})`.
+  - Retorna o job criado (cliente polla via `/background-jobs/:id`).
+- `handleImportContacts(job, ctx)`:
+  - Load `rows` do payload. Empty → retorna `{successRows: 0, errorRows: 0, errors: []}`.
+  - Chunk `IMPORT_CHUNK_SIZE=100`. Para cada chunk: try/catch per-row (isolation). Sucesso → `upsertContact`. Falha → push em `errors` com `{row, reason}`.
+  - `ctx.updateProgress(processed/total*100)` a cada chunk (UI polling feedback).
+  - Audit `CREATE` resource `CONTACT` com `newValues: {imported, skipped, jobId}` fire-and-forget.
+  - Retorna aggregate `{successRows, errorRows, errors}` — persistido em `BackgroundJob.result`.
+- `upsertContact(companyId, row)`:
+  - `normalizedPhone = normalizePhone(row.phone)` (throws `invalid phone: <raw>` se inválido).
+  - `prisma.contact.upsert({where: {contact_phone_unique: {companyId, phone}}, create: {...}, update: {name, email, timezone, tags}})`.
+  - Preserva `totalCalls/totalChats/lastInteractionAt` (não são tocados pelo import — first-touch logic S50 gerencia via event bus).
+- Endpoint (`@Controller('contacts/import')` + `TenantGuard` + `RolesGuard` + `@Roles(OWNER, ADMIN, MANAGER)`): `POST /contacts/import` (body `{csv: string}`) → `{jobId, status}`.
+- Frontend: `/dashboard/contacts/import` com drag-drop file upload + textarea preview + row count client-side + submit. Polling `backgroundJobsService.findById(jobId)` a cada 2s com terminal-state detection (`refetchInterval: (q) => { const d = q.state.data; return TERMINAL_STATUSES.includes(d?.status) ? false : 2000; }`). Render cards `imported/skipped` + errors table quando terminal. `TERMINAL_STATUSES = ['SUCCEEDED', 'FAILED', 'DEAD_LETTER', 'CANCELED']`. `dataImportService.enqueueContactImport({csv})` em `/services`. Link em `/dashboard/contacts` via botão `Import CSV`.
+- i18n: ~15 chaves (`dataImport.*` — title/subtitle/dropzone/selectFile/rowCount/submit/progress/imported/skipped/errors/another + col.{row,reason} + toast.*) em pt-BR + en.
+
+**Feature A2 — Assignment rules (módulo novo `assignment-rules`):**
+- Schema: modelo `AssignmentRule` (id, companyId, name, priority Int default 100, strategy `AssignmentStrategy` default ROUND_ROBIN, conditions Json default `{}`, targetUserIds String[], isActive Bool default true, timestamps). `@@unique([companyId, name], name: "assignment_rule_name_unique")`. Índices `[companyId, isActive, priority]`, `[companyId, priority]`. Enum `AssignmentStrategy` (3 valores: ROUND_ROBIN, LEAST_BUSY, MANUAL_ONLY). Migration `20260421040000_add_import_contacts_and_assignment_rules` (agrupada com S54-A1).
+- DTO `CreateAssignmentRuleDto`: `name @Length(1,120)`, `priority @IsInt @Min(1) @Max(10_000)`, `strategy @IsEnum(AssignmentStrategy)`, `conditions?: {priority?: ChatPriority, tags?: string[], phonePrefix?: string, keywordsAny?: string[]}` (JSON validado pelo service), `targetUserIds: string[] @ArrayMinSize(0) @ArrayMaxSize(100)`, `isActive? @IsBoolean?`.
+- `AssignmentRulesService`:
+  - `list(companyId)`: tenant-scoped, orderBy `[priority asc, createdAt desc]`, cap 200.
+  - `findById` NotFoundException cross-tenant.
+  - `create`: `assertTargetsOwned(companyId, targetUserIds)` (findMany users com `{id: {in}, companyId}` → BadRequest se count mismatch — previne cross-tenant enumeration), P2002 (unique name) → BadRequestException, audit CREATE.
+  - `update`: merge partial + re-validate targetUserIds se fornecido + audit oldValues/newValues.
+  - `remove`: + audit DELETE.
+  - **`@OnEvent('chat.created')` `handleChatCreated(payload)`**: try/catch swallow (nunca quebra hot path do whatsapp). Dispatch para `tryAutoAssign(companyId, chatId)`.
+  - `tryAutoAssign(companyId, chatId)`:
+    1. Load chat via `prisma.whatsappChat.findFirst({where: {id, companyId}})`. Absent → `null`.
+    2. `chat.userId` set → return existing (idempotente, não re-atribui).
+    3. Load active rules orderBy priority asc. Empty → `null`.
+    4. First-match: itera rules, retorna primeira onde `matchesConditions(rule.conditions, chat) === true`.
+    5. Rule matched: dispatch por strategy:
+       - `MANUAL_ONLY` → `null` (leave unassigned; rule existe para bloquear auto-assign em segmentos específicos).
+       - `ROUND_ROBIN` → `pickRoundRobin(companyId, rule)`.
+       - `LEAST_BUSY` → `pickLeastBusy(companyId, rule.targetUserIds)`.
+    6. userId picked → `prisma.whatsappChat.update({where: {id}, data: {userId}})` + audit UPDATE.
+  - `matchesConditions(cond, chat)`:
+    - `cond.priority && cond.priority !== chat.priority` → false.
+    - `cond.tags && cond.tags.length > 0` → precisa any-overlap com `chat.tags[]`.
+    - `cond.phonePrefix && !chat.customerPhone.startsWith(phonePrefix)` → false.
+    - `cond.keywordsAny && cond.keywordsAny.length > 0` → precisa any-match case-insensitive em `chat.lastMessagePreview` (lowercased `includes`).
+    - Default empty conditions → true (broadcast rule).
+  - `pickRoundRobin(companyId, rule)`:
+    - `rule.targetUserIds.length === 0` → null.
+    - Redis counter key `assign:rr:${ruleId}`, TTL 24h. Read current via `cache.get<number>`, bump via `cache.set`. Index = `counter % targetUserIds.length`.
+    - **Redis fallback**: try/catch em `cache.get` E `cache.set`. Se ambos falharem → fallback para `localRoundRobinCounters` (in-memory `Map<string, number>` in-process). Degradação graciosa com warn log.
+    - Retorna `targetUserIds[index]`.
+  - `pickLeastBusy(companyId, targetUserIds)`:
+    - Empty → null.
+    - `prisma.whatsappChat.groupBy({by: ['userId'], where: {companyId, userId: {in: targetUserIds}, status: {in: [OPEN, PENDING, ACTIVE]}}, _count: {_all: true}})`.
+    - Para cada targetUserId, count = groupBy result ou 0 (user absent = zero active chats = pick first).
+    - Min count wins. Tie → first-in-array (stable).
+  - `assertTargetsOwned(companyId, userIds)`: `findMany({where: {id: {in}, companyId}, select: {id}})` count !== userIds.length → BadRequestException.
+- Endpoints (`@Controller('assignment-rules')` + `TenantGuard/RolesGuard`): `GET /assignment-rules`, `GET /assignment-rules/:id`, `POST /assignment-rules` (OWNER/ADMIN/MANAGER), `PATCH /assignment-rules/:id` (OWNER/ADMIN/MANAGER), `DELETE /assignment-rules/:id` (OWNER/ADMIN).
+- Frontend: `/dashboard/settings/assignment-rules` com list sorted por priority asc + inline Card form. Campos: name, priority (1-10000 spinner), strategy select (3 opts), conditions estruturadas via inputs separados (priorityCond select, tagsCond comma text, phonePrefix text, keywordsAny comma text) — compilados para JSON no submit, targetUserIds multi-checkbox list (fetch via `usersService.getAll({limit: 200}).data`), isActive toggle. Strategy badge color: ROUND_ROBIN blue, LEAST_BUSY emerald, MANUAL_ONLY muted. `assignmentRulesService` em `/services`. Link em `/dashboard/settings` com icon `Users`.
+- i18n: ~25 chaves (`assignmentRules.*` — title/subtitle/new/edit/name/priority/strategy + strategies.{ROUND_ROBIN,LEAST_BUSY,MANUAL_ONLY} + conditions/cond.{priority,tags,phonePrefix,keywordsAny} + targets/noUsers/isActive/inactive/agents/empty/confirmDelete + toast.*) em pt-BR + en.
+
+**Integração com features prévias:**
+- `WhatsappService.processIncomingMessage` (new-chat branch) agora emite `eventEmitter.emit('chat.created', {companyId, chatId})` após persistir o chat novo. Try/catch envolve emissão — hot path protegido.
+- `DataImportModule` importa `BackgroundJobsModule` + `PrismaModule` — `BackgroundJobsService.registerHandler` no `OnModuleInit` (mesmo pattern S49 coaching/summaries e S52 bulk-actions).
+- `AssignmentRulesModule` não importa whatsapp (listener via event bus) — zero circular deps.
+- Enum `BackgroundJobType` expandido (+IMPORT_CONTACTS) sem quebrar handlers existentes.
+- `Contact.upsert` reusa composite `contact_phone_unique` (S50), preservando counters `totalCalls/totalChats/lastInteractionAt` (atualizados apenas via event `contacts.touch`, não pelo import).
+
+**Testes:**
+- `data-import.service.spec.ts` (novo, ~14 cases): `parseCsv` — empty/whitespace → [], header-only → [], missing phone column → [], basic rows com name/email/tags/timezone, escaped quotes `""`, CRLF line endings, skips rows com empty phone, 1-based row numbers (header=1, data starts=2). `enqueueContactImport` — BadRequest empty CSV, BadRequest oversize (>10_000 rows), enqueues job com `BackgroundJobType.IMPORT_CONTACTS` + `payload.rows.length === 2`. `handleImportContacts` via registered handler — empty payload → zeros, upserts valid rows + aggregates successRows, per-row error isolation (invalid phone row + upsert failure row coexistem), composite key `contact_phone_unique` nos args de upsert. `normalizePhone` via upsert path — strips `whatsapp:` prefix, converts `00` → `+`, rejects `< 6 digits` (errorRows=1, reason contains 'invalid phone').
+- `assignment-rules.service.spec.ts` (novo, ~15 cases): CRUD — list scope + orderBy + cap 200, findById NotFound cross-tenant, create rejects cross-tenant targetUserIds via `assertTargetsOwned` (BadRequest), create P2002 → BadRequest, create persists + audits CREATE (flush via `await new Promise(r => setImmediate(r))`), update merge partial + audit, remove audit DELETE. `tryAutoAssign` — empty rules → null, already-assigned returns existing userId (idempotente), MANUAL_ONLY leaves unassigned (no update call), ROUND_ROBIN Redis counter rotation (counter 0 → u1, counter 1 → u2), ROUND_ROBIN falls back para local Map quando ambos cache.get+cache.set rejeitam, LEAST_BUSY picks user ausente do groupBy (zero chats), LEAST_BUSY picks min count, first-match priority asc wins, tags any-overlap, phonePrefix startsWith mismatch, keywordsAny case-insensitive em `lastMessagePreview`, persiste userId via update + audit UPDATE. `handleChatCreated` swallows errors (try/catch protege event pipeline).
+
+**Resilience:** `@@unique([companyId, name])` previne duplicate rule names, `assertTargetsOwned` em create/update previne cross-tenant enumeration via payload, `@OnEvent('chat.created')` com try/catch blanket protege hot path do whatsapp (nunca throws), idempotent: re-assign skipped quando `chat.userId` already set, first-match priority asc evita ambiguidade + permite segmentação hierárquica (VIP rule priority=10 antes de broadcast priority=1000), Redis graceful degradation — ROUND_ROBIN counter cai para in-memory Map se Upstash down, LEAST_BUSY via Prisma `groupBy` (indexed query em `[companyId, status, userId]`), MANUAL_ONLY strategy intencional para bloquear auto-assign em segmentos sensíveis, chunked import 100/chunk evita long transactions + lock contention, per-row error isolation permite imports parciais (1000 válidas + 50 inválidas = 1000 contatos + 50 errors reports), `IMPORT_MAX_ROWS=10_000` + `IMPORT_CHUNK_SIZE=100` (bulkheads anti-DoS), `Contact.upsert` preserva counters históricos (imports não sobrescrevem atividade real), audit fire-and-forget em todas mutações + aggregate result persistido no BackgroundJob (observability via `/background-jobs/:id`).
+
 ---
 
 ## 3. ARQUITETURA
@@ -836,6 +923,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── analytics/      # Dashboard stats, sentiment, AI perf
 │   │       │   ├── announcements/  # In-app banners (targetRoles + per-user read/dismiss via composite PK)
 │   │       │   ├── api-keys/       # API keys CRUD (sk_live_ + SHA-256 hash) + scopes + per-key rate limit
+│   │       │   ├── assignment-rules/ # Auto-assign chats via @OnEvent(chat.created) + ROUND_ROBIN (Redis)/LEAST_BUSY (groupBy)/MANUAL_ONLY + first-match priority
 │   │       │   ├── auth/           # Clerk integration, guards, strategies
 │   │       │   ├── billing/        # Stripe subscriptions, invoices, webhooks
 │   │       │   ├── calls/          # Twilio calls, Deepgram STT, recordings
@@ -843,6 +931,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
 │   │       │   ├── contacts/       # Customer 360 (dedupe natural key + timeline merge-sort + notes + merge tx)
 │   │       │   ├── csat/           # CSAT surveys (trigger-driven cron + public token + NPS analytics)
+│   │       │   ├── data-import/    # CSV → Contacts chunked upsert (RFC 4180 parser, phone normalize, wired a S49 BackgroundJobs via handler registry)
 │   │       │   ├── email/          # Resend integration, templates
 │   │       │   ├── feature-flags/  # Rollout determinístico SHA-256 (companyId:key:userId % 100) + allowlist + Redis cache 60s
 │   │       │   ├── goals/          # TeamGoals CRUD + leaderboard (weekly/monthly)
@@ -911,7 +1000,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (33)
+### 6.1 Modelos (34)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -948,10 +1037,11 @@ Infrastructure (Prisma, API Clients, Redis)
 | **FeatureFlag** | Toggle + rollout gradual. key unique por tenant (`feature_flag_key_unique`), enabled, rolloutPercentage 0-100, userAllowlist[]. Avaliação SHA-256 bucket determinístico + Redis cache 60s | → Company |
 | **Announcement** | Aviso in-app. title/body/level (INFO/WARNING/URGENT), publishAt/expireAt janela, targetRoles[] (empty = broadcast). Rendering via banner polling 2min | → Company, User (createdBy), Reads[] |
 | **AnnouncementRead** | Estado per-user. Composite PK `[announcementId, userId]`, readAt + dismissedAt. CASCADE em Announcement, RESTRICT em User. Upsert idempotente | → Announcement, User |
+| **AssignmentRule** | Regra de auto-assign de chats. priority asc determina ordem de avaliação, strategy (ROUND_ROBIN/LEAST_BUSY/MANUAL_ONLY), conditions Json (priority/tags/phonePrefix/keywordsAny), targetUserIds[]. Unique `assignment_rule_name_unique` (companyId, name) | → Company |
 
-### 6.2 Enums (35)
+### 6.2 Enums (36)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (5) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6) · `AnnouncementLevel` (3)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (6) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6) · `AnnouncementLevel` (3) · `AssignmentStrategy` (3)
 
 ### 6.3 Regras de Schema
 
