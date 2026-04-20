@@ -341,11 +341,11 @@ export class ScheduledExportsService {
         id: true,
         direction: true,
         status: true,
-        fromNumber: true,
-        toNumber: true,
+        phoneNumber: true,
+        contactName: true,
         duration: true,
         sentimentLabel: true,
-        sentimentScore: true,
+        sentiment: true,
         userId: true,
         createdAt: true,
         endedAt: true,
@@ -355,11 +355,11 @@ export class ScheduledExportsService {
       id: c.id,
       direction: c.direction,
       status: c.status,
-      fromNumber: c.fromNumber,
-      toNumber: c.toNumber,
+      phoneNumber: c.phoneNumber,
+      contactName: c.contactName,
       duration: c.duration,
       sentimentLabel: c.sentimentLabel,
-      sentimentScore: c.sentimentScore,
+      sentimentScore: c.sentiment,
       userId: c.userId,
       createdAt: c.createdAt.toISOString(),
       endedAt: c.endedAt?.toISOString() ?? null,
@@ -380,7 +380,7 @@ export class ScheduledExportsService {
         userId: true,
         lastMessageAt: true,
         createdAt: true,
-        closedAt: true,
+        resolvedAt: true,
       },
     });
     return rows.map((c) => ({
@@ -392,7 +392,7 @@ export class ScheduledExportsService {
       userId: c.userId,
       lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
       createdAt: c.createdAt.toISOString(),
-      closedAt: c.closedAt?.toISOString() ?? null,
+      resolvedAt: c.resolvedAt?.toISOString() ?? null,
     }));
   }
 
