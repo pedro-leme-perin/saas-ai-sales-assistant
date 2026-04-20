@@ -15,7 +15,9 @@ const FilterJsonSchema = z
   .object({
     q: z.string().max(200).optional(),
     tagIds: z.array(z.string().uuid()).max(20).optional(),
-    sentiment: z.array(z.enum(['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'VERY_POSITIVE', 'VERY_NEGATIVE'])).optional(),
+    sentiment: z
+      .array(z.enum(['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'VERY_POSITIVE', 'VERY_NEGATIVE']))
+      .optional(),
     status: z.array(z.string().max(32)).max(10).optional(),
     priority: z.array(z.string().max(32)).max(10).optional(),
     assigneeId: z.string().uuid().optional(),
@@ -74,7 +76,10 @@ export class SavedFiltersService {
           isPinned: dto.isPinned ?? false,
         },
       });
-      await this.audit(companyId, userId, 'CREATE', row.id, { name: row.name, resource: row.resource });
+      await this.audit(companyId, userId, 'CREATE', row.id, {
+        name: row.name,
+        resource: row.resource,
+      });
       return row;
     } catch (err) {
       if ((err as { code?: string }).code === 'P2002') {
@@ -131,7 +136,9 @@ export class SavedFiltersService {
   private validateFilterJson(input: unknown): SavedFilterJson {
     const parsed = FilterJsonSchema.safeParse(input ?? {});
     if (!parsed.success) {
-      throw new BadRequestException(`Invalid filterJson: ${parsed.error.issues[0]?.message ?? 'schema mismatch'}`);
+      throw new BadRequestException(
+        `Invalid filterJson: ${parsed.error.issues[0]?.message ?? 'schema mismatch'}`,
+      );
     }
     return parsed.data;
   }

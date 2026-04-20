@@ -757,5 +757,4 @@ export class EmailService {
   </table>
 </body></html>`.trim();
   }
-
 }

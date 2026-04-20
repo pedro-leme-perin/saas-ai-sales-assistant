@@ -28,7 +28,8 @@ export class CreateSavedFilterDto {
   resource!: FilterResource;
 
   @ApiProperty({
-    description: 'Filter JSON: { tagIds?: string[], sentiment?: string[], q?: string, dateFrom?, dateTo?, status? }',
+    description:
+      'Filter JSON: { tagIds?: string[], sentiment?: string[], q?: string, dateFrom?, dateTo?, status? }',
     example: { tagIds: [], q: 'promoção', dateFrom: '2026-04-12' },
   })
   @IsObject()

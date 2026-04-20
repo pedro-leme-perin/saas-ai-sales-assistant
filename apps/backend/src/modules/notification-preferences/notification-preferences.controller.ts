@@ -2,7 +2,16 @@
 // 📄 NOTIFICATION PREFERENCES CONTROLLER (Session 48)
 // =============================================
 
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CompanyId, CurrentUser, type AuthenticatedUser } from '@common/decorators';
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';

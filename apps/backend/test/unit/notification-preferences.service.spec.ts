@@ -57,7 +57,9 @@ describe('NotificationPreferencesService', () => {
       ],
     }).compile();
     service = module.get(NotificationPreferencesService);
-    mockPrisma.$transaction.mockImplementation(async (ops: unknown[]) => ops.map(() => ({ id: 'np-1' })));
+    mockPrisma.$transaction.mockImplementation(async (ops: unknown[]) =>
+      ops.map(() => ({ id: 'np-1' })),
+    );
   });
 
   describe('CRUD', () => {
@@ -258,9 +260,7 @@ describe('NotificationPreferencesService', () => {
       );
       expect(mockCache.set).toHaveBeenCalledWith(
         expect.stringContaining('notif:digest:u1'),
-        expect.arrayContaining([
-          expect.objectContaining({ title: 't-new' }),
-        ]),
+        expect.arrayContaining([expect.objectContaining({ title: 't-new' })]),
         expect.any(Number),
       );
       const [, setValue] = mockCache.set.mock.calls[0];

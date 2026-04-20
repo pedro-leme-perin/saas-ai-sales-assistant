@@ -9,7 +9,7 @@
 // - Fail-open when Redis down (notifications still flow real-time).
 
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
 import { EmailService } from '@modules/email/email.service';
@@ -242,7 +242,12 @@ export class NotificationPreferencesService {
     await this.email.sendNotificationDigestEmail({
       recipientEmail: user.email,
       recipientName: user.name,
-      entries: entries.map((e) => ({ type: e.type, title: e.title, message: e.message, at: new Date(e.at) })),
+      entries: entries.map((e) => ({
+        type: e.type,
+        title: e.title,
+        message: e.message,
+        at: new Date(e.at),
+      })),
     });
 
     try {
@@ -270,7 +275,10 @@ export class NotificationPreferencesService {
   }
 
   async requireUser(userId: string, companyId: string): Promise<void> {
-    const found = await this.prisma.user.findFirst({ where: { id: userId, companyId }, select: { id: true } });
+    const found = await this.prisma.user.findFirst({
+      where: { id: userId, companyId },
+      select: { id: true },
+    });
     if (!found) throw new NotFoundException('User not found');
   }
 }
