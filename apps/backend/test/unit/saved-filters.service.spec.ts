@@ -83,7 +83,11 @@ describe('SavedFiltersService', () => {
     };
 
     it('validates Zod schema and persists', async () => {
-      mockPrisma.savedFilter.create.mockResolvedValueOnce({ id: 'sf1', ...basePayload, userId: 'u1' });
+      mockPrisma.savedFilter.create.mockResolvedValueOnce({
+        id: 'sf1',
+        ...basePayload,
+        userId: 'u1',
+      });
       const out = await service.create('c1', 'u1', basePayload);
       expect(out.id).toBe('sf1');
       expect(mockPrisma.savedFilter.create).toHaveBeenCalledWith(
