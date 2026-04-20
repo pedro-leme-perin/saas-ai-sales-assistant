@@ -86,6 +86,8 @@ model Company {
   featureFlags     FeatureFlag[]
   announcements    Announcement[]
   assignmentRules  AssignmentRule[]
+  customFieldDefinitions CustomFieldDefinition[]
+  usageQuotas      UsageQuota[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -1208,6 +1210,8 @@ model Contact {
   email               String?
   timezone            String?
   metadata            Json          @default("{}")
+  // Session 55: per-tenant extensible schema via CustomFieldDefinition
+  customFields        Json          @default("{}") @map("custom_fields")
   tags                String[]      @default([])
   firstSeenAt         DateTime      @default(now()) @map("first_seen_at")
   lastInteractionAt   DateTime?     @map("last_interaction_at")
@@ -1536,4 +1540,79 @@ enum AssignmentStrategy {
   ROUND_ROBIN
   LEAST_BUSY
   MANUAL_ONLY
+}
+
+// =============================================
+// 🧩 CUSTOM FIELDS (session 55)
+// =============================================
+// Per-tenant extensible schema. Definitions live in CustomFieldDefinition;
+// actual values are stored on the parent resource (Contact.customFields Json).
+// Validation happens server-side against the active definition set.
+
+model CustomFieldDefinition {
+  id           String              @id @default(uuid())
+  companyId    String              @map("company_id")
+  resource     CustomFieldResource
+  key          String              // machine key (a-z0-9_, unique per tenant+resource)
+  label        String              // human label
+  type         CustomFieldType
+  required     Boolean             @default(false)
+  options      String[]            @default([]) // SELECT only
+  isActive     Boolean             @default(true) @map("is_active")
+  displayOrder Int                 @default(0) @map("display_order")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, resource, key], name: "custom_field_key_unique")
+  @@index([companyId, resource, isActive])
+  @@map("custom_field_definitions")
+}
+
+enum CustomFieldResource {
+  CONTACT
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  DATE
+  SELECT
+}
+
+// =============================================
+// 📊 USAGE QUOTAS (session 55)
+// =============================================
+// Per-tenant monthly consumption counters vs plan limits.
+// Cron aggregates usage + emits notifications when crossing 80/95/100%.
+// `limit < 0` signifies unlimited (Enterprise tier).
+
+model UsageQuota {
+  id               String      @id @default(uuid())
+  companyId        String      @map("company_id")
+  metric           UsageMetric
+  periodStart      DateTime    @map("period_start") // UTC month start
+  periodEnd        DateTime    @map("period_end")   // UTC next month start (exclusive)
+  limit            Int         // -1 = unlimited
+  currentValue     Int         @default(0) @map("current_value")
+  warnedThresholds Int[]       @default([]) @map("warned_thresholds") // subset of [80, 95, 100]
+  lastUpdatedAt    DateTime    @default(now()) @map("last_updated_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  company          Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, metric, periodStart], name: "usage_quota_period_unique")
+  @@index([companyId, metric])
+  @@index([periodStart])
+  @@map("usage_quotas")
+}
+
+enum UsageMetric {
+  CALLS
+  WHATSAPP_MESSAGES
+  AI_SUGGESTIONS
+  STORAGE_MB
 }

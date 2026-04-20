@@ -18,9 +18,10 @@
 
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AuditAction, Contact, ContactNote, Prisma } from '@prisma/client';
+import { AuditAction, Contact, ContactNote, CustomFieldResource, Prisma } from '@prisma/client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
+import { CustomFieldsService } from '@modules/custom-fields/custom-fields.service';
 import { CONTACT_TOUCH_EVENT, type ContactTouchPayload } from './events/contacts-events';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { MergeContactsDto } from './dto/merge-contacts.dto';
@@ -46,6 +47,7 @@ export class ContactsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
   // ===== PUBLIC API =====================================================
@@ -99,6 +101,14 @@ export class ContactsService {
     if (dto.timezone !== undefined) data.timezone = dto.timezone;
     if (dto.tags !== undefined) data.tags = dto.tags;
     if (dto.metadata !== undefined) data.metadata = dto.metadata as Prisma.InputJsonValue;
+    if (dto.customFields !== undefined) {
+      const cleaned = await this.customFields.validateAndCoerce(
+        companyId,
+        CustomFieldResource.CONTACT,
+        dto.customFields,
+      );
+      data.customFields = cleaned as unknown as Prisma.InputJsonValue;
+    }
 
     const updated = await this.prisma.contact.update({
       where: { id: contact.id },

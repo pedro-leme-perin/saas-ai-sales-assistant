@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 20/04/2026 (sessão 54)
+> Última atualização: 20/04/2026 (sessão 55)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 54 (20/04/2026) | Data import CSV → Contacts (chunked upsert via S49 BackgroundJobs + contact_phone_unique dedupe + per-row error isolation) + Assignment rules (round-robin Redis counter + least-busy groupBy + @OnEvent chat.created auto-assign com first-match priority) |
-| Backend (NestJS) | ✅ Produção | Railway — 36 módulos (+data-import, +assignment-rules), 68+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 37 routes (+contacts/import, +settings/assignment-rules) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 32 modelos (+AssignmentRule), 35 enums Prisma (+AssignmentStrategy, BackgroundJobType +IMPORT_CONTACTS) + pg_trgm |
+| Último commit | sessão 55 (20/04/2026) | Custom fields extensíveis para Contact (CustomFieldDefinition + validateAndCoerce TEXT/NUMBER/BOOLEAN/DATE/SELECT + cap 100/resource + audit) + Usage quotas metered (UsageQuota composite unique + month-anchored UTC + PLAN_DEFAULTS STARTER/PRO/ENTERPRISE + threshold 80/95/100 @OnEvent fan-out email/webhook/notif + cron rollover 1º UTC + fail-open metering) |
+| Backend (NestJS) | ✅ Produção | Railway — 38 módulos (+custom-fields, +usage-quotas), 70+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 39 routes (+settings/custom-fields, +settings/usage-quotas) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 34 modelos (+CustomFieldDefinition, +UsageQuota), 38 enums Prisma (+CustomFieldResource, +CustomFieldType, +UsageMetric) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -592,6 +592,77 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** composite unique `retention_policy_unique` previne duplicate TTL per resource, MIN_DAYS floor client + server (defesa em camadas) impede bypass LGPD, bounded batch `PURGE_BATCH_SIZE=500` + `EXPORT_BATCH_SIZE=5` + `MAX_EXPORT_ROWS=50_000` (bulkheads anti-DoS), error isolation per-policy/per-export preserva outros jobs em falha, `lastError` persistido na row permite observabilidade sem quebrar loop, state-aware purge filters preservam dados em uso (chats abertos, surveys pendentes, notifications não-lidas), cron UTC-deterministic via `computeNextRunAt` evita DST drift, upsert idempotente (PUT-style UI), dynamic model lookup type-safe via `Record<string, {findMany, deleteMany}>` cast, audit trail em TODAS mutações (CREATE/UPDATE/DELETE) — retention policy mudança é rastreável, `AUDIT_LOGS=180d` floor complementa S43 LGPD hard-delete (trail sobrevive anonymization via `userId: null`).
 
+### 2.5.14 Sessão 55 — 20/04/2026
+
+**Objetivo:** 2 features enterprise (opção A — product/compliance) — Custom fields extensíveis para Contact (per-tenant schema + validateAndCoerce typed) + Usage quotas metered (month-anchored UTC + threshold alerts 80/95/100 fan-out via @OnEvent).
+
+**Feature A1 — Custom fields (módulo novo `custom-fields`):**
+- Schema: modelo `CustomFieldDefinition` (id, companyId, resource `CustomFieldResource`, key, label, type `CustomFieldType`, required Bool default false, options `String[]` default `[]`, isActive Bool default true, displayOrder Int default 0, createdAt, updatedAt). `@@unique([companyId, resource, key])` — dedupe natural key por tenant×resource. Índice `[companyId, resource, isActive]`. Enums: `CustomFieldResource` (CONTACT) + `CustomFieldType` (TEXT, NUMBER, BOOLEAN, DATE, SELECT). Schema alter: `Contact` ganha coluna `customFields Json default '{}'`. Migration `20260425010000_add_custom_fields_and_usage_quotas` (agrupada com A2).
+- `CustomFieldsService`:
+  - CRUD tenant-scoped: `list(companyId, resource?)` orderBy `[displayOrder asc, createdAt asc]` cap `MAX_DEFS_PER_RESOURCE*5=500`. `findById` NotFoundException cross-tenant.
+  - `create(companyId, actorId, dto)`: rejeita SELECT sem options (BadRequest), conta defs existentes por `(companyId, resource)` e rejeita se `>= MAX_DEFS_PER_RESOURCE=100` (bulkhead anti-bloat). P2002 (unique `[companyId, resource, key]`) → BadRequestException `"custom field key already exists for ${resource}"`. Audit CREATE fire-and-forget.
+  - `update(companyId, actorId, id, dto)`: merge partial apenas de `label/required/options/isActive/displayOrder` (type e key são imutáveis — previne corrompimento de dados já persistidos). Rejeita `options=[]` se type === SELECT. Audit UPDATE com oldValues/newValues via helper `slim()`.
+  - `remove(companyId, actorId, id)`: hard delete + audit DELETE. `Contact.customFields` preserva valores órfãos (não-destrutivo para compliance LGPD).
+  - **`validateAndCoerce(companyId, resource, input)`** — helper consumido por `ContactsService.create/update` ANTES de persistir:
+    1. `findMany where {companyId, resource, isActive: true}` cap 100 (defensive bulkhead).
+    2. Loop sobre definitions ativas: missing (undefined/null/`''`) + required → `BadRequestException('custom field "${key}" is required')`; missing + !required → skip.
+    3. `coerce(def, raw)` dispatch por type:
+       - `TEXT`: `String(raw)`, reject `length > MAX_TEXT_LEN=1000` (anti-abuse).
+       - `NUMBER`: `Number(raw)`, reject `!Number.isFinite(n)` (rejeita NaN/Infinity).
+       - `BOOLEAN`: strict `true/false` OU coerção de string `'true'/'false'` (acomoda form inputs).
+       - `DATE`: `new Date(raw)`, reject `NaN.getTime()`, coerce para `YYYY-MM-DD` via `toISOString().slice(0, 10)` (normaliza fuso).
+       - `SELECT`: `String(raw)`, reject se `!options.includes(s)` com mensagem listando opções válidas.
+    4. Retorna `Record<key, FieldValue>` limpo — unknown keys do input são descartadas (defesa em profundidade contra injection).
+  - `audit(companyId, userId, action, resourceId, {oldValues, newValues})`: fire-and-forget try/catch, resource literal `'CUSTOM_FIELD'`.
+- Endpoints (`@Controller('custom-fields')` + `TenantGuard/RolesGuard` class-level): `GET /custom-fields?resource=CONTACT` (list), `GET /custom-fields/:id` (findById), `POST /custom-fields` (OWNER/ADMIN/MANAGER), `PATCH /custom-fields/:id` (OWNER/ADMIN/MANAGER), `DELETE /custom-fields/:id` (OWNER/ADMIN, returns 204).
+- DTO: `CreateCustomFieldDto` (resource `@IsEnum(CustomFieldResource)`, key `@Matches(/^[a-z][a-z0-9_]{0,49}$/)` — snake_case slug, label `@Length(1,120)`, type `@IsEnum(CustomFieldType)`, required/isActive `@IsBoolean?`, options `@IsArray @IsString({each: true}) @ArrayMaxSize(50)?`, displayOrder `@IsInt @Min(0) @Max(9999)?`). `UpdateCustomFieldDto` omite `resource + key + type` (imutáveis).
+- Frontend: `/dashboard/settings/custom-fields` com list ordenada por `displayOrder asc`. `TypeBadge` com palette sky/emerald/amber/violet/indigo por type. `FieldRow` com key mono + label + required/active pills + options chips (quando SELECT). `EditRow` inline para label/required/options/isActive/displayOrder. Create form com campos básicos + options input condicional (apenas quando type===SELECT). `customFieldsService` com `list(resource)/findById/create/update/remove`. Link em `/dashboard/settings` com icon `Database`.
+- i18n: ~30 chaves (`customFields.*` — title/subtitle/new/create/key/label/type/required/active/inactive/displayOrder/options/optionsPh/optionsHint/empty/confirmDelete + `customFields.types.{TEXT,NUMBER,BOOLEAN,DATE,SELECT}` + toast.*) em pt-BR + en.
+
+**Feature A2 — Usage quotas & threshold alerts (módulo novo `usage-quotas`):**
+- Schema: modelo `UsageQuota` (id, companyId, metric `UsageMetric`, periodStart, periodEnd, limit Int, currentValue Int default 0, warnedThresholds `Int[]` default `[]`, lastUpdatedAt DateTime default now, createdAt, updatedAt). `@@unique([companyId, metric, periodStart], name: "usage_quota_period_unique")` — previne double-provisioning per (tenant × metric × period). Índices `[companyId, metric]`, `[periodStart]`. Enum `UsageMetric` (CALLS, WHATSAPP_MESSAGES, AI_SUGGESTIONS, STORAGE_MB).
+- **Plan defaults map** (`PLAN_DEFAULTS: Record<Plan, Record<UsageMetric, number>>`):
+  - STARTER: CALLS=500, WHATSAPP_MESSAGES=1_000, AI_SUGGESTIONS=2_000, STORAGE_MB=500
+  - PROFESSIONAL: CALLS=2_000, WHATSAPP_MESSAGES=5_000, AI_SUGGESTIONS=10_000, STORAGE_MB=5_000
+  - ENTERPRISE: CALLS=-1, WHATSAPP_MESSAGES=-1, AI_SUGGESTIONS=-1, STORAGE_MB=50_000 (`-1` = UNLIMITED sentinel)
+- `UsageQuotasService`:
+  - `periodRange(now?)` — month-anchored UTC determinístico. `start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0))` (1º 00:00Z inclusive), `end = new Date(Date.UTC(year, month+1, 1, 0, 0, 0, 0))` (1º próximo mês exclusive). Sem DST drift.
+  - `list(companyId)` — retorna linhas do período corrente (`periodStart: start`), orderBy metric asc.
+  - `checkQuota(companyId, metric)` — read-only, auto-provisions via `getOrProvision` + retorna `QuotaCheck {metric, used, limit, pct, isUnlimited, isNearLimit (80-99), isOverLimit (≥100), periodStart, periodEnd}`.
+  - **`recordUsage(companyId, metric, delta=1)`** — hot path de metering, **fail-open** (callsites envolvem em try/catch):
+    1. `getOrProvision` (cria row com plan default se ausente, tolerante a P2002 race via re-read do winner).
+    2. `limit === -1` (unlimited) → `update({currentValue: {increment: delta}, lastUpdatedAt: now})`, pula threshold math, retorna check.
+    3. Caso geral: atomic `update({increment: delta})`, calcula `pct = floor(used*100/limit)`.
+    4. `newlyCrossed = [80, 95, 100].filter(t => pct >= t && !warnedThresholds.includes(t))` — idempotente (uma vez warned, nunca re-emite).
+    5. Se `newlyCrossed.length > 0` → `update({warnedThresholds: [...existing, ...newlyCrossed]})` + emit `USAGE_THRESHOLD_EVENT='usage.threshold.crossed'` via `EventEmitter2` (payload: `{companyId, metric, threshold, used, limit, periodStart, periodEnd}`).
+  - `upsertLimit(companyId, actorId, metric, limit)` — override admin via PUT. Upsert por `usage_quota_period_unique`. **Threshold reconciliation**: quando admin eleva o cap, `reconcileThresholds(currentValue, newLimit, warned)` descarta thresholds que não se aplicam mais ao novo `pct` (ex: usuário em 85/100 → warned `[80]`; admin eleva para 200 → warned reset para `[]` pois `85/200 = 42%`). Audit UPDATE com oldValues/newValues.
+  - `getOrProvision(companyId, metric)`: findUnique → create com plan default → re-read em caso de P2002 concorrente (graceful degradation em bursts).
+  - `@Cron(EVERY_HOUR, { name: 'usage-quotas-rollover' })` `rolloverSanityPass()`: **guard** `if (now.UTCDate !== 1 || now.UTCHours !== 1) return` — roda uma única vez/mês, às 01:00 UTC do 1º. Itera `company.findMany({isActive, deletedAt: null, take: 1_000})` × 4 metrics. Upsert idempotente com plan default (no-op se row já existe). Error isolation per-(company, metric). Objetivo: **pre-provisionar** rows no virar do mês para evitar latency spike no primeiro request de cada tenant.
+  - `toCheck(row)`: projeta `UsageQuota` em DTO limpo `QuotaCheck` (isUnlimited flag + pct clamp).
+  - `audit()`: fire-and-forget, resource literal `'USAGE_QUOTA'`.
+- **`UsageQuotaAlertsListener`** (`@OnEvent(USAGE_THRESHOLD_EVENT)`):
+  - 3 canais em paralelo via `Promise.all`: `fanInApp + sendAdminEmail + emitWebhook`. Outer try/catch swallow (hot path protegido).
+  - `fanInApp`: findMany OWNER/ADMIN ativos (`take: 10`), cria `notification` com `type: BILLING_ALERT, channel: IN_APP`, title `"Consumo em ${threshold}% — ${metricLabel}"`, data JSON com metric/threshold/used/limit.
+  - `sendAdminEmail`: findMany OWNER/ADMIN (`take: 5`), para cada admin com email válido: `emailService.sendUsageThresholdEmail({recipientEmail, recipientName, companyName, metricLabel, threshold, used, limit, periodEnd})`.
+  - `emitWebhook`: `eventEmitter.emit('webhooks.emit', {companyId, event: 'USAGE_THRESHOLD', data: {metric, threshold, used, limit, periodStart, periodEnd}})` — permite clientes receberem eventos via S46 outbound webhooks com HMAC signing.
+  - `METRIC_LABELS` dict pt-BR (`CALLS: 'ligações', WHATSAPP_MESSAGES: 'mensagens WhatsApp', AI_SUGGESTIONS: 'sugestões de IA', STORAGE_MB: 'armazenamento (MB)'`).
+- `EmailService.sendUsageThresholdEmail`: template HTML com gradient header amber/red (cor adaptativa por severity), KPI grid (used/limit/pct), period reset date via `Intl.DateTimeFormat('pt-BR')`, CTA "Ver consumo" linkando `${appUrl}/dashboard/settings/usage-quotas`.
+- Endpoints (`@Controller('usage-quotas')` + `TenantGuard/RolesGuard` class-level): `GET /usage-quotas` (list period corrente), `GET /usage-quotas/check/:metric` (auto-provisions), `PUT /usage-quotas/limit` (OWNER/ADMIN, body `{metric, limit}`, -1 permitido).
+- Frontend: `/dashboard/settings/usage-quotas` com grid md:grid-cols-2 de `QuotaCard` (Gauge icon + metric label + period range dates + `currentValue/limit` com `toLocaleString()` + progress bar color-coded via `severity(row)` helper `{ok: emerald, warn: amber (≥80), crit: red (≥100), unlimited: sky}`). Unlimited branch renderiza `<Infinity>` icon ao invés da bar. Editable limit input (`type=number, min=-1`) aceita `-1` sentinel para admin flip para unlimited. TanStack Query com `refetchInterval: 30_000` (polling 30s para metric updates em tempo quase-real). `usageQuotasService` em `/services` com `list/check/upsertLimit`. Link em `/dashboard/settings` com icon `Gauge`.
+- i18n: ~15 chaves (`usageQuotas.*` — title/subtitle/unlimited/nearLimit/overLimit/newLimit/limitHint/notProvisioned + `usageQuotas.metrics.{CALLS,WHATSAPP_MESSAGES,AI_SUGGESTIONS,STORAGE_MB}` + toast.{updateOk, updateErr}) em pt-BR + en.
+
+**Integração com features prévias:**
+- `ContactsService.create/update` agora chama `customFieldsService.validateAndCoerce(companyId, 'CONTACT', dto.customFields)` ANTES de `prisma.contact.create|update` — valores limpos persistidos em `Contact.customFields` JSON. Unknown keys strip automaticamente. Contacts importados via S54 CSV podem receber customFields via coluna extra (future UI enhancement).
+- `UsageQuotaAlertsListener` reusa `EventEmitter2` global (S46) + `WebhookEvent` enum (webhook event literal `USAGE_THRESHOLD` novo — consumidores existentes ignoram via filter `events: { has: event }`).
+- `NotificationType.BILLING_ALERT` reusado (já existia do S42 payment recovery) — channel `IN_APP` default.
+- Metering callsites (próximos passos, não-bloqueantes): `CallsService.handleStatusWebhook` (COMPLETED) → `recordUsage(companyId, CALLS, 1)`. `WhatsappService.sendMessage` → `recordUsage(companyId, WHATSAPP_MESSAGES, 1)`. `AIService.generateSuggestion` → `recordUsage(companyId, AI_SUGGESTIONS, 1)`. `UploadService.upload` → `recordUsage(companyId, STORAGE_MB, sizeMB)`. **Fail-open mandatório** — cada callsite em try/catch swallow.
+
+**Testes:**
+- `custom-fields.service.spec.ts` (novo, ~16 cases): CRUD tenant isolation (list scope + order, findById NotFound, create SELECT sem options → BadRequest, create count >= 100 → BadRequest "too many custom fields", create P2002 → BadRequest "already exists", create audit CREATE com slim values, update merge partial + audit oldValues/newValues, update SELECT com options vazio → BadRequest, remove audit DELETE). `validateAndCoerce`: missing + required → BadRequest, missing + !required → skip, TEXT `String(raw)` + reject >1000 chars, NUMBER `Number(raw)` + reject NaN/Infinity, BOOLEAN strict + coerção string 'true'/'false', DATE `toISOString().slice(0,10)` + reject invalid Date, SELECT reject não-membro com lista de opções válidas, unknown keys stripped (defense in depth), inactive definitions skipped (enforcement desligado mas valores sobrevivem).
+- `usage-quotas.service.spec.ts` (novo, ~18 cases): `periodRange` (1º de janeiro, meio de mês, 31 de dezembro todos mapeam para mesmo 1º 00:00Z + próximo 1º), `list` scope companyId + periodStart = start corrente + order metric asc. `getOrProvision`: ausente → create com plan default (STARTER 500 CALLS, ENTERPRISE -1 CALLS), presente → return existing, P2002 race → re-read winner, company ausente → NotFoundException. `recordUsage`: unlimited (-1) → increment sem threshold math + no event emitted, limited + pct<80 → no event, crossing 80 → 1 event + warnedThresholds=[80], already-warned 80 + crossing 95 → 1 event (só 95) + warnedThresholds=[80,95], crossing 100 → 1 event + warnedThresholds=[80,95,100], re-entrant call após 100% → no new event (idempotência). `upsertLimit`: create new + audit com oldValues=null, update existing + reconcileThresholds (used=85, oldLimit=100 warned=[80], newLimit=200 → warned=[] pois 85/200=42%). `rolloverSanityPass`: guard skip se !1º || !01h UTC, roda + upsert idempotente para cada (company × metric), error isolation per-(company, metric) warn log.
+
+**Resilience:** `@@unique([companyId, resource, key])` + `usage_quota_period_unique` previnem duplicatas por natural key, `MAX_DEFS_PER_RESOURCE=100` bulkhead anti-bloat de schema, `MAX_TEXT_LEN=1000` guard anti-abuse em TEXT values, type/key imutáveis em UpdateDto previne corrupção de dados persistidos, unknown keys strip em `validateAndCoerce` é defesa em profundidade (anti-XSS via custom fields), `warnedThresholds[]` idempotente (uma vez warned, nunca re-emite mesmo threshold no mesmo período), **fail-open metering** via callsite try/catch garante que `recordUsage` NUNCA bloqueia hot path (ligação/mensagem/sugestão sempre completa, observability gracefully degrada), `@OnEvent` outer try/catch swallow protege metering de falhas de email/notification/webhook, listener `Promise.all` fans 3 canais em paralelo (não sequencial) — latency additive é mínima, `reconcileThresholds` em `upsertLimit` evita false-positive re-alerts quando admin eleva cap, `@Cron rollover` guard `UTCDate===1 && UTCHours===1` garante execução única/mês (resistente a tick replays), P2002 mapeado para BadRequest (não vaza Prisma internals), audit fire-and-forget em todas mutações (hot path protegido).
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -621,6 +692,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 52 | 20/04 | Per-tenant API request logs (buffered writer + métricas p50/p95 + cursor list) + Bulk actions (tag/delete/assign wired ao S49 BackgroundJobs) | ⏳ |
 | 53 | 20/04 | Feature flags (rollout determinístico SHA-256 + allowlist + Redis cache 60s) + Announcements in-app (targetRoles + AnnouncementRead composite + banner polling 2min) | ⏳ |
 | 54 | 20/04 | Data import CSV → Contacts (chunked upsert via S49 BG jobs + contact_phone_unique + per-row error isolation) + Assignment rules (round-robin Redis counter + least-busy groupBy + @OnEvent chat.created auto-assign) | ⏳ |
+| 55 | 20/04 | Custom fields Contact (CustomFieldDefinition + validateAndCoerce TEXT/NUMBER/BOOLEAN/DATE/SELECT + cap 100/resource) + Usage quotas metered (month-anchored UTC + PLAN_DEFAULTS + threshold 80/95/100 @OnEvent fan-out email/webhook/notif + fail-open metering + cron rollover) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -931,6 +1003,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
 │   │       │   ├── contacts/       # Customer 360 (dedupe natural key + timeline merge-sort + notes + merge tx)
 │   │       │   ├── csat/           # CSAT surveys (trigger-driven cron + public token + NPS analytics)
+│   │       │   ├── custom-fields/  # Per-tenant extensible schema (CustomFieldDefinition + validateAndCoerce TEXT/NUMBER/BOOLEAN/DATE/SELECT + cap 100/resource)
 │   │       │   ├── data-import/    # CSV → Contacts chunked upsert (RFC 4180 parser, phone normalize, wired a S49 BackgroundJobs via handler registry)
 │   │       │   ├── email/          # Resend integration, templates
 │   │       │   ├── feature-flags/  # Rollout determinístico SHA-256 (companyId:key:userId % 100) + allowlist + Redis cache 60s
@@ -947,6 +1020,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── summaries/      # Conversation summaries on-demand (Redis cache, OpenAI)
 │   │       │   ├── tags/           # ConversationTag library + CallTag/ChatTag joins + cross-channel search (pg_trgm)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
+│   │       │   ├── usage-quotas/   # Metered quotas monthly (month-anchored UTC + PLAN_DEFAULTS + threshold 80/95/100 @OnEvent fan-out email/webhook/notif + fail-open metering + cron rollover)
 │   │       │   ├── users/          # CRUD, invites, roles, RBAC, LGPD
 │   │       │   ├── webhooks/       # Outbound signed webhooks (HMAC + retry cron + CB per-URL + DLQ)
 │   │       │   └── whatsapp/       # WhatsApp API, chat, messages
@@ -1000,7 +1074,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (34)
+### 6.1 Modelos (36)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -1038,10 +1112,12 @@ Infrastructure (Prisma, API Clients, Redis)
 | **Announcement** | Aviso in-app. title/body/level (INFO/WARNING/URGENT), publishAt/expireAt janela, targetRoles[] (empty = broadcast). Rendering via banner polling 2min | → Company, User (createdBy), Reads[] |
 | **AnnouncementRead** | Estado per-user. Composite PK `[announcementId, userId]`, readAt + dismissedAt. CASCADE em Announcement, RESTRICT em User. Upsert idempotente | → Announcement, User |
 | **AssignmentRule** | Regra de auto-assign de chats. priority asc determina ordem de avaliação, strategy (ROUND_ROBIN/LEAST_BUSY/MANUAL_ONLY), conditions Json (priority/tags/phonePrefix/keywordsAny), targetUserIds[]. Unique `assignment_rule_name_unique` (companyId, name) | → Company |
+| **CustomFieldDefinition** | Schema extensível per-tenant para resources (CONTACT). key (snake_case slug), label, type (TEXT/NUMBER/BOOLEAN/DATE/SELECT), required, options[] (SELECT), isActive, displayOrder. Unique `[companyId, resource, key]`. Cap 100/resource. Valores persistidos em `Contact.customFields` JSON | → Company |
+| **UsageQuota** | Quota metered mensal per (companyId × metric × periodStart). Month-anchored UTC (1º 00:00Z → próximo 1º exclusive). limit Int (`-1` = UNLIMITED), currentValue (atomic increment), warnedThresholds[] ⊆ {80,95,100} (idempotent). Unique `usage_quota_period_unique`. Plan defaults STARTER/PROFESSIONAL/ENTERPRISE | → Company |
 
-### 6.2 Enums (36)
+### 6.2 Enums (39)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (6) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6) · `AnnouncementLevel` (3) · `AssignmentStrategy` (3)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (6) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6) · `AnnouncementLevel` (3) · `AssignmentStrategy` (3) · `CustomFieldResource` (1) · `CustomFieldType` (5) · `UsageMetric` (4)
 
 ### 6.3 Regras de Schema
 

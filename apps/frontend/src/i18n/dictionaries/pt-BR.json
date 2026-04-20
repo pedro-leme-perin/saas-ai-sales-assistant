@@ -1437,5 +1437,59 @@
       "deleted": "Regra removida.",
       "error": "Erro ao salvar regra."
     }
+  },
+  "customFields": {
+    "title": "Campos personalizados",
+    "subtitle": "Extensoes de schema por tenant para contatos.",
+    "new": "Novo campo",
+    "create": "Criar campo",
+    "key": "Chave (identificador tecnico)",
+    "label": "Rotulo",
+    "type": "Tipo",
+    "required": "Obrigatorio",
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "displayOrder": "Ordem",
+    "options": "Opcoes",
+    "optionsPh": "opcao1, opcao2, opcao3",
+    "optionsHint": "Separe as opcoes por virgula.",
+    "empty": "Nenhum campo personalizado.",
+    "confirmDelete": "Excluir este campo?",
+    "types": {
+      "TEXT": "Texto",
+      "NUMBER": "Numero",
+      "BOOLEAN": "Boolean",
+      "DATE": "Data",
+      "SELECT": "Selecao"
+    },
+    "toast": {
+      "createOk": "Campo criado.",
+      "createErr": "Erro ao criar campo.",
+      "updateOk": "Campo atualizado.",
+      "updateErr": "Erro ao atualizar campo.",
+      "deleteOk": "Campo removido.",
+      "deleteErr": "Erro ao remover campo.",
+      "selectNeedsOptions": "Informe ao menos uma opcao para SELECT."
+    }
+  },
+  "usageQuotas": {
+    "title": "Cotas de uso",
+    "subtitle": "Limites mensais por metrica + alertas em 80/95/100%.",
+    "unlimited": "Ilimitado",
+    "nearLimit": "Proximo do limite",
+    "overLimit": "Limite excedido",
+    "newLimit": "Novo limite (-1 = ilimitado)",
+    "limitHint": "Ajuste o cap mensal deste tenant. Use -1 para sem limite.",
+    "notProvisioned": "Ainda nao registrado neste periodo.",
+    "metrics": {
+      "CALLS": "Ligacoes",
+      "WHATSAPP_MESSAGES": "Mensagens WhatsApp",
+      "AI_SUGGESTIONS": "Sugestoes de IA",
+      "STORAGE_MB": "Armazenamento (MB)"
+    },
+    "toast": {
+      "updateOk": "Limite atualizado.",
+      "updateErr": "Erro ao atualizar limite."
+    }
   }
 }

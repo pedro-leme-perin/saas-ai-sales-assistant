@@ -43,4 +43,12 @@ export class UpdateContactDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description: 'Per-tenant custom fields (validated against CustomFieldDefinition)',
+  })
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, unknown>;
 }

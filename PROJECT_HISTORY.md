@@ -1586,5 +1586,117 @@ Duas features enterprise em profundidade (opção A — plataforma): **Conversat
 
 ---
 
+## Sessão 55 — 20/04/2026
+
+**Tema:** Custom fields (Contact) + Usage quotas & threshold alerts (plataforma/billing)
+
+### Feature A1 — Custom fields para Contact (módulo novo `custom-fields`)
+
+- Schema: `CustomFieldDefinition` (companyId, resource, key, label, type, required, options[], isActive, displayOrder). `@@unique([companyId, resource, key])`. Enums `CustomFieldResource` (CONTACT) + `CustomFieldType` (TEXT/NUMBER/BOOLEAN/DATE/SELECT). ALTER `contacts` ADD `custom_fields JSONB NOT NULL DEFAULT '{}'`. Migration `20260425010000_add_custom_fields_and_usage_quotas`.
+- `CustomFieldsService`:
+  - CRUD tenant-scoped: `list` orderBy `[displayOrder asc, createdAt asc]`, `findById` NotFound cross-tenant, `create` com cap `MAX_DEFS_PER_RESOURCE=100` (bulkhead), P2002 → BadRequest, audit CREATE.
+  - `create` valida SELECT options não-vazias (BadRequest); DTO regex snake_case key `/^[a-z][a-z0-9_]{0,39}$/` + MaxLength 80 label.
+  - `update` partial merge + audit oldValues/newValues.
+  - `remove` + audit DELETE.
+  - `validateAndCoerce(companyId, resource, input)` → `Record<string, FieldValue>`:
+    - Load active defs tenant-scoped.
+    - Reject unknown keys (BadRequest) — defesa contra payload pollution.
+    - Enforce `required` flag (BadRequest se missing).
+    - Coerce por tipo via `coerce()` dispatch:
+      - TEXT: `String(v)` + `MAX_TEXT_LEN=1000` cap.
+      - NUMBER: `Number(v)` + `Number.isFinite` check.
+      - BOOLEAN: strict bool ou 'true'/'false' string (case-insensitive).
+      - DATE: `new Date(v)` + ISO yyyy-mm-dd slice.
+      - SELECT: `options.includes(String(v))`.
+    - Retorna objeto limpo (removida qualquer key não-definida).
+- Integração ContactsService: `create` + `update` injetam `CustomFieldsService.validateAndCoerce` quando `dto.customFields` presente. `UpdateContactDto` ganha campo opcional `customFields: Record<string, unknown>`.
+- Endpoints (`@Controller('custom-fields')` + TenantGuard/RolesGuard):
+  - `GET /custom-fields?resource=CONTACT` (list).
+  - `GET /custom-fields/:id`.
+  - `POST /custom-fields` (OWNER/ADMIN/MANAGER).
+  - `PATCH /custom-fields/:id` (OWNER/ADMIN/MANAGER).
+  - `DELETE /custom-fields/:id` (OWNER/ADMIN, 204).
+- Frontend: `/dashboard/settings/custom-fields` com list (TypeBadge color-coded por type) + inline form (key + label + type select + required toggle + SELECT options CSV + displayOrder). TypeBadge: TEXT blue, NUMBER purple, BOOLEAN emerald, DATE amber, SELECT pink. i18n ~30 chaves (`customFields.*`). Link em `/dashboard/settings` com icon `Database`.
+
+### Feature A2 — Usage quotas & threshold alerts (módulo novo `usage-quotas`)
+
+- Schema: `UsageQuota` (companyId, metric, limit Int, currentValue Int, warnedThresholds Int[], periodStart, periodEnd, lastUpdatedAt). `@@unique([companyId, metric, periodStart], name: "usage_quota_period_unique")`. Enum `UsageMetric` (CALLS, WHATSAPP_MESSAGES, AI_SUGGESTIONS, STORAGE_MB).
+- **Plan defaults** (`PLAN_DEFAULTS: Record<Plan, Record<UsageMetric, number>>`):
+  - STARTER: CALLS=500, WHATSAPP_MESSAGES=1000, AI_SUGGESTIONS=2000, STORAGE_MB=500.
+  - PROFESSIONAL: CALLS=2000, WHATSAPP_MESSAGES=5000, AI_SUGGESTIONS=10000, STORAGE_MB=5000.
+  - ENTERPRISE: CALLS=-1, WHATSAPP_MESSAGES=-1, AI_SUGGESTIONS=-1, STORAGE_MB=50000.
+  - `limit=-1` = UNLIMITED (short-circuit em alerts).
+- `UsageQuotasService`:
+  - `periodRange(now?)` — month-anchored UTC (`Date.UTC(year, month, 1)` inclusive → `Date.UTC(year, month+1, 1)` exclusive). No DST drift.
+  - `list(companyId)` tenant-scoped período atual, orderBy `[metric asc]`.
+  - `checkQuota(companyId, metric)` read-only → `QuotaCheck {used, limit, pct, isUnlimited, isNearLimit, isOverLimit, periodStart, periodEnd}`. Auto-provisiona row via `getOrProvision`.
+  - `recordUsage(companyId, metric, delta=1)`:
+    1. `getOrProvision` com P2002 race → re-read winner.
+    2. Unlimited branch (`limit === -1`): `update({increment: delta, lastUpdatedAt})` sem threshold math.
+    3. Limited: atomic `update({increment: delta})` → `pct = Math.floor(currentValue*100/limit)`.
+    4. `alreadyWarned = new Set(warnedThresholds)` → `newlyCrossed = THRESHOLDS.filter(t => pct >= t && !alreadyWarned.has(t))`.
+    5. `newlyCrossed.length > 0` → `update({warnedThresholds: [...existing, ...newlyCrossed]})` + `eventEmitter.emit(USAGE_THRESHOLD_EVENT, payload)` por threshold crossed.
+    6. Fail-open: callsites devem envolver em try/catch para nunca bloquear hot path.
+  - `upsertLimit(companyId, actorId, metric, limit)`:
+    - Upsert via composite `usage_quota_period_unique`.
+    - Se existing + raise limit → `reconcileThresholds(used, newLimit, warnedThresholds)` drops thresholds obsoletos (evita false re-alerts).
+    - Audit UPDATE.
+  - `@Cron(EVERY_HOUR, { name: 'usage-quotas-rollover' })` `rolloverSanityPass`:
+    - Guard: `now.getUTCDate() !== 1 || now.getUTCHours() !== 1` → return.
+    - Itera `company.findMany({isActive: true, deletedAt: null}, take: 1_000)` × 4 metrics.
+    - Upsert idempotente (`update: {}`) para pre-provisionar rows e evitar latency spikes no 1º do mês.
+    - Error-isolated per company×metric (não aborta batch).
+- `UsageQuotaAlertsListener`:
+  - `@OnEvent(USAGE_THRESHOLD_EVENT)` com outer try/catch swallow.
+  - `Promise.all([fanInApp, sendAdminEmail, emitWebhook])`:
+    - **fanInApp**: `user.findMany({role: {in: [OWNER, ADMIN]}, isActive: true}, take: 10)` → `notification.create` per admin com `type: BILLING_ALERT, channel: IN_APP`, title `"Consumo em {threshold}% — {metricLabel}"`, data JSON (metric, threshold, used, limit).
+    - **sendAdminEmail**: `take: 5` admins → `emailService.sendUsageThresholdEmail({recipientEmail, recipientName, companyName, metricLabel, threshold, used, limit, periodEnd})`.
+    - **emitWebhook**: `eventEmitter.emit('webhooks.emit', {companyId, event: 'USAGE_THRESHOLD', data: {metric, threshold, used, limit, periodStart, periodEnd}})`. WebhooksService (S46) faz fan-out + HMAC signing.
+  - `METRIC_LABELS` pt-BR dict: CALLS='ligações', WHATSAPP_MESSAGES='mensagens WhatsApp', AI_SUGGESTIONS='sugestões de IA', STORAGE_MB='armazenamento (MB)'.
+  - Cada fan wrapper tem try/catch individual (uma falha não impacta outras).
+- Endpoints (`@Controller('usage-quotas')` + TenantGuard/RolesGuard):
+  - `GET /usage-quotas` → list current-period.
+  - `GET /usage-quotas/check/:metric` → `QuotaCheck` (auto-provisiona).
+  - `PUT /usage-quotas/limit` (OWNER/ADMIN) → upsertLimit.
+- Frontend: `/dashboard/settings/usage-quotas` com grid 2-col de `QuotaCard` por metric. Severity palette:
+  - `ok` (<80%): emerald bar.
+  - `warn` (80-99%): amber bar + label "Próximo do limite".
+  - `crit` (≥100%): red bar + label "Acima do limite".
+  - `unlimited` (limit=-1): sky bar + `Infinity` icon, sem progress bar.
+  - Inline edit (Pencil icon) com input type=number `min={-1}`, Save via `upsertLimit` mutation.
+  - TanStack Query `refetchInterval: 30_000`.
+  - i18n ~15 chaves (`usageQuotas.*`). Link em `/dashboard/settings` com icon `Gauge`.
+
+### Integração
+
+- `CustomFieldsModule` consome apenas Prisma (zero deps externas). `ContactsModule` importa `CustomFieldsModule` para wiring do `validateAndCoerce`.
+- `UsageQuotasModule` registra `UsageQuotaAlertsListener` como provider + reusa `EventEmitter2` global (S46) + `EmailService` + Prisma + `@nestjs/schedule` (S42 ScheduleModule.forRoot no AppModule).
+- `WebhookEvent` enum expandido (+`USAGE_THRESHOLD`) — payload consumido por clientes via S46 outbound webhooks.
+- `NotificationType.BILLING_ALERT` reusado (evita proliferação de types).
+- Callsites de metering (futuros): `CallsService.createCall` (CALLS), `WhatsappService.sendMessage` (WHATSAPP_MESSAGES), `AIService.generateSuggestion` (AI_SUGGESTIONS), `UploadService.finalizeUpload` (STORAGE_MB). Todos devem envolver `recordUsage` em try/catch para preservar fail-open.
+
+### Testes
+
+- `custom-fields.service.spec.ts` (~16 cases): list orderBy + resource filter, findById NotFound cross-tenant, create cap `MAX_DEFS_PER_RESOURCE=100` (101st → BadRequest), SELECT sem options → BadRequest, P2002 → BadRequest, audit CREATE. update partial merge + audit. remove audit DELETE. validateAndCoerce: unknown key rejected, required missing rejected, TEXT coerce + MAX_TEXT_LEN cap, NUMBER coerce + rejects NaN/Infinity, BOOLEAN strict bool + 'true'/'false' string, DATE coerce + ISO slice, SELECT options.includes check + rejects unknown option.
+- `usage-quotas.service.spec.ts` (~18 cases): periodRange UTC math (mid-month, 1st, last day), list scope. recordUsage: auto-provisions, atomic increment, unlimited skip threshold math, 80% → emits USAGE_THRESHOLD_EVENT, 95% crossing após 80% → emits only 95, idempotency (já warned, não re-emit), concurrent P2002 → re-read winner. upsertLimit: new period creates, existing raises limit → reconcileThresholds drops obsoletos (avoids false re-alerts), audit UPDATE. rolloverSanityPass: guard (day!=1 OR hour!=1 → no-op), day=1 hour=1 → iterates companies × metrics idempotente.
+
+### Resilience notes
+
+- `@@unique([companyId, resource, key])` + `usage_quota_period_unique` previnem duplicates naturalmente.
+- `MAX_DEFS_PER_RESOURCE=100` cap (bulkhead) evita tenant abuse do schema.
+- `MAX_TEXT_LEN=1000` cap em TEXT values.
+- Fail-open metering — callsites devem try/catch recordUsage para nunca bloquear hot path.
+- Idempotent threshold alerts via `warnedThresholds Int[]` persisted (browser refresh, cron re-run, ou concurrent writes não re-disparam).
+- `@OnEvent` listener com outer try/catch swallow + inner try/catch per fan (in-app/email/webhook) — falha em um canal não impacta outros.
+- `reconcileThresholds` evita false re-alerts quando admin eleva cap mid-period.
+- `@Cron(EVERY_HOUR)` com guard `UTCDate===1 && UTCHours===1` = 1 execução/mês (bulkhead de frequência).
+- `getOrProvision` P2002 race handling (concurrent first-request → re-read winner).
+- Audit trail em todas mutações (CREATE/UPDATE/DELETE) — custom fields schema changes + quota overrides rastreáveis.
+- Unknown key rejection em `validateAndCoerce` (defesa contra payload pollution).
+- Circuit breaker não é necessário nas emissions (in-process EventEmitter2).
+- Webhook outbound reusa S46 infra (HMAC + retry + DLQ).
+
+---
+
 *Documento atualizado em 20/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

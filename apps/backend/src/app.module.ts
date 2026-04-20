@@ -46,6 +46,8 @@ import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { DataImportModule } from './modules/data-import/data-import.module';
 import { AssignmentRulesModule } from './modules/assignment-rules/assignment-rules.module';
+import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module';
+import { UsageQuotasModule } from './modules/usage-quotas/usage-quotas.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -112,6 +114,8 @@ import configuration from './config/configuration';
     AnnouncementsModule,
     DataImportModule,
     AssignmentRulesModule,
+    CustomFieldsModule,
+    UsageQuotasModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

@@ -463,6 +463,95 @@ export class EmailService {
     }
   }
 
+  /**
+   * Usage threshold alert email (Session 55 — Feature A2).
+   * Sent when a tenant crosses 80% / 95% / 100% of any metered quota.
+   */
+  async sendUsageThresholdEmail(params: {
+    recipientEmail: string;
+    recipientName: string;
+    companyName: string;
+    metricLabel: string;
+    threshold: number;
+    used: number;
+    limit: number;
+    periodEnd: Date;
+  }): Promise<{ success: boolean; messageId?: string }> {
+    const { recipientEmail, recipientName, companyName, metricLabel, threshold, used, limit, periodEnd } =
+      params;
+
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping usage alert email');
+      return { success: false };
+    }
+
+    const headerColor =
+      threshold >= 100 ? '#dc2626' : threshold >= 95 ? '#ea580c' : '#ca8a04';
+    const periodEndStr = periodEnd.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const subject =
+      threshold >= 100
+        ? `[Limite atingido] ${this.escapeHtml(metricLabel)} — ${this.escapeHtml(companyName)}`
+        : `[Alerta ${threshold}%] ${this.escapeHtml(metricLabel)} — ${this.escapeHtml(companyName)}`;
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>${this.escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 20px;">
+    <tr><td align="center">
+      <table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background:${headerColor};padding:24px 32px;">
+          <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:700;">Consumo em ${threshold}%</h1>
+          <p style="color:#ffffff;margin:4px 0 0;font-size:13px;opacity:0.9;">${this.escapeHtml(metricLabel)} — ${this.escapeHtml(companyName)}</p>
+        </td></tr>
+        <tr><td style="padding:28px 32px;">
+          <p style="color:#18181b;font-size:15px;margin:0 0 14px;">Olá <strong>${this.escapeHtml(recipientName)}</strong>,</p>
+          <p style="color:#52525b;font-size:14px;line-height:1.6;margin:0 0 18px;">
+            Sua empresa atingiu <strong>${threshold}%</strong> do limite de <strong>${this.escapeHtml(metricLabel)}</strong>
+            no período de cobrança atual. O ciclo fecha em <strong>${periodEndStr}</strong>.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4e4e7;border-radius:8px;margin-bottom:20px;">
+            <tr>
+              <td style="padding:14px;border-bottom:1px solid #e4e4e7;">
+                <div style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Uso atual</div>
+                <div style="color:#18181b;font-size:18px;font-weight:700;margin-top:4px;">${used}</div>
+              </td>
+              <td style="padding:14px;border-bottom:1px solid #e4e4e7;border-left:1px solid #e4e4e7;">
+                <div style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Limite do plano</div>
+                <div style="color:#18181b;font-size:18px;font-weight:700;margin-top:4px;">${limit}</div>
+              </td>
+            </tr>
+          </table>
+          <p style="color:#52525b;font-size:14px;line-height:1.6;margin:0 0 16px;">
+            ${threshold >= 100
+              ? 'Novas chamadas podem ser bloqueadas até o próximo ciclo. Considere aumentar o plano para manter a operação.'
+              : 'Avalie se é hora de fazer upgrade para evitar interrupções ao atingir 100%.'}
+          </p>
+          <a href="${this.frontendUrl}/dashboard/billing" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:14px;font-weight:600;">
+            Ver plano e faturas
+          </a>
+        </td></tr>
+        <tr><td style="background:#f9fafb;padding:14px 32px;color:#71717a;font-size:11px;text-align:center;">
+          TheIAdvisor · noreply@theiadvisor.com
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+    try {
+      const result = await this.send({ to: recipientEmail, subject, html });
+      return { success: Boolean(result?.id), messageId: result?.id };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to send usage alert to ${recipientEmail}: ${msg}`);
+      return { success: false };
+    }
+  }
+
   private escapeHtml(s: string): string {
     return s
       .replace(/&/g, '&amp;')

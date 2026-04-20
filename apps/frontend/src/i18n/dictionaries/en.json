@@ -1437,5 +1437,59 @@
       "deleted": "Rule deleted.",
       "error": "Failed to save rule."
     }
+  },
+  "customFields": {
+    "title": "Custom fields",
+    "subtitle": "Per-tenant schema extensions for contacts.",
+    "new": "New field",
+    "create": "Create field",
+    "key": "Key (technical id)",
+    "label": "Label",
+    "type": "Type",
+    "required": "Required",
+    "active": "Active",
+    "inactive": "Inactive",
+    "displayOrder": "Order",
+    "options": "Options",
+    "optionsPh": "option1, option2, option3",
+    "optionsHint": "Separate options with commas.",
+    "empty": "No custom fields yet.",
+    "confirmDelete": "Delete this field?",
+    "types": {
+      "TEXT": "Text",
+      "NUMBER": "Number",
+      "BOOLEAN": "Boolean",
+      "DATE": "Date",
+      "SELECT": "Select"
+    },
+    "toast": {
+      "createOk": "Field created.",
+      "createErr": "Failed to create field.",
+      "updateOk": "Field updated.",
+      "updateErr": "Failed to update field.",
+      "deleteOk": "Field deleted.",
+      "deleteErr": "Failed to delete field.",
+      "selectNeedsOptions": "Provide at least one option for SELECT."
+    }
+  },
+  "usageQuotas": {
+    "title": "Usage quotas",
+    "subtitle": "Monthly per-metric caps with 80/95/100% alerts.",
+    "unlimited": "Unlimited",
+    "nearLimit": "Near limit",
+    "overLimit": "Over limit",
+    "newLimit": "New limit (-1 = unlimited)",
+    "limitHint": "Override this tenant's monthly cap. Use -1 for unlimited.",
+    "notProvisioned": "Not yet recorded for this period.",
+    "metrics": {
+      "CALLS": "Calls",
+      "WHATSAPP_MESSAGES": "WhatsApp messages",
+      "AI_SUGGESTIONS": "AI suggestions",
+      "STORAGE_MB": "Storage (MB)"
+    },
+    "toast": {
+      "updateOk": "Limit updated.",
+      "updateErr": "Failed to update limit."
+    }
   }
 }
