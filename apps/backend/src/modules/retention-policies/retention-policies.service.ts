@@ -208,20 +208,17 @@ export class RetentionPoliciesService {
     // Prisma deleteMany does not support `take`. We iterate in capped loops
     // by pre-selecting ids, then deleting by id set. One tick caps to
     // PURGE_BATCH_SIZE rows to bound runtime per policy.
-    type DeletableModel = {
-      findMany: (args: unknown) => Promise<Array<{ id: string }>>;
-      deleteMany: (args: unknown) => Promise<{ count: number }>;
-    };
-    const model = (this.prisma as unknown as Record<string, DeletableModel>)[modelKey];
-    const rows = await model.findMany({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const model = (this.prisma as unknown as Record<string, any>)[modelKey];
+    const rows = (await model.findMany({
       where,
       select: { id: true },
       take: PURGE_BATCH_SIZE,
       orderBy: { createdAt: 'asc' },
-    });
+    })) as Array<{ id: string }>;
     if (rows.length === 0) return 0;
     const ids = rows.map((r) => r.id);
-    const result = await model.deleteMany({ where: { id: { in: ids } } });
+    const result = (await model.deleteMany({ where: { id: { in: ids } } })) as { count: number };
     return result.count;
   }
 
