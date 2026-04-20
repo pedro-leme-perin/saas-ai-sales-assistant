@@ -45,10 +45,7 @@ describe('RetentionPoliciesService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     const module = await Test.createTestingModule({
-      providers: [
-        RetentionPoliciesService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [RetentionPoliciesService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
     service = module.get(RetentionPoliciesService);
   });
@@ -96,9 +93,7 @@ describe('RetentionPoliciesService', () => {
   describe('remove', () => {
     it('NotFound on tenant mismatch', async () => {
       mockPrisma.retentionPolicy.findFirst.mockResolvedValueOnce(null);
-      await expect(service.remove('c1', 'u1', 'p-missing')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('c1', 'u1', 'p-missing')).rejects.toThrow(NotFoundException);
     });
 
     it('deletes + audits DELETE', async () => {
@@ -131,8 +126,7 @@ describe('RetentionPoliciesService', () => {
       await service.processTick();
       // p1 should have got an update with lastError set
       const p1Update = mockPrisma.retentionPolicy.update.mock.calls.find(
-        (c: [{ where: { id: string }; data: { lastError?: string } }]) =>
-          c[0].where.id === 'p1',
+        (c: [{ where: { id: string }; data: { lastError?: string } }]) => c[0].where.id === 'p1',
       );
       expect(p1Update).toBeDefined();
       expect(p1Update?.[0].data.lastError).toBe('DB down');
@@ -142,10 +136,7 @@ describe('RetentionPoliciesService', () => {
   describe('purgeForPolicy', () => {
     it('CALLS: cutoff math + findMany/deleteMany + persists lastDeletedCount', async () => {
       const p = makePolicy('p1', RetentionResource.CALLS, 30);
-      mockPrisma.call.findMany.mockResolvedValueOnce([
-        { id: 'c-old-1' },
-        { id: 'c-old-2' },
-      ]);
+      mockPrisma.call.findMany.mockResolvedValueOnce([{ id: 'c-old-1' }, { id: 'c-old-2' }]);
       mockPrisma.call.deleteMany.mockResolvedValueOnce({ count: 2 });
       mockPrisma.retentionPolicy.update.mockResolvedValueOnce({});
       const deleted = await service.purgeForPolicy(p as never);
@@ -212,11 +203,7 @@ describe('RetentionPoliciesService', () => {
 
 // ---------- helpers ----------
 
-function makePolicy(
-  id: string,
-  resource: RetentionResource,
-  retentionDays = 30,
-) {
+function makePolicy(id: string, resource: RetentionResource, retentionDays = 30) {
   return {
     id,
     companyId: 'c1',

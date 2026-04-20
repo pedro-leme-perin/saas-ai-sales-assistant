@@ -75,9 +75,7 @@ export class ScheduledExportsService {
     try {
       validateCron(dto.cronExpression);
     } catch (err) {
-      throw new BadRequestException(
-        err instanceof Error ? err.message : 'Invalid cron expression',
-      );
+      throw new BadRequestException(err instanceof Error ? err.message : 'Invalid cron expression');
     }
     const now = new Date();
     const nextRunAt = computeNextRunAt(dto.cronExpression, now);
@@ -130,9 +128,7 @@ export class ScheduledExportsService {
         ...(dto.cronExpression !== undefined ? { cronExpression: dto.cronExpression } : {}),
         ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
         ...(dto.recipients !== undefined ? { recipients: dto.recipients } : {}),
-        ...(dto.filters !== undefined
-          ? { filters: dto.filters as Prisma.InputJsonValue }
-          : {}),
+        ...(dto.filters !== undefined ? { filters: dto.filters as Prisma.InputJsonValue } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         nextRunAt,
       },
@@ -244,11 +240,7 @@ export class ScheduledExportsService {
 
   // ===== ROW GENERATORS =================================================
 
-  async fetchRows(
-    exp: ScheduledExport,
-    from: Date,
-    to: Date,
-  ): Promise<Row[]> {
+  async fetchRows(exp: ScheduledExport, from: Date, to: Date): Promise<Row[]> {
     switch (exp.resource) {
       case ScheduledExportResource.ANALYTICS_OVERVIEW:
         return this.rowsAnalytics(exp.companyId, from, to);

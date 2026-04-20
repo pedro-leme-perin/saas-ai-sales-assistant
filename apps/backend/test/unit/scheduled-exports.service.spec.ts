@@ -25,10 +25,7 @@ import {
 import { ScheduledExportsService } from '../../src/modules/scheduled-exports/scheduled-exports.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { EmailService } from '../../src/modules/email/email.service';
-import {
-  validateCron,
-  computeNextRunAt,
-} from '../../src/modules/scheduled-exports/cron-schedule';
+import { validateCron, computeNextRunAt } from '../../src/modules/scheduled-exports/cron-schedule';
 
 jest.setTimeout(10_000);
 
@@ -209,18 +206,16 @@ describe('ScheduledExportsService', () => {
         companyId: 'c1',
         cronExpression: 'daily:09:00',
       });
-      await expect(
-        service.update('c1', 'u1', 'e1', { cronExpression: 'garbage' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.update('c1', 'u1', 'e1', { cronExpression: 'garbage' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('remove', () => {
     it('NotFound on tenant mismatch', async () => {
       mockPrisma.scheduledExport.findFirst.mockResolvedValueOnce(null);
-      await expect(service.remove('c1', 'u1', 'e-missing')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('c1', 'u1', 'e-missing')).rejects.toThrow(NotFoundException);
     });
 
     it('deletes + audits DELETE', async () => {
@@ -253,9 +248,7 @@ describe('ScheduledExportsService', () => {
       const before = Date.now();
       await service.runNow('c1', 'u1', 'e1');
       const updateArgs = mockPrisma.scheduledExport.update.mock.calls[0][0];
-      expect((updateArgs.data.nextRunAt as Date).getTime()).toBeGreaterThanOrEqual(
-        before,
-      );
+      expect((updateArgs.data.nextRunAt as Date).getTime()).toBeGreaterThanOrEqual(before);
     });
   });
 
@@ -287,10 +280,7 @@ describe('ScheduledExportsService', () => {
       const first = mockPrisma.scheduledExport.update.mock.calls[0][0];
       const second = mockPrisma.scheduledExport.update.mock.calls[1][0];
       const statuses = [first.data.lastRunStatus, second.data.lastRunStatus].sort();
-      expect(statuses).toEqual([
-        ScheduledExportRunStatus.FAILED,
-        ScheduledExportRunStatus.OK,
-      ]);
+      expect(statuses).toEqual([ScheduledExportRunStatus.FAILED, ScheduledExportRunStatus.OK]);
     });
 
     it('OK path: increments runCount + persists nextRunAt', async () => {
