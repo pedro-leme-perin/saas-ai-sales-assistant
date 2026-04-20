@@ -33,6 +33,8 @@ import { TagsModule } from './modules/tags/tags.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { NotificationPreferencesModule } from './modules/notification-preferences/notification-preferences.module';
 import { SavedFiltersModule } from './modules/saved-filters/saved-filters.module';
+import { BackgroundJobsModule } from './modules/background-jobs/background-jobs.module';
+import { SlaPoliciesModule } from './modules/sla-policies/sla-policies.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -87,6 +89,8 @@ import configuration from './config/configuration';
     ApiKeysModule,
     NotificationPreferencesModule,
     SavedFiltersModule,
+    BackgroundJobsModule,
+    SlaPoliciesModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

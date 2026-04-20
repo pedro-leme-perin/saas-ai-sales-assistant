@@ -6,6 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CoachingService } from '../../src/modules/coaching/coaching.service';
+import { BackgroundJobsService } from '../../src/modules/background-jobs/background-jobs.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { EmailService } from '../../src/modules/email/email.service';
 import { COACHING_BATCH_SIZE, previousWeekRange } from '../../src/modules/coaching/constants';
@@ -72,6 +73,10 @@ describe('CoachingService', () => {
           useValue: { get: jest.fn((k: string) => mockConfigValues[k]) },
         },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        {
+          provide: BackgroundJobsService,
+          useValue: { registerHandler: jest.fn() },
+        },
       ],
     }).compile();
 

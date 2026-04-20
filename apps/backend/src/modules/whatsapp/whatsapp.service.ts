@@ -391,13 +391,15 @@ export class WhatsappService {
       },
     });
 
-    // Update chat
+    // Update chat. Stamp firstAgentReplyAt once — SLA breach monitor uses this
+    // to short-circuit the response-deadline check (session 49).
     await this.prisma.whatsappChat.update({
       where: { id: chat.id },
       data: {
         lastMessageAt: new Date(),
         lastMessagePreview: data.content.substring(0, 100),
         unreadCount: 0,
+        ...(chat.firstAgentReplyAt ? {} : { firstAgentReplyAt: new Date() }),
       },
     });
 

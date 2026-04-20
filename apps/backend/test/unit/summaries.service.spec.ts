@@ -7,6 +7,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SummariesService } from '../../src/modules/summaries/summaries.service';
+import { BackgroundJobsService } from '../../src/modules/background-jobs/background-jobs.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
 
@@ -68,6 +69,10 @@ describe('SummariesService', () => {
           useValue: { get: jest.fn((k: string) => mockConfigValues[k]) },
         },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        {
+          provide: BackgroundJobsService,
+          useValue: { registerHandler: jest.fn() },
+        },
       ],
     }).compile();
 

@@ -7,11 +7,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@infrastructure/cache/cache.module';
+import { BackgroundJobsModule } from '@modules/background-jobs/background-jobs.module';
 import { SummariesService } from './summaries.service';
 import { SummariesController } from './summaries.controller';
 
 @Module({
-  imports: [ConfigModule, CacheModule],
+  imports: [ConfigModule, CacheModule, BackgroundJobsModule],
   controllers: [SummariesController],
   providers: [SummariesService],
   exports: [SummariesService],

@@ -75,6 +75,8 @@ model Company {
   conversationTags ConversationTag[]
   notificationPrefs NotificationPreference[]
   savedFilters     SavedFilter[]
+  backgroundJobs   BackgroundJob[]
+  slaPolicies      SlaPolicy[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -141,6 +143,7 @@ model User {
   apiKeysCreated          ApiKey[]          @relation("ApiKeyCreator")
   notificationPrefs       NotificationPreference[]
   savedFilters            SavedFilter[]     @relation("SavedFilterOwner")
+  backgroundJobsCreated   BackgroundJob[]   @relation("BackgroundJobCreator")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -245,7 +248,14 @@ model WhatsappChat {
   // Organization
   tags                String[]      @default([])
   metadata            Json?
-  
+
+  // SLA tracking (session 49)
+  firstAgentReplyAt   DateTime?     @map("first_agent_reply_at")
+  resolvedAt          DateTime?     @map("resolved_at")
+  slaResponseBreached Boolean       @default(false) @map("sla_response_breached")
+  slaResolutionBreached Boolean     @default(false) @map("sla_resolution_breached")
+  slaBreachedAt       DateTime?     @map("sla_breached_at")
+
   // Timestamps
   archivedAt          DateTime?     @map("archived_at")
   deletedAt           DateTime?     @map("deleted_at")
@@ -262,6 +272,7 @@ model WhatsappChat {
   @@index([userId])
   @@index([companyId, status])
   @@index([companyId, lastMessageAt(sort: Desc)])
+  @@index([companyId, status, priority])
   @@map("whatsapp_chats")
 }
 
@@ -750,6 +761,7 @@ enum NotificationType {
   SUBSCRIPTION_UPDATE
   BILLING_ALERT
   TEAM_UPDATE
+  SLA_ALERT
 }
 
 enum NotificationChannel {
@@ -922,6 +934,7 @@ enum WebhookEvent {
   CHAT_MESSAGE_RECEIVED
   SUMMARY_READY
   COACHING_REPORT_CREATED
+  SLA_BREACHED
 }
 
 enum WebhookDeliveryStatus {
@@ -1085,4 +1098,78 @@ model SavedFilter {
 enum FilterResource {
   CALL
   CHAT
+}
+
+// =============================================
+// ⚙️ BACKGROUND JOBS (session 49)
+// =============================================
+// DB-backed async job queue. Worker claims pending jobs with `runAt <= NOW()`,
+// processes with exponential backoff, fails to DEAD_LETTER after maxAttempts.
+
+model BackgroundJob {
+  id             String             @id @default(uuid())
+  companyId      String             @map("company_id")
+  createdById    String?            @map("created_by_id")
+  type           BackgroundJobType
+  status         BackgroundJobStatus @default(PENDING)
+  payload        Json               @default("{}")
+  result         Json?
+  progress       Int                @default(0) // 0..100
+  attempts       Int                @default(0)
+  maxAttempts    Int                @default(5) @map("max_attempts")
+  runAt          DateTime           @default(now()) @map("run_at")
+  startedAt      DateTime?          @map("started_at")
+  finishedAt     DateTime?          @map("finished_at")
+  lastError      String?            @map("last_error") @db.Text
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt
+
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy      User?              @relation("BackgroundJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([status, runAt])
+  @@index([companyId, type, createdAt])
+  @@map("background_jobs")
+}
+
+enum BackgroundJobType {
+  REGENERATE_CALL_SUMMARIES
+  RECOMPUTE_COACHING_REPORTS
+  BULK_DELETE_CALLS
+  BULK_TAG_CALLS
+  EXPORT_ANALYTICS
+}
+
+enum BackgroundJobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+  CANCELED
+}
+
+// =============================================
+// ⏱️ SLA POLICIES (session 49)
+// =============================================
+// Tenant-defined response/resolution time targets per ChatPriority.
+// Breach monitor cron flags OPEN chats past the target and emits notification + webhook.
+
+model SlaPolicy {
+  id               String        @id @default(uuid())
+  companyId        String        @map("company_id")
+  name             String
+  priority         ChatPriority
+  responseMins     Int           @map("response_mins") // time to first agent reply
+  resolutionMins   Int           @map("resolution_mins") // time to close
+  isActive         Boolean       @default(true) @map("is_active")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt
+
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, priority], name: "sla_company_priority_unique")
+  @@index([companyId, isActive])
+  @@map("sla_policies")
 }

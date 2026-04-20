@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 19/04/2026 (sessão 48)
+> Última atualização: 20/04/2026 (sessão 49)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 48 (19/04/2026) | Notification preferences (granular type×channel + quiet hours tz-aware + digest) + Saved filters/smart lists (Zod strict + shared) |
-| Backend (NestJS) | ✅ Produção | Railway — 24 módulos (+notification-preferences, +saved-filters), 56+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 25 routes (+notification-prefs) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 21 modelos (+NotificationPreference, +SavedFilter), 25 enums Prisma (+FilterResource) + pg_trgm |
+| Último commit | sessão 49 (20/04/2026) | Background jobs queue (DB-backed, retry/DLQ/cron worker, handler registry) + SLA policies (composite upsert + breach monitor cron + webhook + notifications) |
+| Backend (NestJS) | ✅ Produção | Railway — 26 módulos (+background-jobs, +sla-policies), 58+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 27 routes (+jobs, +sla) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 23 modelos (+BackgroundJob, +SlaPolicy), 27 enums Prisma (+BackgroundJobType, +BackgroundJobStatus) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -393,6 +393,70 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** composite unique para idempotência de upsert, audit non-blocking em todas mutações, Redis fail-open em queueDigest (hot path protegido), error isolation per-user em flushDigests cron, Zod `.strict()` rejeita unknown keys no filterJson (anti-abuse), OR clause aplicada no service (não no controller) preserva multi-tenancy, owner check explícito em update/remove impede tenant member A de editar filter de B, `Intl.DateTimeFormat` + fallback UTC em isInQuietHours resiliente a tz inválido.
 
+### 2.5.8 Sessão 49 — 20/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — plataforma/operações) — Background jobs queue (DB-backed, sem BullMQ, worker cron + retry/DLQ + handler registry) + SLA policies com monitor de violação por prioridade (notificação + webhook + reset idempotente).
+
+**Feature A1 — Background jobs queue (módulo novo `background-jobs`):**
+- Schema: modelo `BackgroundJob` (id, companyId, createdById?, type `BackgroundJobType`, status `BackgroundJobStatus`, payload Json default `{}`, result Json?, progress Int default 0, attempts Int default 0, maxAttempts Int default 5, runAt DateTime default now, startedAt?, finishedAt?, lastError Text?, timestamps). Índices `[companyId, status]`, `[status, runAt]`, `[companyId, type]`. Enums `BackgroundJobType` (5 valores: REGENERATE_CALL_SUMMARIES, RECOMPUTE_COACHING_REPORTS, BULK_DELETE_CALLS, BULK_TAG_CALLS, EXPORT_ANALYTICS) + `BackgroundJobStatus` (6 valores: PENDING, RUNNING, SUCCEEDED, FAILED, DEAD_LETTER, CANCELED). Migration `20260420010000_add_background_jobs_and_sla_policies`.
+- `BackgroundJobsService`:
+  - **Handler registry**: `private handlers = new Map<BackgroundJobType, JobHandler>()`. Método público `registerHandler(type, fn)` permite a outros módulos (`SummariesService`, `CoachingService`) registrarem handlers via `OnModuleInit` — mantém a fila desacoplada de domínios de negócio. `JobHandler` recebe `{job, ctx: {updateProgress}}`.
+  - `enqueue(companyId, createdById, dto)`: valida `companyId` não vazio (BadRequest), cria row PENDING com `maxAttempts` default 5, `payload` default `{}`. Audit não-bloqueante.
+  - `@Cron(CronExpression.EVERY_30_SECONDS, { name: 'background-jobs-worker' })` `processTick()`: findMany WHERE `status: PENDING`, `runAt <= now()`, bounded batch `BG_JOB_BATCH_SIZE=25`. Error isolation per-job (`for` loop com try/catch).
+  - `dispatch(job)`:
+    1. **Atomic claim** via `updateMany({where: {id, status: PENDING}, data: {status: RUNNING, startedAt, attempts: {increment: 1}}})` com `count === 1` check (silent retorn se outro worker pegou primeiro — zero double-execution).
+    2. Lookup `handlers.get(type)` — ausente → `markDeadLetter` imediato (missing handler é erro de configuração, não retentativa).
+    3. Executa handler com `ctx.updateProgress(n)` callback (clamp [0,100]) — handler pode reportar progresso intermediário.
+    4. **Sucesso** → `status: SUCCEEDED, progress: 100, finishedAt, result`.
+    5. **Falha com `attemptNo < maxAttempts`** → `status: FAILED, nextAttemptAt` via `RETRY_BACKOFF_SECS=[30,120,300,900,3600]` (fallback ao último valor se attempts > len).
+    6. **Falha com `attemptNo >= maxAttempts`** → `markDeadLetter` (`status: DEAD_LETTER, finishedAt, lastError`).
+  - `list(companyId, filters)`: cap `limit` a 200, filtros opcionais `status` + `type`.
+  - `findById(companyId, id)` — tenant NotFoundException.
+  - `retry(companyId, id)`: reseta `status: PENDING, attempts: 0, lastError: null, finishedAt: null, runAt: now()`. Não-permitido em `RUNNING` (BadRequest). Audit log.
+  - `cancel(companyId, id)`: aceita `PENDING` ou `RUNNING` (best-effort — handler verifica `CANCELED` via re-fetch), transição para `CANCELED` + `finishedAt`. Não-permitido em `SUCCEEDED`/`DEAD_LETTER` (BadRequest).
+  - `updateProgress(jobId, n)`: clamp [0,100] antes do update. Método interno, exposto ao handler via `ctx`.
+- **Handler registration pattern** (consumer modules implementam `OnModuleInit`):
+  - `SummariesService.onModuleInit()`: registra `REGENERATE_CALL_SUMMARIES`. Payload: `{callIds?: string[], sinceDays?: number}`. Se `callIds` ∈ tenant → findMany por ids. Senão findMany por `companyId` + `transcript: {not: null}` + optional `createdAt >= now - sinceDays*86_400_000`, `take: 500`. Loop: `autoSummarizeCall(call.id)` (catch errors individualmente), `ctx.updateProgress()` a cada 10 calls. Retorna `{processed, total}`.
+  - `CoachingService.onModuleInit()`: registra `RECOMPUTE_COACHING_REPORTS`. Payload: `{userIds?: string[]}`. Usa `previousWeekRange()` para week boundary. findMany users `companyId + isActive + deletedAt null`, optional filter por userIds. Loop: `generateForVendor(vendor, week)` error-isolated. Retorna `{processed, total}`.
+- Endpoints: `GET /background-jobs?status=&type=&limit=`, `GET /background-jobs/:id`, `POST /background-jobs` (OWNER/ADMIN), `POST /background-jobs/:id/retry` (OWNER/ADMIN), `POST /background-jobs/:id/cancel` (OWNER/ADMIN). Class-level `@UseGuards(TenantGuard, RolesGuard)`.
+- Frontend: `/dashboard/settings/jobs` com filtro status (tabs) + filtro type (select), grid de `<JobRow>` com status badge + icon dinâmico (Clock/Loader2/CheckCircle2/AlertTriangle/Ban) + progress bar + `attempts/maxAttempts` + `lastError` (font-mono). Actions `Retry` (FAILED/DEAD_LETTER) + `Cancel` (PENDING/RUNNING). `<EnqueueModal>` com select type + JSON payload textarea. Polling 5s via TanStack Query `refetchInterval`. `backgroundJobsService` em `/services` com `list/findById/enqueue/retry/cancel`.
+- i18n: ~25 chaves (`jobs.title/subtitle/empty/enqueue/type/payload/payloadHint/retry/cancel`, `jobs.status.*` 6 keys, `jobs.types.*` 5 keys, `jobs.toast.*` 7 keys) em pt-BR + en.
+
+**Feature A2 — SLA policies + breach monitor (módulo novo `sla-policies`):**
+- Schema: modelo `SlaPolicy` (id, companyId, name, priority `ChatPriority`, responseMins Int, resolutionMins Int, isActive Bool default true, timestamps). `@@unique([companyId, priority], name: "sla_company_priority_unique")` — uma política por tenant × priority (upsert idempotente). Índice `[companyId, isActive]`. Schema alter: `WhatsappChat` ganha 4 campos novos: `firstAgentReplyAt?`, `slaResponseBreached Bool default false`, `slaResolutionBreached Bool default false`, `slaBreachedAt?`.
+- DTO: `UpsertSlaPolicyDto` valida `name MaxLength 120`, `priority ∈ ChatPriority enum`, `responseMins ∈ [1, 10_080]` (7 dias), `resolutionMins ∈ [1, 43_200]` (30 dias), `isActive?`.
+- `SlaPoliciesService`:
+  - CRUD: `list` tenant-scoped, `findById` NotFound em cross-tenant, `upsert` via `where: { sla_company_priority_unique: { companyId, priority } }` — P2002 → BadRequestException (defensivo). `remove` + audit DELETE.
+  - `@Cron(CronExpression.EVERY_MINUTE, { name: 'sla-monitor-tick' })` `monitorTick()`:
+    1. Load active policies globalmente → `Map<"${companyId}:${priority}", SlaPolicy>` para lookup O(1) durante batch.
+    2. findMany chats `status IN [OPEN, PENDING, ACTIVE]`, `OR: [{slaResponseBreached: false}, {slaResolutionBreached: false}]` (skip already-fully-breached), `take: 200`, select inclui `userId` (para targeting de notificação).
+    3. Error isolation per-chat (try/catch), `evaluateChat(chat, policy)` computa deadlines.
+  - `evaluateChat(chat, policy)`: `responseDeadline = createdAt + responseMins*60_000`, `resolutionDeadline = createdAt + resolutionMins*60_000`.
+    - **Response breach**: `!chat.slaResponseBreached && !chat.firstAgentReplyAt && now >= responseDeadline` → sets `slaResponseBreached: true, slaBreachedAt: now` + `emitBreach('RESPONSE')`.
+    - **Resolution breach**: `!chat.slaResolutionBreached && !chat.closedAt && now >= resolutionDeadline` → sets `slaResolutionBreached: true, slaBreachedAt: now` + `emitBreach('RESOLUTION')`.
+    - Update chat via `prisma.whatsappChat.update` no fim se algum breach foi setado.
+  - `emitBreach(chat, kind, policy)`:
+    - **Notification targeting**: se `chat.userId` presente → notifica apenas o agente atribuído. Senão fan-out para primeiros 10 OWNER/ADMIN do tenant via `prisma.user.findMany({where: {companyId, role: {in: [OWNER, ADMIN]}}, take: 10})`. `notification.create` com `type: SYSTEM`, `data` (não `metadata` — campo JSON correto) inclui `chatId, priority, kind, breachedAt`.
+    - **Webhook emit**: `eventEmitter.emit(WEBHOOK_EVENT_NAME, {companyId, event: 'SLA_BREACHED', data: {chatId, priority, kind, breachedAt, policyId, policyName}})` — fire-and-forget via in-process bus; WebhooksService faz fan-out + assinatura HMAC.
+  - **Idempotency**: flags `slaResponseBreached`/`slaResolutionBreached` são one-shot bool — uma vez `true`, a chat não é mais selecionada pelo OR filter. Ciclos subsequentes do cron são no-op.
+  - `audit()` helper: `prisma.auditLog.create` com `newValues` (não `metadata` — schema correto), fire-and-forget.
+- **WhatsApp hook**: `WhatsappService.sendMessage` agora stampa `firstAgentReplyAt` no chat (condicional: only se `null`) após persistir mensagem outbound — via spread `...(chat.firstAgentReplyAt ? {} : { firstAgentReplyAt: new Date() })`.
+- Endpoints: `GET /sla-policies`, `GET /sla-policies/:id`, `PUT /sla-policies` (upsert, OWNER/ADMIN/MANAGER), `DELETE /sla-policies/:id` (OWNER/ADMIN). Class-level `@UseGuards(TenantGuard, RolesGuard)`.
+- Frontend: `/dashboard/settings/sla` com 4 cards (LOW/NORMAL/HIGH/URGENT) — colored dot + nome + input responseMins + input resolutionMins + toggle isActive. Defaults prefilled: LOW 240/2880, NORMAL 120/1440, HIGH 30/240, URGENT 5/60 mins. Botões Save (desabilitado quando !dirty) + Delete (apenas se `existing`). Dirty tracking via `RowState`. `slaPoliciesService` com `list/findById/upsert (PUT)/remove`. Componente reutilizável `<SlaRiskBadge chat>` (amber "near SLA" ≥70% elapsed, red "SLA breached" quando flag set) em `components/sla/` para wiring futuro em chat list.
+- i18n: ~20 chaves (`sla.title/subtitle/name/responseMins/resolutionMins/active/confirmDelete/hint`, `sla.priority.*` 4 keys, `sla.toast.*` 4 keys, `sla.risk.warn/breached`) + `common.all` em pt-BR + en.
+
+**Integração com features prévias:**
+- `SummariesModule` e `CoachingModule` importam `BackgroundJobsModule` para injetar `BackgroundJobsService` e registrar handlers via `OnModuleInit`. Evita circular dep porque `BackgroundJobsService` NÃO importa nada de domain — apenas Prisma.
+- `sla-policies` reusa `EventEmitter2` (registrado globalmente no S46) + `WEBHOOK_EVENT_NAME` const — adiciona `SLA_BREACHED` como quinto event. WebhookEvent enum expandido.
+- `WhatsappService` mantém backward-compat: `firstAgentReplyAt` só é setado se null (não sobrescreve primeira resposta histórica).
+
+**Testes:**
+- `background-jobs.service.spec.ts` (novo, ~14 cases): `enqueue` default maxAttempts=5, empty payload, explicit payload override, BadRequest em empty companyId. `list` clamps limit=200. `findById` NotFound cross-tenant. `cancel` refuses SUCCEEDED, transitions PENDING → CANCELED com finishedAt. `retry` refuses RUNNING, reseta attempts=0/status=PENDING/lastError=null/finishedAt=null. `updateProgress` clamp [0,100]. `processTick` dispatch: no-op em empty batch, DEAD_LETTER quando handler ausente, atomic claim lost silent no-op, SUCCEEDED com progress=100 + result, PENDING com ~30s backoff em failure<max, DEAD_LETTER em failure>=max.
+- `sla-policies.service.spec.ts` (novo, ~10 cases): `upsert` usa `sla_company_priority_unique` composite key + mapeia P2002 → BadRequest. `findById` NotFound tenant mismatch. `remove` audit trail. `monitorTick`: no-op quando no active policies. Response breach detected (chat 60min old, deadline 30min, no firstReply) + emite webhook + cria notification targetando `agent-1`. Chats sem policy matching são ignoradas. Fan-out para OWNER + ADMIN (2 notifications) quando no assigned agent.
+- `summaries.service.spec.ts`, `coaching.service.spec.ts`: DI mock `{provide: BackgroundJobsService, useValue: {registerHandler: jest.fn()}}` adicionado — compatibilidade com novos construtores + `OnModuleInit`.
+
+**Resilience:** atomic claim via `updateMany + count check` elimina double-execution em multi-worker, handler registry desacopla fila de domínios (zero circular deps), bounded batch 25/tick + 200 chats/tick (bulkhead), error isolation per-job e per-chat (uma falha não aborta lote), exponential backoff `[30s, 2m, 5m, 15m, 1h]`, DEAD_LETTER após maxAttempts (investigação manual), missing handler → DLQ imediato (fail fast config error), notificação fan-out limitada a 10 admins (rate limit de inbox), one-shot breach flags previnem duplicação de notif/webhook, fire-and-forget AuditLog/webhook/notification não bloqueia hot path.
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -416,6 +480,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 46 | 19/04 | Outbound webhooks (HMAC + retry + DLQ) + Saved reply templates (LLM suggest) | ⏳ |
 | 47 | 19/04 | Conversation tagging + cross-channel search (pg_trgm) + API keys mgmt (scopes + per-key rate limit) | ⏳ |
 | 48 | 19/04 | Notification preferences (granular type×channel, quiet hours tz-aware, digest cron) + Saved filters/smart lists (Zod strict, shared) | ⏳ |
+| 49 | 20/04 | Background jobs queue (DB-backed, retry/DLQ/handler registry) + SLA policies (composite upsert + breach monitor cron + webhook + notifications) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 

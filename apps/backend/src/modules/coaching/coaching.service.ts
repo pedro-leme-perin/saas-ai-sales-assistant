@@ -15,15 +15,16 @@
 //  - Skips under-active vendors (< COACHING_MIN_ACTIVITY_EVENTS).
 // =============================================
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron } from '@nestjs/schedule';
 import OpenAI from 'openai';
-import { AuditAction, Prisma, WebhookEvent } from '@prisma/client';
+import { AuditAction, BackgroundJobType, Prisma, WebhookEvent } from '@prisma/client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CircuitBreaker } from '@/common/resilience/circuit-breaker';
 import { EmailService } from '@modules/email/email.service';
+import { BackgroundJobsService } from '@modules/background-jobs/background-jobs.service';
 import {
   WEBHOOK_EVENT_NAME,
   type WebhookEmitPayload,
@@ -47,7 +48,7 @@ interface VendorCandidate {
 }
 
 @Injectable()
-export class CoachingService {
+export class CoachingService implements OnModuleInit {
   private readonly logger = new Logger(CoachingService.name);
   private readonly openai: OpenAI | null;
   private readonly model: string;
@@ -58,6 +59,7 @@ export class CoachingService {
     private readonly config: ConfigService,
     private readonly email: EmailService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly backgroundJobs: BackgroundJobsService,
   ) {
     const apiKey = this.config.get<string>('OPENAI_API_KEY');
     this.model = this.config.get<string>('OPENAI_MODEL') ?? 'gpt-4o-mini';
@@ -69,6 +71,57 @@ export class CoachingService {
       resetTimeoutMs: 60_000,
       callTimeoutMs: COACHING_LLM_TIMEOUT_MS,
     });
+  }
+
+  onModuleInit(): void {
+    // Session 49 — register background job handler for coaching recompute.
+    this.backgroundJobs.registerHandler(
+      BackgroundJobType.RECOMPUTE_COACHING_REPORTS,
+      async (job, ctx) => {
+        const payload = (job.payload ?? {}) as { userIds?: string[] };
+        const week = previousWeekRange();
+        const where: Prisma.UserWhereInput = {
+          companyId: job.companyId,
+          isActive: true,
+          deletedAt: null,
+        };
+        if (payload.userIds && payload.userIds.length > 0) {
+          where.id = { in: payload.userIds };
+        }
+        const users = await this.prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            companyId: true,
+            company: { select: { name: true } },
+          },
+          take: COACHING_BATCH_SIZE,
+        });
+        let processed = 0;
+        for (const u of users) {
+          const vendor: VendorCandidate = {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            companyId: u.companyId,
+            companyName: u.company.name,
+          };
+          try {
+            await this.generateForVendor(vendor, week);
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            this.logger.warn(`bulk recompute: user ${vendor.id} failed — ${msg}`);
+          }
+          processed += 1;
+          if (users.length > 0) {
+            await ctx.updateProgress(Math.floor((processed / users.length) * 100));
+          }
+        }
+        return { processed, total: users.length };
+      },
+    );
   }
 
   /**

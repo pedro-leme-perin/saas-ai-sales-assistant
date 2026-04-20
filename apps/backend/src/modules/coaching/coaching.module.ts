@@ -7,11 +7,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EmailModule } from '@modules/email/email.module';
+import { BackgroundJobsModule } from '@modules/background-jobs/background-jobs.module';
 import { CoachingService } from './coaching.service';
 import { CoachingController } from './coaching.controller';
 
 @Module({
-  imports: [ConfigModule, EmailModule],
+  imports: [ConfigModule, EmailModule, BackgroundJobsModule],
   controllers: [CoachingController],
   providers: [CoachingService],
   exports: [CoachingService],

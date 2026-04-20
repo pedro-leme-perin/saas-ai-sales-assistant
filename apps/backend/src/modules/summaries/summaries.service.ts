@@ -15,14 +15,21 @@
 //    summary so the UI never breaks.
 // =============================================
 
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import OpenAI from 'openai';
 import { createHash } from 'node:crypto';
-import { AuditAction, WebhookEvent } from '@prisma/client';
+import { AuditAction, BackgroundJobType, WebhookEvent } from '@prisma/client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
+import { BackgroundJobsService } from '@modules/background-jobs/background-jobs.service';
 import { CircuitBreaker } from '@/common/resilience/circuit-breaker';
 import {
   WEBHOOK_EVENT_NAME,
@@ -41,7 +48,7 @@ import {
 } from './constants';
 
 @Injectable()
-export class SummariesService {
+export class SummariesService implements OnModuleInit {
   private readonly logger = new Logger(SummariesService.name);
   private readonly openai: OpenAI | null;
   private readonly model: string;
@@ -52,6 +59,7 @@ export class SummariesService {
     private readonly cache: CacheService,
     private readonly config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly backgroundJobs: BackgroundJobsService,
   ) {
     const apiKey = this.config.get<string>('OPENAI_API_KEY');
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
@@ -63,6 +71,51 @@ export class SummariesService {
       failureWindowMs: 60_000,
       callTimeoutMs: SUMMARY_LLM_TIMEOUT_MS,
     });
+  }
+
+  onModuleInit(): void {
+    // Session 49 — register background job handler for bulk summary regeneration.
+    this.backgroundJobs.registerHandler(
+      BackgroundJobType.REGENERATE_CALL_SUMMARIES,
+      async (job, ctx) => {
+        const payload = (job.payload ?? {}) as {
+          callIds?: string[];
+          sinceDays?: number;
+        };
+        const where: { companyId: string; transcript: { not: null }; createdAt?: { gte: Date } } = {
+          companyId: job.companyId,
+          transcript: { not: null },
+        };
+        if (payload.sinceDays && payload.sinceDays > 0) {
+          where.createdAt = { gte: new Date(Date.now() - payload.sinceDays * 86_400_000) };
+        }
+        const calls =
+          payload.callIds && payload.callIds.length > 0
+            ? await this.prisma.call.findMany({
+                where: { id: { in: payload.callIds }, companyId: job.companyId },
+                select: { id: true },
+              })
+            : await this.prisma.call.findMany({
+                where,
+                select: { id: true },
+                take: 500,
+              });
+        let processed = 0;
+        for (const call of calls) {
+          try {
+            await this.autoSummarizeCall(call.id);
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            this.logger.warn(`bulk regenerate: call ${call.id} failed — ${msg}`);
+          }
+          processed += 1;
+          if (processed % 10 === 0) {
+            await ctx.updateProgress(Math.floor((processed / calls.length) * 100));
+          }
+        }
+        return { processed, total: calls.length };
+      },
+    );
   }
 
   // =============================================

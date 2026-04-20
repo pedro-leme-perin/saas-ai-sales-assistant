@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Carregando...",
+    "all": "Todos",
     "save": "Salvar",
     "saving": "Salvando...",
     "saveChanges": "Salvar Alterações",
@@ -1021,5 +1022,66 @@
     "removed": "Lista removida.",
     "pin": "Fixar",
     "unpin": "Desafixar"
+  },
+  "jobs": {
+    "title": "Jobs em segundo plano",
+    "subtitle": "Fila de tarefas longas (regenerar resumos, recomputar coaching, exportar analytics).",
+    "empty": "Nenhum job encontrado.",
+    "enqueue": "Enfileirar",
+    "type": "Tipo",
+    "payload": "Payload (JSON)",
+    "payloadHint": "Opcional. Ex.: { \"sinceDays\": 7 } ou { \"callIds\": [\"...\"] }.",
+    "retry": "Tentar de novo",
+    "cancel": "Cancelar",
+    "status": {
+      "PENDING": "Pendente",
+      "RUNNING": "Executando",
+      "SUCCEEDED": "Concluido",
+      "FAILED": "Falhou",
+      "DEAD_LETTER": "Esgotado",
+      "CANCELED": "Cancelado"
+    },
+    "types": {
+      "REGENERATE_CALL_SUMMARIES": "Regenerar resumos de ligacoes",
+      "RECOMPUTE_COACHING_REPORTS": "Recomputar relatorios de coaching",
+      "BULK_DELETE_CALLS": "Excluir ligacoes em massa",
+      "BULK_TAG_CALLS": "Tagear ligacoes em massa",
+      "EXPORT_ANALYTICS": "Exportar analytics"
+    },
+    "toast": {
+      "enqueueOk": "Job enfileirado.",
+      "enqueueErr": "Erro ao enfileirar.",
+      "retryOk": "Job reagendado.",
+      "retryErr": "Erro ao reagendar.",
+      "cancelOk": "Job cancelado.",
+      "cancelErr": "Erro ao cancelar.",
+      "payloadErr": "JSON do payload invalido."
+    }
+  },
+  "sla": {
+    "title": "Politicas de SLA",
+    "subtitle": "Limites de primeira resposta e resolucao por prioridade. Violacoes geram notificacao + webhook.",
+    "name": "Nome",
+    "responseMins": "Primeira resposta (min)",
+    "resolutionMins": "Resolucao (min)",
+    "active": "Ativa",
+    "confirmDelete": "Remover esta politica de SLA?",
+    "hint": "Ligacoes e conversas em priorities ativas sao monitoradas a cada minuto. Respostas externas e resolucao sao detectadas automaticamente.",
+    "priority": {
+      "LOW": "Baixa",
+      "NORMAL": "Normal",
+      "HIGH": "Alta",
+      "URGENT": "Urgente"
+    },
+    "toast": {
+      "saveOk": "SLA salvo.",
+      "saveErr": "Erro ao salvar SLA.",
+      "deleteOk": "SLA removido.",
+      "deleteErr": "Erro ao remover SLA."
+    },
+    "risk": {
+      "warn": "Perto do SLA",
+      "breached": "SLA violado"
+    }
   }
 }

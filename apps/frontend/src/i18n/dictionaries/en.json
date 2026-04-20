@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Loading...",
+    "all": "All",
     "save": "Save",
     "saving": "Saving...",
     "saveChanges": "Save Changes",
@@ -1021,5 +1022,66 @@
     "removed": "List removed.",
     "pin": "Pin",
     "unpin": "Unpin"
+  },
+  "jobs": {
+    "title": "Background jobs",
+    "subtitle": "Queue for long-running tasks (regenerate summaries, recompute coaching, export analytics).",
+    "empty": "No jobs found.",
+    "enqueue": "Enqueue",
+    "type": "Type",
+    "payload": "Payload (JSON)",
+    "payloadHint": "Optional. e.g. { \"sinceDays\": 7 } or { \"callIds\": [\"...\"] }.",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "status": {
+      "PENDING": "Pending",
+      "RUNNING": "Running",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed",
+      "DEAD_LETTER": "Dead letter",
+      "CANCELED": "Canceled"
+    },
+    "types": {
+      "REGENERATE_CALL_SUMMARIES": "Regenerate call summaries",
+      "RECOMPUTE_COACHING_REPORTS": "Recompute coaching reports",
+      "BULK_DELETE_CALLS": "Bulk delete calls",
+      "BULK_TAG_CALLS": "Bulk tag calls",
+      "EXPORT_ANALYTICS": "Export analytics"
+    },
+    "toast": {
+      "enqueueOk": "Job enqueued.",
+      "enqueueErr": "Failed to enqueue.",
+      "retryOk": "Job rescheduled.",
+      "retryErr": "Failed to retry.",
+      "cancelOk": "Job canceled.",
+      "cancelErr": "Failed to cancel.",
+      "payloadErr": "Invalid JSON payload."
+    }
+  },
+  "sla": {
+    "title": "SLA policies",
+    "subtitle": "First-response and resolution targets per priority. Breaches create notification + webhook.",
+    "name": "Name",
+    "responseMins": "First response (min)",
+    "resolutionMins": "Resolution (min)",
+    "active": "Active",
+    "confirmDelete": "Remove this SLA policy?",
+    "hint": "Calls and chats in active priorities are monitored every minute. Agent replies and resolution are detected automatically.",
+    "priority": {
+      "LOW": "Low",
+      "NORMAL": "Normal",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "toast": {
+      "saveOk": "SLA saved.",
+      "saveErr": "Failed to save SLA.",
+      "deleteOk": "SLA removed.",
+      "deleteErr": "Failed to remove SLA."
+    },
+    "risk": {
+      "warn": "Near SLA",
+      "breached": "SLA breached"
+    }
   }
 }

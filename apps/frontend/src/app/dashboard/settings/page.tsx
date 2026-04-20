@@ -17,6 +17,8 @@ import {
   Tags,
   Key,
   BellRing,
+  Cog,
+  Timer,
   ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -234,6 +236,32 @@ export default function SettingsPage() {
                 <p className="font-medium">{t("notificationPrefs.title")}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {t("notificationPrefs.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/settings/jobs"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Cog className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("jobs.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("jobs.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/settings/sla"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Timer className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("sla.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("sla.subtitle")}
                 </p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
