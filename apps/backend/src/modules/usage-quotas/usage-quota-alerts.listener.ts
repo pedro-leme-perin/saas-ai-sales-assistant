@@ -8,12 +8,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import {
-  NotificationChannel,
-  NotificationType,
-  Prisma,
-  UsageMetric,
-} from '@prisma/client';
+import { NotificationChannel, NotificationType, Prisma, UsageMetric } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
