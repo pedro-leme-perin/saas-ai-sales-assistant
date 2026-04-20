@@ -9,7 +9,7 @@ import { formatRelative } from '@/lib/utils';
 import {
   LayoutDashboard, Phone, MessageSquare, BarChart3,
   Users, CreditCard, Settings, Menu, X, Sparkles, Trophy,
-  Bell, ChevronLeft, Moon, Sun, Check,
+  Bell, ChevronLeft, Moon, Sun, Check, Contact as ContactIcon, Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/index';
@@ -24,6 +24,8 @@ const navigationKeys = [
   { key: 'nav.analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { key: 'nav.coaching', href: '/dashboard/coaching', icon: Sparkles },
   { key: 'nav.goals', href: '/dashboard/goals', icon: Trophy },
+  { key: 'nav.contacts', href: '/dashboard/contacts', icon: ContactIcon },
+  { key: 'nav.csat', href: '/dashboard/csat', icon: Star },
   { key: 'nav.team', href: '/dashboard/team', icon: Users },
   { key: 'nav.billing', href: '/dashboard/billing', icon: CreditCard },
   { key: 'nav.settings', href: '/dashboard/settings', icon: Settings },

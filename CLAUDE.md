@@ -1,5 +1,5 @@
 # SaaS AI Sales Assistant — Project Instructions
-**Versão:** 5.2
+**Versão:** 5.3
 **Atualização:** Abril 2026
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
 **Histórico detalhado de sessões:** ver `PROJECT_HISTORY.md`
@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 20/04/2026 (sessão 49)
+> Última atualização: 20/04/2026 (sessão 50)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 49 (20/04/2026) | Background jobs queue (DB-backed, retry/DLQ/cron worker, handler registry) + SLA policies (composite upsert + breach monitor cron + webhook + notifications) |
-| Backend (NestJS) | ✅ Produção | Railway — 26 módulos (+background-jobs, +sla-policies), 58+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 27 routes (+jobs, +sla) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 23 modelos (+BackgroundJob, +SlaPolicy), 27 enums Prisma (+BackgroundJobType, +BackgroundJobStatus) + pg_trgm |
+| Último commit | sessão 50 (20/04/2026) | Contacts/Customer 360 (dedupe natural key + timeline merge-sort + notes + merge transaction) + CSAT surveys (trigger-driven cron dispatch + public token survey + NPS-like analytics) |
+| Backend (NestJS) | ✅ Produção | Railway — 28 módulos (+contacts, +csat), 60+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 30 routes (+contacts list/detail, +csat dashboard, +public /csat/[token]) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 25 modelos (+Contact, +ContactNote, +CsatSurveyConfig, +CsatResponse), 30 enums Prisma (+CsatTrigger, +CsatChannel, +CsatResponseStatus) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -457,6 +457,80 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** atomic claim via `updateMany + count check` elimina double-execution em multi-worker, handler registry desacopla fila de domínios (zero circular deps), bounded batch 25/tick + 200 chats/tick (bulkhead), error isolation per-job e per-chat (uma falha não aborta lote), exponential backoff `[30s, 2m, 5m, 15m, 1h]`, DEAD_LETTER após maxAttempts (investigação manual), missing handler → DLQ imediato (fail fast config error), notificação fan-out limitada a 10 admins (rate limit de inbox), one-shot breach flags previnem duplicação de notif/webhook, fire-and-forget AuditLog/webhook/notification não bloqueia hot path.
 
+### 2.5.9 Sessão 50 — 20/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — product/CX) — Contacts/Customer 360 (dedupe + timeline merge-sort + notes + merge) + CSAT surveys (trigger-driven cron dispatch + public token survey + analytics NPS-like).
+
+**Feature A1 — Contacts/Customer 360 (módulo novo `contacts`):**
+- Schema: 2 modelos novos. Migration `20260420020000_add_contacts_and_csat`.
+  - `Contact` (id, companyId, phone, name?, email?, timezone?, tags String[], totalCalls Int default 0, totalChats Int default 0, lastInteractionAt?, metadata Json, createdAt, updatedAt). `@@unique([companyId, phone], name: "contact_phone_unique")` — dedupe natural key. Índices `[companyId, createdAt]`, `[companyId, name]`, `[companyId, lastInteractionAt]`.
+  - `ContactNote` (id, contactId, authorId?, content Text, createdAt). Índice `[contactId, createdAt]`. CASCADE em Contact, SET NULL em User.
+- `ContactsService`:
+  - `list(companyId, query)`: cursor pagination (`take+1`), ILIKE OR branch em `name/email/phone` quando `q.length >= 2`. Default limit 20, cap 100.
+  - `findById(companyId, id)` — tenant NotFoundException.
+  - `update(companyId, actorId, id, dto)` — merge partial (`dto.X !== undefined`), audit oldValues/newValues.
+  - `merge(companyId, actorId, {primaryId, secondaryId})`: BadRequest se `primaryId === secondaryId`. `$transaction`:
+    1. `contactNote.updateMany({where: {contactId: secondaryId}, data: {contactId: primaryId}})` — reassign notes.
+    2. `csatResponse.updateMany({where: {contactId: secondaryId}, data: {contactId: primaryId}})` — reassign CSAT responses.
+    3. `contact.update(primary, {totalCalls: sum, totalChats: sum, tags: dedupe, email/name/timezone: coalesce, lastInteractionAt: max})` — merge counters + fields.
+    4. `contact.delete(secondary)` — hard delete.
+    5. Audit UPDATE resource `CONTACT` com `mergedFrom: secondaryId`.
+  - `addNote/listNotes/removeNote` — verifica ownership do contato + audit fire-and-forget.
+  - `timeline(companyId, id)`: `Promise.all` de 3 queries (calls por `contactId` OR `fromNumber == contact.phone`, whatsappChats por `contactId` OR `customerPhone == contact.phone`, notes). Merge-sort DESC por `at` (createdAt), cap 200. Kind: `'call' | 'chat' | 'note'`.
+  - `upsertFromTouch({companyId, channel, callId?, chatId?, phone, name?})`: normalizePhone + Redis SETNX `contact:touch:{callId|chatId}` (TTL 24h) para dedupe de first-touch. Hit → upsert sem increment. Miss → upsert com `totalCalls` ou `totalChats` increment + `cache.set`.
+  - `normalizePhone(raw)`: strip `whatsapp:` prefix, `00` → `+`, reject se `< 6 digits` → retorna null.
+  - `@OnEvent('contacts.touch')` `handleTouch(payload)` — try/catch para nunca quebrar hot path.
+- **Event producers**: `CallsService` emite `contacts.touch` após persistir call (companyId, channel: 'CALL', callId, phone, name). `WhatsappService` emite após persistir message inbound (companyId, channel: 'CHAT', chatId, phone, name). Zero circular deps (event bus in-process).
+- Endpoints: `GET/POST /contacts`, `GET/PATCH /contacts/:id`, `POST /contacts/merge` (OWNER/ADMIN/MANAGER), `GET /contacts/:id/timeline`, `GET/POST /contacts/:id/notes`, `DELETE /contacts/:id/notes/:noteId`. TenantGuard + RolesGuard.
+- Frontend: `/dashboard/contacts` (list com search debounced + table) + `/dashboard/contacts/[id]` (detail com edit mode + tags chip editor + timeline icons + notes panel + merge modal). `contactsService` com list/findById/update/merge/timeline/listNotes/addNote/removeNote. Sidebar nav `nav.contacts` com `Contact` icon.
+- i18n: ~40 chaves (`contacts.*`, `nav.contacts`) em pt-BR + en.
+
+**Feature A2 — CSAT surveys (módulo novo `csat`):**
+- Schema: 2 modelos novos + 3 enums. Migration junto com Contacts.
+  - `CsatSurveyConfig` (id, companyId, trigger `CsatTrigger`, channel `CsatChannel`, delayMinutes Int default 30, messageTpl Text, isActive Bool default true, timestamps). `@@unique([companyId, trigger], name: "csat_config_unique")`. Índice `[companyId, isActive]`.
+  - `CsatResponse` (id, companyId, contactId?, callId?, chatId?, token String unique, trigger, channel, status `CsatResponseStatus`, score Int? (1-5), comment Text?, sentAt?, respondedAt?, expiresAt?, lastError Text?, scheduledAt). Índices `[companyId, status]`, `[companyId, respondedAt]`, `[token]`, `[status, scheduledAt]`.
+  - Enums: `CsatTrigger` (CALL_END, CHAT_CLOSE) + `CsatChannel` (WHATSAPP, EMAIL) + `CsatResponseStatus` (SCHEDULED, SENT, RESPONDED, EXPIRED, FAILED).
+- `CsatService`:
+  - `listConfigs/upsertConfig/removeConfig` — CRUD composite upsert. P2002 → BadRequest.
+  - `@OnEvent('csat.schedule')` `handleScheduleEvent({companyId, trigger, contactId?, callId?, chatId?, channel?})`:
+    1. Load active config por `(companyId, trigger)` — no config → no-op.
+    2. Idempotency check: `csatResponse.findFirst({where: {companyId, callId|chatId, status: {in: [SCHEDULED, SENT, RESPONDED]}}})` → skip se já existe.
+    3. Gera token via `randomBytes(24).toString('base64url')` (`tok_{...}`, ≥16 chars).
+    4. `csatResponse.create` com `status: SCHEDULED`, `scheduledAt: now + delayMinutes*60_000`, `expiresAt: scheduledAt + 7d`.
+    5. Try/catch fire-and-forget — hot path protegido.
+  - `@Cron(CronExpression.EVERY_MINUTE, { name: 'csat-dispatch' })` `dispatchTick()`:
+    1. Expire sweep: `updateMany({where: {status: SCHEDULED, expiresAt: {lt: now}}, data: {status: EXPIRED}})` — single pass.
+    2. `findMany({where: {status: SCHEDULED, scheduledAt: {lte: now}}, take: 100})`.
+    3. Error isolation per-row (try/catch). Dispatch por channel:
+       - `WHATSAPP`: `whatsappService.sendMessage({...})` com `${messageTpl}\n${appUrl}/csat/${token}`.
+       - `EMAIL`: `emailService.sendCsatEmail({recipientEmail, companyName, surveyUrl, messageTpl})` — template HTML com star CTAs.
+    4. Sucesso → `status: SENT, sentAt: now`. Falha → `status: FAILED, lastError`.
+  - `lookupPublicByToken(token)`: reject se `token.length < 16`. Find `csatResponse` com `companyId include: {company: {select: {name}}}`. Lazy expire: se `expiresAt < now && status = SCHEDULED` → update to EXPIRED. Retorna `{status, companyName, score?, comment?, respondedAt?}`. Null se not found.
+  - `submitPublic(token, {score, comment?})`: BadRequest se `status IN [RESPONDED, EXPIRED]`. `updateMany({where: {token, status: {in: [SCHEDULED, SENT]}}, data: {status: RESPONDED, respondedAt, score, comment}})`. Retorna `{success: true}`.
+  - `analytics(companyId, {days?})`: agrega `respondedAt >= start`. Count por status, avg score, distribution `{1..5}`, NPS-like `{promoters: score==5, passives: score==4, detractors: score<=3}`, response rate = `responded / sent`.
+  - `listResponses(companyId, {status?, cursor?, limit?})`: cursor pagination, cap 100.
+- Endpoints: `GET/PUT /csat/configs`, `DELETE /csat/configs/:id` (OWNER/ADMIN/MANAGER), `GET /csat/analytics`, `GET /csat/responses`, `GET /csat/public/:token` (@Public), `POST /csat/public/:token/submit` (@Public).
+- **Event producers**: `CallsService.handleStatusWebhook` emite `csat.schedule` quando `status = COMPLETED` (contactId se disponível + callId). `WhatsappService.closeChat` emite quando chat transiciona para CLOSED (chatId + customerPhone → contactId lookup).
+- Frontend:
+  - `/dashboard/csat` com 3 tabs: dashboard (KPI cards: totalSent/responseRate/avgScore/NPS + distribution bar chart 1-5 stars), config (2 `ConfigCard` por trigger: CALL_END/CHAT_CLOSE com delayMinutes input + channel select + messageTpl textarea + isActive toggle), responses (filter por status + cursor table).
+  - `/csat/[token]` (public, no-auth) — 5-star picker com hover preview, textarea comment (maxLength 1000), states: loading/error/RESPONDED|submitted (thanks)/EXPIRED/active.
+  - `csatService` com analytics/listConfigs/upsertConfig/removeConfig/listResponses/publicLookup (fetch direto)/publicSubmit (fetch direto). Sidebar nav `nav.csat` com `Star` icon.
+  - `middleware.ts`: `/csat/(.*)` adicionado a `createRouteMatcher` public routes.
+- i18n: ~70 chaves (`csat.*`, `nav.csat`, `csat.public.*`) em pt-BR + en.
+
+**Integração com features prévias:**
+- `ContactsModule` e `CsatModule` importam apenas Prisma + Cache + infraestrutura básica. São **event consumers only** via `@OnEvent` — `EventEmitter2` global (registrado S46) evita circular deps.
+- `CallsService` ganha 2 emissions: `contacts.touch` após persistir call, `csat.schedule` em webhook `status=COMPLETED`. `WhatsappService`: `contacts.touch` em message inbound, `csat.schedule` em `closeChat`.
+- `SavedFilter.resource` enum (S48) não afetado — contacts têm sua própria busca server-side.
+- `WebhookEvent` enum não afetado — contacts/csat não emitem outbound webhooks (feature futura).
+
+**Testes:**
+- `contacts.service.spec.ts` (novo, ~13 cases): list tenant scoping + cursor pagination + ILIKE OR branch (q≥2 chars), findById NotFound tenant mismatch, update merge partial + audit oldValues/newValues, merge rejects same-id + reassigns notes/csat + sums counters + dedupe tags + deletes secondary, addNote ownership + audit, removeNote NotFound tenant mismatch, timeline merge-sort DESC cross kinds + cap 200, upsertFromTouch first-touch increment via Redis SETNX + skip on dedupe + null on invalid phone + whatsapp: prefix strip + `00` → `+` coercion, handleTouch swallows errors (protege event pipeline).
+- `csat.service.spec.ts` (novo, ~15 cases): upsertConfig composite key `csat_config_unique` + P2002 → BadRequest, removeConfig NotFound + audit DELETE, schedule via @OnEvent (no-op sem config, idempotent skip quando existe SCHEDULED/SENT/RESPONDED, creates SCHEDULED com token length ≥16 + expiresAt `+7d`, swallows errors), dispatchTick (empty no-op, WhatsApp SENT transition com link `${appUrl}/csat/tok_...`, error path → FAILED + lastError, expire sweep SCHEDULED → EXPIRED), lookupPublicByToken (short token rejected, lazy-expire past deadline, returns company name), submitPublic (rejects RESPONDED + EXPIRED, persists RESPONDED com score+comment+respondedAt), analytics (response rate = responded/sent + NPS buckets promoters=5, passives=4, detractors=1-3), listResponses cursor pagination + status filter.
+- `calls.service.spec.ts`, `whatsapp.service.spec.ts`: EventEmitter2 mock mantido — compatibilidade com novas emissions.
+
+**Resilience:** composite unique previne duplicate config per trigger, idempotency check em `handleScheduleEvent` evita spam (um survey por call/chat), Redis SETNX com TTL 24h dedupe first-touch counter increment, `@OnEvent` com try/catch protege hot path (produtores nunca quebram por falha no consumer), bounded batch 100/tick + per-row error isolation, single-pass expire sweep reduz lock contention, lazy-expire em lookup (defensivo contra cron atrasado), token `randomBytes(24).toString('base64url')` = 192 bits de entropia, public endpoints isolated via `@Public` + Clerk middleware allowlist + raw fetch frontend (bypass auth interceptor), audit fire-and-forget em todas mutações, hard delete em merge (no soft delete — intencional para compliance LGPD), state machine `SCHEDULED → SENT → RESPONDED` (terminal) / `EXPIRED / FAILED` previne transições inválidas.
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -481,6 +555,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 47 | 19/04 | Conversation tagging + cross-channel search (pg_trgm) + API keys mgmt (scopes + per-key rate limit) | ⏳ |
 | 48 | 19/04 | Notification preferences (granular type×channel, quiet hours tz-aware, digest cron) + Saved filters/smart lists (Zod strict, shared) | ⏳ |
 | 49 | 20/04 | Background jobs queue (DB-backed, retry/DLQ/handler registry) + SLA policies (composite upsert + breach monitor cron + webhook + notifications) | ⏳ |
+| 50 | 20/04 | Contacts/Customer 360 (dedupe + timeline + merge + notes) + CSAT surveys (trigger-driven cron dispatch + public token + NPS analytics) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -595,6 +670,8 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── calls/          # Twilio calls, Deepgram STT, recordings
 │   │       │   ├── coaching/       # Weekly AI coaching reports cron + email
 │   │       │   ├── companies/      # Tenant CRUD, settings, plan limits
+│   │       │   ├── contacts/       # Customer 360 (dedupe natural key + timeline merge-sort + notes + merge tx)
+│   │       │   ├── csat/           # CSAT surveys (trigger-driven cron + public token + NPS analytics)
 │   │       │   ├── email/          # Resend integration, templates
 │   │       │   ├── goals/          # TeamGoals CRUD + leaderboard (weekly/monthly)
 │   │       │   ├── lgpd-deletion/  # Scheduled hard-delete cron (30d grace), AuditLog preservation
@@ -660,7 +737,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (21)
+### 6.1 Modelos (28)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -686,10 +763,16 @@ Infrastructure (Prisma, API Clients, Redis)
 | **ChatTag** | Join many-to-many entre WhatsappChat e ConversationTag. Composite PK [chatId, tagId], CASCADE em ambos | → WhatsappChat, ConversationTag |
 | **NotificationPreference** | Preferência granular por (userId, type, channel). Unique `user_type_channel_unique`. quietHoursStart/End HH:MM, timezone IANA, digestMode. Default opt-out | → User, Company |
 | **SavedFilter** | Smart list salva. userId nullable = shared/team-wide. resource enum (CALL/CHAT), filterJson Json validado via Zod `.strict()`, isPinned | → Company, User? |
+| **BackgroundJob** | Fila de jobs DB-backed. type, status (PENDING→RUNNING→SUCCEEDED/FAILED/DEAD_LETTER/CANCELED), payload Json, attempts/maxAttempts, runAt, progress, result Json, lastError | → Company, User? (createdBy) |
+| **SlaPolicy** | Política de SLA por tenant×priority. responseMins, resolutionMins, isActive. Unique `sla_company_priority_unique` (upsert idempotente) | → Company |
+| **Contact** | Customer 360. phone unique por tenant (`contact_phone_unique`), name/email/timezone, tags[], totalCalls/totalChats/lastInteractionAt. Dedupe via SETNX. | → Company, Notes, CsatResponses |
+| **ContactNote** | Anotação livre sobre contato. authorId SET NULL em user delete, CASCADE em contact delete | → Contact, User? |
+| **CsatSurveyConfig** | Config de trigger CSAT. `csat_config_unique` (companyId, trigger=CALL_END\|CHAT_CLOSE). channel WHATSAPP/EMAIL, delayMinutes, messageTpl, isActive | → Company |
+| **CsatResponse** | Survey scheduled/sent/responded. token unique (base64url ≥16 chars), status state-machine, score 1-5, comment, expiresAt default +7d. Public lookup bypass auth | → Company, Contact?, Call?, Chat? |
 
-### 6.2 Enums (25)
+### 6.2 Enums (30)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (4) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (5) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5)
 
 ### 6.3 Regras de Schema
 
@@ -1002,5 +1085,5 @@ Documentação da API em `/api/docs` (64+ endpoints, 11 tags)
 
 ---
 
-*Versão: 5.2 — Abril 2026*
+*Versão: 5.3 — Abril 2026*
 *Histórico completo de sessões: ver `PROJECT_HISTORY.md`*

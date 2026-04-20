@@ -38,6 +38,8 @@
     "analytics": "Analytics",
     "coaching": "Coaching IA",
     "goals": "Metas",
+    "contacts": "Contatos",
+    "csat": "CSAT",
     "team": "Equipe",
     "billing": "Faturamento",
     "settings": "Configurações"
@@ -1082,6 +1084,144 @@
     "risk": {
       "warn": "Perto do SLA",
       "breached": "SLA violado"
+    }
+  },
+  "contacts": {
+    "title": "Contatos",
+    "subtitle": "Base unica de clientes com historico cross-channel.",
+    "empty": "Nenhum contato encontrado.",
+    "searchPlaceholder": "Buscar por nome, email ou telefone",
+    "columns": {
+      "name": "Nome",
+      "phone": "Telefone",
+      "email": "Email",
+      "lastInteraction": "Ultima interacao",
+      "calls": "Ligacoes",
+      "chats": "Conversas",
+      "tags": "Tags"
+    },
+    "detail": {
+      "back": "Voltar",
+      "edit": "Editar",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "firstSeen": "Primeiro contato",
+      "lastInteraction": "Ultima interacao",
+      "timezone": "Fuso horario",
+      "tags": "Tags",
+      "tagsPlaceholder": "Adicionar tag e Enter",
+      "metadata": "Metadados",
+      "merge": "Mesclar contato"
+    },
+    "timeline": {
+      "title": "Linha do tempo",
+      "empty": "Sem interacoes ainda.",
+      "call": "Ligacao",
+      "chat": "Conversa",
+      "note": "Nota"
+    },
+    "notes": {
+      "title": "Notas internas",
+      "empty": "Nenhuma nota.",
+      "add": "Adicionar nota",
+      "placeholder": "Escreva uma nota interna",
+      "remove": "Remover"
+    },
+    "merge": {
+      "title": "Mesclar contatos",
+      "hint": "Informe o ID do contato secundario a ser absorvido por este.",
+      "secondaryId": "ID do contato secundario",
+      "confirm": "Mesclar",
+      "cancel": "Cancelar"
+    },
+    "toast": {
+      "saveOk": "Contato atualizado.",
+      "saveErr": "Erro ao salvar contato.",
+      "noteOk": "Nota adicionada.",
+      "noteErr": "Erro ao adicionar nota.",
+      "noteRemoveOk": "Nota removida.",
+      "mergeOk": "Contatos mesclados.",
+      "mergeErr": "Erro ao mesclar contatos."
+    }
+  },
+  "csat": {
+    "title": "CSAT",
+    "subtitle": "Pesquisa de satisfacao pos-atendimento via WhatsApp ou email.",
+    "tabs": {
+      "dashboard": "Dashboard",
+      "config": "Configuracao",
+      "responses": "Respostas"
+    },
+    "metrics": {
+      "total": "Enviadas",
+      "responded": "Respondidas",
+      "responseRate": "Taxa de resposta",
+      "avgScore": "Nota media",
+      "promoters": "Promotores",
+      "passives": "Neutros",
+      "detractors": "Detratores",
+      "distribution": "Distribuicao"
+    },
+    "config": {
+      "title": "Politicas de envio",
+      "hint": "Uma politica por gatilho. O disparo real ocorre via cron (delay respeitado). Canal WhatsApp requer numero verificado.",
+      "add": "Adicionar politica",
+      "delayMinutes": "Atraso (min)",
+      "messageTpl": "Mensagem",
+      "messageTplHint": "Use {{name}} e {{link}} como variaveis.",
+      "save": "Salvar",
+      "saveErr": "Erro ao salvar politica.",
+      "removeErr": "Erro ao remover politica.",
+      "confirmDelete": "Remover esta politica?",
+      "active": "Ativa"
+    },
+    "trigger": {
+      "CALL_END": "Fim de ligacao",
+      "CHAT_CLOSE": "Fechamento de chat"
+    },
+    "channel": {
+      "WHATSAPP": "WhatsApp",
+      "EMAIL": "Email"
+    },
+    "status": {
+      "SCHEDULED": "Agendada",
+      "SENT": "Enviada",
+      "RESPONDED": "Respondida",
+      "EXPIRED": "Expirada",
+      "FAILED": "Falhou"
+    },
+    "responses": {
+      "empty": "Nenhuma resposta.",
+      "filterStatus": "Filtrar por status",
+      "all": "Todos",
+      "loadMore": "Carregar mais",
+      "columns": {
+        "status": "Status",
+        "trigger": "Gatilho",
+        "channel": "Canal",
+        "score": "Nota",
+        "comment": "Comentario",
+        "scheduledFor": "Agendada",
+        "respondedAt": "Respondida em"
+      }
+    },
+    "toast": {
+      "saveOk": "Politica salva.",
+      "deleteOk": "Politica removida."
+    },
+    "public": {
+      "title": "Como foi seu atendimento?",
+      "subtitle": "Sua avaliacao nos ajuda a melhorar.",
+      "scoreLabel": "Escolha de 1 a 5 estrelas",
+      "commentLabel": "Comentario (opcional)",
+      "commentPlaceholder": "Conte como foi sua experiencia",
+      "submit": "Enviar avaliacao",
+      "thanksTitle": "Obrigado!",
+      "thanksSubtitle": "Sua resposta foi registrada.",
+      "alreadyResponded": "Esta pesquisa ja foi respondida.",
+      "expired": "Esta pesquisa expirou.",
+      "invalid": "Link invalido ou nao encontrado.",
+      "submitErr": "Erro ao enviar avaliacao."
     }
   }
 }

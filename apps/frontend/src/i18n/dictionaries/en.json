@@ -38,6 +38,8 @@
     "analytics": "Analytics",
     "coaching": "AI Coaching",
     "goals": "Goals",
+    "contacts": "Contacts",
+    "csat": "CSAT",
     "team": "Team",
     "billing": "Billing",
     "settings": "Settings"
@@ -1082,6 +1084,144 @@
     "risk": {
       "warn": "Near SLA",
       "breached": "SLA breached"
+    }
+  },
+  "contacts": {
+    "title": "Contacts",
+    "subtitle": "Unified customer base with cross-channel history.",
+    "empty": "No contacts found.",
+    "searchPlaceholder": "Search by name, email or phone",
+    "columns": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "lastInteraction": "Last interaction",
+      "calls": "Calls",
+      "chats": "Chats",
+      "tags": "Tags"
+    },
+    "detail": {
+      "back": "Back",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "firstSeen": "First contact",
+      "lastInteraction": "Last interaction",
+      "timezone": "Timezone",
+      "tags": "Tags",
+      "tagsPlaceholder": "Add tag and press Enter",
+      "metadata": "Metadata",
+      "merge": "Merge contact"
+    },
+    "timeline": {
+      "title": "Timeline",
+      "empty": "No interactions yet.",
+      "call": "Call",
+      "chat": "Chat",
+      "note": "Note"
+    },
+    "notes": {
+      "title": "Internal notes",
+      "empty": "No notes.",
+      "add": "Add note",
+      "placeholder": "Write an internal note",
+      "remove": "Remove"
+    },
+    "merge": {
+      "title": "Merge contacts",
+      "hint": "Enter the secondary contact ID to be absorbed by this one.",
+      "secondaryId": "Secondary contact ID",
+      "confirm": "Merge",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "saveOk": "Contact updated.",
+      "saveErr": "Failed to save contact.",
+      "noteOk": "Note added.",
+      "noteErr": "Failed to add note.",
+      "noteRemoveOk": "Note removed.",
+      "mergeOk": "Contacts merged.",
+      "mergeErr": "Failed to merge contacts."
+    }
+  },
+  "csat": {
+    "title": "CSAT",
+    "subtitle": "Post-interaction satisfaction survey via WhatsApp or email.",
+    "tabs": {
+      "dashboard": "Dashboard",
+      "config": "Configuration",
+      "responses": "Responses"
+    },
+    "metrics": {
+      "total": "Sent",
+      "responded": "Responded",
+      "responseRate": "Response rate",
+      "avgScore": "Avg score",
+      "promoters": "Promoters",
+      "passives": "Passives",
+      "detractors": "Detractors",
+      "distribution": "Distribution"
+    },
+    "config": {
+      "title": "Dispatch policies",
+      "hint": "One policy per trigger. Actual send occurs via cron (delay honored). WhatsApp channel requires verified number.",
+      "add": "Add policy",
+      "delayMinutes": "Delay (min)",
+      "messageTpl": "Message",
+      "messageTplHint": "Use {{name}} and {{link}} as variables.",
+      "save": "Save",
+      "saveErr": "Failed to save policy.",
+      "removeErr": "Failed to remove policy.",
+      "confirmDelete": "Remove this policy?",
+      "active": "Active"
+    },
+    "trigger": {
+      "CALL_END": "Call end",
+      "CHAT_CLOSE": "Chat closed"
+    },
+    "channel": {
+      "WHATSAPP": "WhatsApp",
+      "EMAIL": "Email"
+    },
+    "status": {
+      "SCHEDULED": "Scheduled",
+      "SENT": "Sent",
+      "RESPONDED": "Responded",
+      "EXPIRED": "Expired",
+      "FAILED": "Failed"
+    },
+    "responses": {
+      "empty": "No responses.",
+      "filterStatus": "Filter by status",
+      "all": "All",
+      "loadMore": "Load more",
+      "columns": {
+        "status": "Status",
+        "trigger": "Trigger",
+        "channel": "Channel",
+        "score": "Score",
+        "comment": "Comment",
+        "scheduledFor": "Scheduled",
+        "respondedAt": "Responded at"
+      }
+    },
+    "toast": {
+      "saveOk": "Policy saved.",
+      "deleteOk": "Policy removed."
+    },
+    "public": {
+      "title": "How was your experience?",
+      "subtitle": "Your feedback helps us improve.",
+      "scoreLabel": "Pick 1 to 5 stars",
+      "commentLabel": "Comment (optional)",
+      "commentPlaceholder": "Tell us how it went",
+      "submit": "Submit rating",
+      "thanksTitle": "Thank you!",
+      "thanksSubtitle": "Your response has been recorded.",
+      "alreadyResponded": "This survey has already been answered.",
+      "expired": "This survey has expired.",
+      "invalid": "Invalid or not found link.",
+      "submitErr": "Failed to submit rating."
     }
   }
 }

@@ -757,4 +757,56 @@ export class EmailService {
   </table>
 </body></html>`.trim();
   }
+
+  // =====================================================
+  // 📬 CSAT INVITE (session 50)
+  // =====================================================
+  async sendCsatInvite(params: {
+    recipientEmail: string;
+    recipientName: string | null;
+    message: string;
+    link: string;
+  }): Promise<void> {
+    const { recipientEmail, recipientName, message, link } = params;
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping csat invite');
+      return;
+    }
+    const html = this.buildCsatInviteHtml(recipientName, message, link);
+    try {
+      await this.send({
+        to: recipientEmail,
+        subject: 'Como foi seu atendimento?',
+        html,
+      });
+      this.logger.log(`CSAT invite sent to=${recipientEmail}`);
+    } catch (err) {
+      this.logger.error(`CSAT invite failed: ${String(err)}`);
+      throw err;
+    }
+  }
+
+  private buildCsatInviteHtml(name: string | null, message: string, link: string): string {
+    const greeting = name ? `Olá, ${this.escapeHtml(name)}` : 'Olá';
+    return `<!DOCTYPE html>
+<html><body style="margin:0; background-color:#f4f4f5; font-family:Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff; border-radius:12px;">
+        <tr><td style="background:linear-gradient(135deg,#10B981,#059669); padding:32px; border-radius:12px 12px 0 0;">
+          <h1 style="margin:0; color:#fff; font-size:24px;">Sua opinião importa</h1>
+          <p style="margin:4px 0 0; color:rgba(255,255,255,0.9);">${greeting}</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="font-size:16px; color:#18181b;">${this.escapeHtml(message)}</p>
+          <p style="margin:32px 0;">
+            <a href="${link}" style="background:#10B981; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:600; display:inline-block;">Avaliar atendimento</a>
+          </p>
+          <p style="font-size:12px; color:#a1a1aa;">Leva menos de 1 minuto. Link expira em 72h.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`.trim();
+  }
 }

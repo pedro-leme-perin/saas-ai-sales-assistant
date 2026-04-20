@@ -77,6 +77,9 @@ model Company {
   savedFilters     SavedFilter[]
   backgroundJobs   BackgroundJob[]
   slaPolicies      SlaPolicy[]
+  contacts         Contact[]
+  csatConfigs      CsatSurveyConfig[]
+  csatResponses    CsatResponse[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -144,6 +147,7 @@ model User {
   notificationPrefs       NotificationPreference[]
   savedFilters            SavedFilter[]     @relation("SavedFilterOwner")
   backgroundJobsCreated   BackgroundJob[]   @relation("BackgroundJobCreator")
+  contactNotes            ContactNote[]     @relation("ContactNoteAuthor")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -1172,4 +1176,122 @@ model SlaPolicy {
   @@unique([companyId, priority], name: "sla_company_priority_unique")
   @@index([companyId, isActive])
   @@map("sla_policies")
+}
+
+// =============================================
+// 👥 CONTACTS / CUSTOMER 360 (session 50)
+// =============================================
+// Unified customer record keyed by E.164 phone per tenant.
+// Auto-upserted on inbound call/whatsapp via events. Powers timeline + notes.
+
+model Contact {
+  id                  String        @id @default(uuid())
+  companyId           String        @map("company_id")
+  phone               String        // E.164 normalized
+  name                String?
+  email               String?
+  timezone            String?
+  metadata            Json          @default("{}")
+  tags                String[]      @default([])
+  firstSeenAt         DateTime      @default(now()) @map("first_seen_at")
+  lastInteractionAt   DateTime?     @map("last_interaction_at")
+  totalCalls          Int           @default(0) @map("total_calls")
+  totalChats          Int           @default(0) @map("total_chats")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  notes               ContactNote[]
+  csatResponses       CsatResponse[]
+
+  @@unique([companyId, phone], name: "contact_phone_unique")
+  @@index([companyId, lastInteractionAt])
+  @@index([companyId, name])
+  @@map("contacts")
+}
+
+model ContactNote {
+  id          String    @id @default(uuid())
+  contactId   String    @map("contact_id")
+  authorId    String    @map("author_id")
+  content     String    @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author      User      @relation("ContactNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([contactId, createdAt])
+  @@map("contact_notes")
+}
+
+// =============================================
+// 🌟 CSAT SURVEYS (session 50)
+// =============================================
+// Per-tenant config triggers post-close surveys via WhatsApp/email with a
+// signed token. Public submit endpoint captures score + optional comment.
+
+model CsatSurveyConfig {
+  id            String          @id @default(uuid())
+  companyId     String          @map("company_id")
+  trigger       CsatTrigger
+  delayMinutes  Int             @default(5) @map("delay_minutes")
+  channel       CsatChannel     @default(WHATSAPP)
+  messageTpl    String          @db.Text @map("message_tpl")
+  isActive      Boolean         @default(true) @map("is_active")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, trigger], name: "csat_config_unique")
+  @@index([companyId, isActive])
+  @@map("csat_survey_configs")
+}
+
+model CsatResponse {
+  id            String              @id @default(uuid())
+  companyId     String              @map("company_id")
+  contactId     String?             @map("contact_id")
+  callId        String?             @map("call_id")
+  chatId        String?             @map("chat_id")
+  trigger       CsatTrigger
+  channel       CsatChannel
+  token         String              @unique
+  score         Int?                // 1..5, null until responded
+  comment       String?             @db.Text
+  status        CsatResponseStatus  @default(SCHEDULED)
+  scheduledFor  DateTime            @map("scheduled_for")
+  sentAt        DateTime?           @map("sent_at")
+  respondedAt   DateTime?           @map("responded_at")
+  expiresAt     DateTime            @map("expires_at")
+  lastError     String?             @db.Text @map("last_error")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact       Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, scheduledFor])
+  @@index([companyId, respondedAt])
+  @@index([status, scheduledFor])
+  @@map("csat_responses")
+}
+
+enum CsatTrigger {
+  CALL_END
+  CHAT_CLOSE
+}
+
+enum CsatChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum CsatResponseStatus {
+  SCHEDULED
+  SENT
+  RESPONDED
+  EXPIRED
+  FAILED
 }

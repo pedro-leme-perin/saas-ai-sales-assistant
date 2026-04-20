@@ -23,6 +23,8 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import {
+  ChatStatus,
+  CsatTrigger,
   MessageType,
   MessageDirection,
   MessageStatus,
@@ -36,6 +38,14 @@ import {
   WEBHOOK_EVENT_NAME,
   type WebhookEmitPayload,
 } from '@modules/webhooks/events/webhook-events';
+import {
+  CONTACT_TOUCH_EVENT,
+  type ContactTouchPayload,
+} from '@modules/contacts/events/contacts-events';
+import {
+  CSAT_SCHEDULE_EVENT,
+  type CsatScheduleEventPayload,
+} from '@modules/csat/events/csat-events';
 
 // =====================================================
 // TWILIO WEBHOOK PAYLOAD TYPES
@@ -217,6 +227,21 @@ export class WhatsappService {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.warn(`Non-blocking: whatsapp webhook emit failed: ${msg}`);
+      }
+
+      // Session 50 — Customer 360 auto-upsert on every inbound message.
+      try {
+        const touch: ContactTouchPayload = {
+          companyId: company.id,
+          phone: customerPhone,
+          name: customerName,
+          channel: 'CHAT',
+          chatId: chat.id,
+        };
+        this.eventEmitter.emit(CONTACT_TOUCH_EVENT, touch);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Non-blocking: contact touch emit failed: ${msg}`);
       }
     } catch (error) {
       this.logger.error('Error processing Twilio webhook', error);
@@ -543,6 +568,33 @@ export class WhatsappService {
       where: { id: chatId },
       data: { unreadCount: 0 },
     });
+  }
+
+  /**
+   * Session 50 — Resolve a chat (move status to RESOLVED) and request CSAT.
+   * Idempotent: if already RESOLVED, we still emit so a retry after a
+   * transient failure can re-schedule the survey (CsatService dedupes via
+   * (companyId, trigger, chatId) uniqueness).
+   */
+  async resolveChat(chatId: string, companyId: string) {
+    const chat = await this.findChat(chatId, companyId);
+    const updated = await this.prisma.whatsappChat.update({
+      where: { id: chat.id },
+      data: { status: ChatStatus.RESOLVED, resolvedAt: new Date() },
+    });
+
+    try {
+      this.eventEmitter.emit(CSAT_SCHEDULE_EVENT, {
+        companyId,
+        trigger: CsatTrigger.CHAT_CLOSE,
+        chatId: updated.id,
+        contactId: null,
+      } satisfies CsatScheduleEventPayload);
+    } catch {
+      /* non-blocking */
+    }
+
+    return updated;
   }
 
   // =====================================================

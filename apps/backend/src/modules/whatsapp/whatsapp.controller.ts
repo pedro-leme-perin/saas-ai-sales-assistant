@@ -163,4 +163,16 @@ export class WhatsappController {
   async markAsRead(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
     return this.whatsappService.markAsRead(chatId, companyId);
   }
+
+  @Patch('chats/:companyId/:chatId/resolve')
+  @UseGuards(TenantGuard)
+  @ApiOperation({
+    summary: 'Resolve chat (Session 50)',
+    description:
+      'Transitions chat to RESOLVED, stamps resolvedAt and requests CSAT survey scheduling via in-process event.',
+  })
+  @ApiResponse({ status: 200, description: 'Chat resolved successfully' })
+  async resolveChat(@Param('companyId') companyId: string, @Param('chatId') chatId: string) {
+    return this.whatsappService.resolveChat(chatId, companyId);
+  }
 }

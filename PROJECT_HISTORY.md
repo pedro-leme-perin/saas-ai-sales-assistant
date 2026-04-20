@@ -1344,5 +1344,139 @@ Duas features enterprise em profundidade (opção A — plataforma): **Conversat
 
 ---
 
-*Documento atualizado em 19/04/2026*
+## Sessão 49 — 20/04/2026
+
+**Tema:** Background jobs queue (DB-backed) + SLA policies com breach monitor.
+
+### Feature A1 — Background jobs queue (módulo `background-jobs`)
+
+**Schema:** `BackgroundJob` (type, status, payload, result, progress, attempts, maxAttempts, runAt, startedAt, finishedAt, lastError). Enums `BackgroundJobType` (5) e `BackgroundJobStatus` (6). Índices `[companyId, status]`, `[status, runAt]`.
+
+**Service:**
+- Handler registry `Map<type, fn>` — outros módulos registram via `OnModuleInit` (zero circular deps).
+- `@Cron(EVERY_30_SECONDS)` worker com bounded batch 25/tick.
+- Atomic claim via `updateMany({where: {id, status: PENDING}}) + count === 1` — zero double-execution em multi-worker.
+- Missing handler → DLQ imediato (fail fast config error).
+- Exponential backoff `[30s, 2m, 5m, 15m, 1h]` até `maxAttempts` → DEAD_LETTER.
+- `retry`/`cancel` endpoints, error isolation per-job.
+
+**Consumers:** `SummariesService` (REGENERATE_CALL_SUMMARIES) e `CoachingService` (RECOMPUTE_COACHING_REPORTS) registram handlers.
+
+**Frontend:** `/dashboard/settings/jobs` com filtros status+type, progress bar, retry/cancel, polling 5s.
+
+### Feature A2 — SLA policies + breach monitor (módulo `sla-policies`)
+
+**Schema:** `SlaPolicy` (priority, responseMins, resolutionMins, isActive). Unique `[companyId, priority]`. Chat ganha `firstAgentReplyAt`, `slaResponseBreached`, `slaResolutionBreached`, `slaBreachedAt`.
+
+**Service:**
+- CRUD via upsert composite.
+- `@Cron(EVERY_MINUTE)` monitor: load active policies globalmente, scan chats `OPEN|PENDING|ACTIVE` com bounded take 200.
+- Detecta breach de response (sem firstAgentReplyAt) e resolution (sem closedAt).
+- Emite `SLA_BREACHED` webhook + notifica agente atribuído (ou fan-out OWNER/ADMIN se unassigned).
+- One-shot breach flags previnem duplicação.
+
+**Hook:** `WhatsappService.sendMessage` stampa `firstAgentReplyAt` no chat (só se null).
+
+**Frontend:** `/dashboard/settings/sla` com 4 cards por priority + `<SlaRiskBadge>` reutilizável (amber ≥70% / red breached).
+
+### Testes
+
+- `background-jobs.service.spec.ts` (~14 cases)
+- `sla-policies.service.spec.ts` (~10 cases)
+- `summaries.service.spec.ts` / `coaching.service.spec.ts` — DI mock `registerHandler: jest.fn()`.
+
+### Resilience notes
+
+- Atomic claim elimina double-execution.
+- Handler registry desacopla fila de domínios.
+- Bounded batches + error isolation per-row.
+- Missing handler = fail fast DLQ.
+- One-shot breach flags = sem spam.
+- Fire-and-forget audit/webhook/notification.
+
+---
+
+## Sessão 50 — 20/04/2026
+
+**Tema:** Contacts/Customer 360 (dedupe + timeline + notes + merge) + CSAT surveys (trigger-driven + public token + NPS analytics).
+
+### Feature A1 — Contacts/Customer 360 (módulo `contacts`)
+
+**Schema:** `Contact` (phone unique por tenant via `contact_phone_unique`, tags[], totalCalls/totalChats, lastInteractionAt, metadata Json). `ContactNote` (authorId SET NULL, CASCADE em contact). Índices `[companyId, createdAt]`, `[companyId, name]`, `[companyId, lastInteractionAt]`.
+
+**Service:**
+- `list` — cursor pagination, ILIKE OR branch (name/email/phone) quando `q.length >= 2`.
+- `update` — merge partial + audit oldValues/newValues.
+- `merge(primaryId, secondaryId)` em `$transaction`:
+  1. `contactNote.updateMany` reassign notes.
+  2. `csatResponse.updateMany` reassign CSAT responses.
+  3. `contact.update` primary (sum counters, dedupe tags, coalesce fields, max lastInteractionAt).
+  4. `contact.delete` secondary.
+  5. Audit UPDATE com `mergedFrom`.
+- `timeline` — `Promise.all` calls + chats + notes → merge-sort DESC cap 200.
+- `upsertFromTouch` — Redis SETNX `contact:touch:{sourceId}` (TTL 24h) dedupe first-touch increment.
+- `normalizePhone` — strip `whatsapp:` prefix, `00` → `+`, reject `<6 digits`.
+- `@OnEvent('contacts.touch')` — protegido com try/catch (nunca quebra hot path).
+
+**Event producers:** `CallsService` emite após persistir call; `WhatsappService` emite em message inbound. Zero circular deps.
+
+**Endpoints:** `GET/POST /contacts`, `GET/PATCH /contacts/:id`, `POST /contacts/merge` (OWNER/ADMIN/MANAGER), `GET /contacts/:id/timeline`, notes CRUD.
+
+**Frontend:** `/dashboard/contacts` (search debounced + table) + `/dashboard/contacts/[id]` (edit mode com tags chip editor + timeline + notes + merge modal).
+
+### Feature A2 — CSAT surveys (módulo `csat`)
+
+**Schema:** `CsatSurveyConfig` (trigger, channel, delayMinutes, messageTpl, isActive). Unique `csat_config_unique` [companyId, trigger]. `CsatResponse` (token unique base64url ≥16 chars, status state-machine, score 1-5, scheduledAt, expiresAt default +7d). Enums `CsatTrigger` (2), `CsatChannel` (2), `CsatResponseStatus` (5).
+
+**Service:**
+- `upsertConfig/removeConfig` — composite upsert idempotente.
+- `@OnEvent('csat.schedule')` `handleScheduleEvent`:
+  1. Load active config.
+  2. Idempotency check — skip se já existe SCHEDULED/SENT/RESPONDED.
+  3. Gera token `randomBytes(24).toString('base64url')` (192 bits).
+  4. Cria SCHEDULED com `scheduledAt=now+delayMinutes*60000`, `expiresAt=scheduledAt+7d`.
+  5. Try/catch fire-and-forget.
+- `@Cron(EVERY_MINUTE)` `dispatchTick`:
+  1. Single-pass expire sweep (SCHEDULED + expired → EXPIRED).
+  2. findMany SCHEDULED + due, bounded 100.
+  3. Dispatch por channel (WhatsApp via `${appUrl}/csat/${token}` ou Email template).
+  4. Success → SENT; error → FAILED + lastError.
+- `lookupPublicByToken` — reject `<16`, lazy-expire SCHEDULED vencido, returns company name.
+- `submitPublic` — reject RESPONDED/EXPIRED, persist RESPONDED + score + comment + respondedAt.
+- `analytics` — response rate (responded/sent), avg score, distribution, NPS-like (promoters=5, passives=4, detractors 1-3).
+- `listResponses` — cursor + status filter.
+
+**Event producers:** `CallsService.handleStatusWebhook` em `status=COMPLETED`; `WhatsappService.closeChat` em CLOSED.
+
+**Endpoints:** `GET/PUT /csat/configs`, `DELETE /csat/configs/:id`, `GET /csat/analytics`, `GET /csat/responses`, `GET /csat/public/:token` (@Public), `POST /csat/public/:token/submit` (@Public).
+
+**Frontend:**
+- `/dashboard/csat` com 3 tabs (dashboard KPIs/distribution, config 2 cards por trigger, responses filter+table).
+- `/csat/[token]` public (no-auth) — 5-star picker hover + comment maxLength 1000 + states loading/error/thanks/expired.
+- `middleware.ts` — `/csat/(.*)` public route.
+- `csatService` — public endpoints via raw `fetch` (bypass auth interceptor).
+
+### Testes
+
+- `contacts.service.spec.ts` (~13 cases) — list/findById/update/merge/notes/timeline/upsertFromTouch/phone normalization/handleTouch error swallow.
+- `csat.service.spec.ts` (~15 cases) — config upsert/remove, schedule via @OnEvent (no-op/idempotent/token length/error swallow), dispatchTick (empty/WhatsApp SENT/error → FAILED/expire sweep), lookupPublicByToken (short token/lazy-expire/company name), submitPublic (reject terminal states/persist RESPONDED), analytics (NPS buckets), listResponses cursor.
+
+### Resilience notes
+
+- **Composite unique (`csat_config_unique`)** previne duplicate config per trigger.
+- **Idempotency check em `handleScheduleEvent`** — um survey por call/chat (sem spam).
+- **Redis SETNX TTL 24h** dedupe first-touch increment.
+- **`@OnEvent` com try/catch** — produtores nunca quebram por falha no consumer.
+- **Bounded batch 100/tick + per-row error isolation** no dispatch cron.
+- **Single-pass expire sweep** reduz lock contention.
+- **Lazy-expire em lookup** — defensivo contra cron atrasado.
+- **192 bits de entropia** no token (`randomBytes(24).toString('base64url')`).
+- **Public endpoints isolados** via `@Public` + Clerk middleware allowlist + raw `fetch` frontend.
+- **Hard delete em merge** — intencional para compliance LGPD (no soft delete).
+- **State machine `SCHEDULED → SENT → RESPONDED` (terminal) / `EXPIRED / FAILED`** previne transições inválidas.
+- **Event bus in-process (`EventEmitter2`)** elimina circular deps entre `calls/whatsapp` produtores e `contacts/csat` consumidores.
+
+---
+
+*Documento atualizado em 20/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

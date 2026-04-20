@@ -35,6 +35,8 @@ import { NotificationPreferencesModule } from './modules/notification-preference
 import { SavedFiltersModule } from './modules/saved-filters/saved-filters.module';
 import { BackgroundJobsModule } from './modules/background-jobs/background-jobs.module';
 import { SlaPoliciesModule } from './modules/sla-policies/sla-policies.module';
+import { ContactsModule } from './modules/contacts/contacts.module';
+import { CsatModule } from './modules/csat/csat.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -91,6 +93,8 @@ import configuration from './config/configuration';
     SavedFiltersModule,
     BackgroundJobsModule,
     SlaPoliciesModule,
+    ContactsModule,
+    CsatModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

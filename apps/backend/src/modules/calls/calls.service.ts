@@ -11,9 +11,17 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { SummariesService } from '../summaries/summaries.service';
 import { Twilio } from 'twilio';
-import { CallDirection, CallStatus, SuggestionType, WebhookEvent } from '@prisma/client';
+import { CallDirection, CallStatus, CsatTrigger, SuggestionType, WebhookEvent } from '@prisma/client';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { WEBHOOK_EVENT_NAME, type WebhookEmitPayload } from '../webhooks/events/webhook-events';
+import {
+  CONTACT_TOUCH_EVENT,
+  type ContactTouchPayload,
+} from '../contacts/events/contacts-events';
+import {
+  CSAT_SCHEDULE_EVENT,
+  type CsatScheduleEventPayload,
+} from '../csat/events/csat-events';
 
 @Injectable()
 export class CallsService {
@@ -81,7 +89,7 @@ export class CallsService {
     userId: string,
     data: { phoneNumber: string; direction?: string },
   ) {
-    return this.prisma.call.create({
+    const call = await this.prisma.call.create({
       data: {
         phoneNumber: data.phoneNumber,
         direction: (data.direction || 'OUTBOUND') as CallDirection,
@@ -91,6 +99,8 @@ export class CallsService {
         user: { connect: { id: userId } },
       },
     });
+    this.emitContactTouch(companyId, data.phoneNumber, call.id);
+    return call;
   }
 
   async update(id: string, companyId: string, data: Record<string, unknown>) {
@@ -277,7 +287,7 @@ export class CallsService {
     if (!user) throw new NotFoundException('No user found for company');
 
     // Upsert: atomic create-or-return — eliminates TOCTOU race condition
-    return this.prisma.call.upsert({
+    const call = await this.prisma.call.upsert({
       where: { twilioCallSid: callSid },
       update: {}, // Already exists — return as-is
       create: {
@@ -290,6 +300,8 @@ export class CallsService {
         twilioCallSid: callSid,
       },
     });
+    this.emitContactTouch(company.id, fromNumber, call.id);
+    return call;
   }
 
   async handleStatusWebhookBySid(
@@ -350,9 +362,33 @@ export class CallsService {
         duration: updated.duration,
         hasTranscript: !!updated.transcript,
       });
+
+      // Session 50 — Request CSAT survey scheduling (event-based; CsatService
+      // is the sole writer, avoiding circular imports).
+      this.emitCsatSchedule(updated.companyId, CsatTrigger.CALL_END, {
+        callId: updated.id,
+      });
     }
 
     return updated;
+  }
+
+  private emitCsatSchedule(
+    companyId: string,
+    trigger: CsatTrigger,
+    ids: { callId?: string; chatId?: string; contactId?: string | null },
+  ): void {
+    try {
+      this.eventEmitter.emit(CSAT_SCHEDULE_EVENT, {
+        companyId,
+        trigger,
+        callId: ids.callId,
+        chatId: ids.chatId,
+        contactId: ids.contactId ?? null,
+      } satisfies CsatScheduleEventPayload);
+    } catch {
+      /* non-blocking */
+    }
   }
 
   private emitWebhook(companyId: string, event: WebhookEvent, data: Record<string, unknown>): void {
@@ -364,6 +400,26 @@ export class CallsService {
       } satisfies WebhookEmitPayload);
     } catch {
       /* EventEmitter ignoreErrors=true, safe */
+    }
+  }
+
+  /** Session 50 — notify the contacts module so Customer 360 stays fresh. */
+  private emitContactTouch(
+    companyId: string,
+    phone: string,
+    callId: string,
+    name?: string | null,
+  ): void {
+    try {
+      this.eventEmitter.emit(CONTACT_TOUCH_EVENT, {
+        companyId,
+        phone,
+        name: name ?? null,
+        channel: 'CALL',
+        callId,
+      } satisfies ContactTouchPayload);
+    } catch {
+      /* non-blocking */
     }
   }
 
