@@ -443,7 +443,7 @@ export class ScheduledExportsService {
     for (const r of rows) {
       lines.push(headers.map((h) => this.escapeCsv(r[h])).join(','));
     }
-    return lines.join('\n');
+    return lines.join('\r\n');
   }
 
   toJson(rows: Row[]): string {

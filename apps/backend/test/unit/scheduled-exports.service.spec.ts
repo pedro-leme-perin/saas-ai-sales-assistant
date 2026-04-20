@@ -309,7 +309,7 @@ describe('ScheduledExportsService', () => {
         { a: 1, b: 'hello, "world"', c: 'line1\nline2' },
         { a: 2, b: 'plain', c: '' },
       ]);
-      const lines = out.split('\n');
+      const lines = out.split('\r\n');
       expect(lines[0]).toBe('a,b,c');
       expect(lines[1]).toBe('1,"hello, ""world""","line1\nline2"');
       expect(lines[2]).toBe('2,plain,');
