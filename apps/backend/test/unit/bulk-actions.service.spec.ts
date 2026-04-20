@@ -117,9 +117,9 @@ describe('BulkActionsService', () => {
 
   describe('enqueueDeleteCalls', () => {
     it('rejects empty callIds', async () => {
-      await expect(
-        service.enqueueDeleteCalls('c1', 'u1', { callIds: [] }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.enqueueDeleteCalls('c1', 'u1', { callIds: [] })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('enqueues BULK_DELETE_CALLS with companyId', async () => {

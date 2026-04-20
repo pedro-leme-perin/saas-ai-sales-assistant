@@ -20,7 +20,11 @@ export class ApiRequestLogsInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== 'http') return next.handle();
-    const req = context.switchToHttp().getRequest<Request & { companyId?: string; apiKey?: { id: string }; user?: { id?: string } }>();
+    const req = context
+      .switchToHttp()
+      .getRequest<
+        Request & { companyId?: string; apiKey?: { id: string }; user?: { id?: string } }
+      >();
     const res = context.switchToHttp().getResponse<Response>();
     const path = (req.route?.path as string) || req.path || req.url || '';
     if (SKIP_PATH_PREFIXES.some((p) => path.startsWith(p))) {
@@ -41,7 +45,10 @@ export class ApiRequestLogsInterceptor implements NestInterceptor {
         statusCode,
         latencyMs: Date.now() - started,
         requestId: (req.headers['x-request-id'] as string | undefined) ?? null,
-        ipAddress: ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? req.ip) || null,
+        ipAddress:
+          ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
+            req.ip) ||
+          null,
         userAgent: (req.headers['user-agent'] as string | undefined) ?? null,
         createdAt: new Date(),
       });

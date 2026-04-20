@@ -265,12 +265,8 @@ describe('ApiRequestLogsService', () => {
       expect(m.p95LatencyMs).toBe(1005);
 
       // topPaths: /api/a has 60+10=70, /api/b has 30
-      expect(m.topPaths[0]).toEqual(
-        expect.objectContaining({ path: '/api/a', count: 70 }),
-      );
-      expect(m.topPaths[1]).toEqual(
-        expect.objectContaining({ path: '/api/b', count: 30 }),
-      );
+      expect(m.topPaths[0]).toEqual(expect.objectContaining({ path: '/api/a', count: 70 }));
+      expect(m.topPaths[1]).toEqual(expect.objectContaining({ path: '/api/b', count: 30 }));
 
       // statusDistribution sorted by bucket: 2xx=90, 5xx=10
       expect(m.statusDistribution).toEqual(

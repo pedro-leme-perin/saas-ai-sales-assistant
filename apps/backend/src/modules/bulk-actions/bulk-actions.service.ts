@@ -135,9 +135,7 @@ export class BulkActionsService implements OnModuleInit {
     for (let i = 0; i < ownedCalls.length; i += CHUNK_SIZE) {
       const slice = ownedCalls.slice(i, i + CHUNK_SIZE);
       try {
-        const rows = slice.flatMap((c) =>
-          ownedTags.map((t) => ({ callId: c.id, tagId: t.id })),
-        );
+        const rows = slice.flatMap((c) => ownedTags.map((t) => ({ callId: c.id, tagId: t.id })));
         const r = await this.prisma.callTag.createMany({
           data: rows,
           skipDuplicates: true,
