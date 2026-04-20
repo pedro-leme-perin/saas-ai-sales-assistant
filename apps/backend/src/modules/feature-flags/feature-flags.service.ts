@@ -15,12 +15,7 @@
 // - Audit fire-and-forget on all mutations.
 
 import { createHash } from 'crypto';
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AuditAction, FeatureFlag, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
@@ -88,10 +83,7 @@ export class FeatureFlagsService {
       });
       return row;
     } catch (err: unknown) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         throw new BadRequestException(`Feature flag key '${dto.key}' already exists`);
       }
       throw err;
@@ -141,11 +133,7 @@ export class FeatureFlagsService {
 
   // ===== EVALUATION =====================================================
 
-  async evaluate(
-    companyId: string,
-    key: string,
-    userId?: string,
-  ): Promise<FlagEvaluation> {
+  async evaluate(companyId: string, key: string, userId?: string): Promise<FlagEvaluation> {
     this.assertTenant(companyId);
     const cacheKey = this.cacheKey(companyId, key, userId);
     const cached = await this.cache.getJson<FlagEvaluation>(cacheKey).catch(() => null);

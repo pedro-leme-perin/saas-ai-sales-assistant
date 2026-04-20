@@ -235,9 +235,7 @@ describe('AnnouncementsService', () => {
 
     it('markRead throws NotFound when announcement missing', async () => {
       mockPrisma.announcement.findFirst.mockResolvedValueOnce(null);
-      await expect(service.markRead('c1', 'u1', 'missing')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.markRead('c1', 'u1', 'missing')).rejects.toThrow(NotFoundException);
     });
   });
 });

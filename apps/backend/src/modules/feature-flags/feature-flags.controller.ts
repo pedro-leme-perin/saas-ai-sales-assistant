@@ -22,10 +22,7 @@ import { CompanyId, CurrentUser, Roles, type AuthenticatedUser } from '@common/d
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { FeatureFlagsService } from './feature-flags.service';
-import {
-  CreateFeatureFlagDto,
-  UpdateFeatureFlagDto,
-} from './dto/create-feature-flag.dto';
+import { CreateFeatureFlagDto, UpdateFeatureFlagDto } from './dto/create-feature-flag.dto';
 
 @ApiTags('feature-flags')
 @ApiBearerAuth('JWT')
@@ -52,10 +49,7 @@ export class FeatureFlagsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get flag by id' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.findById(companyId, id);
   }
 

@@ -24,6 +24,7 @@ import {
   featureFlagsService,
   type FeatureFlag,
   type CreateFeatureFlagInput,
+  type UpdateFeatureFlagInput,
 } from "@/services/feature-flags.service";
 
 interface CreateDraft {
@@ -72,7 +73,7 @@ export default function FeatureFlagsPage() {
       input,
     }: {
       id: string;
-      input: Partial<FeatureFlag>;
+      input: UpdateFeatureFlagInput;
     }) => featureFlagsService.update(id, input),
     onSuccess: () => {
       toast.success(t("featureFlags.toast.updateOk"));

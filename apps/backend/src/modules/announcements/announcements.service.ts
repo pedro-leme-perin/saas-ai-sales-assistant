@@ -12,23 +12,10 @@
 // - markRead/dismiss via composite upsert `(announcementId, userId)`.
 // - Audit fire-and-forget on all mutations.
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  Announcement,
-  AuditAction,
-  Prisma,
-  UserRole,
-} from '@prisma/client';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Announcement, AuditAction, Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
-import {
-  CreateAnnouncementDto,
-  UpdateAnnouncementDto,
-} from './dto/create-announcement.dto';
+import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto/create-announcement.dto';
 
 export interface ActiveAnnouncement {
   id: string;

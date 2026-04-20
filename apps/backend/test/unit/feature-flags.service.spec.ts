@@ -84,9 +84,9 @@ describe('FeatureFlagsService', () => {
         clientVersion: 'x',
       });
       mockPrisma.featureFlag.create.mockRejectedValueOnce(err);
-      await expect(
-        service.create('c1', 'u1', { key: 'new_ui', name: 'New UI' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create('c1', 'u1', { key: 'new_ui', name: 'New UI' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('create persists defaults + audits CREATE + invalidates cache', async () => {
