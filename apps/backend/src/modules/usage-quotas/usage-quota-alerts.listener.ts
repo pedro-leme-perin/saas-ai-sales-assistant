@@ -7,15 +7,13 @@
 // impacted by alert delivery issues.
 
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   NotificationChannel,
   NotificationType,
   Prisma,
   UsageMetric,
 } from '@prisma/client';
-
-import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
