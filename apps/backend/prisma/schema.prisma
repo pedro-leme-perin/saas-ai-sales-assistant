@@ -82,6 +82,7 @@ model Company {
   csatResponses    CsatResponse[]
   scheduledExports ScheduledExport[]
   retentionPolicies RetentionPolicy[]
+  apiRequestLogs   ApiRequestLog[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -150,6 +151,7 @@ model User {
   savedFilters            SavedFilter[]     @relation("SavedFilterOwner")
   backgroundJobsCreated   BackgroundJob[]   @relation("BackgroundJobCreator")
   contactNotes            ContactNote[]     @relation("ContactNoteAuthor")
+  apiRequestLogs          ApiRequestLog[]
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -532,6 +534,9 @@ model ApiKey {
   // Timestamps
   createdAt        DateTime  @default(now()) @map("created_at")
   revokedAt        DateTime? @map("revoked_at")
+
+  // Relations
+  requestLogs      ApiRequestLog[]
 
   @@index([companyId])
   @@index([keyHash])
@@ -1144,6 +1149,7 @@ enum BackgroundJobType {
   RECOMPUTE_COACHING_REPORTS
   BULK_DELETE_CALLS
   BULK_TAG_CALLS
+  BULK_ASSIGN_CHATS
   EXPORT_ANALYTICS
 }
 
@@ -1385,4 +1391,36 @@ enum RetentionResource {
   AI_SUGGESTIONS
   CSAT_RESPONSES
   NOTIFICATIONS
+}
+
+// =============================================
+// 📊 API REQUEST LOGS (session 52)
+// =============================================
+// Per-tenant request audit trail for API observability + compliance.
+// Written by a buffered interceptor (batch flush every 5s / 100 entries)
+// to avoid adding latency to the hot path.
+
+model ApiRequestLog {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  apiKeyId    String?  @map("api_key_id")
+  userId      String?  @map("user_id")
+  method      String   @db.VarChar(10)
+  path        String   @db.VarChar(500)
+  statusCode  Int      @map("status_code")
+  latencyMs   Int      @map("latency_ms")
+  requestId   String?  @map("request_id")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  apiKey      ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([companyId, apiKeyId, createdAt(sort: Desc)])
+  @@index([companyId, statusCode, createdAt(sort: Desc)])
+  @@index([companyId, path])
+  @@map("api_request_logs")
 }

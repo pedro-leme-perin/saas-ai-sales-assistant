@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { PrismaModule } from './infrastructure/database/prisma.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
@@ -39,6 +39,9 @@ import { ContactsModule } from './modules/contacts/contacts.module';
 import { CsatModule } from './modules/csat/csat.module';
 import { ScheduledExportsModule } from './modules/scheduled-exports/scheduled-exports.module';
 import { RetentionPoliciesModule } from './modules/retention-policies/retention-policies.module';
+import { ApiRequestLogsModule } from './modules/api-request-logs/api-request-logs.module';
+import { ApiRequestLogsInterceptor } from './modules/api-request-logs/api-request-logs.interceptor';
+import { BulkActionsModule } from './modules/bulk-actions/bulk-actions.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -99,12 +102,16 @@ import configuration from './config/configuration';
     CsatModule,
     ScheduledExportsModule,
     RetentionPoliciesModule,
+    ApiRequestLogsModule,
+    BulkActionsModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId
     // Falls back to IP-based ThrottlerGuard for unauthenticated requests
     // Plan-based limits: STARTER(60/min) < PROFESSIONAL(200/min) < ENTERPRISE(500/min)
     { provide: APP_GUARD, useClass: CompanyThrottlerGuard },
+    // Buffered writer for per-tenant API request audit trail
+    { provide: APP_INTERCEPTOR, useClass: ApiRequestLogsInterceptor },
   ],
 })
 export class AppModule implements NestModule {

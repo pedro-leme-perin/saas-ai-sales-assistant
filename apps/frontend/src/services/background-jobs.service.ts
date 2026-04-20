@@ -9,6 +9,7 @@ export type BackgroundJobType =
   | "RECOMPUTE_COACHING_REPORTS"
   | "BULK_DELETE_CALLS"
   | "BULK_TAG_CALLS"
+  | "BULK_ASSIGN_CHATS"
   | "EXPORT_ANALYTICS";
 
 export type BackgroundJobStatus =

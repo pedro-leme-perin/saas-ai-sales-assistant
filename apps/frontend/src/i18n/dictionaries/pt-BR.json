@@ -1295,5 +1295,43 @@
       "deleteOk": "Politica removida.",
       "deleteErr": "Erro ao remover politica."
     }
+  },
+  "apiLogs": {
+    "title": "Logs de API",
+    "subtitle": "Auditoria de requisicoes HTTP (ultimas 24h).",
+    "empty": "Sem dados no periodo.",
+    "filters": "Filtros",
+    "loadMore": "Carregar mais",
+    "topPaths": "Rotas mais acessadas",
+    "statusDistribution": "Distribuicao de status",
+    "metrics": {
+      "totalRequests": "Requisicoes (24h)",
+      "errorRate": "Taxa de erro",
+      "p50": "Latencia p50",
+      "p95": "Latencia p95"
+    },
+    "filter": {
+      "path": "Rota (contem...)",
+      "method": "Metodo",
+      "statusCode": "Status",
+      "reset": "Limpar"
+    },
+    "col": {
+      "method": "Metodo",
+      "path": "Rota",
+      "status": "Status",
+      "latency": "Latencia",
+      "createdAt": "Quando"
+    }
+  },
+  "bulk": {
+    "selection": "{{count}} selecionados",
+    "clear": "Limpar selecao",
+    "tagCalls": "Marcar com tags",
+    "deleteCalls": "Excluir ligacoes",
+    "assignChats": "Atribuir conversas",
+    "confirmDelete": "Excluir {{count}} ligacoes? Esta acao nao pode ser desfeita.",
+    "enqueued": "Job enfileirado. Acompanhe em Configuracoes > Jobs.",
+    "enqueueErr": "Erro ao enfileirar job."
   }
 }

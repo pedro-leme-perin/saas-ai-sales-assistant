@@ -29,10 +29,10 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 51 (20/04/2026) | Scheduled exports (recurring CSV/JSON email delivery + preset cron + error-isolated worker) + Retention policies (per-resource TTL + hourly purge cron + LGPD floor 180d AUDIT_LOGS) |
-| Backend (NestJS) | ✅ Produção | Railway — 30 módulos (+scheduled-exports, +retention-policies), 62+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 32 routes (+settings/exports, +settings/retention) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 27 modelos (+ScheduledExport, +RetentionPolicy), 34 enums Prisma (+ScheduledExportResource, +ScheduledExportFormat, +ScheduledExportRunStatus, +RetentionResource) + pg_trgm |
+| Último commit | sessão 52 (20/04/2026) | Per-tenant API request logs (buffered writer + cron flush + métricas p50/p95 + cursor list) + Bulk actions (tag/delete/assign) wired à fila S49 BackgroundJobs via handler registry |
+| Backend (NestJS) | ✅ Produção | Railway — 32 módulos (+api-request-logs, +bulk-actions), 64+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 33 routes (+settings/api-logs) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 28 modelos (+ApiRequestLog), 34 enums Prisma (BackgroundJobType +BULK_ASSIGN_CHATS) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -618,8 +618,54 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 49 | 20/04 | Background jobs queue (DB-backed, retry/DLQ/handler registry) + SLA policies (composite upsert + breach monitor cron + webhook + notifications) | ⏳ |
 | 50 | 20/04 | Contacts/Customer 360 (dedupe + timeline + merge + notes) + CSAT surveys (trigger-driven cron dispatch + public token + NPS analytics) | ⏳ |
 | 51 | 20/04 | Scheduled exports (preset cron + CSV/JSON email delivery + error-isolated worker) + Retention policies (per-resource TTL + hourly auto-purge + LGPD floor 180d AUDIT_LOGS) | ⏳ |
+| 52 | 20/04 | Per-tenant API request logs (buffered writer + métricas p50/p95 + cursor list) + Bulk actions (tag/delete/assign wired ao S49 BackgroundJobs) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
+
+### 2.5.11 Sessão 52 — 20/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — plataforma/operações) — Per-tenant API request audit trail (buffered writer + métricas + cursor list) + Bulk actions (tag/delete/assign) conectados à fila S49 `BackgroundJobs`.
+
+**Feature A1 — API request logs (módulo novo `api-request-logs`):**
+- Schema: modelo `ApiRequestLog` (id, companyId, apiKeyId?, userId?, method, path, statusCode, latencyMs, requestId?, ipAddress?, userAgent?, createdAt). Índices `[companyId, createdAt]`, `[companyId, statusCode]`, `[companyId, apiKeyId]`. Migration `20260421020000_add_api_request_logs_and_bulk_assign_chats`. Enum `BackgroundJobType` ganha valor `BULK_ASSIGN_CHATS`.
+- `ApiRequestLogsInterceptor`: interceptor global HTTP. Captura `method/path/statusCode/latencyMs/requestId/ipAddress/userAgent` via `context.switchToHttp()` pós-`handle().pipe(tap)`. Skip de rotas `/health` + `/api/docs` para reduzir ruído. `companyId` extraído do request (preenchido por `TenantGuard` no pipeline). `apiKeyId` propagado pelo `ApiKeyGuard`. Não bloqueia response — `enqueue()` é fire-and-forget sync.
+- `ApiRequestLogsService`:
+  - **Buffered writer**: `queue: ApiRequestLogEntry[]` in-memory, `QUEUE_MAX=10_000` (drop-oldest via `queue.shift` quando saturado — logger nunca throws).
+  - `@Cron(EVERY_10_SECONDS, { name: 'api-request-logs-flush' })` + `setInterval` secundário (`FLUSH_INTERVAL_MS=5_000`) como safety net para ambientes sem scheduler. `unref()` aplicado ao timer.
+  - `flush()`: guard `draining` para evitar concorrência, drena em batches de `FLUSH_BATCH_SIZE=100` via `queue.splice(0, 100)` + `prisma.apiRequestLog.createMany({data, skipDuplicates: true})`. Trunca defensivamente: method ≤10 chars, path ≤500, ipAddress ≤64, userAgent ≤500. **Re-enqueue best-effort**: falha de `createMany` → `queue.unshift(...slice)` respeitando cap (evita perda silenciosa em transient errors). Retorna `written: number` para observabilidade.
+  - `list(companyId, filters)`: cursor pagination com `orderBy: [{createdAt: desc}, {id: desc}]`, `take: limit+1` para detectar `hasMore`, `cursor+skip:1` quando fornecido. Limit clamp `[1..500]`. Filtros opcionais `path (contains, case-insensitive)`, `method (uppercase)`, `apiKeyId`, `statusCode`. `nextCursor` = `rows[rows.length - 2].id` quando `hasMore`.
+  - `metrics(companyId)`: janela fixa `METRICS_WINDOW_HOURS=24`. `findMany take: 50_000` (bulkhead anti-DoS em aggregation). Empty → retorna zeros. Caso com dados: sort de latencies → `p50 = latencies[floor(n*0.5)]`, `p95 = latencies[floor(n*0.95)]`. `errorRate = round((5xx_count / total) * 10_000) / 100` (percentual com 2 decimais). `topPaths`: reduce em `Map<path, {count, totalLatency}>` → `avgLatencyMs = round(totalLatency/count)`, sort count desc, cap `METRICS_TOP_N=10`. `statusDistribution`: bucket `{Math.floor(sc/100)}xx` (2xx/3xx/4xx/5xx), sort alfabética. `byApiKey`: count per apiKeyId (null = não autenticou via API key), cap 10.
+  - `onModuleDestroy` faz flush final sync catch-all.
+  - `getQueueSize()` público exposto apenas para testes/diagnóstico.
+- Endpoints (`@Controller('api-request-logs')` + `@Roles(OWNER, ADMIN)` + `TenantGuard/RolesGuard`): `GET /api-request-logs?path=&method=&apiKeyId=&statusCode=&limit=&cursor=` (list) + `GET /api-request-logs/metrics`.
+- Frontend: `/dashboard/settings/api-logs` com 4 MetricCards (totalRequests/errorRate/p50/p95), 2 cards (topPaths + statusDistribution), filter bar (path text / method select / statusCode number input / reset), cursor-paginated table com method/path/status-badge/latency-color-coded/createdAt. `latencyColor` green <300ms / amber <1000ms / red ≥1000ms. `statusColor` 5xx red / 4xx amber / 3xx blue / 2xx emerald. Polling: 30s metrics, 10s list via TanStack Query `refetchInterval`. "Load more" button advances cursor. Link em `/dashboard/settings` com icon `Activity`.
+- i18n: ~20 chaves (`apiLogs.*` — title/subtitle/empty/filters/loadMore/topPaths/statusDistribution/metrics.*/filter.*/col.*) em pt-BR + en.
+
+**Feature A2 — Bulk actions (módulo novo `bulk-actions`):**
+- Zero novo schema — 100% consumidor de `BackgroundJobsService` (S49). Enum `BackgroundJobType` expandido com `BULK_ASSIGN_CHATS` (migration S52).
+- `BulkActionsService` implementa `OnModuleInit` e registra 3 handlers via `this.jobs.registerHandler(type, fn)` — **zero circular dep** (BackgroundJobsService não importa domain modules):
+  - `BULK_TAG_CALLS` → attach N tags em N calls via `CallTag.createMany({skipDuplicates: true})`.
+  - `BULK_DELETE_CALLS` → `call.deleteMany({where: {id: {in}, companyId}})` tenant-scoped + audit per chunk.
+  - `BULK_ASSIGN_CHATS` → `whatsappChat.updateMany({data: {userId}})` com validação de tenant no enqueue + re-check mid-handler.
+- **Ownership guards defensivos**: cada handler faz `prisma.X.findMany({where: {id: {in: ids}, companyId}, select: {id}})` antes de mutar — payload do job NÃO é fonte de verdade. Cross-tenant ids são silenciosamente descartados (protege contra enqueue malicioso ou stale).
+- **Chunked execution** (`CHUNK_SIZE=100`, `MAX_IDS_PER_JOB=5_000`): for-loop com try/catch por chunk para error isolation, `ctx.updateProgress((processed/total)*100)` a cada chunk para a UI polling. Warn log em chunk failure (não aborta batch).
+- **Audit per chunk** (apenas DELETE): `prisma.auditLog.create({action: DELETE, resource: 'CALL', newValues: {bulkDeletedCount, jobId}})` fire-and-forget catch — uma entry por chunk para cardinalidade observável. TAG e ASSIGN não auditam per-row (operações idempotentes, efeito reversível).
+- `enqueue*` helpers validam via `assertBounded(field, arr, maxLen)` → `BadRequestException('{field} must be non-empty'|'exceeds max of {maxLen}')`. `enqueueTagCalls` sub-cap `tagIds ≤ 20`. `enqueueAssignChats` resolve `userId` tenant membership via `user.findFirst({where: {id, companyId}})` antes de enfileirar (fail fast, não no worker).
+- DTOs: `BulkTagCallsDto`, `BulkDeleteCallsDto`, `BulkAssignChatsDto` em `dto/` com `@IsArray @ArrayMinSize(1) @ArrayMaxSize(5000)`. `BulkAssignChatsDto.userId: string | null` (nullable = unassign).
+- Endpoints (`@Controller('bulk')` + `TenantGuard/RolesGuard`): `POST /bulk/calls/tag` (OWNER/ADMIN/MANAGER) + `POST /bulk/calls/delete` (OWNER/ADMIN) + `POST /bulk/chats/assign` (OWNER/ADMIN/MANAGER). Todos retornam `{jobId, status}` — cliente consulta progress via `/background-jobs/:id`.
+- Frontend: serviço `bulkActionsService` com `tagCalls/deleteCalls/assignChats`. `JOB_TYPES` array em `/dashboard/settings/jobs/page.tsx` ganha `BULK_ASSIGN_CHATS`. UI de seleção em lista (checkboxes + action bar) é polimento opcional — backend + jobs dashboard S49 já dão visibilidade completa.
+- i18n: ~8 chaves (`bulk.*` — selection/clear/tagCalls/deleteCalls/assignChats/confirmDelete/enqueued/enqueueErr) em pt-BR + en.
+
+**Integração com features prévias:**
+- `ApiRequestLogsInterceptor` registrado globalmente no `AppModule`, piggyback em `TenantGuard` (companyId), `ApiKeyGuard` (apiKeyId) e `requestId` middleware (S41). Observability-only — zero side-effect no request lifecycle.
+- `BulkActionsService.onModuleInit` roda após `BackgroundJobsService.onModuleInit` (dependência via DI) — handler registry S49 está pronto no momento do register.
+- `BULK_DELETE_CALLS` usa `AuditAction.DELETE` + `resource: 'CALL'` — compatível com audit log export S43 (`/analytics/audit-logs/export`) para compliance trail.
+
+**Testes:**
+- `api-request-logs.service.spec.ts` (novo, ~14 cases): `flush` empty → 0 sem `createMany`, drena buffered entries + skipDuplicates, trunca method/path/ipAddress/userAgent defensivamente, re-enfileira slice em falha transient (no data loss), cap QUEUE_MAX=10_000 drop-oldest. `list` clamp limit=500, filtros method-uppercase/path-contains/apiKeyId/statusCode, hasMore=true → `rows.slice(0,limit)` + `nextCursor=rows[len-2].id`, cursor+skip:1 forwards to Prisma. `metrics` empty → zeros, 100 rows (90 OK + 10 err): total=100, errorRate=10, p50=51, p95=1005, topPaths sorted count desc, statusDistribution bucket alfabética, byApiKey counts, janela 24h + take 50_000.
+- `bulk-actions.service.spec.ts` (novo, ~13 cases): `onModuleInit` registra 3 handlers no `BackgroundJobsService`. Enqueue: empty/oversized arrays → BadRequestException, tagIds cap 20, userId tenant validation (`user.findFirst`) — null allowed (unassign) sem lookup, foreign userId rejected, forwards to `jobs.enqueue` com payload correto. `handleBulkTagCalls`: filtra ownedCalls+ownedTags via `findMany {id in, companyId}`, `createMany({skipDuplicates: true})` com rows flatMap, no owned tags → early return `{tagged: 0, skipped}`, progress atinge 100%. `handleBulkDeleteCalls`: `deleteMany {id in, companyId}` tenant-scoped + `auditLog.create {action: DELETE, resource: 'CALL', newValues: {bulkDeletedCount, jobId}}` per chunk. `handleBulkAssignChats`: re-check userId tenant mid-handler (defensive), `updateMany {id in, companyId} data: {userId}`, throws se userId foreign, unassign (null) sem lookup.
+
+**Resilience:** buffered writer `flush` idempotente (draining guard), drop-oldest em overflow (memória bounded), re-enqueue em transient fail (no data loss), `skipDuplicates: true` em createMany torna flush idempotente a nível de DB, bulkhead `take: 50_000` em metrics aggregation + `TAKE` hard cap em findMany, error isolation per-chunk em handlers (warn log + continue), ownership guards defensivos em todos handlers (payload ≠ source of truth), `BadRequestException` em enqueue (fail fast antes de row de job), progress callback permite cancel observável via S49 `/cancel`, audit per chunk (não per row) mantém cardinalidade saudável, enum `BULK_ASSIGN_CHATS` novo expande o handler registry sem rupturas.
 
 ---
 

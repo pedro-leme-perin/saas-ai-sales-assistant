@@ -1295,5 +1295,43 @@
       "deleteOk": "Policy removed.",
       "deleteErr": "Failed to remove policy."
     }
+  },
+  "apiLogs": {
+    "title": "API logs",
+    "subtitle": "HTTP request audit (last 24h).",
+    "empty": "No data in this window.",
+    "filters": "Filters",
+    "loadMore": "Load more",
+    "topPaths": "Top paths",
+    "statusDistribution": "Status distribution",
+    "metrics": {
+      "totalRequests": "Requests (24h)",
+      "errorRate": "Error rate",
+      "p50": "Latency p50",
+      "p95": "Latency p95"
+    },
+    "filter": {
+      "path": "Path (contains...)",
+      "method": "Method",
+      "statusCode": "Status",
+      "reset": "Clear"
+    },
+    "col": {
+      "method": "Method",
+      "path": "Path",
+      "status": "Status",
+      "latency": "Latency",
+      "createdAt": "When"
+    }
+  },
+  "bulk": {
+    "selection": "{{count}} selected",
+    "clear": "Clear selection",
+    "tagCalls": "Tag",
+    "deleteCalls": "Delete calls",
+    "assignChats": "Assign chats",
+    "confirmDelete": "Delete {{count}} calls? This cannot be undone.",
+    "enqueued": "Job enqueued. Track in Settings > Jobs.",
+    "enqueueErr": "Failed to enqueue job."
   }
 }
