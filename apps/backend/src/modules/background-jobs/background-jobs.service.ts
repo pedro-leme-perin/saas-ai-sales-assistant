@@ -18,12 +18,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import {
-  BackgroundJob,
-  BackgroundJobStatus,
-  BackgroundJobType,
-  Prisma,
-} from '@prisma/client';
+import { BackgroundJob, BackgroundJobStatus, BackgroundJobType, Prisma } from '@prisma/client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
 export type JobHandler = (
@@ -98,7 +93,10 @@ export class BackgroundJobsService implements OnModuleInit {
 
   async cancel(companyId: string, id: string): Promise<BackgroundJob> {
     const job = await this.findById(companyId, id);
-    if (job.status === BackgroundJobStatus.SUCCEEDED || job.status === BackgroundJobStatus.DEAD_LETTER) {
+    if (
+      job.status === BackgroundJobStatus.SUCCEEDED ||
+      job.status === BackgroundJobStatus.DEAD_LETTER
+    ) {
       throw new BadRequestException('Job already terminal');
     }
     return this.prisma.backgroundJob.update({
@@ -109,7 +107,10 @@ export class BackgroundJobsService implements OnModuleInit {
 
   async retry(companyId: string, id: string): Promise<BackgroundJob> {
     const job = await this.findById(companyId, id);
-    if (job.status !== BackgroundJobStatus.FAILED && job.status !== BackgroundJobStatus.DEAD_LETTER) {
+    if (
+      job.status !== BackgroundJobStatus.FAILED &&
+      job.status !== BackgroundJobStatus.DEAD_LETTER
+    ) {
       throw new BadRequestException('Job not in retryable state');
     }
     return this.prisma.backgroundJob.update({

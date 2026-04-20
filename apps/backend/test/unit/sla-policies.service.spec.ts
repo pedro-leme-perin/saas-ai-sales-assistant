@@ -15,7 +15,7 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ChatPriority, ChatStatus, Prisma, WebhookEvent } from '@prisma/client';
+import { ChatPriority, Prisma, WebhookEvent } from '@prisma/client';
 import { SlaPoliciesService } from '../../src/modules/sla-policies/sla-policies.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 
@@ -242,10 +242,7 @@ describe('SlaPoliciesService', () => {
         },
       ]);
       mockPrisma.whatsappChat.update.mockResolvedValueOnce({});
-      mockPrisma.user.findMany.mockResolvedValueOnce([
-        { id: 'owner-1' },
-        { id: 'admin-1' },
-      ]);
+      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: 'owner-1' }, { id: 'admin-1' }]);
 
       await service.monitorTick();
       expect(mockPrisma.notification.create).toHaveBeenCalledTimes(2);

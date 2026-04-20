@@ -39,10 +39,7 @@ describe('BackgroundJobsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     const module = await Test.createTestingModule({
-      providers: [
-        BackgroundJobsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [BackgroundJobsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
     service = module.get(BackgroundJobsService);
   });

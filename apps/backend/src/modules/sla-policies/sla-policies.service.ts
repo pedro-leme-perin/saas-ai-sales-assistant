@@ -9,12 +9,7 @@
 // - Bounded batch per tick (BATCH_SIZE=200) — Release It! bulkhead.
 // - Idempotent: breach flags are one-shot booleans per chat (no duplicates).
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -61,11 +56,7 @@ export class SlaPoliciesService {
     return policy;
   }
 
-  async upsert(
-    companyId: string,
-    actorId: string,
-    dto: UpsertSlaPolicyDto,
-  ): Promise<SlaPolicy> {
+  async upsert(companyId: string, actorId: string, dto: UpsertSlaPolicyDto): Promise<SlaPolicy> {
     this.assertTenant(companyId);
     try {
       const row = await this.prisma.slaPolicy.upsert({
@@ -175,8 +166,7 @@ export class SlaPoliciesService {
       chat.firstAgentReplyAt === null &&
       now.getTime() > responseDeadline;
 
-    const resolutionBreached =
-      !chat.slaResolutionBreached && now.getTime() > resolutionDeadline;
+    const resolutionBreached = !chat.slaResolutionBreached && now.getTime() > resolutionDeadline;
 
     if (!responseBreached && !resolutionBreached) return;
 

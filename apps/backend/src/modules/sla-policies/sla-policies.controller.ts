@@ -11,7 +11,6 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
-  Post,
   Put,
   UseGuards,
 } from '@nestjs/common';
@@ -38,10 +37,7 @@ export class SlaPoliciesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a SLA policy' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 

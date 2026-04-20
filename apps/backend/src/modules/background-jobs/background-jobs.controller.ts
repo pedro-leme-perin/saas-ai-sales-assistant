@@ -45,10 +45,7 @@ export class BackgroundJobsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a background job' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 
@@ -71,10 +68,7 @@ export class BackgroundJobsController {
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Retry a failed or dead-lettered job' })
-  async retry(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async retry(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.retry(companyId, id);
   }
 
@@ -82,10 +76,7 @@ export class BackgroundJobsController {
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Cancel a pending/running job' })
-  async cancel(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async cancel(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.cancel(companyId, id);
   }
 }
