@@ -42,6 +42,8 @@ import { RetentionPoliciesModule } from './modules/retention-policies/retention-
 import { ApiRequestLogsModule } from './modules/api-request-logs/api-request-logs.module';
 import { ApiRequestLogsInterceptor } from './modules/api-request-logs/api-request-logs.interceptor';
 import { BulkActionsModule } from './modules/bulk-actions/bulk-actions.module';
+import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -104,6 +106,8 @@ import configuration from './config/configuration';
     RetentionPoliciesModule,
     ApiRequestLogsModule,
     BulkActionsModule,
+    FeatureFlagsModule,
+    AnnouncementsModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

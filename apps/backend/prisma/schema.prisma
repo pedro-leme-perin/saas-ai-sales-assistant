@@ -83,6 +83,8 @@ model Company {
   scheduledExports ScheduledExport[]
   retentionPolicies RetentionPolicy[]
   apiRequestLogs   ApiRequestLog[]
+  featureFlags     FeatureFlag[]
+  announcements    Announcement[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -152,6 +154,9 @@ model User {
   backgroundJobsCreated   BackgroundJob[]   @relation("BackgroundJobCreator")
   contactNotes            ContactNote[]     @relation("ContactNoteAuthor")
   apiRequestLogs          ApiRequestLog[]
+  featureFlagsCreated     FeatureFlag[]     @relation("FeatureFlagCreator")
+  announcementsCreated    Announcement[]    @relation("AnnouncementCreator")
+  announcementReads       AnnouncementRead[]
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -1423,4 +1428,76 @@ model ApiRequestLog {
   @@index([companyId, statusCode, createdAt(sort: Desc)])
   @@index([companyId, path])
   @@map("api_request_logs")
+}
+
+// =============================================
+// 🚩 FEATURE FLAGS (Session 53)
+// =============================================
+
+model FeatureFlag {
+  id                 String   @id @default(uuid())
+  companyId          String   @map("company_id")
+  createdById        String?  @map("created_by_id")
+  key                String   @db.VarChar(120)
+  name               String   @db.VarChar(160)
+  description        String?  @db.VarChar(500)
+  enabled            Boolean  @default(false)
+  rolloutPercentage  Int      @default(0) @map("rollout_percentage")
+  userAllowlist      String[] @default([]) @map("user_allowlist")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy          User?    @relation("FeatureFlagCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, key], name: "feature_flag_key_unique")
+  @@index([companyId, enabled])
+  @@map("feature_flags")
+}
+
+// =============================================
+// 📣 ANNOUNCEMENTS (Session 53)
+// =============================================
+
+model Announcement {
+  id            String             @id @default(uuid())
+  companyId     String             @map("company_id")
+  createdById   String?            @map("created_by_id")
+  title         String             @db.VarChar(200)
+  body          String             @db.Text
+  level         AnnouncementLevel  @default(INFO)
+  publishAt     DateTime           @default(now()) @map("publish_at")
+  expireAt      DateTime?          @map("expire_at")
+  targetRoles   UserRole[]         @default([]) @map("target_roles")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy     User?              @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reads         AnnouncementRead[]
+
+  @@index([companyId, publishAt])
+  @@index([companyId, expireAt])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  announcementId String    @map("announcement_id")
+  userId         String    @map("user_id")
+  readAt         DateTime? @map("read_at")
+  dismissedAt    DateTime? @map("dismissed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@index([userId, dismissedAt])
+  @@map("announcement_reads")
+}
+
+enum AnnouncementLevel {
+  INFO
+  WARNING
+  URGENT
 }

@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/index';
 import { PageTransition } from '@/components/ui/page-transition';
+import { AnnouncementBanner } from '@/components/announcements/announcement-banner';
 import { useNotificationsStore, useUIStore } from '@/stores';
 import { useTranslation } from '@/i18n/use-translation';
 
@@ -276,7 +277,8 @@ export default function DashboardLayout({
         </header>
 
         {/* Page content */}
-        <main id="main-content" className="flex-1 p-3 sm:p-4 lg:p-6">
+        <main id="main-content" className="flex-1 p-3 sm:p-4 lg:p-6 space-y-4">
+          <AnnouncementBanner />
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

@@ -22,6 +22,8 @@ import {
   Download,
   Archive,
   Activity,
+  Flag,
+  Megaphone,
   ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -304,6 +306,32 @@ export default function SettingsPage() {
                 <p className="font-medium">{t("apiLogs.title")}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {t("apiLogs.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/settings/feature-flags"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Flag className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("featureFlags.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("featureFlags.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/settings/announcements"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Megaphone className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("announcements.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("announcements.subtitle")}
                 </p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />

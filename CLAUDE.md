@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 20/04/2026 (sessão 51)
+> Última atualização: 20/04/2026 (sessão 53)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 52 (20/04/2026) | Per-tenant API request logs (buffered writer + cron flush + métricas p50/p95 + cursor list) + Bulk actions (tag/delete/assign) wired à fila S49 BackgroundJobs via handler registry |
-| Backend (NestJS) | ✅ Produção | Railway — 32 módulos (+api-request-logs, +bulk-actions), 64+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 33 routes (+settings/api-logs) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 28 modelos (+ApiRequestLog), 34 enums Prisma (BackgroundJobType +BULK_ASSIGN_CHATS) + pg_trgm |
+| Último commit | sessão 53 (20/04/2026) | Feature flags com rollout determinístico (SHA-256 bucket + allowlist + Redis cache 60s) + Announcements in-app (targetRoles + AnnouncementRead composite PK + banner polling 2min + admin CRUD) |
+| Backend (NestJS) | ✅ Produção | Railway — 34 módulos (+feature-flags, +announcements), 66+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 35 routes (+settings/feature-flags, +settings/announcements) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 31 modelos (+FeatureFlag, +Announcement, +AnnouncementRead), 34 enums Prisma + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -619,6 +619,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 50 | 20/04 | Contacts/Customer 360 (dedupe + timeline + merge + notes) + CSAT surveys (trigger-driven cron dispatch + public token + NPS analytics) | ⏳ |
 | 51 | 20/04 | Scheduled exports (preset cron + CSV/JSON email delivery + error-isolated worker) + Retention policies (per-resource TTL + hourly auto-purge + LGPD floor 180d AUDIT_LOGS) | ⏳ |
 | 52 | 20/04 | Per-tenant API request logs (buffered writer + métricas p50/p95 + cursor list) + Bulk actions (tag/delete/assign wired ao S49 BackgroundJobs) | ⏳ |
+| 53 | 20/04 | Feature flags (rollout determinístico SHA-256 + allowlist + Redis cache 60s) + Announcements in-app (targetRoles + AnnouncementRead composite + banner polling 2min) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -666,6 +667,67 @@ Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 - `bulk-actions.service.spec.ts` (novo, ~13 cases): `onModuleInit` registra 3 handlers no `BackgroundJobsService`. Enqueue: empty/oversized arrays → BadRequestException, tagIds cap 20, userId tenant validation (`user.findFirst`) — null allowed (unassign) sem lookup, foreign userId rejected, forwards to `jobs.enqueue` com payload correto. `handleBulkTagCalls`: filtra ownedCalls+ownedTags via `findMany {id in, companyId}`, `createMany({skipDuplicates: true})` com rows flatMap, no owned tags → early return `{tagged: 0, skipped}`, progress atinge 100%. `handleBulkDeleteCalls`: `deleteMany {id in, companyId}` tenant-scoped + `auditLog.create {action: DELETE, resource: 'CALL', newValues: {bulkDeletedCount, jobId}}` per chunk. `handleBulkAssignChats`: re-check userId tenant mid-handler (defensive), `updateMany {id in, companyId} data: {userId}`, throws se userId foreign, unassign (null) sem lookup.
 
 **Resilience:** buffered writer `flush` idempotente (draining guard), drop-oldest em overflow (memória bounded), re-enqueue em transient fail (no data loss), `skipDuplicates: true` em createMany torna flush idempotente a nível de DB, bulkhead `take: 50_000` em metrics aggregation + `TAKE` hard cap em findMany, error isolation per-chunk em handlers (warn log + continue), ownership guards defensivos em todos handlers (payload ≠ source of truth), `BadRequestException` em enqueue (fail fast antes de row de job), progress callback permite cancel observável via S49 `/cancel`, audit per chunk (não per row) mantém cardinalidade saudável, enum `BULK_ASSIGN_CHATS` novo expande o handler registry sem rupturas.
+
+### 2.5.12 Sessão 53 — 20/04/2026
+
+**Objetivo:** 2 features enterprise (opção A — plataforma/engajamento) — Feature flags com rollout determinístico hash-based + Announcements in-app com targetRoles e estado por usuário.
+
+**Feature A1 — Feature flags (módulo novo `feature-flags`):**
+- Schema: modelo `FeatureFlag` (id, companyId, key, name, description?, enabled Bool default false, rolloutPercentage Int default 0 [0..100], userAllowlist String[], createdAt, updatedAt). `@@unique([companyId, key], name: "feature_flag_key_unique")` — dedupe natural key por tenant. Índice `[companyId, enabled]`. Migration `20260421030000_add_feature_flags_announcements`.
+- `FeatureFlagsService`:
+  - CRUD tenant-scoped: `list` orderBy `createdAt desc`, `findById` NotFoundException, `create` P2002 → BadRequestException + audit CREATE, `update` merge partial + audit oldValues/newValues, `remove` + audit DELETE.
+  - `evaluate(companyId, key, userId?)` retorna `FlagEvaluation {key, enabled, reason}`:
+    1. Redis cache HIT via `CacheService.getJson<FlagEvaluation>(cacheKey)` → retorna direto (bypass DB + compute).
+    2. Cache MISS: findUnique via composite key, delega a `computeEvaluation`, write-through `cache.set(cacheKey, result, ttl: 60)`.
+    3. `cacheKey(companyId, key, userId?)` = `ff:${companyId}:${key}:${userId ?? 'anon'}`.
+  - `computeEvaluation(flag, key, userId?)` — 5 razões em ordem:
+    - `!flag` → `{enabled: false, reason: 'not_found'}`.
+    - `!flag.enabled` → `{enabled: false, reason: 'disabled'}`.
+    - `userId && flag.userAllowlist.includes(userId)` → `{enabled: true, reason: 'allowlist'}` (bypass rollout).
+    - `rolloutPercentage >= 100` → `{enabled: true, reason: 'rollout_hit'}`.
+    - `rolloutPercentage <= 0` → `{enabled: false, reason: 'rollout_miss'}`.
+    - Caso geral: `bucket = bucketOf(companyId, key, userId)` → `bucket < rolloutPercentage ? 'rollout_hit' : 'rollout_miss'`.
+  - `bucketOf(companyId, key, userId?)`: deterministic hash-based bucket 0..99. `input = \`${companyId}:${key}:${userId ?? ''}\``, `hex = createHash('sha256').update(input).digest('hex').slice(0, 8)`, `parseInt(hex, 16) % 100`. **Stable cohort assignment**: usuário cai sempre no mesmo bucket para o mesmo flag → rollouts graduais são consistentes (10% → mesmos 10% dos users sempre).
+  - Cache invalidation em mutações: `await this.cache.delete(cacheKey(companyId, key))` — só invalida a chave anonymous; entries per-user expiram via TTL 60s (trade-off pragmático para evitar SCAN Redis).
+- Endpoints (`@Controller('feature-flags')` + `TenantGuard/RolesGuard`): `GET /feature-flags` (list), `GET /feature-flags/:id`, `GET /feature-flags/evaluate/:key?userId=...`, `POST /feature-flags` (OWNER/ADMIN), `PATCH /feature-flags/:id` (OWNER/ADMIN), `DELETE /feature-flags/:id` (OWNER/ADMIN).
+- Frontend: `/dashboard/settings/feature-flags` com create form (key mono, name, description, rolloutPercentage slider, enabled checkbox), `FlagRow` com code badge, allowlist count, enabled toggle, rollout slider com `onMouseUp/onTouchEnd` commits (evita API spam durante drag), delete button. `featureFlagsService` com CRUD + evaluate. Link em `/dashboard/settings` com icon `Flag`.
+- i18n: ~18 chaves (`featureFlags.*` — title/subtitle/new/create/key/name/description/rollout/enabled/allowlistCount/empty/confirmDelete + toast.*) em pt-BR + en.
+
+**Feature A2 — Announcements (módulo novo `announcements`):**
+- Schema: 2 modelos + 1 enum. Migration junto com FeatureFlag.
+  - `Announcement` (id, companyId, createdById?, title, body Text, level `AnnouncementLevel` default INFO, publishAt DateTime default now, expireAt?, targetRoles `UserRole[]`, createdAt, updatedAt). Índices `[companyId, publishAt]`, `[companyId, expireAt]`.
+  - `AnnouncementRead` (composite PK `[announcementId, userId]`, readAt?, dismissedAt?, timestamps). FK CASCADE em Announcement, RESTRICT em User.
+  - Enum `AnnouncementLevel` (INFO, WARNING, URGENT) — 3 valores reusam cor palette do banner.
+- DTO: `CreateAnnouncementDto` (title `@Length(2,200)`, body `@Length(2,5000)`, level `@IsEnum?`, publishAt/expireAt `@IsISO8601?`, targetRoles `UserRole[] @IsEnum({each:true})?` + `@ArrayMaxSize(4)`).
+- `AnnouncementsService`:
+  - CRUD admin: `list/findById/create/update/remove` tenant-scoped, audit em todas mutações. `create` rejeita `expireAt <= publishAt` via BadRequestException (guard de temporalidade).
+  - **`listActive(companyId, userId, role)`** — método chave do banner:
+    1. `findMany where {companyId, publishAt: {lte: now}, OR: [{expireAt: null}, {expireAt: {gt: now}}]}` — janela ativa.
+    2. `include: {reads: {where: {userId}, select: {readAt, dismissedAt}}}` — hydrate estado per-user em 1 round-trip.
+    3. `take: 50`, `orderBy: [{publishAt: desc}]`.
+    4. Filtros pós-query: `matchesRole(role, targetRoles)` (empty = broadcast = true; else includes(role)), `!reads[0]?.dismissedAt` (não mostrar o que foi dismissado).
+    5. Map para `ActiveAnnouncement` com `isRead: Boolean(reads[0]?.readAt)` + `isDismissed: Boolean(reads[0]?.dismissedAt)`.
+  - `markRead(companyId, userId, announcementId)` — upsert via composite `announcementId_userId`, set `readAt` apenas se null (first-touch idempotent).
+  - `dismiss(companyId, userId, announcementId)` — upsert composite, set `dismissedAt` + `readAt` (dismiss implica leitura).
+- Endpoints (`@Controller('announcements')` + `TenantGuard`):
+  - User-facing: `GET /announcements/active`, `POST /announcements/:id/read`, `POST /announcements/:id/dismiss`.
+  - Admin (RolesGuard): `GET /announcements` (OWNER/ADMIN/MANAGER list), `GET /announcements/:id`, `POST /announcements` (OWNER/ADMIN), `PATCH /announcements/:id` (OWNER/ADMIN), `DELETE /announcements/:id` (OWNER/ADMIN).
+- Frontend:
+  - `<AnnouncementBanner />` em `components/announcements/` — polling `refetchInterval: 2*60*1000` (2min), `staleTime: 30_000`, `useEffect` auto-`markRead` ao primeiro contato. Palette: INFO blue/Info icon, WARNING amber/AlertTriangle icon, URGENT red/Siren icon. Dismiss X button top-right. Renderizado no topo de `<main>` no dashboard layout.
+  - `/dashboard/settings/announcements` — admin create form (title, body, level select, publishAt/expireAt datetime-local, targetRoles pills OWNER/ADMIN/MANAGER/VENDOR, empty = broadcast hint). `AnnouncementAdminRow` com level badge color-coded + line-clamp body + publishAt/expireAt/targetRoles meta. Delete com confirm.
+  - `announcementsService` com list/listActive/findById/create/update/remove/markRead/dismiss. Link em `/dashboard/settings` com icon `Megaphone`.
+- i18n: ~28 chaves (`announcements.*` — title/subtitle/new/create/titlePh/bodyPh/level/publishAt/expireAt/targetRoles/targetBroadcast/targetScoped/empty/confirmDelete + `levels.{INFO,WARNING,URGENT}` + `toast.*`) em pt-BR + en.
+
+**Integração com features prévias:**
+- `FeatureFlagsService` reusa `CacheService` (Redis via Upstash) do core infra — zero nova infra.
+- `AnnouncementBanner` inserido no `apps/frontend/src/app/dashboard/layout.tsx` acima do `<PageTransition>{children}</PageTransition>` (space-y-4 aplicado ao `<main>` para spacing uniforme).
+- Nenhum módulo prévio afetado — features são aditivas puras.
+
+**Testes:**
+- `feature-flags.service.spec.ts` (novo, ~15 cases): list companyId scope, findById NotFound tenant mismatch, create P2002 → BadRequest, create defaults + audit CREATE + cache invalidate, update merge partial + cache invalidate, remove audit DELETE + cache invalidate. evaluate 5 razões: `not_found` (!flag), `disabled` (enabled=false), `allowlist` (userId in userAllowlist), `rollout_hit` (bucket < pct), `rollout_miss` (bucket >= pct). Determinismo: mesmo input → mesmo bucket sempre (invocar 3x → resultados idênticos). Cached value bypassa DB (findUnique não chamado quando `getJson` retorna). Write-through: `cache.set` com TTL 60s após compute. `bucketOf` cross-user: userIds diferentes geram buckets diferentes.
+- `announcements.service.spec.ts` (novo, ~12 cases): list scope + cap 200, findById NotFound tenant mismatch, create rejects `expireAt <= publishAt` → BadRequest, create defaults (level=INFO, targetRoles=[]) + audit CREATE, update merge partial + audit oldValues/newValues, remove audit DELETE. listActive: time window filters (publishAt futuro skipped, expireAt passado skipped), broadcast (targetRoles=[]) matches qualquer role, role-scoped filters mismatches, dismissed excluded do retorno, isRead hydrated corretamente. markRead: composite upsert `announcementId_userId` com readAt set. dismiss: composite upsert com dismissedAt + readAt (ambos setados). markRead em announcement cross-tenant → NotFound.
+
+**Resilience:** `@@unique([companyId, key])` + composite PK `[announcementId, userId]` previnem duplicatas naturalmente, cache write-through com TTL 60s reduz carga do DB sem sacrificar consistency (rollout changes propagam em até 1min), deterministic hash bucket garante cohort stability (critical para experimentos A/B), audit fire-and-forget em todas mutações (hot path protegido), BadRequest em `expireAt <= publishAt` previne anúncios zombie, broadcast default (targetRoles=[]) reduz friction de config, markRead/dismiss via upsert idempotente (second call no-op), `include: {reads: {where: {userId}}}` em listActive elimina N+1 (1 round-trip para lista + estado), P2002 mapeado para BadRequest (não vaza Prisma internals), cache invalidation apenas da chave anonymous (per-user keys idade out em 60s — trade-off de simplicidade vs SCAN Redis infra).
 
 ---
 
@@ -772,6 +834,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       ├── modules/
 │   │       │   ├── ai/             # LLM providers, suggestions, fallback
 │   │       │   ├── analytics/      # Dashboard stats, sentiment, AI perf
+│   │       │   ├── announcements/  # In-app banners (targetRoles + per-user read/dismiss via composite PK)
 │   │       │   ├── api-keys/       # API keys CRUD (sk_live_ + SHA-256 hash) + scopes + per-key rate limit
 │   │       │   ├── auth/           # Clerk integration, guards, strategies
 │   │       │   ├── billing/        # Stripe subscriptions, invoices, webhooks
@@ -781,6 +844,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── contacts/       # Customer 360 (dedupe natural key + timeline merge-sort + notes + merge tx)
 │   │       │   ├── csat/           # CSAT surveys (trigger-driven cron + public token + NPS analytics)
 │   │       │   ├── email/          # Resend integration, templates
+│   │       │   ├── feature-flags/  # Rollout determinístico SHA-256 (companyId:key:userId % 100) + allowlist + Redis cache 60s
 │   │       │   ├── goals/          # TeamGoals CRUD + leaderboard (weekly/monthly)
 │   │       │   ├── lgpd-deletion/  # Scheduled hard-delete cron (30d grace), AuditLog preservation
 │   │       │   ├── notification-preferences/ # Granular pref matrix (type×channel) + quiet hours tz-aware + digest daily cron
@@ -847,7 +911,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (30)
+### 6.1 Modelos (33)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -881,10 +945,13 @@ Infrastructure (Prisma, API Clients, Redis)
 | **CsatResponse** | Survey scheduled/sent/responded. token unique (base64url ≥16 chars), status state-machine, score 1-5, comment, expiresAt default +7d. Public lookup bypass auth | → Company, Contact?, Call?, Chat? |
 | **ScheduledExport** | Export recorrente. resource enum (5 opções), format CSV/JSON, cronExpression preset, recipients[], filters Json, nextRunAt computado UTC, lastRunStatus OK/FAILED, runCount, lastError | → Company, User? (createdBy) |
 | **RetentionPolicy** | TTL per-resource. retentionDays com MIN_DAYS floor (AUDIT_LOGS=180d LGPD), isActive, lastRunAt, lastDeletedCount, lastError. Unique `retention_policy_unique` (companyId, resource) | → Company |
+| **FeatureFlag** | Toggle + rollout gradual. key unique por tenant (`feature_flag_key_unique`), enabled, rolloutPercentage 0-100, userAllowlist[]. Avaliação SHA-256 bucket determinístico + Redis cache 60s | → Company |
+| **Announcement** | Aviso in-app. title/body/level (INFO/WARNING/URGENT), publishAt/expireAt janela, targetRoles[] (empty = broadcast). Rendering via banner polling 2min | → Company, User (createdBy), Reads[] |
+| **AnnouncementRead** | Estado per-user. Composite PK `[announcementId, userId]`, readAt + dismissedAt. CASCADE em Announcement, RESTRICT em User. Upsert idempotente | → Announcement, User |
 
-### 6.2 Enums (34)
+### 6.2 Enums (35)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (5) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (5) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6) · `AnnouncementLevel` (3)
 
 ### 6.3 Regras de Schema
 

@@ -1333,5 +1333,54 @@
     "confirmDelete": "Delete {{count}} calls? This cannot be undone.",
     "enqueued": "Job enqueued. Track in Settings > Jobs.",
     "enqueueErr": "Failed to enqueue job."
+  },
+  "featureFlags": {
+    "title": "Feature flags",
+    "subtitle": "Gradual rollout of new functionality.",
+    "new": "New flag",
+    "create": "Create flag",
+    "key": "Key",
+    "name": "Name",
+    "description": "Description",
+    "rollout": "Rollout",
+    "enabled": "Enabled",
+    "allowlistCount": "{{n}} in allowlist",
+    "empty": "No flags yet.",
+    "confirmDelete": "Delete this flag?",
+    "toast": {
+      "createOk": "Flag created.",
+      "createErr": "Failed to create flag.",
+      "updateOk": "Flag updated.",
+      "updateErr": "Failed to update flag.",
+      "deleteOk": "Flag deleted.",
+      "deleteErr": "Failed to delete flag."
+    }
+  },
+  "announcements": {
+    "title": "Announcements",
+    "subtitle": "Internal notices for your team.",
+    "new": "New announcement",
+    "create": "Create announcement",
+    "titlePh": "Title",
+    "bodyPh": "Announcement body...",
+    "level": "Level",
+    "publishAt": "Publish at",
+    "expireAt": "Expires at",
+    "targetRoles": "Target roles",
+    "targetBroadcast": "All users",
+    "targetScoped": "Selected roles only",
+    "levels": {
+      "INFO": "Info",
+      "WARNING": "Warning",
+      "URGENT": "Urgent"
+    },
+    "empty": "No announcements yet.",
+    "confirmDelete": "Delete this announcement?",
+    "toast": {
+      "createOk": "Announcement created.",
+      "createErr": "Failed to create announcement.",
+      "deleteOk": "Announcement deleted.",
+      "deleteErr": "Failed to delete announcement."
+    }
   }
 }

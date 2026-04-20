@@ -1333,5 +1333,54 @@
     "confirmDelete": "Excluir {{count}} ligacoes? Esta acao nao pode ser desfeita.",
     "enqueued": "Job enfileirado. Acompanhe em Configuracoes > Jobs.",
     "enqueueErr": "Erro ao enfileirar job."
+  },
+  "featureFlags": {
+    "title": "Feature flags",
+    "subtitle": "Controle rollout gradual de novas funcionalidades.",
+    "new": "Nova flag",
+    "create": "Criar flag",
+    "key": "Chave",
+    "name": "Nome",
+    "description": "Descricao",
+    "rollout": "Rollout",
+    "enabled": "Ativa",
+    "allowlistCount": "{{n}} no allowlist",
+    "empty": "Nenhuma flag criada.",
+    "confirmDelete": "Excluir esta flag?",
+    "toast": {
+      "createOk": "Flag criada.",
+      "createErr": "Erro ao criar flag.",
+      "updateOk": "Flag atualizada.",
+      "updateErr": "Erro ao atualizar flag.",
+      "deleteOk": "Flag removida.",
+      "deleteErr": "Erro ao remover flag."
+    }
+  },
+  "announcements": {
+    "title": "Anuncios",
+    "subtitle": "Avisos internos para a equipe.",
+    "new": "Novo anuncio",
+    "create": "Criar anuncio",
+    "titlePh": "Titulo",
+    "bodyPh": "Corpo do anuncio...",
+    "level": "Nivel",
+    "publishAt": "Publicar em",
+    "expireAt": "Expira em",
+    "targetRoles": "Destinatarios",
+    "targetBroadcast": "Todos os usuarios",
+    "targetScoped": "Apenas cargos selecionados",
+    "levels": {
+      "INFO": "Informativo",
+      "WARNING": "Aviso",
+      "URGENT": "Urgente"
+    },
+    "empty": "Nenhum anuncio criado.",
+    "confirmDelete": "Excluir este anuncio?",
+    "toast": {
+      "createOk": "Anuncio criado.",
+      "createErr": "Erro ao criar anuncio.",
+      "deleteOk": "Anuncio removido.",
+      "deleteErr": "Erro ao remover anuncio."
+    }
   }
 }
