@@ -37,6 +37,8 @@ import { BackgroundJobsModule } from './modules/background-jobs/background-jobs.
 import { SlaPoliciesModule } from './modules/sla-policies/sla-policies.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { CsatModule } from './modules/csat/csat.module';
+import { ScheduledExportsModule } from './modules/scheduled-exports/scheduled-exports.module';
+import { RetentionPoliciesModule } from './modules/retention-policies/retention-policies.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -95,6 +97,8 @@ import configuration from './config/configuration';
     SlaPoliciesModule,
     ContactsModule,
     CsatModule,
+    ScheduledExportsModule,
+    RetentionPoliciesModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

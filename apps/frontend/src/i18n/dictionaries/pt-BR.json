@@ -1223,5 +1223,77 @@
       "invalid": "Link invalido ou nao encontrado.",
       "submitErr": "Erro ao enviar avaliacao."
     }
+  },
+  "exports": {
+    "title": "Exportacoes agendadas",
+    "subtitle": "Entrega recorrente de CSV/JSON por email em horarios pre-definidos.",
+    "new": "Nova exportacao",
+    "empty": "Nenhuma exportacao agendada.",
+    "name": "Nome",
+    "resource": "Recurso",
+    "format": "Formato",
+    "cronLabel": "Agendamento",
+    "cronHint": "Formatos: hourly, daily:HH:MM, weekly:DOW:HH:MM (0=Dom..6=Sab), monthly:DOM:HH:MM. Tudo em UTC.",
+    "recipients": "Destinatarios (emails separados por virgula)",
+    "isActive": "Ativa",
+    "runNow": "Executar agora",
+    "nextRun": "Proxima execucao",
+    "lastRun": "Ultima execucao",
+    "runCount": "Execucoes",
+    "inactive": "Inativa",
+    "confirmDelete": "Remover esta exportacao agendada?",
+    "status": {
+      "pending": "Aguardando",
+      "ok": "OK",
+      "failed": "Falhou"
+    },
+    "cron": {
+      "hourly": "A cada hora",
+      "daily9": "Diaria as 09:00 UTC",
+      "weeklyMon": "Semanal - Segunda 08:00 UTC",
+      "monthly1": "Mensal - dia 1 08:00 UTC"
+    },
+    "resources": {
+      "ANALYTICS_OVERVIEW": "Visao geral de analytics",
+      "CONTACTS": "Contatos",
+      "AUDIT_LOGS": "Logs de auditoria",
+      "CALLS": "Ligacoes",
+      "WHATSAPP_CHATS": "Conversas WhatsApp",
+      "CSAT_RESPONSES": "Respostas CSAT"
+    },
+    "toast": {
+      "created": "Exportacao criada.",
+      "createErr": "Erro ao criar exportacao.",
+      "deleted": "Exportacao removida.",
+      "deleteErr": "Erro ao remover exportacao.",
+      "scheduled": "Execucao agendada para os proximos minutos.",
+      "runErr": "Erro ao agendar execucao."
+    }
+  },
+  "retention": {
+    "title": "Politicas de retencao",
+    "subtitle": "TTL por recurso. Dados antigos sao excluidos automaticamente a cada hora.",
+    "days": "Dias de retencao",
+    "active": "Ativa",
+    "floor": "Minimo: {{days}} dias",
+    "lastRun": "Ultima execucao",
+    "lastDeleted": "Registros excluidos",
+    "notConfigured": "Nao configurada.",
+    "confirmDelete": "Remover esta politica de retencao?",
+    "hint": "AUDIT_LOGS tem piso LGPD de 180 dias. Conversas purgam apenas RESOLVED/ARCHIVED. Notificacoes purgam apenas lidas. Respostas CSAT purgam apenas estados terminais.",
+    "resources": {
+      "CALLS": "Ligacoes",
+      "WHATSAPP_CHATS": "Conversas WhatsApp (somente resolvidas/arquivadas)",
+      "AUDIT_LOGS": "Logs de auditoria",
+      "AI_SUGGESTIONS": "Sugestoes IA",
+      "CSAT_RESPONSES": "Respostas CSAT (somente terminais)",
+      "NOTIFICATIONS": "Notificacoes (somente lidas)"
+    },
+    "toast": {
+      "saveOk": "Politica salva.",
+      "saveErr": "Erro ao salvar politica.",
+      "deleteOk": "Politica removida.",
+      "deleteErr": "Erro ao remover politica."
+    }
   }
 }

@@ -80,6 +80,8 @@ model Company {
   contacts         Contact[]
   csatConfigs      CsatSurveyConfig[]
   csatResponses    CsatResponse[]
+  scheduledExports ScheduledExport[]
+  retentionPolicies RetentionPolicy[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -1294,4 +1296,93 @@ enum CsatResponseStatus {
   RESPONDED
   EXPIRED
   FAILED
+}
+
+// =============================================
+// 📤 SCHEDULED EXPORTS (session 51)
+// =============================================
+// Per-tenant recurring exports delivered by email. Cron tick evaluates
+// nextRunAt, generates the file for resource+filters, emails recipients
+// with a deep link, persists lastRunStatus/lastError/runCount.
+
+model ScheduledExport {
+  id             String                      @id @default(uuid())
+  companyId      String                      @map("company_id")
+  createdById    String?                     @map("created_by_id")
+  name           String
+  resource       ScheduledExportResource
+  format         ScheduledExportFormat       @default(CSV)
+  cronExpression String                      @map("cron_expression")
+  timezone       String                      @default("America/Sao_Paulo")
+  recipients     String[]
+  filters        Json                        @default("{}")
+  isActive       Boolean                     @default(true) @map("is_active")
+  lastRunAt      DateTime?                   @map("last_run_at")
+  lastRunStatus  ScheduledExportRunStatus?   @map("last_run_status")
+  lastError      String?                     @db.Text @map("last_error")
+  lastRowCount   Int?                        @map("last_row_count")
+  runCount       Int                         @default(0) @map("run_count")
+  nextRunAt      DateTime?                   @map("next_run_at")
+  createdAt      DateTime                    @default(now()) @map("created_at")
+  updatedAt      DateTime                    @updatedAt @map("updated_at")
+
+  company        Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, isActive])
+  @@index([isActive, nextRunAt])
+  @@map("scheduled_exports")
+}
+
+enum ScheduledExportResource {
+  ANALYTICS_OVERVIEW
+  CONTACTS
+  AUDIT_LOGS
+  CALLS
+  WHATSAPP_CHATS
+  CSAT_RESPONSES
+}
+
+enum ScheduledExportFormat {
+  CSV
+  JSON
+}
+
+enum ScheduledExportRunStatus {
+  OK
+  FAILED
+}
+
+// =============================================
+// 🧹 RETENTION POLICIES (session 51)
+// =============================================
+// Per-tenant per-resource TTL. A cron tick purges rows older than
+// retentionDays with bounded batch + per-policy error isolation. LGPD-
+// aligned: audit logs have a minimum floor enforced at service layer.
+
+model RetentionPolicy {
+  id               String                @id @default(uuid())
+  companyId        String                @map("company_id")
+  resource         RetentionResource
+  retentionDays    Int                   @map("retention_days")
+  isActive         Boolean               @default(true) @map("is_active")
+  lastRunAt        DateTime?             @map("last_run_at")
+  lastDeletedCount Int?                  @map("last_deleted_count")
+  lastError        String?               @db.Text @map("last_error")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, resource], name: "retention_policy_unique")
+  @@index([companyId, isActive])
+  @@map("retention_policies")
+}
+
+enum RetentionResource {
+  CALLS
+  WHATSAPP_CHATS
+  AUDIT_LOGS
+  AI_SUGGESTIONS
+  CSAT_RESPONSES
+  NOTIFICATIONS
 }

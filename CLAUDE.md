@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 20/04/2026 (sessão 50)
+> Última atualização: 20/04/2026 (sessão 51)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 50 (20/04/2026) | Contacts/Customer 360 (dedupe natural key + timeline merge-sort + notes + merge transaction) + CSAT surveys (trigger-driven cron dispatch + public token survey + NPS-like analytics) |
-| Backend (NestJS) | ✅ Produção | Railway — 28 módulos (+contacts, +csat), 60+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 30 routes (+contacts list/detail, +csat dashboard, +public /csat/[token]) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 25 modelos (+Contact, +ContactNote, +CsatSurveyConfig, +CsatResponse), 30 enums Prisma (+CsatTrigger, +CsatChannel, +CsatResponseStatus) + pg_trgm |
+| Último commit | sessão 51 (20/04/2026) | Scheduled exports (recurring CSV/JSON email delivery + preset cron + error-isolated worker) + Retention policies (per-resource TTL + hourly purge cron + LGPD floor 180d AUDIT_LOGS) |
+| Backend (NestJS) | ✅ Produção | Railway — 30 módulos (+scheduled-exports, +retention-policies), 62+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 32 routes (+settings/exports, +settings/retention) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 27 modelos (+ScheduledExport, +RetentionPolicy), 34 enums Prisma (+ScheduledExportResource, +ScheduledExportFormat, +ScheduledExportRunStatus, +RetentionResource) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -531,6 +531,67 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** composite unique previne duplicate config per trigger, idempotency check em `handleScheduleEvent` evita spam (um survey por call/chat), Redis SETNX com TTL 24h dedupe first-touch counter increment, `@OnEvent` com try/catch protege hot path (produtores nunca quebram por falha no consumer), bounded batch 100/tick + per-row error isolation, single-pass expire sweep reduz lock contention, lazy-expire em lookup (defensivo contra cron atrasado), token `randomBytes(24).toString('base64url')` = 192 bits de entropia, public endpoints isolated via `@Public` + Clerk middleware allowlist + raw fetch frontend (bypass auth interceptor), audit fire-and-forget em todas mutações, hard delete em merge (no soft delete — intencional para compliance LGPD), state machine `SCHEDULED → SENT → RESPONDED` (terminal) / `EXPIRED / FAILED` previne transições inválidas.
 
+### 2.5.10 Sessão 51 — 20/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — operações/compliance) — Scheduled exports (recurring CSV/JSON via email com preset cron) + Retention policies (per-resource TTL + auto-purge cron LGPD-aligned).
+
+**Feature A1 — Scheduled exports (módulo novo `scheduled-exports`):**
+- Schema: modelo `ScheduledExport` (id, companyId, createdById?, name, resource `ScheduledExportResource`, format `ScheduledExportFormat`, cronExpression String, filters Json default `{}`, recipients String[], isActive Bool default true, lastRunAt?, lastRunStatus `ScheduledExportRunStatus?`, lastError Text?, nextRunAt?, runCount Int default 0, timestamps). Índices `[companyId, isActive]`, `[isActive, nextRunAt]`, `[companyId, createdAt]`. Enums: `ScheduledExportResource` (CALLS, WHATSAPP_CHATS, AUDIT_LOGS, AI_SUGGESTIONS, CSAT_RESPONSES), `ScheduledExportFormat` (CSV, JSON), `ScheduledExportRunStatus` (OK, FAILED). Migration `20260421010000_add_scheduled_exports_and_retention_policies`.
+- `cron-schedule.ts` helper (preset format, UTC-anchored):
+  - `validateCron(expr)`: aceita `"hourly"` | `"daily:HH:MM"` | `"weekly:DOW:HH:MM"` (DOW 0..6 Sun..Sat) | `"monthly:DOM:HH:MM"` (DOM 1..28). Throws `Error` em qualquer desvio. Regex strict para HHMM.
+  - `computeNextRunAt(expr, now)`: cálculo UTC-deterministic sem DST drift. Hourly → próxima hora cheia. Daily → próxima ocorrência de HH:MM (hoje se futuro, senão +1d). Weekly → próximo match de DOW (mesmo dia se HH:MM futuro, senão +7d wrap). Monthly → próximo match de DOM (mês atual se DOM+HH:MM futuro, senão rollover para próximo mês). DOM 1..28 evita edge case Feb-30.
+- `ScheduledExportsService`:
+  - CRUD: `list` tenant-scoped com orderBy `[createdAt desc]`, `findById` NotFoundException cross-tenant, `create` valida cron via `validateCron` + computa `nextRunAt` inicial + audit, `update` merge partial — **recomputa `nextRunAt` somente se `cronExpression` mudou** (preserva agendamento em updates não-relacionados), `remove` + audit DELETE.
+  - `runNow(companyId, id)` — seta `nextRunAt = now`, permite disparo manual no próximo tick.
+  - `@Cron(CronExpression.EVERY_MINUTE, { name: 'scheduled-exports-tick' })` `processTick()`: findMany `isActive: true, nextRunAt: { lte: now }`, bounded batch `EXPORT_BATCH_SIZE=5`. Error isolation per-export (try/catch). Cada execução:
+    1. `generateRows(export)` dispatch por resource (CALLS → `prisma.call.findMany` com filtros de date/status, WHATSAPP_CHATS, AUDIT_LOGS, AI_SUGGESTIONS, CSAT_RESPONSES). Cap `MAX_EXPORT_ROWS=50_000` (bulkhead anti-DoS).
+    2. `format === CSV` → `toCsv(rows)` com escape `escapeCsv(value)` para `,`, `"`, `\n`, `\r`. Format === JSON → `JSON.stringify(rows, null, 2)`.
+    3. `emailService.sendScheduledExportEmail({recipients, name, resource, format, rowCount, attachmentContent, attachmentName})` — Resend attachment feature (base64-encoded buffer).
+    4. Sucesso → `update({data: {lastRunAt, lastRunStatus: OK, runCount: {increment: 1}, nextRunAt: computeNextRunAt(...), lastError: null}})`. Falha → `lastRunStatus: FAILED, lastError: error.message, nextRunAt: computeNextRunAt(...)` (continua na agenda — não suspende auto).
+  - `toCsv(rows)`: usa `Object.keys(rows[0])` como header, `escapeCsv` wraps com `"..."` se contém special chars (double-quote `"` → `""`).
+  - Audit fire-and-forget em todas mutações.
+- `EmailService.sendScheduledExportEmail`: template HTML minimalista com resumo (resource, format, rowCount, generatedAt), attachment via Resend API (`attachments: [{filename, content: base64}]`).
+- Endpoints: `GET /scheduled-exports`, `GET /scheduled-exports/:id`, `POST /scheduled-exports` (OWNER/ADMIN/MANAGER), `PATCH /scheduled-exports/:id` (OWNER/ADMIN/MANAGER), `DELETE /scheduled-exports/:id` (OWNER/ADMIN), `POST /scheduled-exports/:id/run-now` (OWNER/ADMIN/MANAGER). Class-level `@UseGuards(TenantGuard, RolesGuard)`.
+- Frontend: `/dashboard/settings/exports` com list + `CreateExportForm` (name, resource select 5 opts, format CSV/JSON, cronExpression combobox com 4 presets + custom, recipients comma-separated emails, filters JSON textarea, isActive toggle), `ExportRow` card com `StatusBadge` (pending/OK/failed + icon) + nextRunAt + runCount + actions (runNow, toggle active, delete). `scheduledExportsService` em `/services` com CRUD + runNow. Link no `/dashboard/settings` com icon `Download`.
+- i18n: ~30 chaves (`exports.*` — title, subtitle, resource/format/cron labels, `exports.cron.{hourly,daily9,weeklyMon,monthly1}` preset labels, toasts) em pt-BR + en. Fix crítico: `cronLabel` (string) separado de `cron` (object) para evitar key collision JSON.
+
+**Feature A2 — Retention policies + auto-purge (módulo novo `retention-policies`):**
+- Schema: modelo `RetentionPolicy` (id, companyId, resource `RetentionResource`, retentionDays Int, isActive Bool default true, lastRunAt?, lastDeletedCount Int default 0, lastError Text?, timestamps). `@@unique([companyId, resource], name: "retention_policy_unique")`. Índice `[isActive, lastRunAt]`. Enum `RetentionResource` (6 valores: CALLS, WHATSAPP_CHATS, AUDIT_LOGS, AI_SUGGESTIONS, CSAT_RESPONSES, NOTIFICATIONS).
+- **LGPD-aligned MIN_DAYS floor map**: `CALLS=7, WHATSAPP_CHATS=7, AUDIT_LOGS=180, AI_SUGGESTIONS=7, CSAT_RESPONSES=7, NOTIFICATIONS=7`. `AUDIT_LOGS=180` enforça mínimo legal brasileiro para trails de auditoria (LGPD Art. 37 + boas práticas ANPD).
+- `RetentionPoliciesService`:
+  - CRUD: `list` tenant-scoped, `upsert(companyId, actorId, dto)` valida `retentionDays >= MIN_DAYS[resource]` → `BadRequestException`, upsert via composite key `retention_policy_unique`, audit oldValues/newValues. `remove(companyId, id)` + audit DELETE.
+  - `@Cron(CronExpression.EVERY_HOUR, { name: 'retention-policies-tick' })` `processTick()`: findMany `isActive: true`, sem cap (1 row per (company, resource) garante bounded set natural). Error isolation per-policy (try/catch) — persiste `lastError` na policy em falha.
+  - `purgeForPolicy(policy)`:
+    1. `cutoff = now - retentionDays*86_400_000`.
+    2. Lookup dinâmico de model via map `RESOURCE_TO_MODEL_KEY: {CALLS: 'call', WHATSAPP_CHATS: 'whatsappChat', AUDIT_LOGS: 'auditLog', AI_SUGGESTIONS: 'aISuggestion', CSAT_RESPONSES: 'csatResponse', NOTIFICATIONS: 'notification'}`.
+    3. `buildWhereClause(policy, cutoff)` — **state-aware filters**:
+       - CALLS: `{companyId, createdAt: {lt: cutoff}}`.
+       - WHATSAPP_CHATS: `{companyId, createdAt: {lt: cutoff}, status: {in: [RESOLVED, ARCHIVED]}}` — preserva conversas ativas/pendentes.
+       - AUDIT_LOGS: `{companyId, createdAt: {lt: cutoff}}`.
+       - AI_SUGGESTIONS: `{user: {companyId}, createdAt: {lt: cutoff}}` — scope via relação user (sem companyId direto).
+       - CSAT_RESPONSES: `{companyId, createdAt: {lt: cutoff}, status: {in: [RESPONDED, EXPIRED, FAILED]}}` — preserva surveys SCHEDULED/SENT em andamento.
+       - NOTIFICATIONS: `{companyId, createdAt: {lt: cutoff}, readAt: {not: null}}` — preserva notifications não-lidas.
+    4. `model.findMany({where, select: {id}, take: PURGE_BATCH_SIZE=500})` → batch cap.
+    5. `ids.length === 0` → retorna 0 sem `deleteMany` call.
+    6. `model.deleteMany({where: {id: {in: ids}}})` — batch bounded (evita lock contention + long transaction).
+    7. `retentionPolicy.update({data: {lastRunAt, lastDeletedCount: count, lastError: null}})`.
+  - Dynamic model access: `(this.prisma as Record<string, {findMany, deleteMany}>)[modelKey]` — type-cast para enum-driven dispatch sem switch gigante.
+- Endpoints: `GET /retention-policies`, `PUT /retention-policies` (upsert, OWNER/ADMIN), `DELETE /retention-policies/:id` (OWNER/ADMIN). Class-level `@UseGuards(TenantGuard, RolesGuard)`.
+- Frontend: `/dashboard/settings/retention` matrix-style (reusa padrão da SLA page) — um card por `RetentionResource` (6 rows), cada row com input `retentionDays` (`min={MIN_DAYS[resource]}, max=3650`) + toggle `isActive` + display de `lastRunAt/lastDeletedCount/lastError`. Helper text `{t("retention.floor", { days: String(floor) })}` mostra o floor LGPD por resource. `RowState` map com dirty/saving tracking. `retentionPoliciesService` com `list/upsert/remove`. Link no `/dashboard/settings` com icon `Archive`.
+- i18n: ~15 chaves (`retention.*` — title/subtitle/days/active/floor/lastRun/lastDeleted/lastError/toasts, `retention.resource.*` 6 keys) em pt-BR + en.
+
+**Integração com features prévias:**
+- `EmailService` ganha `sendScheduledExportEmail(payload)` — reutiliza infra Resend existente (apiKey check + `this.send` wrapper) + attachment feature já suportada.
+- Ambos módulos são **consumers only** de Prisma + Email — zero circular deps.
+- `RetentionPolicy` respeita boundaries lógicos: não purga dados transacionais em andamento (chats abertos, surveys pendentes, notifications não-lidas), apenas histórico terminal.
+- `AUDIT_LOGS=180d` floor complementa S43 (LGPD scheduled deletion) — audit trail sobrevive hard-delete de usuários via `userId: null` anonymization e agora tem TTL explícito auditável.
+
+**Testes:**
+- `scheduled-exports.service.spec.ts` (novo, ~15 cases): `validateCron` aceita 4 presets válidos + rejeita malformed (`daily:25:00`, `weekly:7:...`, `monthly:29:...`, empty, unknown scheme). `computeNextRunAt` determinismo UTC (hourly → top of next hour, daily HH:MM futuro hoje vs passado → +1d, weekly DOW match hoje com HH:MM futuro vs +7d wrap, monthly DOM rollover para próximo mês quando passou). CRUD: `create` valida cron + computa nextRunAt + audit CREATE, `update` recomputa nextRunAt apenas se cron mudou (stable em outros PATCHes), `remove` NotFound tenant mismatch + audit DELETE. `runNow` seta `nextRunAt = now`. `processTick` no-op em empty batch, error-isolated per-export (p1 throw, p2 sucede), OK path persiste `lastRunStatus: OK, runCount: {increment: 1}, nextRunAt`. `toCsv` empty → `''`, escapa quotes/commas/newlines.
+- `retention-policies.service.spec.ts` (novo, ~12 cases): `upsert` MIN_DAYS floor (CALLS<7 → BadRequest, AUDIT_LOGS<180 → BadRequest), composite unique key `retention_policy_unique` nos args do upsert. `remove` NotFound tenant mismatch + audit DELETE. `processTick` no-op em empty batch, error-isolated (p1 falha `DB down` → persiste `lastError='DB down'` na p1, p2 sucede normal). `purgeForPolicy`: CALLS cutoff math + findMany take 500 + deleteMany ids + `lastDeletedCount` persistido, WHATSAPP_CHATS `status: {in: [RESOLVED, ARCHIVED]}`, CSAT_RESPONSES `status: {in: [RESPONDED, EXPIRED, FAILED]}`, NOTIFICATIONS `readAt: {not: null}`, AI_SUGGESTIONS `user: {companyId}`, empty batch returns 0 sem chamar deleteMany.
+
+**Resilience:** composite unique `retention_policy_unique` previne duplicate TTL per resource, MIN_DAYS floor client + server (defesa em camadas) impede bypass LGPD, bounded batch `PURGE_BATCH_SIZE=500` + `EXPORT_BATCH_SIZE=5` + `MAX_EXPORT_ROWS=50_000` (bulkheads anti-DoS), error isolation per-policy/per-export preserva outros jobs em falha, `lastError` persistido na row permite observabilidade sem quebrar loop, state-aware purge filters preservam dados em uso (chats abertos, surveys pendentes, notifications não-lidas), cron UTC-deterministic via `computeNextRunAt` evita DST drift, upsert idempotente (PUT-style UI), dynamic model lookup type-safe via `Record<string, {findMany, deleteMany}>` cast, audit trail em TODAS mutações (CREATE/UPDATE/DELETE) — retention policy mudança é rastreável, `AUDIT_LOGS=180d` floor complementa S43 LGPD hard-delete (trail sobrevive anonymization via `userId: null`).
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -556,6 +617,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 48 | 19/04 | Notification preferences (granular type×channel, quiet hours tz-aware, digest cron) + Saved filters/smart lists (Zod strict, shared) | ⏳ |
 | 49 | 20/04 | Background jobs queue (DB-backed, retry/DLQ/handler registry) + SLA policies (composite upsert + breach monitor cron + webhook + notifications) | ⏳ |
 | 50 | 20/04 | Contacts/Customer 360 (dedupe + timeline + merge + notes) + CSAT surveys (trigger-driven cron dispatch + public token + NPS analytics) | ⏳ |
+| 51 | 20/04 | Scheduled exports (preset cron + CSV/JSON email delivery + error-isolated worker) + Retention policies (per-resource TTL + hourly auto-purge + LGPD floor 180d AUDIT_LOGS) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -680,7 +742,9 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
 │   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
 │   │       │   ├── reply-templates/ # Saved reply library (CRUD) + LLM-ranked /suggest + heuristic fallback
+│   │       │   ├── retention-policies/ # Per-resource TTL (LGPD floor 180d AUDIT_LOGS) + hourly auto-purge cron + state-aware filters
 │   │       │   ├── saved-filters/  # Smart lists (own + shared) with Zod strict filterJson + pin
+│   │       │   ├── scheduled-exports/ # Recurring CSV/JSON email delivery + preset cron (hourly/daily/weekly/monthly) + error-isolated worker
 │   │       │   ├── summaries/      # Conversation summaries on-demand (Redis cache, OpenAI)
 │   │       │   ├── tags/           # ConversationTag library + CallTag/ChatTag joins + cross-channel search (pg_trgm)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
@@ -737,7 +801,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (28)
+### 6.1 Modelos (30)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -769,10 +833,12 @@ Infrastructure (Prisma, API Clients, Redis)
 | **ContactNote** | Anotação livre sobre contato. authorId SET NULL em user delete, CASCADE em contact delete | → Contact, User? |
 | **CsatSurveyConfig** | Config de trigger CSAT. `csat_config_unique` (companyId, trigger=CALL_END\|CHAT_CLOSE). channel WHATSAPP/EMAIL, delayMinutes, messageTpl, isActive | → Company |
 | **CsatResponse** | Survey scheduled/sent/responded. token unique (base64url ≥16 chars), status state-machine, score 1-5, comment, expiresAt default +7d. Public lookup bypass auth | → Company, Contact?, Call?, Chat? |
+| **ScheduledExport** | Export recorrente. resource enum (5 opções), format CSV/JSON, cronExpression preset, recipients[], filters Json, nextRunAt computado UTC, lastRunStatus OK/FAILED, runCount, lastError | → Company, User? (createdBy) |
+| **RetentionPolicy** | TTL per-resource. retentionDays com MIN_DAYS floor (AUDIT_LOGS=180d LGPD), isActive, lastRunAt, lastDeletedCount, lastError. Unique `retention_policy_unique` (companyId, resource) | → Company |
 
-### 6.2 Enums (30)
+### 6.2 Enums (34)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (5) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (5) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6)
 
 ### 6.3 Regras de Schema
 

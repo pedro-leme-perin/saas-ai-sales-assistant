@@ -809,4 +809,87 @@ export class EmailService {
   </table>
 </body></html>`.trim();
   }
+
+  // =====================================================
+  // 📤 SCHEDULED EXPORT (session 51)
+  // =====================================================
+  async sendScheduledExportEmail(params: {
+    recipients: string[];
+    exportName: string;
+    resource: string;
+    rowCount: number;
+    filename: string;
+    format: 'CSV' | 'JSON';
+    content: string;
+  }): Promise<void> {
+    const { recipients, exportName, resource, rowCount, filename, format, content } = params;
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping scheduled export email');
+      return;
+    }
+    if (!recipients || recipients.length === 0) return;
+    const html = this.buildScheduledExportHtml(exportName, resource, rowCount, filename);
+    const subject = `${exportName} · ${rowCount} linha(s)`;
+    const base64 = Buffer.from(content, 'utf8').toString('base64');
+    try {
+      await this.circuitBreaker.execute(async () => {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: this.fromEmail,
+            to: recipients,
+            subject,
+            html,
+            attachments: [
+              {
+                filename,
+                content: base64,
+                content_type: format === 'CSV' ? 'text/csv' : 'application/json',
+              },
+            ],
+          }),
+        });
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(`Resend API error ${response.status}: ${body}`);
+        }
+        return response.json() as Promise<unknown>;
+      });
+      this.logger.log(
+        `Scheduled export email sent to=${recipients.length} recipient(s) rows=${rowCount} file=${filename}`,
+      );
+    } catch (err) {
+      this.logger.error(`Scheduled export email failed: ${String(err)}`);
+      throw err;
+    }
+  }
+
+  private buildScheduledExportHtml(
+    exportName: string,
+    resource: string,
+    rowCount: number,
+    filename: string,
+  ): string {
+    return `<!DOCTYPE html>
+<html><body style="margin:0; background-color:#f4f4f5; font-family:Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff; border-radius:12px;">
+        <tr><td style="background:linear-gradient(135deg,#0EA5E9,#6366F1); padding:32px; border-radius:12px 12px 0 0;">
+          <h1 style="margin:0; color:#fff; font-size:22px;">${this.escapeHtml(exportName)}</h1>
+          <p style="margin:4px 0 0; color:rgba(255,255,255,0.9);">Export agendado · ${this.escapeHtml(resource)}</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="font-size:16px; color:#18181b;">Segue em anexo o arquivo <strong>${this.escapeHtml(filename)}</strong> com <strong>${rowCount}</strong> linha(s).</p>
+          <p style="font-size:12px; color:#a1a1aa; margin-top:24px;">Para ajustar a programação ou desativar, acesse Configurações &rarr; Exportações agendadas.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`.trim();
+  }
 }

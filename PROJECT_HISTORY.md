@@ -1478,5 +1478,52 @@ Duas features enterprise em profundidade (opção A — plataforma): **Conversat
 
 ---
 
+## Sessão 51 — 20/04/2026
+
+**Tema:** Scheduled exports + Retention policies (operações/compliance)
+
+### Feature A1 — Scheduled exports (módulo novo `scheduled-exports`)
+
+- Schema: `ScheduledExport` (resource, format CSV/JSON, cronExpression preset, recipients[], filters Json, nextRunAt, lastRunStatus OK/FAILED, runCount, lastError). Enums `ScheduledExportResource` (5 valores) + `ScheduledExportFormat` (CSV/JSON) + `ScheduledExportRunStatus` (OK/FAILED). Migration `20260421010000_add_scheduled_exports_and_retention_policies`.
+- `cron-schedule.ts` helper: validateCron + computeNextRunAt UTC-deterministic. Formato preset: `"hourly"` | `"daily:HH:MM"` | `"weekly:DOW:HH:MM"` (DOW 0..6) | `"monthly:DOM:HH:MM"` (DOM 1..28).
+- `ScheduledExportsService`: CRUD + `runNow` (seta nextRunAt=now) + `@Cron(EVERY_MINUTE)` `processTick` com bounded batch `EXPORT_BATCH_SIZE=5`, error-isolated per-export, `MAX_EXPORT_ROWS=50_000`. Generators por resource (CALLS/WHATSAPP_CHATS/AUDIT_LOGS/AI_SUGGESTIONS/CSAT_RESPONSES). `toCsv` escapa quotes/commas/newlines.
+- `EmailService.sendScheduledExportEmail` com attachment Resend (base64).
+- Endpoints: `GET/POST/PATCH/DELETE /scheduled-exports` + `POST /scheduled-exports/:id/run-now`.
+- Frontend: `/dashboard/settings/exports` — list + `CreateExportForm` + `ExportRow` com `StatusBadge`. `Download` icon na settings page. i18n ~30 chaves.
+
+### Feature A2 — Retention policies + auto-purge (módulo novo `retention-policies`)
+
+- Schema: `RetentionPolicy` (resource, retentionDays, isActive, lastRunAt, lastDeletedCount, lastError). `@@unique([companyId, resource], name: "retention_policy_unique")`. Enum `RetentionResource` (6 valores: CALLS, WHATSAPP_CHATS, AUDIT_LOGS, AI_SUGGESTIONS, CSAT_RESPONSES, NOTIFICATIONS).
+- **LGPD MIN_DAYS floor**: `CALLS=7, WHATSAPP_CHATS=7, AUDIT_LOGS=180, AI_SUGGESTIONS=7, CSAT_RESPONSES=7, NOTIFICATIONS=7`. AUDIT_LOGS floor 180 enforça mínimo legal brasileiro.
+- `RetentionPoliciesService`: `upsert` valida floor client+server + composite key, `@Cron(EVERY_HOUR)` `processTick` error-isolated per-policy, `purgeForPolicy` com state-aware filters (WHATSAPP_CHATS `status IN [RESOLVED, ARCHIVED]`, CSAT_RESPONSES `status IN [RESPONDED, EXPIRED, FAILED]`, NOTIFICATIONS `readAt: {not: null}`, AI_SUGGESTIONS `user: {companyId}`). `PURGE_BATCH_SIZE=500` cap via findMany select id + deleteMany. Dynamic model lookup via `(prisma as Record<string, ...>)[modelKey]`.
+- Endpoints: `GET /retention-policies`, `PUT /retention-policies` (upsert), `DELETE /retention-policies/:id`.
+- Frontend: `/dashboard/settings/retention` matrix-style (1 card por resource com retentionDays input `min={floor}`, toggle isActive, displays lastRun/lastDeleted/lastError). i18n ~15 chaves. `Archive` icon na settings page.
+
+### Integração
+
+- `EmailService` ganha `sendScheduledExportEmail(payload)` — reusa infra Resend + attachment.
+- Ambos módulos consumers only de Prisma + Email (zero circular deps).
+- `AUDIT_LOGS=180d` floor complementa S43 LGPD scheduled deletion (audit trail sobrevive hard-delete via `userId: null`).
+
+### Testes
+
+- `scheduled-exports.service.spec.ts` (~15 cases): validateCron presets + rejections, computeNextRunAt UTC math (hourly/daily/weekly/monthly + DOW/DOM rollovers), CRUD (audit + recomputes nextRunAt só em cron change), runNow, processTick (no-op/error-isolated/OK path persiste lastRunStatus/runCount increment/nextRunAt), toCsv escape.
+- `retention-policies.service.spec.ts` (~12 cases): upsert MIN_DAYS floor (CALLS<7 BadRequest, AUDIT_LOGS<180 BadRequest), composite unique key nos args, remove NotFound tenant mismatch, processTick empty/error-isolated (lastError persistido), purgeForPolicy per-resource state filters, AI_SUGGESTIONS scope via user.companyId, empty batch returns 0 sem deleteMany.
+
+### Resilience notes
+
+- Composite unique `retention_policy_unique` previne duplicate TTL per resource.
+- MIN_DAYS floor defesa em camadas (client + server) impede bypass LGPD.
+- Bounded batch `PURGE_BATCH_SIZE=500` + `EXPORT_BATCH_SIZE=5` + `MAX_EXPORT_ROWS=50_000` (bulkheads anti-DoS).
+- Error isolation per-policy/per-export preserva outros jobs em falha.
+- `lastError` persistido na row — observabilidade sem quebrar loop.
+- State-aware purge preserva dados em uso (chats abertos, surveys pendentes, notifications não-lidas).
+- Cron UTC-deterministic via `computeNextRunAt` evita DST drift.
+- Upsert idempotente (PUT-style UI).
+- Audit trail em TODAS mutações (CREATE/UPDATE/DELETE).
+- AUDIT_LOGS=180d floor complementa S43 LGPD hard-delete.
+
+---
+
 *Documento atualizado em 20/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

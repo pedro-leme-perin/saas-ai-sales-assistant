@@ -1223,5 +1223,77 @@
       "invalid": "Invalid or not found link.",
       "submitErr": "Failed to submit rating."
     }
+  },
+  "exports": {
+    "title": "Scheduled exports",
+    "subtitle": "Recurring CSV/JSON deliveries by email on a preset schedule.",
+    "new": "New export",
+    "empty": "No scheduled exports.",
+    "name": "Name",
+    "resource": "Resource",
+    "format": "Format",
+    "cronLabel": "Schedule",
+    "cronHint": "Formats: hourly, daily:HH:MM, weekly:DOW:HH:MM (0=Sun..6=Sat), monthly:DOM:HH:MM. UTC.",
+    "recipients": "Recipients (comma-separated emails)",
+    "isActive": "Active",
+    "runNow": "Run now",
+    "nextRun": "Next run",
+    "lastRun": "Last run",
+    "runCount": "Runs",
+    "inactive": "Inactive",
+    "confirmDelete": "Remove this scheduled export?",
+    "status": {
+      "pending": "Pending",
+      "ok": "OK",
+      "failed": "Failed"
+    },
+    "cron": {
+      "hourly": "Hourly",
+      "daily9": "Daily at 09:00 UTC",
+      "weeklyMon": "Weekly - Monday 08:00 UTC",
+      "monthly1": "Monthly - day 1 08:00 UTC"
+    },
+    "resources": {
+      "ANALYTICS_OVERVIEW": "Analytics overview",
+      "CONTACTS": "Contacts",
+      "AUDIT_LOGS": "Audit logs",
+      "CALLS": "Calls",
+      "WHATSAPP_CHATS": "WhatsApp chats",
+      "CSAT_RESPONSES": "CSAT responses"
+    },
+    "toast": {
+      "created": "Export created.",
+      "createErr": "Failed to create export.",
+      "deleted": "Export removed.",
+      "deleteErr": "Failed to remove export.",
+      "scheduled": "Run scheduled for the next minutes.",
+      "runErr": "Failed to schedule run."
+    }
+  },
+  "retention": {
+    "title": "Retention policies",
+    "subtitle": "TTL per resource. Old data is purged automatically every hour.",
+    "days": "Retention days",
+    "active": "Active",
+    "floor": "Minimum: {{days}} days",
+    "lastRun": "Last run",
+    "lastDeleted": "Rows deleted",
+    "notConfigured": "Not configured.",
+    "confirmDelete": "Remove this retention policy?",
+    "hint": "AUDIT_LOGS has an LGPD floor of 180 days. Chats purge only RESOLVED/ARCHIVED. Notifications purge only read. CSAT responses purge only terminal states.",
+    "resources": {
+      "CALLS": "Calls",
+      "WHATSAPP_CHATS": "WhatsApp chats (resolved/archived only)",
+      "AUDIT_LOGS": "Audit logs",
+      "AI_SUGGESTIONS": "AI suggestions",
+      "CSAT_RESPONSES": "CSAT responses (terminal only)",
+      "NOTIFICATIONS": "Notifications (read only)"
+    },
+    "toast": {
+      "saveOk": "Policy saved.",
+      "saveErr": "Failed to save policy.",
+      "deleteOk": "Policy removed.",
+      "deleteErr": "Failed to remove policy."
+    }
   }
 }
