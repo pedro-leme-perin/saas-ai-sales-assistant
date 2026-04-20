@@ -184,7 +184,7 @@ export class NotificationPreferencesService {
     const key = `${NotificationPreferencesService.DIGEST_KEY_PREFIX}${userId}`;
     const payload: DigestEntry = { ...entry, at: nowMs };
     try {
-      const existing = await this.cache.get<DigestEntry[]>(key);
+      const existing = await this.cache.getJson<DigestEntry[]>(key);
       const items = Array.isArray(existing) ? existing : [];
       items.push(payload);
       // Cap to last 100 entries to prevent unbounded growth
@@ -227,7 +227,7 @@ export class NotificationPreferencesService {
     const key = `${NotificationPreferencesService.DIGEST_KEY_PREFIX}${userId}`;
     let entries: DigestEntry[] = [];
     try {
-      entries = (await this.cache.get<DigestEntry[]>(key)) ?? [];
+      entries = (await this.cache.getJson<DigestEntry[]>(key)) ?? [];
     } catch {
       return;
     }

@@ -38,6 +38,7 @@ describe('NotificationPreferencesService', () => {
 
   const mockCache = {
     get: jest.fn(),
+    getJson: jest.fn(),
     set: jest.fn(),
     delete: jest.fn(),
   };
@@ -252,7 +253,7 @@ describe('NotificationPreferencesService', () => {
         message: 'm',
         at: i,
       }));
-      mockCache.get.mockResolvedValueOnce(existing);
+      mockCache.getJson.mockResolvedValueOnce(existing);
       await service.queueDigest(
         'u1',
         { type: NotificationType.NEW_MESSAGE, title: 't-new', message: 'm' },
@@ -268,7 +269,7 @@ describe('NotificationPreferencesService', () => {
     });
 
     it('queueDigest: Redis down → silent fail', async () => {
-      mockCache.get.mockRejectedValueOnce(new Error('redis down'));
+      mockCache.getJson.mockRejectedValueOnce(new Error('redis down'));
       await expect(
         service.queueDigest('u1', { type: NotificationType.NEW_MESSAGE, title: 't', message: 'm' }),
       ).resolves.toBeUndefined();
@@ -284,7 +285,7 @@ describe('NotificationPreferencesService', () => {
       mockPrisma.notificationPreference.findMany.mockResolvedValueOnce([
         { userId: 'u1', companyId: 'c1' },
       ]);
-      mockCache.get.mockResolvedValueOnce([
+      mockCache.getJson.mockResolvedValueOnce([
         { type: NotificationType.NEW_MESSAGE, title: 't1', message: 'm1', at: Date.now() },
       ]);
       mockPrisma.user.findFirst.mockResolvedValueOnce({ email: 'u1@test.com', name: 'Alice' });
@@ -305,7 +306,7 @@ describe('NotificationPreferencesService', () => {
       mockPrisma.notificationPreference.findMany.mockResolvedValueOnce([
         { userId: 'u1', companyId: 'c1' },
       ]);
-      mockCache.get.mockResolvedValueOnce([
+      mockCache.getJson.mockResolvedValueOnce([
         { type: NotificationType.NEW_MESSAGE, title: 't1', message: 'm1', at: Date.now() },
       ]);
       mockPrisma.user.findFirst.mockResolvedValueOnce(null);
