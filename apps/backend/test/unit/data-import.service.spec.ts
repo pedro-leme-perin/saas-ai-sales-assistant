@@ -151,7 +151,11 @@ describe('DataImportService', () => {
     let handler: (
       job: { companyId: string; payload: unknown; id: string; createdById: string | null },
       ctx: { updateProgress: (n: number) => Promise<void> },
-    ) => Promise<{ successRows: number; errorRows: number; errors: Array<{ row: number; reason: string }> }>;
+    ) => Promise<{
+      successRows: number;
+      errorRows: number;
+      errors: Array<{ row: number; reason: string }>;
+    }>;
 
     beforeEach(() => {
       service.onModuleInit();
@@ -197,8 +201,14 @@ describe('DataImportService', () => {
       );
       expect(res.successRows).toBe(1);
       expect(res.errorRows).toBe(2);
-      expect(res.errors[0]).toMatchObject({ row: 2, reason: expect.stringContaining('invalid phone') });
-      expect(res.errors[1]).toMatchObject({ row: 4, reason: expect.stringContaining('db unavailable') });
+      expect(res.errors[0]).toMatchObject({
+        row: 2,
+        reason: expect.stringContaining('invalid phone'),
+      });
+      expect(res.errors[1]).toMatchObject({
+        row: 4,
+        reason: expect.stringContaining('db unavailable'),
+      });
     });
 
     it('invokes prisma.contact.upsert with composite key contact_phone_unique', async () => {

@@ -8,15 +8,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Edit,
-  Users,
-  Loader2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Edit, Users, Loader2, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/use-translation";
@@ -148,7 +140,8 @@ export default function AssignmentRulesPage() {
       .map((s) => s.trim())
       .filter(Boolean);
     if (tags.length) conditions.tags = tags;
-    if (form.phonePrefix.trim()) conditions.phonePrefix = form.phonePrefix.trim();
+    if (form.phonePrefix.trim())
+      conditions.phonePrefix = form.phonePrefix.trim();
     const kw = form.keywordsAny
       .split(",")
       .map((s) => s.trim())

@@ -102,7 +102,11 @@ export default function ContactsImportPage() {
   const isTerminal = job && TERMINAL_STATUSES.includes(job.status);
   const progress = job?.progress ?? 0;
   const result = job?.result as
-    | { imported?: number; skipped?: number; errors?: Array<{ row: number; reason: string }> }
+    | {
+        imported?: number;
+        skipped?: number;
+        errors?: Array<{ row: number; reason: string }>;
+      }
     | null
     | undefined;
 
@@ -137,7 +141,9 @@ export default function ContactsImportPage() {
               onClick={() => inputRef.current?.click()}
             >
               <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm font-medium">{t("dataImport.selectFile")}</p>
+              <p className="text-sm font-medium">
+                {t("dataImport.selectFile")}
+              </p>
               <input
                 ref={inputRef}
                 type="file"

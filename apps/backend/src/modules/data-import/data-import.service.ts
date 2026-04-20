@@ -22,12 +22,7 @@
 //   - Hard cap MAX_ROWS_PER_IMPORT=10_000 (bulkhead).
 
 import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import {
-  AuditAction,
-  BackgroundJob,
-  BackgroundJobType,
-  Prisma,
-} from '@prisma/client';
+import { AuditAction, BackgroundJob, BackgroundJobType, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { BackgroundJobsService } from '@modules/background-jobs/background-jobs.service';
@@ -152,10 +147,7 @@ export class DataImportService implements OnModuleInit {
     return result;
   }
 
-  private async upsertContact(
-    companyId: string,
-    r: ParsedContactRow,
-  ): Promise<void> {
+  private async upsertContact(companyId: string, r: ParsedContactRow): Promise<void> {
     const phone = this.normalizePhone(r.phone);
     if (!phone) throw new Error('invalid phone');
     const data: Prisma.ContactCreateInput = {
@@ -195,9 +187,7 @@ export class DataImportService implements OnModuleInit {
     if (!raw || raw.trim().length === 0) return [];
     const lines = this.splitCsvLines(raw);
     if (lines.length < 2) return []; // header only → no data
-    const header = this.parseCsvLine(lines[0]).map((h) =>
-      h.trim().toLowerCase(),
-    );
+    const header = this.parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
     const idxPhone = header.indexOf('phone');
     if (idxPhone < 0) return []; // phone is required
     const idxName = header.indexOf('name');

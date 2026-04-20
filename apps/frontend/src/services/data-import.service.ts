@@ -11,5 +11,7 @@ export interface EnqueueImportResult {
 
 export const dataImportService = {
   enqueueContacts: (csvContent: string) =>
-    apiClient.post<EnqueueImportResult>(`/data-import/contacts`, { csvContent }),
+    apiClient.post<EnqueueImportResult>(`/data-import/contacts`, {
+      csvContent,
+    }),
 };

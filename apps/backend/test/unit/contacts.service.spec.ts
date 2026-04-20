@@ -51,7 +51,7 @@ describe('ContactsService', () => {
     auditLog: {
       create: jest.fn().mockResolvedValue({}),
     },
-    $transaction: jest.fn(async (fn: any) => fn(mockPrisma)),
+    $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(mockPrisma)),
   };
 
   const mockCache = {
@@ -62,7 +62,9 @@ describe('ContactsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockCache.get.mockResolvedValue(null);
-    mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(mockPrisma));
+    mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn(mockPrisma),
+    );
     const moduleRef = await Test.createTestingModule({
       providers: [
         ContactsService,

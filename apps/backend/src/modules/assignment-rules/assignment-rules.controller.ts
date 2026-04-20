@@ -18,20 +18,12 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 
-import {
-  CompanyId,
-  CurrentUser,
-  Roles,
-  type AuthenticatedUser,
-} from '@common/decorators';
+import { CompanyId, CurrentUser, Roles, type AuthenticatedUser } from '@common/decorators';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 
 import { AssignmentRulesService } from './assignment-rules.service';
-import {
-  CreateAssignmentRuleDto,
-  UpdateAssignmentRuleDto,
-} from './dto/upsert-assignment-rule.dto';
+import { CreateAssignmentRuleDto, UpdateAssignmentRuleDto } from './dto/upsert-assignment-rule.dto';
 
 @ApiTags('assignment-rules')
 @ApiBearerAuth('JWT')
@@ -48,10 +40,7 @@ export class AssignmentRulesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get one assignment rule' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 

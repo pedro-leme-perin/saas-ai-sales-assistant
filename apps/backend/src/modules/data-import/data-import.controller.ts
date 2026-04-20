@@ -8,23 +8,11 @@
 //   guards: TenantGuard + RolesGuard (OWNER/ADMIN/MANAGER)
 //   returns: { jobId, status }
 
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 
-import {
-  CompanyId,
-  CurrentUser,
-  Roles,
-  type AuthenticatedUser,
-} from '@common/decorators';
+import { CompanyId, CurrentUser, Roles, type AuthenticatedUser } from '@common/decorators';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 
@@ -47,11 +35,7 @@ export class DataImportController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ImportContactsDto,
   ) {
-    const job = await this.service.enqueueContactImport(
-      companyId,
-      user.id,
-      dto.csvContent,
-    );
+    const job = await this.service.enqueueContactImport(companyId, user.id, dto.csvContent);
     return { jobId: job.id, status: job.status };
   }
 }

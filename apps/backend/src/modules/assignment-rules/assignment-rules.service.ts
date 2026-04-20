@@ -43,10 +43,7 @@ import {
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
 import { CHAT_CREATED_EVENT, type ChatCreatedPayload } from './events/assignment-events';
-import {
-  CreateAssignmentRuleDto,
-  UpdateAssignmentRuleDto,
-} from './dto/upsert-assignment-rule.dto';
+import { CreateAssignmentRuleDto, UpdateAssignmentRuleDto } from './dto/upsert-assignment-rule.dto';
 
 const RR_KEY_PREFIX = 'assign:rr:';
 const RR_TTL_SEC = 60 * 60 * 24 * 30; // 30 days
