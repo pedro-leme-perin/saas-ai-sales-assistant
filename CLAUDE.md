@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 19/04/2026 (sessão 47)
+> Última atualização: 19/04/2026 (sessão 48)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 47 (19/04/2026) | Conversation tags + cross-channel search (pg_trgm) + API keys management (scopes + per-key rate limit) |
-| Backend (NestJS) | ✅ Produção | Railway — 22 módulos (+tags, +api-keys), 54+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 24 routes (+tags, +api-keys) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 19 modelos (+ConversationTag, +CallTag, +ChatTag), 24 enums Prisma + pg_trgm |
+| Último commit | sessão 48 (19/04/2026) | Notification preferences (granular type×channel + quiet hours tz-aware + digest) + Saved filters/smart lists (Zod strict + shared) |
+| Backend (NestJS) | ✅ Produção | Railway — 24 módulos (+notification-preferences, +saved-filters), 56+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 25 routes (+notification-prefs) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 21 modelos (+NotificationPreference, +SavedFilter), 25 enums Prisma (+FilterResource) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -344,6 +344,55 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** composite PK previne duplicate attachments, skipDuplicates torna attach idempotente, pg_trgm GIN reduz custo de ILIKE cross-channel de O(n) para ~O(log n), tenant isolation dupla (companyId + assertTagsOwned), plaintext jamais re-exibido após issuance (segurança), SHA-256 hash no DB invalida bulk leaks, per-key rate limit no guard é transparente ao controller, audit não-bloqueante em todas mutações, P2002 mapeado para BadRequest (não vaza Prisma internals), AND semantics em multi-tag filter (client-side UX) + OR seria trivial (single `{ tagLinks: { some: { tagId: { in: ids } } } }`).
 
+### 2.5.7 Sessão 48 — 19/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — notificações + produtividade) — Notification preferences granulares (tipo × canal, quiet hours tz-aware, digest diário) + Saved filters/Smart lists (Zod strict, shared vs own, pin).
+
+**Feature A1 — Notification preferences (módulo novo `notification-preferences`):**
+- Schema: modelo novo `NotificationPreference` (id, userId, companyId, type, channel, enabled, quietHoursStart?, quietHoursEnd?, timezone?, digestMode, timestamps). `@@unique([userId, type, channel], name: "user_type_channel_unique")` para upsert composite. Índices `[userId, companyId]` e `[companyId, type]`. Migration `20260419040000_add_notification_preferences_and_saved_filters`.
+- DTO: `UpsertPreferenceItemDto` valida `quietHoursStart/End` via regex `HHMM = /^([01]\d|2[0-3]):[0-5]\d$/`. `UpsertPreferencesDto.items` com `@ArrayMaxSize(100)`.
+- `NotificationPreferencesService`:
+  - `list(userId, companyId)` — tenant-scoped, ordered `[type asc, channel asc]`.
+  - `upsertMany(userId, companyId, { items })`: empty → early return `{updated: 0}`; else `$transaction` de `upsert({ where: { user_type_channel_unique: {...} }, update, create })` por item (Prisma não suporta batch upsert com composite-unique). Audit non-blocking.
+  - `reset(userId, companyId)` — `deleteMany` tenant-scoped, retorna `{deleted: count}`.
+  - `evaluate(userId, companyId, type, channel, now?)` retorna `'send' | 'skip' | 'digest'`. Logic:
+    1. No pref row → `send` (opt-out default)
+    2. `enabled=false` → `skip`
+    3. `digestMode=true` + `EMAIL` + non-urgent → `digest`
+    4. Quiet hours ativos + non-urgent → `skip`
+    5. Default → `send`
+  - `isUrgent(type)`: apenas `SYSTEM` e `BILLING_ALERT` bypassam digest + quiet hours.
+  - `isInQuietHours(now, startHHMM, endHHMM, tz)`: extrai minutos locais via `Intl.DateTimeFormat(tz, { hour/minute: '2-digit', hour12: false })`. Overnight (start > end) wraps midnight (`nowM >= start || nowM < end`). Equal start/end → false (window vazio). Invalid tz → fallback UTC.
+  - `queueDigest(userId, entry, nowMs?)`: lê array de `DIGEST_KEY_PREFIX='notif:digest:' + userId` (TTL `60*60*36` = 36h), cap 100 entries (mais recentes), `cache.set` com fail-open try/catch (Redis down não bloqueia hot path).
+  - `@Cron('0 8 * * *', { name: 'notification-digest-daily' })` `flushDigests()`: `findMany` distinct users com `digestMode=true` + `EMAIL` + `enabled=true` (`take: 1000`), itera com error isolation per-user (`try/catch`). `shipUserDigest` fetcha `user.findFirst`, `sendNotificationDigestEmail({recipientEmail, recipientName, entries})`, depois `cache.delete`. User deletado → skip silently.
+- `EmailService.sendNotificationDigestEmail`: template HTML com gradient header purple/violet, `Intl.DateTimeFormat('pt-BR')` para timestamps de cada entry, reusa `this.escapeHtml` + `this.send` wrapper existente. Skip se `!apiKey` ou `entries.length === 0`.
+- Endpoints: `GET/PATCH/DELETE /users/me/notification-preferences` (TenantGuard).
+- Frontend: `/dashboard/settings/notification-prefs` — matrix UI (rows = 8 types, cols = 4 channels) com toggle cell; seção Quiet Hours (start/end + tz select com 7 zones default + detect `Intl.DateTimeFormat().resolvedOptions().timeZone`); seção Digest (single toggle aplicado a EMAIL em todos os types no save). Reset → `reset()`. `notificationPreferencesService` com tipos `NotificationTypeKey/ChannelKey/NotificationPreferenceItem`. Link em settings/page.tsx com icon `BellRing`.
+- i18n: ~25 chaves (`notificationPrefs.*`, `notificationPrefs.channels.*`, `notificationPrefs.types.*`) em pt-BR + en.
+
+**Feature A2 — Saved filters / Smart lists (módulo novo `saved-filters`):**
+- Schema: modelo `SavedFilter` (id, companyId, userId?, name, resource `FilterResource` enum, filterJson Json, isPinned, timestamps). Enum `FilterResource` (CALL, CHAT). `userId` nullable = shared/team-wide. Índices `[companyId, resource, userId]`, `[companyId, isPinned]`, `[companyId, userId]`.
+- DTO: `CreateSavedFilterDto` (name, resource, filterJson object, isPinned?, shared?). Zod schema em service (não DTO) para validação strict.
+- `SavedFiltersService`:
+  - `FilterJsonSchema = z.object({ q, tagIds, sentiment, status, priority, assigneeId, dateFrom, dateTo, minDuration, maxDuration, direction }).strict()` — regex date `/^\d{4}-\d{2}-\d{2}$/`. `.strict()` rejeita unknown keys (anti-abuse/XSS).
+  - `list(companyId, userId, resource?)` — WHERE `companyId` + `resource?` + `OR: [{userId}, {userId: null}]` (own + shared). OrderBy `[isPinned desc, updatedAt desc]`.
+  - `findById(companyId, userId, id)` — `findFirst` com OR idem; NotFound se não achar.
+  - `create(companyId, userId, dto)`: `shared=true` → `userId: null` persistido. `P2002` (unique name collision) → `BadRequestException`. Audit `CREATE` resource literal `'SAVED_FILTER'`.
+  - `update(companyId, userId, id, dto)`: verifica `existing.userId && existing.userId !== userId` → `NotFoundException` (owner check). Merge partial apenas fields providenciados. Audit `UPDATE` com oldValues/newValues.
+  - `togglePin(companyId, userId, id)`: inverts `isPinned`.
+  - `remove(companyId, userId, id)`: mesma owner check. Audit `DELETE`.
+  - `validateFilterJson(json)`: `safeParse`, throws `BadRequestException` com mensagem da primeira issue Zod.
+  - `audit()`: fire-and-forget try/catch.
+- Endpoints: `GET /saved-filters?resource=`, `GET /saved-filters/:id`, `POST /saved-filters`, `PATCH /saved-filters/:id`, `POST /saved-filters/:id/pin`, `DELETE /saved-filters/:id` (TenantGuard).
+- Frontend: `savedFiltersService` com CRUD + togglePin. `<SmartListsDrawer resource currentFilterJson onSelect>` — sidebar reutilizável (calls + whatsapp) com lista pinned + own + shared (ícones Users/UserIcon), row com pin/unpin + remove hover. Create inline capture `currentFilterJson` da página com toggle `shared` (persistido como `userId: null`).
+- i18n: ~10 chaves (`savedFilters.*`) em pt-BR + en.
+
+**Testes:**
+- `notification-preferences.service.spec.ts` (novo, ~20 cases): CRUD (list sort `[type asc, channel asc]`, upsertMany empty → early return `{updated: 0}` sem `$transaction`, upsertMany composite-unique upsert args corretos, reset count). evaluate: no pref row → send, disabled → skip, digestMode + EMAIL + non-urgent → digest, digestMode + EMAIL + urgent BILLING_ALERT → send (bypass), quiet-hours active + non-urgent → skip, quiet-hours + urgent SYSTEM → send. isInQuietHours: same-day inside/outside, overnight window 22-07 (22:30 inside, 03:00 inside, 12:00 outside), equal start/end → false, timezone-aware (Sao_Paulo UTC-3 vs UTC), invalid tz fallback UTC. queueDigest: cap 100 entries (contém a nova + top 99 existentes); Redis error → silent fail. flushDigests: empty → no-op (no email), ships + clears cache, user deleted → skip silently.
+- `saved-filters.service.spec.ts` (novo, ~10 cases): list OR clause `[{userId}, {userId: null}]` + order pinned/updatedAt. findById NotFound. create: Zod validates + persists (companyId/userId/name corretos), shared=true → userId: null, unknown keys rejeitadas (BadRequest via Zod strict), P2002 → BadRequest, invalid date format → BadRequest. update: owner mismatch → NotFound, merge partial + audit. togglePin inverts. remove: owner mismatch → NotFound, success → audit DELETE.
+
+**Resilience:** composite unique para idempotência de upsert, audit non-blocking em todas mutações, Redis fail-open em queueDigest (hot path protegido), error isolation per-user em flushDigests cron, Zod `.strict()` rejeita unknown keys no filterJson (anti-abuse), OR clause aplicada no service (não no controller) preserva multi-tenancy, owner check explícito em update/remove impede tenant member A de editar filter de B, `Intl.DateTimeFormat` + fallback UTC em isInQuietHours resiliente a tz inválido.
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -366,6 +415,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 45 | 18/04 | Auto-summary on call-end (durable) + Team leaderboard & goals | ⏳ |
 | 46 | 19/04 | Outbound webhooks (HMAC + retry + DLQ) + Saved reply templates (LLM suggest) | ⏳ |
 | 47 | 19/04 | Conversation tagging + cross-channel search (pg_trgm) + API keys mgmt (scopes + per-key rate limit) | ⏳ |
+| 48 | 19/04 | Notification preferences (granular type×channel, quiet hours tz-aware, digest cron) + Saved filters/smart lists (Zod strict, shared) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -483,10 +533,12 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── email/          # Resend integration, templates
 │   │       │   ├── goals/          # TeamGoals CRUD + leaderboard (weekly/monthly)
 │   │       │   ├── lgpd-deletion/  # Scheduled hard-delete cron (30d grace), AuditLog preservation
+│   │       │   ├── notification-preferences/ # Granular pref matrix (type×channel) + quiet hours tz-aware + digest daily cron
 │   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
 │   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
 │   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
 │   │       │   ├── reply-templates/ # Saved reply library (CRUD) + LLM-ranked /suggest + heuristic fallback
+│   │       │   ├── saved-filters/  # Smart lists (own + shared) with Zod strict filterJson + pin
 │   │       │   ├── summaries/      # Conversation summaries on-demand (Redis cache, OpenAI)
 │   │       │   ├── tags/           # ConversationTag library + CallTag/ChatTag joins + cross-channel search (pg_trgm)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
@@ -543,7 +595,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (19)
+### 6.1 Modelos (21)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -567,10 +619,12 @@ Infrastructure (Prisma, API Clients, Redis)
 | **ConversationTag** | Biblioteca compartilhada por tenant. name (unique por companyId), color hex, description. Backward-compat com Call.tags String[] / WhatsappChat.tags String[] | → Company, User (createdBy), CallTag[], ChatTag[] |
 | **CallTag** | Join many-to-many entre Call e ConversationTag. Composite PK [callId, tagId], CASCADE em ambos | → Call, ConversationTag |
 | **ChatTag** | Join many-to-many entre WhatsappChat e ConversationTag. Composite PK [chatId, tagId], CASCADE em ambos | → WhatsappChat, ConversationTag |
+| **NotificationPreference** | Preferência granular por (userId, type, channel). Unique `user_type_channel_unique`. quietHoursStart/End HH:MM, timezone IANA, digestMode. Default opt-out | → User, Company |
+| **SavedFilter** | Smart list salva. userId nullable = shared/team-wide. resource enum (CALL/CHAT), filterJson Json validado via Zod `.strict()`, isPinned | → Company, User? |
 
-### 6.2 Enums (24)
+### 6.2 Enums (25)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (4) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (4) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2)
 
 ### 6.3 Regras de Schema
 

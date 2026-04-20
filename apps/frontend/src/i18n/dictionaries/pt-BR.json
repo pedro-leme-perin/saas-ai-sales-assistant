@@ -6,6 +6,7 @@
     "saveChanges": "Salvar Alterações",
     "cancel": "Cancelar",
     "delete": "Excluir",
+    "remove": "Remover",
     "edit": "Editar",
     "show": "Mostrar",
     "hide": "Ocultar",
@@ -976,5 +977,49 @@
       "rateLimitPlaceholder": "Ex: 60 (vazio = padrao do plano)",
       "expiresAt": "Expira em"
     }
+  },
+  "notificationPrefs": {
+    "title": "Preferencias de notificacao",
+    "subtitle": "Controle granular por tipo e canal, quiet-hours e digest.",
+    "saved": "Preferencias salvas.",
+    "reset": "Preferencias resetadas.",
+    "resetBtn": "Resetar",
+    "matrixTitle": "Matriz por tipo e canal",
+    "typeCol": "Tipo",
+    "quietTitle": "Quiet hours",
+    "quietStart": "Inicio",
+    "quietEnd": "Fim",
+    "timezone": "Fuso horario",
+    "quietHint": "Durante quiet hours, apenas notificacoes urgentes (sistema, cobranca) sao entregues.",
+    "digestTitle": "Modo digest",
+    "digestLabel": "Receber e-mails nao urgentes em digest diario",
+    "digestHint": "Nao urgentes sao agrupados e enviados em um unico e-mail diario (08:00 UTC).",
+    "channels": {
+      "IN_APP": "In-app",
+      "EMAIL": "E-mail",
+      "PUSH": "Push",
+      "SMS": "SMS"
+    },
+    "types": {
+      "SYSTEM": "Sistema",
+      "CALL_STARTED": "Ligacao iniciada",
+      "CALL_ENDED": "Ligacao encerrada",
+      "NEW_MESSAGE": "Nova mensagem",
+      "AI_SUGGESTION": "Sugestao de IA",
+      "SUBSCRIPTION_UPDATE": "Assinatura",
+      "BILLING_ALERT": "Cobranca",
+      "TEAM_UPDATE": "Equipe"
+    }
+  },
+  "savedFilters": {
+    "title": "Listas inteligentes",
+    "new": "Nova lista",
+    "empty": "Sem listas salvas. Clique em + para criar a partir dos filtros atuais.",
+    "namePlaceholder": "Nome da lista",
+    "sharedLabel": "Compartilhar com a equipe",
+    "created": "Lista criada.",
+    "removed": "Lista removida.",
+    "pin": "Fixar",
+    "unpin": "Desafixar"
   }
 }

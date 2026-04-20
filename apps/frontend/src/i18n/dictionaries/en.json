@@ -6,6 +6,7 @@
     "saveChanges": "Save Changes",
     "cancel": "Cancel",
     "delete": "Delete",
+    "remove": "Remove",
     "edit": "Edit",
     "show": "Show",
     "hide": "Hide",
@@ -976,5 +977,49 @@
       "rateLimitPlaceholder": "e.g. 60 (empty = plan default)",
       "expiresAt": "Expires at"
     }
+  },
+  "notificationPrefs": {
+    "title": "Notification preferences",
+    "subtitle": "Granular control per type and channel, quiet hours and digest.",
+    "saved": "Preferences saved.",
+    "reset": "Preferences reset.",
+    "resetBtn": "Reset",
+    "matrixTitle": "Type x channel matrix",
+    "typeCol": "Type",
+    "quietTitle": "Quiet hours",
+    "quietStart": "Start",
+    "quietEnd": "End",
+    "timezone": "Timezone",
+    "quietHint": "During quiet hours only urgent notifications (system, billing) are delivered.",
+    "digestTitle": "Digest mode",
+    "digestLabel": "Receive non-urgent emails as a daily digest",
+    "digestHint": "Non-urgent events are batched into a single daily email (08:00 UTC).",
+    "channels": {
+      "IN_APP": "In-app",
+      "EMAIL": "Email",
+      "PUSH": "Push",
+      "SMS": "SMS"
+    },
+    "types": {
+      "SYSTEM": "System",
+      "CALL_STARTED": "Call started",
+      "CALL_ENDED": "Call ended",
+      "NEW_MESSAGE": "New message",
+      "AI_SUGGESTION": "AI suggestion",
+      "SUBSCRIPTION_UPDATE": "Subscription",
+      "BILLING_ALERT": "Billing",
+      "TEAM_UPDATE": "Team"
+    }
+  },
+  "savedFilters": {
+    "title": "Smart lists",
+    "new": "New list",
+    "empty": "No saved lists. Click + to create one from current filters.",
+    "namePlaceholder": "List name",
+    "sharedLabel": "Share with team",
+    "created": "List created.",
+    "removed": "List removed.",
+    "pin": "Pin",
+    "unpin": "Unpin"
   }
 }

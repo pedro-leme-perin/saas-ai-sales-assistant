@@ -31,6 +31,8 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { ReplyTemplatesModule } from './modules/reply-templates/reply-templates.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { NotificationPreferencesModule } from './modules/notification-preferences/notification-preferences.module';
+import { SavedFiltersModule } from './modules/saved-filters/saved-filters.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -83,6 +85,8 @@ import configuration from './config/configuration';
     ReplyTemplatesModule,
     TagsModule,
     ApiKeysModule,
+    NotificationPreferencesModule,
+    SavedFiltersModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

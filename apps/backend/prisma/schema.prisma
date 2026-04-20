@@ -73,6 +73,8 @@ model Company {
   webhookEndpoints WebhookEndpoint[]
   replyTemplates   ReplyTemplate[]
   conversationTags ConversationTag[]
+  notificationPrefs NotificationPreference[]
+  savedFilters     SavedFilter[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -137,6 +139,8 @@ model User {
   replyTemplatesCreated   ReplyTemplate[]   @relation("ReplyTemplateCreator")
   conversationTagsCreated ConversationTag[] @relation("ConversationTagCreator")
   apiKeysCreated          ApiKey[]          @relation("ApiKeyCreator")
+  notificationPrefs       NotificationPreference[]
+  savedFilters            SavedFilter[]     @relation("SavedFilterOwner")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -1016,3 +1020,69 @@ model ChatTag {
 }
 
 
+
+// =============================================
+// 🔔 NOTIFICATION PREFERENCES (session 48)
+// =============================================
+// Granular preferences per (user × type × channel).
+// Replaces legacy coarse flags in Company.settings.notificationPreferences
+// (kept for backward-read during migration).
+
+model NotificationPreference {
+  id              String               @id @default(uuid())
+  userId          String               @map("user_id")
+  companyId       String               @map("company_id")
+  type            NotificationType
+  channel         NotificationChannel
+  enabled         Boolean              @default(true)
+
+  // Quiet hours (user-local). HH:MM in 24h; null = disabled.
+  quietHoursStart String?              @map("quiet_hours_start")
+  quietHoursEnd   String?              @map("quiet_hours_end")
+  timezone        String?              // IANA — defaults to user profile tz or company tz
+
+  // Digest: bundle EMAIL notifications into a daily recap instead of real-time.
+  digestMode      Boolean              @default(false) @map("digest_mode")
+
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, channel], name: "user_type_channel_unique")
+  @@index([companyId])
+  @@index([userId, digestMode])
+  @@map("notification_preferences")
+}
+
+// =============================================
+// 🧭 SAVED FILTERS / SMART LISTS (session 48)
+// =============================================
+// User-saved (or shared) query presets for calls/chats.
+// filterJson is Zod-validated on write. userId null = shared tenant-wide.
+
+model SavedFilter {
+  id          String         @id @default(uuid())
+  companyId   String         @map("company_id")
+  userId      String?        @map("user_id") // null = shared
+  name        String
+  resource    FilterResource
+  filterJson  Json           @map("filter_json")
+  isPinned    Boolean        @default(false) @map("is_pinned")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt
+
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User?          @relation("SavedFilterOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, resource])
+  @@index([companyId, userId])
+  @@index([companyId, isPinned])
+  @@map("saved_filters")
+}
+
+enum FilterResource {
+  CALL
+  CHAT
+}

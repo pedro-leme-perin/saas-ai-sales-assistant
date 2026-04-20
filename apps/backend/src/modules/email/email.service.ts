@@ -686,4 +686,76 @@ export class EmailService {
 </body>
 </html>`.trim();
   }
+
+  // =====================================================
+  // 📬 NOTIFICATION DIGEST (session 48)
+  // =====================================================
+  async sendNotificationDigestEmail(params: {
+    recipientEmail: string;
+    recipientName: string;
+    entries: Array<{ type: string; title: string; message: string; at: Date }>;
+  }): Promise<void> {
+    const { recipientEmail, recipientName, entries } = params;
+    if (!entries || entries.length === 0) return;
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping digest email');
+      return;
+    }
+    const html = this.buildDigestHtml(recipientName, entries);
+    try {
+      await this.send({
+        to: recipientEmail,
+        subject: `Seu resumo diário — ${entries.length} notificação(ões)`,
+        html,
+      });
+      this.logger.log(`Digest email sent to=${recipientEmail} count=${entries.length}`);
+    } catch (err) {
+      this.logger.error(`Digest email failed: ${String(err)}`);
+    }
+  }
+
+  private buildDigestHtml(
+    name: string,
+    entries: Array<{ type: string; title: string; message: string; at: Date }>,
+  ): string {
+    const fmt = new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+    });
+    const rows = entries
+      .map(
+        (e) => `
+      <div style="padding:16px; border-bottom:1px solid #e4e4e7;">
+        <div style="font-size:12px; color:#6366F1; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">${this.escapeHtml(
+          e.type,
+        )}</div>
+        <div style="font-size:16px; font-weight:600; color:#18181b; margin-bottom:4px;">${this.escapeHtml(
+          e.title,
+        )}</div>
+        <div style="font-size:14px; color:#52525b; margin-bottom:4px;">${this.escapeHtml(e.message)}</div>
+        <div style="font-size:12px; color:#a1a1aa;">${fmt.format(e.at)}</div>
+      </div>`,
+      )
+      .join('');
+    return `<!DOCTYPE html>
+<html><body style="margin:0; background-color:#f4f4f5; font-family:Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff; border-radius:12px;">
+        <tr><td style="background:linear-gradient(135deg,#6366F1,#8B5CF6); padding:32px; border-radius:12px 12px 0 0;">
+          <h1 style="margin:0; color:#fff; font-size:24px;">Seu resumo diário</h1>
+          <p style="margin:4px 0 0; color:rgba(255,255,255,0.9);">Olá, ${this.escapeHtml(name)}</p>
+        </td></tr>
+        <tr><td>${rows}</td></tr>
+        <tr><td style="padding:24px; background:#fafafa; font-size:12px; color:#a1a1aa; text-align:center; border-radius:0 0 12px 12px;">
+          Ajuste suas preferências em Settings &rarr; Notifications.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`.trim();
+  }
+
 }

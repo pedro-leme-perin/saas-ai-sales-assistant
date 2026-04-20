@@ -1249,5 +1249,100 @@ Duas features enterprise em profundidade (opção A — plataforma): **Conversat
 
 ---
 
+## Sessão 48 — 19/04/2026
+
+**Objetivo:** 2 features enterprise em profundidade (opção A — notificações + produtividade) — Notification preferences granulares (tipo × canal, quiet hours tz-aware, digest diário) + Saved filters / Smart lists (Zod strict, shared vs own, pin).
+
+### Feature A1 — Notification preferences (módulo `notification-preferences`)
+
+**Schema:**
+- Modelo `NotificationPreference` novo: `id`, `userId`, `companyId`, `type` (NotificationType enum), `channel` (NotificationChannel enum), `enabled`, `quietHoursStart?` (HH:MM), `quietHoursEnd?` (HH:MM), `timezone?` (IANA), `digestMode`, `createdAt`, `updatedAt`.
+- Composite unique: `@@unique([userId, type, channel], name: "user_type_channel_unique")` habilita upsert semântico.
+- Índices: `[userId, companyId]`, `[companyId, type]`.
+- Migration: `20260419040000_add_notification_preferences_and_saved_filters`.
+
+**Service `NotificationPreferencesService`:**
+- `list(userId, companyId)` — tenant-scoped, ordered `[type asc, channel asc]`.
+- `upsertMany(userId, companyId, { items })` — empty → `{updated: 0}` early return; else `$transaction` de per-item `upsert({ where: { user_type_channel_unique }, update, create })`. Prisma não suporta batch upsert com composite-unique.
+- `reset(userId, companyId)` — `deleteMany` tenant-scoped, retorna count.
+- `evaluate(userId, companyId, type, channel, now?)` retorna `'send' | 'skip' | 'digest'`: no pref → send (opt-out default); enabled=false → skip; digestMode + EMAIL + non-urgent → digest; quiet-hours + non-urgent → skip; default → send.
+- `isUrgent(type)` — apenas `SYSTEM` e `BILLING_ALERT` bypassam digest + quiet hours.
+- `isInQuietHours(now, startHHMM, endHHMM, tz)` — extrai minutos locais via `Intl.DateTimeFormat(tz, { hour, minute, hour12: false })`. Overnight (`start > end`) wraps midnight. Equal start/end → false. Invalid tz → UTC fallback.
+- `queueDigest(userId, entry, nowMs?)` — Redis key `notif:digest:${userId}`, TTL 36h, cap 100 entries, fail-open try/catch.
+- `@Cron('0 8 * * *')` `flushDigests()` — distinct users com `digestMode=true` + `EMAIL` + `enabled=true` (take 1000), error isolation per-user. User deletado → skip silently.
+
+**Email template:** `sendNotificationDigestEmail({ recipientEmail, recipientName, entries })` — gradient header purple/violet, `Intl.DateTimeFormat('pt-BR')` para timestamps.
+
+**Endpoints:**
+- `GET /users/me/notification-preferences`
+- `PATCH /users/me/notification-preferences` (body: `{ items: UpsertPreferenceItemDto[] }`, cap 100)
+- `DELETE /users/me/notification-preferences`
+
+**Frontend:**
+- Page `/dashboard/settings/notification-prefs` — matriz UI 8 tipos × 4 canais de toggles; painel Quiet Hours (time inputs + tz select com detect `Intl.DateTimeFormat().resolvedOptions().timeZone`); painel Digest (aplicado a EMAIL no save).
+- Service `notification-preferences.service.ts` com tipos fortes.
+- Link em settings/page.tsx (icon `BellRing`).
+- i18n: `notificationPrefs.*` + `notificationPrefs.channels.*` + `notificationPrefs.types.*` em pt-BR + en.
+
+### Feature A2 — Saved filters / Smart lists (módulo `saved-filters`)
+
+**Schema:**
+- Modelo `SavedFilter` novo: `id`, `companyId`, `userId?` (nullable = shared), `name`, `resource` (`FilterResource` enum: CALL | CHAT), `filterJson` (Json), `isPinned`, timestamps.
+- Enum `FilterResource` novo.
+- Índices: `[companyId, resource, userId]`, `[companyId, isPinned]`, `[companyId, userId]`.
+
+**Service `SavedFiltersService`:**
+- Zod `FilterJsonSchema.strict()` com 11 chaves conhecidas (`q`, `tagIds`, `sentiment`, `status`, `priority`, `assigneeId`, `dateFrom`, `dateTo`, `minDuration`, `maxDuration`, `direction`). Date regex `/^\d{4}-\d{2}-\d{2}$/`. `.strict()` rejeita unknown keys (anti-abuse).
+- `list(companyId, userId, resource?)` — `OR: [{userId}, {userId: null}]`, ordered `[isPinned desc, updatedAt desc]`.
+- `findById` — OR idem, NotFound se miss.
+- `create` — `shared: true` → `userId: null`; `P2002` → BadRequest; audit `CREATE` com resource literal `'SAVED_FILTER'`.
+- `update` — owner check (`existing.userId && existing.userId !== userId` → NotFound); merge partial; audit oldValues/newValues.
+- `togglePin` — inverts `isPinned`.
+- `remove` — owner check; audit DELETE.
+- `validateFilterJson` — Zod `safeParse`, throws BadRequest com primeira issue.
+
+**Endpoints:**
+- `GET /saved-filters?resource=CALL|CHAT`
+- `GET /saved-filters/:id`
+- `POST /saved-filters`
+- `PATCH /saved-filters/:id`
+- `POST /saved-filters/:id/pin`
+- `DELETE /saved-filters/:id`
+
+**Frontend:**
+- Component `<SmartListsDrawer resource currentFilterJson onSelect>` — sidebar reutilizável (calls + whatsapp). Lista pinned + own + shared (ícones Users/UserIcon). Row com pin/unpin + remove hover. Create inline captura `currentFilterJson` atual e toggle `shared`.
+- Service `saved-filters.service.ts` com tipos + CRUD + togglePin.
+- i18n: `savedFilters.*` em pt-BR + en.
+
+### Testes
+
+**`notification-preferences.service.spec.ts`** (~20 cases):
+- CRUD: list sort + tenant scope, upsertMany empty → early return sem `$transaction`, upsertMany composite-unique upsert args, reset count.
+- `evaluate`: 6 cenários (no pref → send, disabled → skip, digestMode → digest, urgent BILLING_ALERT bypass digest, quiet-hours → skip, urgent SYSTEM bypass quiet-hours).
+- `isInQuietHours`: same-day inside/outside, overnight 22-07 (22:30, 03:00 inside; 12:00 outside), equal start/end → false, Sao_Paulo vs UTC tz-aware, invalid tz fallback UTC.
+- `queueDigest`: cap 100 entries + Redis fail-open.
+- `flushDigests`: empty → no-op, ships + clears cache, user deleted → skip silently.
+
+**`saved-filters.service.spec.ts`** (~10 cases):
+- `list` OR clause + order pinned/updatedAt.
+- `findById` NotFound.
+- `create`: Zod validates + persists, shared=true nullifies userId, unknown keys rejected (BadRequest via `.strict()`), P2002 → BadRequest, invalid date → BadRequest.
+- `update`: owner mismatch → NotFound, merge + audit.
+- `togglePin` inverts.
+- `remove`: owner check + audit DELETE.
+
+### Resilience notes
+
+- **Composite unique** garante idempotência de upsert (re-submits não duplicam).
+- **Redis fail-open em `queueDigest`** — hot path nunca bloqueia se cache indisponível.
+- **Error isolation per-user** em `flushDigests` cron — uma falha não aborta lote.
+- **Zod `.strict()`** em filterJson rejeita unknown keys (anti-abuse, anti-XSS via injection de campos).
+- **Owner check explícito** em update/remove impede tenant member A editar filter de B mesmo em mesmo companyId.
+- **`Intl.DateTimeFormat` com fallback UTC** — timezone inválido degrada graciosamente.
+- **OR clause no service** preserva multi-tenancy (controller nunca compõe WHERE).
+- **Audit non-blocking** em todas mutações via fire-and-forget try/catch.
+
+---
+
 *Documento atualizado em 19/04/2026*
 *Próxima atualização: a cada sessão de trabalho*
