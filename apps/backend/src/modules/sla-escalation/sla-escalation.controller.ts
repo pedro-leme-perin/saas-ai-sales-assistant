@@ -24,10 +24,7 @@ import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 
 import { SlaEscalationService } from './sla-escalation.service';
-import {
-  CreateSlaEscalationDto,
-  UpdateSlaEscalationDto,
-} from './dto/upsert-sla-escalation.dto';
+import { CreateSlaEscalationDto, UpdateSlaEscalationDto } from './dto/upsert-sla-escalation.dto';
 
 @ApiTags('sla-escalations')
 @ApiBearerAuth('JWT')
@@ -38,19 +35,13 @@ export class SlaEscalationController {
 
   @Get()
   @ApiOperation({ summary: 'List SLA escalation tiers (optionally scoped to a policy)' })
-  async list(
-    @CompanyId() companyId: string,
-    @Query('policyId') policyId?: string,
-  ) {
+  async list(@CompanyId() companyId: string, @Query('policyId') policyId?: string) {
     return { data: await this.service.list(companyId, policyId) };
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a SLA escalation tier' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 

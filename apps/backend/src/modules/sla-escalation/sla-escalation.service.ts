@@ -32,12 +32,7 @@
 //   - Error isolation per chat×level (try/catch, warn log).
 //   - Fire-and-forget audit and webhook.
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -58,10 +53,7 @@ import {
   type WebhookEmitPayload,
 } from '@modules/webhooks/events/webhook-events';
 import { PresenceService } from '@modules/presence/presence.service';
-import {
-  CreateSlaEscalationDto,
-  UpdateSlaEscalationDto,
-} from './dto/upsert-sla-escalation.dto';
+import { CreateSlaEscalationDto, UpdateSlaEscalationDto } from './dto/upsert-sla-escalation.dto';
 
 interface BreachedChat {
   id: string;
@@ -168,9 +160,7 @@ export class SlaEscalationService {
         where: { id: existing.id },
         data: {
           ...(dto.level !== undefined ? { level: dto.level } : {}),
-          ...(dto.triggerAfterMins !== undefined
-            ? { triggerAfterMins: dto.triggerAfterMins }
-            : {}),
+          ...(dto.triggerAfterMins !== undefined ? { triggerAfterMins: dto.triggerAfterMins } : {}),
           ...(dto.action !== undefined ? { action: dto.action } : {}),
           ...(dto.targetUserIds !== undefined ? { targetUserIds: dto.targetUserIds } : {}),
           ...(dto.targetPriority !== undefined ? { targetPriority: dto.targetPriority } : {}),
@@ -277,9 +267,7 @@ export class SlaEscalationService {
             if (didFire) fired += 1;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            this.logger.warn(
-              `escalation fire failed chat=${chat.id} esc=${esc.id}: ${msg}`,
-            );
+            this.logger.warn(`escalation fire failed chat=${chat.id} esc=${esc.id}: ${msg}`);
           }
         }
       }
@@ -349,9 +337,7 @@ export class SlaEscalationService {
             where: { id: chat.id },
             data: { slaEscalationsRun: { push: esc.id } },
           });
-          this.logger.warn(
-            `REASSIGN_TO_USER skipped (no target) chat=${chat.id} esc=${esc.id}`,
-          );
+          this.logger.warn(`REASSIGN_TO_USER skipped (no target) chat=${chat.id} esc=${esc.id}`);
           return;
         }
         await this.prisma.$transaction([
@@ -400,10 +386,7 @@ export class SlaEscalationService {
     }
   }
 
-  private async resolveNotifyRecipients(
-    chat: BreachedChat,
-    esc: SlaEscalation,
-  ): Promise<string[]> {
+  private async resolveNotifyRecipients(chat: BreachedChat, esc: SlaEscalation): Promise<string[]> {
     if (esc.targetUserIds.length > 0) {
       // Validate tenant ownership defensively — stale ids drop silently.
       const owned = await this.prisma.user.findMany({
@@ -428,10 +411,7 @@ export class SlaEscalationService {
     return managers.map((m) => m.id);
   }
 
-  private async pickReassignTarget(
-    companyId: string,
-    esc: SlaEscalation,
-  ): Promise<string | null> {
+  private async pickReassignTarget(companyId: string, esc: SlaEscalation): Promise<string | null> {
     if (esc.targetUserIds.length === 0) return null;
     // Validate ownership
     const owned = await this.prisma.user.findMany({

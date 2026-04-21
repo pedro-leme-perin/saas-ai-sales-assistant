@@ -16,13 +16,7 @@
 
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import {
-  AgentPresence,
-  AgentStatus,
-  AuditAction,
-  ChatStatus,
-  Prisma,
-} from '@prisma/client';
+import { AgentPresence, AgentStatus, AuditAction, ChatStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { HeartbeatDto } from './dto/heartbeat.dto';
@@ -49,11 +43,7 @@ export class PresenceService {
 
   // ===== Heartbeat / upsert ============================================
 
-  async heartbeat(
-    userId: string,
-    companyId: string,
-    dto: HeartbeatDto,
-  ): Promise<AgentPresence> {
+  async heartbeat(userId: string, companyId: string, dto: HeartbeatDto): Promise<AgentPresence> {
     if (!userId || !companyId) {
       throw new BadRequestException('userId and companyId are required');
     }
@@ -187,10 +177,7 @@ export class PresenceService {
    * Bulk capacity lookup. Returns a Map keyed by userId with null for users
    * without a presence row (treat as OFFLINE + 0 load).
    */
-  async getCapacityMap(
-    companyId: string,
-    userIds: string[],
-  ): Promise<Map<string, CapacityInfo>> {
+  async getCapacityMap(companyId: string, userIds: string[]): Promise<Map<string, CapacityInfo>> {
     const result = new Map<string, CapacityInfo>();
     if (userIds.length === 0) return result;
 
@@ -243,10 +230,7 @@ export class PresenceService {
       const stale = await this.prisma.agentPresence.findMany({
         where: {
           status: AgentStatus.ONLINE,
-          OR: [
-            { lastHeartbeatAt: null },
-            { lastHeartbeatAt: { lt: threshold } },
-          ],
+          OR: [{ lastHeartbeatAt: null }, { lastHeartbeatAt: { lt: threshold } }],
         },
         take: AUTO_AWAY_BATCH,
         select: { id: true, userId: true },
