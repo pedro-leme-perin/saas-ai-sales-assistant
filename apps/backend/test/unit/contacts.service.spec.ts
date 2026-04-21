@@ -18,6 +18,7 @@ import { AuditAction } from '@prisma/client';
 import { ContactsService } from '../../src/modules/contacts/contacts.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
+import { CustomFieldsService } from '../../src/modules/custom-fields/custom-fields.service';
 
 jest.setTimeout(10_000);
 
@@ -59,9 +60,14 @@ describe('ContactsService', () => {
     set: jest.fn().mockResolvedValue('OK'),
   };
 
+  const mockCustomFields = {
+    validateAndCoerce: jest.fn().mockResolvedValue({}),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     mockCache.get.mockResolvedValue(null);
+    mockCustomFields.validateAndCoerce.mockResolvedValue({});
     mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
       fn(mockPrisma),
     );
@@ -70,6 +76,7 @@ describe('ContactsService', () => {
         ContactsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CacheService, useValue: mockCache },
+        { provide: CustomFieldsService, useValue: mockCustomFields },
       ],
     }).compile();
     service = moduleRef.get(ContactsService);

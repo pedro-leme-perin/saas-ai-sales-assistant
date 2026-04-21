@@ -5,6 +5,7 @@
     "save": "Salvar",
     "saving": "Salvando...",
     "saveChanges": "Salvar Alterações",
+    "create": "Criar",
     "cancel": "Cancelar",
     "delete": "Excluir",
     "remove": "Remover",
@@ -1490,6 +1491,80 @@
     "toast": {
       "updateOk": "Limite atualizado.",
       "updateErr": "Erro ao atualizar limite."
+    }
+  },
+  "scheduledMessages": {
+    "title": "Mensagens agendadas",
+    "subtitle": "Agende envios WhatsApp para o futuro.",
+    "scheduleNew": "Agendar envio",
+    "schedule": "Agendar",
+    "scheduledAt": "Data e hora",
+    "content": "Conteudo",
+    "contentPh": "Digite a mensagem...",
+    "minLeadHint": "Minimo 30 segundos no futuro.",
+    "empty": "Nenhuma mensagem agendada.",
+    "cancelAction": "Cancelar envio",
+    "confirmCancel": "Cancelar este envio?",
+    "sentAt": "Enviado em",
+    "runCount": "Tentativas",
+    "status": {
+      "PENDING": "Pendente",
+      "SENT": "Enviado",
+      "FAILED": "Falhou",
+      "CANCELED": "Cancelado"
+    },
+    "toast": {
+      "scheduleOk": "Envio agendado.",
+      "scheduleErr": "Erro ao agendar.",
+      "leadTooShort": "A data precisa estar ao menos 30s no futuro.",
+      "emptyContent": "Informe o conteudo.",
+      "cancelOk": "Envio cancelado.",
+      "cancelErr": "Erro ao cancelar."
+    }
+  },
+  "macros": {
+    "title": "Macros",
+    "subtitle": "Acoes compostas em 1 clique na conversa.",
+    "new": "Nova macro",
+    "run": "Executar",
+    "pickMacro": "Selecione uma macro",
+    "create": "Criar",
+    "name": "Nome",
+    "description": "Descricao",
+    "isActive": "Ativa",
+    "inactive": "Inativa",
+    "actions": "Acoes",
+    "actionsShort": "acoes",
+    "empty": "Nenhuma macro criada.",
+    "confirmDelete": "Remover esta macro?",
+    "usageCount": "Usos",
+    "lastUsedAt": "Usada por ultimo",
+    "pickTemplate": "Escolher template",
+    "pickTag": "Escolher tag",
+    "pickUser": "Escolher vendedor",
+    "unassign": "Remover atribuicao",
+    "notePh": "Nota de fechamento (opcional)",
+    "addAction": "Adicionar acao",
+    "removeAction": "Remover",
+    "action": {
+      "SEND_REPLY": "Enviar resposta",
+      "ATTACH_TAG": "Anexar tag",
+      "ASSIGN_AGENT": "Atribuir vendedor",
+      "CLOSE_CHAT": "Fechar conversa"
+    },
+    "toast": {
+      "createOk": "Macro criada.",
+      "createErr": "Erro ao criar macro.",
+      "updateOk": "Macro atualizada.",
+      "updateErr": "Erro ao atualizar.",
+      "deleteOk": "Macro removida.",
+      "deleteErr": "Erro ao remover.",
+      "maxActions": "Limite de 10 acoes por macro.",
+      "incomplete": "Preencha nome e pelo menos 1 acao.",
+      "actionInvalid": "Preencha os campos obrigatorios de cada acao.",
+      "executeOk": "Macro executada.",
+      "executeErr": "Erro ao executar macro.",
+      "executePartial": "Macro parcial: {{done}}/{{total}} acoes."
     }
   }
 }
