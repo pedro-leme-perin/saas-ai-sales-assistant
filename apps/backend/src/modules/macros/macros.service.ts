@@ -32,7 +32,7 @@ const MAX_ACTIONS_PER_MACRO = 10;
 const SendReplyAction = z
   .object({
     type: z.literal('SEND_REPLY'),
-    templateId: z.string().uuid(),
+    templateId: z.string().min(1),
     variables: z.record(z.string(), z.string()).optional(),
   })
   .strict();
@@ -40,7 +40,7 @@ const SendReplyAction = z
 const AttachTagAction = z
   .object({
     type: z.literal('ATTACH_TAG'),
-    tagId: z.string().uuid(),
+    tagId: z.string().min(1),
   })
   .strict();
 
@@ -48,7 +48,7 @@ const AssignAgentAction = z
   .object({
     type: z.literal('ASSIGN_AGENT'),
     // null = unassign. Empty string is rejected — caller must send null.
-    userId: z.string().uuid().nullable(),
+    userId: z.string().min(1).nullable(),
   })
   .strict();
 
