@@ -88,6 +88,8 @@ model Company {
   assignmentRules  AssignmentRule[]
   customFieldDefinitions CustomFieldDefinition[]
   usageQuotas      UsageQuota[]
+  scheduledMessages ScheduledMessage[]
+  macros           Macro[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -283,6 +285,7 @@ model WhatsappChat {
   messages            WhatsappMessage[]
   aiSuggestions       AISuggestion[]
   tagLinks            ChatTag[]
+  scheduledMessages   ScheduledMessage[]
 
   @@unique([companyId, customerPhone])
   @@index([companyId])
@@ -1161,6 +1164,7 @@ enum BackgroundJobType {
   BULK_ASSIGN_CHATS
   EXPORT_ANALYTICS
   IMPORT_CONTACTS
+  SEND_SCHEDULED_MESSAGE
 }
 
 enum BackgroundJobStatus {
@@ -1615,4 +1619,68 @@ enum UsageMetric {
   WHATSAPP_MESSAGES
   AI_SUGGESTIONS
   STORAGE_MB
+}
+
+// =============================================
+// 📅 SCHEDULED MESSAGES (session 56)
+// =============================================
+// Queued outbound WhatsApp messages dispatched by BackgroundJobs worker.
+// Cancel window: while status=PENDING. Idempotency: one BG job per message (createdBy OnModuleInit handler registry).
+
+model ScheduledMessage {
+  id            String                  @id @default(uuid())
+  companyId     String                  @map("company_id")
+  chatId        String                  @map("chat_id")
+  createdById   String?                 @map("created_by_id")
+  content       String                  @db.Text
+  mediaUrl      String?                 @map("media_url")
+  scheduledAt   DateTime                @map("scheduled_at")
+  status        ScheduledMessageStatus  @default(PENDING)
+  jobId         String?                 @map("job_id") // FK to BackgroundJob (soft ref, no constraint)
+  runCount      Int                     @default(0) @map("run_count")
+  sentAt        DateTime?               @map("sent_at")
+  lastError     String?                 @db.Text @map("last_error")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+
+  company       Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chat          WhatsappChat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([status, scheduledAt])
+  @@index([chatId, status])
+  @@map("scheduled_messages")
+}
+
+enum ScheduledMessageStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELED
+}
+
+// =============================================
+// ⚡ CONVERSATION MACROS (session 56)
+// =============================================
+// Compound actions executed in a single $transaction: SEND_REPLY / ATTACH_TAG / ASSIGN_AGENT / CLOSE_CHAT.
+// Actions JSON validated via Zod .strict() at execution time.
+
+model Macro {
+  id          String    @id @default(uuid())
+  companyId   String    @map("company_id")
+  createdById String?   @map("created_by_id")
+  name        String
+  description String?
+  actions     Json      @default("[]") // MacroAction[] validated by Zod
+  isActive    Boolean   @default(true) @map("is_active")
+  usageCount  Int       @default(0) @map("usage_count")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name], name: "macro_name_unique")
+  @@index([companyId, isActive])
+  @@map("macros")
 }
