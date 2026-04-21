@@ -18,7 +18,11 @@
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { CustomFieldResource, CustomFieldType, Prisma } from '@prisma/client';
+import {
+  CustomFieldResource,
+  CustomFieldType,
+  Prisma,
+} from '@prisma/client';
 
 import { CustomFieldsService } from '../../src/modules/custom-fields/custom-fields.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
@@ -43,7 +47,10 @@ describe('CustomFieldsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     const module = await Test.createTestingModule({
-      providers: [CustomFieldsService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        CustomFieldsService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
     }).compile();
     service = module.get(CustomFieldsService);
   });
@@ -158,9 +165,9 @@ describe('CustomFieldsService', () => {
         type: CustomFieldType.SELECT,
         options: ['a'],
       });
-      await expect(service.update('c1', 'actor', 'def1', { options: [] })).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.update('c1', 'actor', 'def1', { options: [] }),
+      ).rejects.toThrow(BadRequestException);
       expect(mockPrisma.customFieldDefinition.update).not.toHaveBeenCalled();
     });
 
@@ -208,9 +215,7 @@ describe('CustomFieldsService', () => {
       });
       await service.remove('c1', 'actor', 'def1');
       await flushAudit();
-      expect(mockPrisma.customFieldDefinition.delete).toHaveBeenCalledWith({
-        where: { id: 'def1' },
-      });
+      expect(mockPrisma.customFieldDefinition.delete).toHaveBeenCalledWith({ where: { id: 'def1' } });
       expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ action: 'DELETE' }),
@@ -222,11 +227,7 @@ describe('CustomFieldsService', () => {
   // ===== validateAndCoerce ==============================================
 
   describe('validateAndCoerce', () => {
-    const defs = (
-      ...overrides: Array<
-        Partial<{ key: string; type: CustomFieldType; required: boolean; options: string[] }>
-      >
-    ) =>
+    const defs = (...overrides: Array<Partial<{ key: string; type: CustomFieldType; required: boolean; options: string[] }>>) =>
       overrides.map((o, i) => ({
         id: `def${i}`,
         companyId: 'c1',
@@ -285,9 +286,7 @@ describe('CustomFieldsService', () => {
       const ok = await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { score: 42 });
       expect(ok).toEqual({ score: 42 });
 
-      const okStr = await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, {
-        score: '3.14',
-      });
+      const okStr = await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { score: '3.14' });
       expect(okStr).toEqual({ score: 3.14 });
 
       await expect(
@@ -299,12 +298,10 @@ describe('CustomFieldsService', () => {
       mockPrisma.customFieldDefinition.findMany.mockResolvedValue(
         defs({ key: 'vip', type: CustomFieldType.BOOLEAN }),
       );
-      expect(
-        await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { vip: true }),
-      ).toEqual({ vip: true });
-      expect(
-        await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { vip: 'false' }),
-      ).toEqual({ vip: false });
+      expect(await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { vip: true }))
+        .toEqual({ vip: true });
+      expect(await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { vip: 'false' }))
+        .toEqual({ vip: false });
       await expect(
         service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { vip: 'maybe' }),
       ).rejects.toThrow(BadRequestException);
@@ -327,9 +324,8 @@ describe('CustomFieldsService', () => {
       mockPrisma.customFieldDefinition.findMany.mockResolvedValue(
         defs({ key: 'tier', type: CustomFieldType.SELECT, options: ['gold', 'silver', 'bronze'] }),
       );
-      expect(
-        await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { tier: 'gold' }),
-      ).toEqual({ tier: 'gold' });
+      expect(await service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { tier: 'gold' }))
+        .toEqual({ tier: 'gold' });
       await expect(
         service.validateAndCoerce('c1', CustomFieldResource.CONTACT, { tier: 'platinum' }),
       ).rejects.toThrow(BadRequestException);

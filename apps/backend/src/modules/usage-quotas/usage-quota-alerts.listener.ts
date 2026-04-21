@@ -97,7 +97,7 @@ export class UsageQuotaAlertsListener {
           isActive: true,
           role: { in: ['OWNER', 'ADMIN'] },
         },
-        select: { email: true, firstName: true },
+        select: { email: true, name: true },
         take: 5,
       });
       const company = await this.prisma.company.findUnique({
@@ -110,7 +110,7 @@ export class UsageQuotaAlertsListener {
         if (!admin.email) continue;
         await this.emailService.sendUsageThresholdEmail({
           recipientEmail: admin.email,
-          recipientName: admin.firstName ?? 'time',
+          recipientName: admin.name ?? 'time',
           companyName: company?.name ?? '',
           metricLabel,
           threshold: payload.threshold,
