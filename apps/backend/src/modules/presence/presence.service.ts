@@ -106,7 +106,7 @@ export class PresenceService {
         statusMessage: existing.statusMessage,
         maxConcurrentChats: existing.maxConcurrentChats,
       },
-      newValues: dto,
+      newValues: dto as unknown as Record<string, unknown>,
     });
     return updated;
   }
