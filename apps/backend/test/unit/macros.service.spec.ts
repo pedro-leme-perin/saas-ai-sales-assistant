@@ -246,11 +246,11 @@ describe('MacrosService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('rejects non-uuid templateId in SEND_REPLY', async () => {
+    it('rejects empty templateId in SEND_REPLY', async () => {
       await expect(
         service.create('c1', 'u1', {
           name: 'x',
-          actions: [{ type: 'SEND_REPLY', templateId: 'not-a-uuid' }],
+          actions: [{ type: 'SEND_REPLY', templateId: '' }],
         }),
       ).rejects.toThrow(BadRequestException);
     });
