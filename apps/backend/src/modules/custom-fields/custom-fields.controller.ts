@@ -24,10 +24,7 @@ import { RolesGuard } from '@common/guards/roles.guard';
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 
 import { CustomFieldsService } from './custom-fields.service';
-import {
-  CreateCustomFieldDto,
-  UpdateCustomFieldDto,
-} from './dto/upsert-custom-field.dto';
+import { CreateCustomFieldDto, UpdateCustomFieldDto } from './dto/upsert-custom-field.dto';
 
 @ApiTags('custom-fields')
 @ApiBearerAuth('JWT')
@@ -38,10 +35,7 @@ export class CustomFieldsController {
 
   @Get()
   @ApiOperation({ summary: 'List custom field definitions for this tenant' })
-  async list(
-    @CompanyId() companyId: string,
-    @Query('resource') resource?: CustomFieldResource,
-  ) {
+  async list(@CompanyId() companyId: string, @Query('resource') resource?: CustomFieldResource) {
     return { data: await this.service.list(companyId, resource) };
   }
 

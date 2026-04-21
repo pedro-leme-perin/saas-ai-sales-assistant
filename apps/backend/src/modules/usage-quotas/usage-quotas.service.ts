@@ -120,11 +120,7 @@ export class UsageQuotasService {
    * threshold events for newly crossed steps. Non-throwing wrapper
    * expected at callsites so metering never blocks the hot path.
    */
-  async recordUsage(
-    companyId: string,
-    metric: UsageMetric,
-    delta = 1,
-  ): Promise<QuotaCheck> {
+  async recordUsage(companyId: string, metric: UsageMetric, delta = 1): Promise<QuotaCheck> {
     const row = await this.getOrProvision(companyId, metric);
     if (row.limit === -1) {
       // Unlimited — still bump currentValue for observability, skip alert math.
@@ -199,7 +195,9 @@ export class UsageQuotasService {
         limit,
         // When admin bumps the cap, re-evaluate warnings: drop any threshold
         // that no longer applies at the new (larger) limit.
-        warnedThresholds: existing ? this.reconcileThresholds(existing.currentValue, limit, existing.warnedThresholds) : [],
+        warnedThresholds: existing
+          ? this.reconcileThresholds(existing.currentValue, limit, existing.warnedThresholds)
+          : [],
       },
     });
 

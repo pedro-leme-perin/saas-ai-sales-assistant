@@ -7,15 +7,8 @@
 // impacted by alert delivery issues.
 
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-import {
-  NotificationChannel,
-  NotificationType,
-  Prisma,
-  UsageMetric,
-} from '@prisma/client';
-
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { NotificationChannel, NotificationType, Prisma, UsageMetric } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
@@ -104,7 +97,7 @@ export class UsageQuotaAlertsListener {
           isActive: true,
           role: { in: ['OWNER', 'ADMIN'] },
         },
-        select: { email: true, firstName: true },
+        select: { email: true, name: true },
         take: 5,
       });
       const company = await this.prisma.company.findUnique({
@@ -117,7 +110,7 @@ export class UsageQuotaAlertsListener {
         if (!admin.email) continue;
         await this.emailService.sendUsageThresholdEmail({
           recipientEmail: admin.email,
-          recipientName: admin.firstName ?? 'time',
+          recipientName: admin.name ?? 'time',
           companyName: company?.name ?? '',
           metricLabel,
           threshold: payload.threshold,
