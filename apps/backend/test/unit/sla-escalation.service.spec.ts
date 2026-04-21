@@ -201,9 +201,7 @@ describe('SlaEscalationService', () => {
   describe('findById', () => {
     it('throws NotFoundException for cross-tenant id', async () => {
       mockPrisma.slaEscalation.findFirst.mockResolvedValueOnce(null);
-      await expect(service.findById('c1', 'ghost')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findById('c1', 'ghost')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -355,10 +353,7 @@ describe('SlaEscalationService', () => {
         },
       ]);
       // tenant-owned only 2 — foreign-ghost dropped
-      mockPrisma.user.findMany.mockResolvedValueOnce([
-        { id: 'mgr-1' },
-        { id: 'mgr-2' },
-      ]);
+      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: 'mgr-1' }, { id: 'mgr-2' }]);
 
       const res = await service.processDueEscalations(now);
       expect(res.fired).toBe(1);
@@ -403,10 +398,7 @@ describe('SlaEscalationService', () => {
           policy: { companyId: 'c1', priority: ChatPriority.LOW },
         },
       ]);
-      mockPrisma.user.findMany.mockResolvedValueOnce([
-        { id: 'owner-1' },
-        { id: 'admin-1' },
-      ]);
+      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: 'owner-1' }, { id: 'admin-1' }]);
 
       await service.processDueEscalations(now);
 
@@ -505,10 +497,7 @@ describe('SlaEscalationService', () => {
           policy: { companyId: 'c1', priority: ChatPriority.HIGH },
         },
       ]);
-      mockPrisma.user.findMany.mockResolvedValueOnce([
-        { id: 'agent-a' },
-        { id: 'agent-b' },
-      ]);
+      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: 'agent-a' }, { id: 'agent-b' }]);
       presence.getCapacityMap.mockRejectedValueOnce(new Error('redis down'));
 
       await service.processDueEscalations(now);

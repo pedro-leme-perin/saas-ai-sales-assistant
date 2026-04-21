@@ -381,9 +381,7 @@ export function EscalationTiers({ policyId, policyName }: Props) {
                     ) : (
                       users.map((u) => {
                         const checked = form.targetUserIds.includes(u.id);
-                        const display =
-                          [u.firstName, u.lastName].filter(Boolean).join(" ") ||
-                          u.email;
+                        const display = u.name || u.email;
                         return (
                           <label
                             key={u.id}
