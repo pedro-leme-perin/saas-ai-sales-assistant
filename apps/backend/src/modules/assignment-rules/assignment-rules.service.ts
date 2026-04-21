@@ -32,11 +32,16 @@
 
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AssignmentRule, AssignmentStrategy, AuditAction, Prisma } from '@prisma/client';
+import {
+  AssignmentRule,
+  AssignmentStrategy,
+  AuditAction,
+  ChatStatus,
+  Prisma,
+} from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
-import { PresenceService } from '@modules/presence/presence.service';
 import { CHAT_CREATED_EVENT, type ChatCreatedPayload } from './events/assignment-events';
 import { CreateAssignmentRuleDto, UpdateAssignmentRuleDto } from './dto/upsert-assignment-rule.dto';
 
@@ -59,7 +64,6 @@ export class AssignmentRulesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
-    private readonly presence: PresenceService,
   ) {}
 
   // ===== CRUD ============================================================
@@ -137,7 +141,7 @@ export class AssignmentRulesService {
         where: { id: existing.id },
         data,
       });
-      void this.audit(companyId, actorId, AuditAction.UPDATE, id, { ...dto });
+      void this.audit(companyId, actorId, AuditAction.UPDATE, id, dto);
       return updated;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -257,10 +261,6 @@ export class AssignmentRulesService {
   }
 
   private async pickRoundRobin(rule: AssignmentRule): Promise<string | null> {
-    // Session 57: filter by presence (ONLINE + not at capacity) before rotation.
-    const eligible = await this.filterEligible(rule.companyId, rule.targetUserIds);
-    if (eligible.length === 0) return null;
-
     const key = `${RR_KEY_PREFIX}${rule.id}`;
     let counter = 0;
     try {
@@ -269,43 +269,37 @@ export class AssignmentRulesService {
     } catch {
       counter = this.localRrCounter.get(rule.id) ?? 0;
     }
-    const idx = counter % eligible.length;
+    const idx = counter % rule.targetUserIds.length;
     const next = counter + 1;
     try {
       await this.cache.set(key, String(next), RR_TTL_SEC);
     } catch {
       this.localRrCounter.set(rule.id, next);
     }
-    return eligible[idx] ?? null;
+    return rule.targetUserIds[idx] ?? null;
   }
 
   private async pickLeastBusy(rule: AssignmentRule): Promise<string | null> {
-    // Session 57: consult presence — only ONLINE agents below their cap are
-    // considered; among those, pick the one with fewest active chats.
-    const capacityMap = await this.presence.getCapacityMap(rule.companyId, rule.targetUserIds);
+    const counts = await this.prisma.whatsappChat.groupBy({
+      by: ['userId'],
+      where: {
+        companyId: rule.companyId,
+        userId: { in: rule.targetUserIds },
+        status: { in: [ChatStatus.OPEN, ChatStatus.PENDING, ChatStatus.ACTIVE] },
+      },
+      _count: { _all: true },
+    });
+    // Build full map (vendors with 0 chats are absent from groupBy)
+    const map = new Map<string, number>();
+    for (const u of rule.targetUserIds) map.set(u, 0);
+    for (const row of counts) {
+      if (row.userId) map.set(row.userId, row._count._all);
+    }
     let best: { userId: string; count: number } | null = null;
-    for (const userId of rule.targetUserIds) {
-      const cap = capacityMap.get(userId);
-      if (!cap || !cap.isOnline || cap.atCapacity) continue;
-      if (best === null || cap.currentOpen < best.count) {
-        best = { userId, count: cap.currentOpen };
-      }
+    for (const [userId, count] of map.entries()) {
+      if (best === null || count < best.count) best = { userId, count };
     }
     return best?.userId ?? null;
-  }
-
-  /**
-   * Session 57: returns the subset of targetUserIds that are ONLINE and
-   * below their maxConcurrentChats cap. Preserves input order (stable for
-   * round-robin rotation).
-   */
-  private async filterEligible(companyId: string, userIds: string[]): Promise<string[]> {
-    if (userIds.length === 0) return [];
-    const capacityMap = await this.presence.getCapacityMap(companyId, userIds);
-    return userIds.filter((id) => {
-      const c = capacityMap.get(id);
-      return Boolean(c && c.isOnline && !c.atCapacity);
-    });
   }
 
   // ===== Helpers =========================================================

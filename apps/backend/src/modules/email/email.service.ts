@@ -361,9 +361,18 @@ export class EmailService {
     weekStart: Date;
     weekEnd: Date;
     metrics: {
-      calls: { total: number; completed: number; missed: number; conversionRate: number };
+      calls: {
+        total: number;
+        completed: number;
+        missed: number;
+        conversionRate: number;
+      };
       whatsapp: { chats: number; messagesSent: number };
-      ai: { suggestionsShown: number; suggestionsUsed: number; adoptionRate: number };
+      ai: {
+        suggestionsShown: number;
+        suggestionsUsed: number;
+        adoptionRate: number;
+      };
     };
     insights: string[];
     recommendations: string[];
@@ -477,16 +486,23 @@ export class EmailService {
     limit: number;
     periodEnd: Date;
   }): Promise<{ success: boolean; messageId?: string }> {
-    const { recipientEmail, recipientName, companyName, metricLabel, threshold, used, limit, periodEnd } =
-      params;
+    const {
+      recipientEmail,
+      recipientName,
+      companyName,
+      metricLabel,
+      threshold,
+      used,
+      limit,
+      periodEnd,
+    } = params;
 
     if (!this.apiKey) {
       this.logger.warn('RESEND_API_KEY not configured — skipping usage alert email');
       return { success: false };
     }
 
-    const headerColor =
-      threshold >= 100 ? '#dc2626' : threshold >= 95 ? '#ea580c' : '#ca8a04';
+    const headerColor = threshold >= 100 ? '#dc2626' : threshold >= 95 ? '#ea580c' : '#ca8a04';
     const periodEndStr = periodEnd.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -526,9 +542,11 @@ export class EmailService {
             </tr>
           </table>
           <p style="color:#52525b;font-size:14px;line-height:1.6;margin:0 0 16px;">
-            ${threshold >= 100
-              ? 'Novas chamadas podem ser bloqueadas até o próximo ciclo. Considere aumentar o plano para manter a operação.'
-              : 'Avalie se é hora de fazer upgrade para evitar interrupções ao atingir 100%.'}
+            ${
+              threshold >= 100
+                ? 'Novas chamadas podem ser bloqueadas até o próximo ciclo. Considere aumentar o plano para manter a operação.'
+                : 'Avalie se é hora de fazer upgrade para evitar interrupções ao atingir 100%.'
+            }
           </p>
           <a href="${this.frontendUrl}/dashboard/billing" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:14px;font-weight:600;">
             Ver plano e faturas

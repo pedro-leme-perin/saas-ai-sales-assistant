@@ -120,11 +120,7 @@ export class UsageQuotasService {
    * threshold events for newly crossed steps. Non-throwing wrapper
    * expected at callsites so metering never blocks the hot path.
    */
-  async recordUsage(
-    companyId: string,
-    metric: UsageMetric,
-    delta = 1,
-  ): Promise<QuotaCheck> {
+  async recordUsage(companyId: string, metric: UsageMetric, delta = 1): Promise<QuotaCheck> {
     const row = await this.getOrProvision(companyId, metric);
     if (row.limit === -1) {
       // Unlimited — still bump currentValue for observability, skip alert math.
@@ -147,7 +143,9 @@ export class UsageQuotasService {
     if (newlyCrossed.length > 0) {
       await this.prisma.usageQuota.update({
         where: { id: updated.id },
-        data: { warnedThresholds: [...updated.warnedThresholds, ...newlyCrossed] },
+        data: {
+          warnedThresholds: [...updated.warnedThresholds, ...newlyCrossed],
+        },
       });
 
       for (const threshold of newlyCrossed) {
@@ -182,11 +180,15 @@ export class UsageQuotasService {
   ): Promise<UsageQuota> {
     const { start, end } = this.periodRange();
     const existing = await this.prisma.usageQuota.findUnique({
-      where: { usage_quota_period_unique: { companyId, metric, periodStart: start } },
+      where: {
+        usage_quota_period_unique: { companyId, metric, periodStart: start },
+      },
     });
 
     const updated = await this.prisma.usageQuota.upsert({
-      where: { usage_quota_period_unique: { companyId, metric, periodStart: start } },
+      where: {
+        usage_quota_period_unique: { companyId, metric, periodStart: start },
+      },
       create: {
         companyId,
         metric,
@@ -199,7 +201,9 @@ export class UsageQuotasService {
         limit,
         // When admin bumps the cap, re-evaluate warnings: drop any threshold
         // that no longer applies at the new (larger) limit.
-        warnedThresholds: existing ? this.reconcileThresholds(existing.currentValue, limit, existing.warnedThresholds) : [],
+        warnedThresholds: existing
+          ? this.reconcileThresholds(existing.currentValue, limit, existing.warnedThresholds)
+          : [],
       },
     });
 
@@ -216,7 +220,9 @@ export class UsageQuotasService {
   async getOrProvision(companyId: string, metric: UsageMetric): Promise<UsageQuota> {
     const { start, end } = this.periodRange();
     const existing = await this.prisma.usageQuota.findUnique({
-      where: { usage_quota_period_unique: { companyId, metric, periodStart: start } },
+      where: {
+        usage_quota_period_unique: { companyId, metric, periodStart: start },
+      },
     });
     if (existing) return existing;
 
@@ -242,7 +248,13 @@ export class UsageQuotasService {
       // Concurrent provisioning — re-read the winner.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const winner = await this.prisma.usageQuota.findUnique({
-          where: { usage_quota_period_unique: { companyId, metric, periodStart: start } },
+          where: {
+            usage_quota_period_unique: {
+              companyId,
+              metric,
+              periodStart: start,
+            },
+          },
         });
         if (winner) return winner;
       }
@@ -274,7 +286,11 @@ export class UsageQuotasService {
           try {
             await this.prisma.usageQuota.upsert({
               where: {
-                usage_quota_period_unique: { companyId: company.id, metric, periodStart: start },
+                usage_quota_period_unique: {
+                  companyId: company.id,
+                  metric,
+                  periodStart: start,
+                },
               },
               create: {
                 companyId: company.id,
