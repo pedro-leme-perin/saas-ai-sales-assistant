@@ -88,6 +88,9 @@ model Company {
   assignmentRules  AssignmentRule[]
   customFieldDefinitions CustomFieldDefinition[]
   usageQuotas      UsageQuota[]
+  scheduledMessages ScheduledMessage[]
+  macros           Macro[]
+  slaEscalations   SlaEscalation[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -161,6 +164,7 @@ model User {
   announcementsCreated    Announcement[]    @relation("AnnouncementCreator")
   announcementReads       AnnouncementRead[]
   assignmentRulesCreated  AssignmentRule[]  @relation("AssignmentRuleCreatedBy")
+  presence                AgentPresence?
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -272,6 +276,8 @@ model WhatsappChat {
   slaResponseBreached Boolean       @default(false) @map("sla_response_breached")
   slaResolutionBreached Boolean     @default(false) @map("sla_resolution_breached")
   slaBreachedAt       DateTime?     @map("sla_breached_at")
+  // SLA escalation (session 57) — tracks which escalation level IDs already ran (idempotency)
+  slaEscalationsRun   String[]      @default([]) @map("sla_escalations_run")
 
   // Timestamps
   archivedAt          DateTime?     @map("archived_at")
@@ -283,6 +289,7 @@ model WhatsappChat {
   messages            WhatsappMessage[]
   aiSuggestions       AISuggestion[]
   tagLinks            ChatTag[]
+  scheduledMessages   ScheduledMessage[]
 
   @@unique([companyId, customerPhone])
   @@index([companyId])
@@ -955,6 +962,7 @@ enum WebhookEvent {
   SUMMARY_READY
   COACHING_REPORT_CREATED
   SLA_BREACHED
+  SLA_ESCALATED
 }
 
 enum WebhookDeliveryStatus {
@@ -1161,6 +1169,7 @@ enum BackgroundJobType {
   BULK_ASSIGN_CHATS
   EXPORT_ANALYTICS
   IMPORT_CONTACTS
+  SEND_SCHEDULED_MESSAGE
 }
 
 enum BackgroundJobStatus {
@@ -1190,6 +1199,7 @@ model SlaPolicy {
   updatedAt        DateTime      @updatedAt
 
   company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  escalations      SlaEscalation[]
 
   @@unique([companyId, priority], name: "sla_company_priority_unique")
   @@index([companyId, isActive])
@@ -1615,4 +1625,134 @@ enum UsageMetric {
   WHATSAPP_MESSAGES
   AI_SUGGESTIONS
   STORAGE_MB
+}
+
+// =============================================
+// 📅 SCHEDULED MESSAGES (session 56)
+// =============================================
+// Queued outbound WhatsApp messages dispatched by BackgroundJobs worker.
+// Cancel window: while status=PENDING. Idempotency: one BG job per message (createdBy OnModuleInit handler registry).
+
+model ScheduledMessage {
+  id            String                  @id @default(uuid())
+  companyId     String                  @map("company_id")
+  chatId        String                  @map("chat_id")
+  createdById   String?                 @map("created_by_id")
+  content       String                  @db.Text
+  mediaUrl      String?                 @map("media_url")
+  scheduledAt   DateTime                @map("scheduled_at")
+  status        ScheduledMessageStatus  @default(PENDING)
+  jobId         String?                 @map("job_id") // FK to BackgroundJob (soft ref, no constraint)
+  runCount      Int                     @default(0) @map("run_count")
+  sentAt        DateTime?               @map("sent_at")
+  lastError     String?                 @db.Text @map("last_error")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+
+  company       Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chat          WhatsappChat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([status, scheduledAt])
+  @@index([chatId, status])
+  @@map("scheduled_messages")
+}
+
+enum ScheduledMessageStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELED
+}
+
+// =============================================
+// ⚡ CONVERSATION MACROS (session 56)
+// =============================================
+// Compound actions executed in a single $transaction: SEND_REPLY / ATTACH_TAG / ASSIGN_AGENT / CLOSE_CHAT.
+// Actions JSON validated via Zod .strict() at execution time.
+
+model Macro {
+  id          String    @id @default(uuid())
+  companyId   String    @map("company_id")
+  createdById String?   @map("created_by_id")
+  name        String
+  description String?
+  actions     Json      @default("[]") // MacroAction[] validated by Zod
+  isActive    Boolean   @default(true) @map("is_active")
+  usageCount  Int       @default(0) @map("usage_count")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name], name: "macro_name_unique")
+  @@index([companyId, isActive])
+  @@map("macros")
+}
+
+// =============================================
+// 🟢 AGENT PRESENCE & CAPACITY (session 57)
+// =============================================
+// Per-user live status + max concurrent chats. Heartbeat upsert every ~30s from frontend.
+// Cron auto-transitions ONLINE → AWAY when lastHeartbeatAt is stale.
+
+enum AgentStatus {
+  ONLINE
+  AWAY
+  BREAK
+  OFFLINE
+}
+
+model AgentPresence {
+  id                   String       @id @default(uuid())
+  userId               String       @unique @map("user_id")
+  companyId            String       @map("company_id")
+  status               AgentStatus  @default(OFFLINE)
+  statusMessage        String?      @map("status_message")
+  maxConcurrentChats   Int          @default(5) @map("max_concurrent_chats")
+  lastHeartbeatAt      DateTime?    @map("last_heartbeat_at")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([lastHeartbeatAt])
+  @@map("agent_presence")
+}
+
+// =============================================
+// 🚨 SLA ESCALATION CHAIN (session 57, extends S49)
+// =============================================
+// Multi-tier escalation after SLA breach. Each level fires after `triggerAfterMins`
+// elapsed since breach. Action dispatched: NOTIFY_MANAGER / REASSIGN_TO_USER / CHANGE_PRIORITY.
+// Tracked via WhatsappChat.slaEscalationsRun[] for idempotency (level ID persisted after run).
+
+enum SlaEscalationAction {
+  NOTIFY_MANAGER
+  REASSIGN_TO_USER
+  CHANGE_PRIORITY
+}
+
+model SlaEscalation {
+  id                 String              @id @default(uuid())
+  companyId          String              @map("company_id")
+  policyId           String              @map("policy_id")
+  level              Int                 // 1-based tier order
+  triggerAfterMins   Int                 @map("trigger_after_mins") // mins since breachedAt
+  action             SlaEscalationAction
+  targetUserIds      String[]            @default([]) @map("target_user_ids")
+  targetPriority     ChatPriority?       @map("target_priority") // used when action=CHANGE_PRIORITY
+  isActive           Boolean             @default(true) @map("is_active")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  policy             SlaPolicy           @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, level], name: "sla_escalation_level_unique")
+  @@index([companyId, isActive])
+  @@index([policyId])
+  @@map("sla_escalations")
 }
