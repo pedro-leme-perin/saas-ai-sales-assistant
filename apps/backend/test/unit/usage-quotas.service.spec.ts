@@ -78,13 +78,7 @@ describe('UsageQuotasService', () => {
 
   describe('getOrProvision', () => {
     it('returns existing row when found', async () => {
-      const row = {
-        id: 'q1',
-        metric: UsageMetric.CALLS,
-        limit: 500,
-        currentValue: 0,
-        warnedThresholds: [],
-      };
+      const row = { id: 'q1', metric: UsageMetric.CALLS, limit: 500, currentValue: 0, warnedThresholds: [] };
       mockPrisma.usageQuota.findUnique.mockResolvedValueOnce(row);
       const out = await service.getOrProvision('c1', UsageMetric.CALLS);
       expect(out).toEqual(row);
@@ -118,19 +112,13 @@ describe('UsageQuotasService', () => {
     it('throws NotFound when company missing', async () => {
       mockPrisma.usageQuota.findUnique.mockResolvedValueOnce(null);
       mockPrisma.company.findUnique.mockResolvedValueOnce(null);
-      await expect(service.getOrProvision('c1', UsageMetric.CALLS)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.getOrProvision('c1', UsageMetric.CALLS),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('re-reads winner on P2002 concurrent race', async () => {
-      const winner = {
-        id: 'q1',
-        metric: UsageMetric.CALLS,
-        limit: 500,
-        currentValue: 0,
-        warnedThresholds: [],
-      };
+      const winner = { id: 'q1', metric: UsageMetric.CALLS, limit: 500, currentValue: 0, warnedThresholds: [] };
       mockPrisma.usageQuota.findUnique
         .mockResolvedValueOnce(null) // first check: missing
         .mockResolvedValueOnce(winner); // after P2002, re-read returns winner
@@ -150,13 +138,7 @@ describe('UsageQuotasService', () => {
 
   describe('recordUsage', () => {
     it('unlimited (-1) short-circuits threshold logic', async () => {
-      const row = {
-        id: 'q1',
-        metric: UsageMetric.CALLS,
-        limit: -1,
-        currentValue: 99_000,
-        warnedThresholds: [],
-      };
+      const row = { id: 'q1', metric: UsageMetric.CALLS, limit: -1, currentValue: 99_000, warnedThresholds: [] };
       mockPrisma.usageQuota.findUnique.mockResolvedValueOnce(row);
       mockPrisma.usageQuota.update.mockResolvedValueOnce({ ...row, currentValue: 99_001 });
       await service.recordUsage('c1', UsageMetric.CALLS);
@@ -221,11 +203,7 @@ describe('UsageQuotasService', () => {
       mockPrisma.usageQuota.findUnique.mockResolvedValueOnce(provisioned);
       mockPrisma.usageQuota.update
         .mockResolvedValueOnce({ ...provisioned, currentValue: 100 })
-        .mockResolvedValueOnce({
-          ...provisioned,
-          currentValue: 100,
-          warnedThresholds: [80, 95, 100],
-        });
+        .mockResolvedValueOnce({ ...provisioned, currentValue: 100, warnedThresholds: [80, 95, 100] });
 
       await service.recordUsage('c1', UsageMetric.AI_SUGGESTIONS, 30);
 

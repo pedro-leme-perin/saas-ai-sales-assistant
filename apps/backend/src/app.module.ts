@@ -35,7 +35,6 @@ import { NotificationPreferencesModule } from './modules/notification-preference
 import { SavedFiltersModule } from './modules/saved-filters/saved-filters.module';
 import { BackgroundJobsModule } from './modules/background-jobs/background-jobs.module';
 import { SlaPoliciesModule } from './modules/sla-policies/sla-policies.module';
-import { SlaEscalationModule } from './modules/sla-escalation/sla-escalation.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { CsatModule } from './modules/csat/csat.module';
 import { ScheduledExportsModule } from './modules/scheduled-exports/scheduled-exports.module';
@@ -46,12 +45,9 @@ import { BulkActionsModule } from './modules/bulk-actions/bulk-actions.module';
 import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { DataImportModule } from './modules/data-import/data-import.module';
-import { PresenceModule } from './modules/presence/presence.module';
 import { AssignmentRulesModule } from './modules/assignment-rules/assignment-rules.module';
 import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module';
 import { UsageQuotasModule } from './modules/usage-quotas/usage-quotas.module';
-import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-messages.module';
-import { MacrosModule } from './modules/macros/macros.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -108,7 +104,6 @@ import configuration from './config/configuration';
     SavedFiltersModule,
     BackgroundJobsModule,
     SlaPoliciesModule,
-    SlaEscalationModule,
     ContactsModule,
     CsatModule,
     ScheduledExportsModule,
@@ -118,12 +113,9 @@ import configuration from './config/configuration';
     FeatureFlagsModule,
     AnnouncementsModule,
     DataImportModule,
-    PresenceModule,
     AssignmentRulesModule,
     CustomFieldsModule,
     UsageQuotasModule,
-    ScheduledMessagesModule,
-    MacrosModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

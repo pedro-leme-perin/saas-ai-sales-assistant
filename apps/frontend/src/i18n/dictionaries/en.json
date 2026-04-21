@@ -5,7 +5,6 @@
     "save": "Save",
     "saving": "Saving...",
     "saveChanges": "Save Changes",
-    "create": "Create",
     "cancel": "Cancel",
     "delete": "Delete",
     "remove": "Remove",
@@ -1491,80 +1490,6 @@
     "toast": {
       "updateOk": "Limit updated.",
       "updateErr": "Failed to update limit."
-    }
-  },
-  "scheduledMessages": {
-    "title": "Scheduled messages",
-    "subtitle": "Schedule future WhatsApp sends.",
-    "scheduleNew": "Schedule send",
-    "schedule": "Schedule",
-    "scheduledAt": "Date and time",
-    "content": "Content",
-    "contentPh": "Type the message...",
-    "minLeadHint": "At least 30 seconds in the future.",
-    "empty": "No scheduled messages.",
-    "cancelAction": "Cancel send",
-    "confirmCancel": "Cancel this send?",
-    "sentAt": "Sent at",
-    "runCount": "Attempts",
-    "status": {
-      "PENDING": "Pending",
-      "SENT": "Sent",
-      "FAILED": "Failed",
-      "CANCELED": "Canceled"
-    },
-    "toast": {
-      "scheduleOk": "Send scheduled.",
-      "scheduleErr": "Failed to schedule.",
-      "leadTooShort": "Target time must be at least 30s in the future.",
-      "emptyContent": "Content is required.",
-      "cancelOk": "Send canceled.",
-      "cancelErr": "Failed to cancel."
-    }
-  },
-  "macros": {
-    "title": "Macros",
-    "subtitle": "One-click compound actions on a chat.",
-    "new": "New macro",
-    "run": "Run",
-    "pickMacro": "Pick a macro",
-    "create": "Create",
-    "name": "Name",
-    "description": "Description",
-    "isActive": "Active",
-    "inactive": "Inactive",
-    "actions": "Actions",
-    "actionsShort": "actions",
-    "empty": "No macros yet.",
-    "confirmDelete": "Remove this macro?",
-    "usageCount": "Uses",
-    "lastUsedAt": "Last used",
-    "pickTemplate": "Pick template",
-    "pickTag": "Pick tag",
-    "pickUser": "Pick agent",
-    "unassign": "Unassign",
-    "notePh": "Closing note (optional)",
-    "addAction": "Add action",
-    "removeAction": "Remove",
-    "action": {
-      "SEND_REPLY": "Send reply",
-      "ATTACH_TAG": "Attach tag",
-      "ASSIGN_AGENT": "Assign agent",
-      "CLOSE_CHAT": "Close chat"
-    },
-    "toast": {
-      "createOk": "Macro created.",
-      "createErr": "Failed to create macro.",
-      "updateOk": "Macro updated.",
-      "updateErr": "Failed to update macro.",
-      "deleteOk": "Macro removed.",
-      "deleteErr": "Failed to remove macro.",
-      "maxActions": "Max 10 actions per macro.",
-      "incomplete": "Fill name and at least 1 action.",
-      "actionInvalid": "Fill required fields on each action.",
-      "executeOk": "Macro executed.",
-      "executeErr": "Failed to execute macro.",
-      "executePartial": "Partial run: {{done}}/{{total}} actions."
     }
   }
 }

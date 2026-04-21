@@ -32,12 +32,7 @@
 
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import {
-  AssignmentRule,
-  AssignmentStrategy,
-  AuditAction,
-  Prisma,
-} from '@prisma/client';
+import { AssignmentRule, AssignmentStrategy, AuditAction, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
@@ -287,10 +282,7 @@ export class AssignmentRulesService {
   private async pickLeastBusy(rule: AssignmentRule): Promise<string | null> {
     // Session 57: consult presence — only ONLINE agents below their cap are
     // considered; among those, pick the one with fewest active chats.
-    const capacityMap = await this.presence.getCapacityMap(
-      rule.companyId,
-      rule.targetUserIds,
-    );
+    const capacityMap = await this.presence.getCapacityMap(rule.companyId, rule.targetUserIds);
     let best: { userId: string; count: number } | null = null;
     for (const userId of rule.targetUserIds) {
       const cap = capacityMap.get(userId);
@@ -307,10 +299,7 @@ export class AssignmentRulesService {
    * below their maxConcurrentChats cap. Preserves input order (stable for
    * round-robin rotation).
    */
-  private async filterEligible(
-    companyId: string,
-    userIds: string[],
-  ): Promise<string[]> {
+  private async filterEligible(companyId: string, userIds: string[]): Promise<string[]> {
     if (userIds.length === 0) return [];
     const capacityMap = await this.presence.getCapacityMap(companyId, userIds);
     return userIds.filter((id) => {
