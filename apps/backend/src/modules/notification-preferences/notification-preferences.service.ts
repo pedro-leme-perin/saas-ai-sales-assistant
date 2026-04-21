@@ -10,11 +10,16 @@
 
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
 import { EmailService } from '@modules/email/email.service';
-import { NotificationChannel, NotificationType, Prisma } from '@prisma/client';
+import { ConfigResource, NotificationChannel, NotificationType, Prisma } from '@prisma/client';
 import { UpsertPreferencesDto } from './dto/upsert-preference.dto';
+import {
+  CONFIG_CHANGED_EVENT,
+  type ConfigChangedPayload,
+} from '../config-snapshots/events/config-events';
 
 interface DigestEntry {
   type: NotificationType;
@@ -33,6 +38,7 @@ export class NotificationPreferencesService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly email: EmailService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ===== CRUD =====================================================
@@ -82,6 +88,13 @@ export class NotificationPreferencesService {
         }),
       ),
     );
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId,
+      actorId: userId,
+      resource: ConfigResource.NOTIFICATION_PREFERENCES,
+      resourceId: userId,
+      label: `update notification preferences (${results.length} items)`,
+    } satisfies ConfigChangedPayload);
     return { updated: results.length };
   }
 
@@ -90,6 +103,13 @@ export class NotificationPreferencesService {
     const { count } = await this.prisma.notificationPreference.deleteMany({
       where: { userId, companyId },
     });
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId,
+      actorId: userId,
+      resource: ConfigResource.NOTIFICATION_PREFERENCES,
+      resourceId: userId,
+      label: `reset notification preferences`,
+    } satisfies ConfigChangedPayload);
     return { deleted: count };
   }
 

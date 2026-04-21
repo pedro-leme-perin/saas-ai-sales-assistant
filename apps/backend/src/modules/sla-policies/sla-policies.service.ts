@@ -16,6 +16,7 @@ import {
   AuditAction,
   ChatPriority,
   ChatStatus,
+  ConfigResource,
   NotificationChannel,
   NotificationType,
   Prisma,
@@ -27,6 +28,10 @@ import {
   WEBHOOK_EVENT_NAME,
   type WebhookEmitPayload,
 } from '@modules/webhooks/events/webhook-events';
+import {
+  CONFIG_CHANGED_EVENT,
+  type ConfigChangedPayload,
+} from '../config-snapshots/events/config-events';
 import { UpsertSlaPolicyDto } from './dto/upsert-sla-policy.dto';
 
 @Injectable()
@@ -79,6 +84,13 @@ export class SlaPoliciesService {
         },
       });
       void this.audit(actorId, companyId, AuditAction.UPDATE, row.id, { dto });
+      void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+        companyId,
+        actorId,
+        resource: ConfigResource.SLA_POLICY,
+        resourceId: row.id,
+        label: `upsert SLA policy [${row.priority}]`,
+      } satisfies ConfigChangedPayload);
       return row;
     } catch (err: unknown) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -94,6 +106,13 @@ export class SlaPoliciesService {
     void this.audit(actorId, companyId, AuditAction.DELETE, policy.id, {
       priority: policy.priority,
     });
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId,
+      actorId,
+      resource: ConfigResource.SLA_POLICY,
+      resourceId: policy.id,
+      label: `delete SLA policy [${policy.priority}]`,
+    } satisfies ConfigChangedPayload);
     return { success: true };
   }
 

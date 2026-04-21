@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CompaniesService } from '../../src/modules/companies/companies.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
@@ -68,6 +69,7 @@ describe('CompaniesService', () => {
         CompaniesService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: CacheService, useValue: mockCacheService },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 

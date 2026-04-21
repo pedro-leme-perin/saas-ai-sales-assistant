@@ -91,6 +91,8 @@ model Company {
   scheduledMessages ScheduledMessage[]
   macros           Macro[]
   slaEscalations   SlaEscalation[]
+  impersonationSessions ImpersonationSession[]
+  configSnapshots  ConfigSnapshot[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -165,6 +167,9 @@ model User {
   announcementReads       AnnouncementRead[]
   assignmentRulesCreated  AssignmentRule[]  @relation("AssignmentRuleCreatedBy")
   presence                AgentPresence?
+  impersonationActor      ImpersonationSession[] @relation("ImpersonationActor")
+  impersonationTarget     ImpersonationSession[] @relation("ImpersonationTarget")
+  configSnapshotsCreated  ConfigSnapshot[]       @relation("ConfigSnapshotCreator")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -809,6 +814,21 @@ enum AuditAction {
   IMPORT
   INVITE
   REVOKE
+  IMPERSONATE_START
+  IMPERSONATE_END
+  ROLLBACK
+}
+
+// =============================================
+// CONFIG VERSIONING (session 58)
+// =============================================
+
+enum ConfigResource {
+  COMPANY_SETTINGS
+  FEATURE_FLAG
+  SLA_POLICY
+  ASSIGNMENT_RULE
+  NOTIFICATION_PREFERENCES
 }
 
 // =============================================
@@ -1755,4 +1775,64 @@ model SlaEscalation {
   @@index([companyId, isActive])
   @@index([policyId])
   @@map("sla_escalations")
+}
+
+// =============================================
+// ADMIN IMPERSONATION (session 58)
+// =============================================
+// OWNER/ADMIN pode iniciar uma sessão de impersonation para assumir a identidade
+// de outro usuário (MANAGER/VENDOR) para suporte/debug. Session curta (default 30min),
+// token hash (SHA-256) em DB, AuditLog em start/end, exit idempotente.
+
+model ImpersonationSession {
+  id            String   @id @default(uuid())
+  companyId     String   @map("company_id")
+  actorUserId   String   @map("actor_user_id")
+  targetUserId  String   @map("target_user_id")
+  reason        String
+  tokenHash     String   @unique @map("token_hash")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  expiresAt     DateTime @map("expires_at")
+  endedAt       DateTime? @map("ended_at")
+  endedReason   String?  @map("ended_reason")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor         User     @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  target        User     @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, isActive])
+  @@index([actorUserId])
+  @@index([targetUserId])
+  @@index([expiresAt])
+  @@map("impersonation_sessions")
+}
+
+// =============================================
+// CONFIG SNAPSHOTS (session 58)
+// =============================================
+// Point-in-time snapshot de recursos de configuração (Company.settings,
+// FeatureFlag, SlaPolicy, AssignmentRule, NotificationPreferences). Permite
+// auditar mudanças + rollback em $transaction.
+
+model ConfigSnapshot {
+  id             String          @id @default(uuid())
+  companyId      String          @map("company_id")
+  resource       ConfigResource
+  resourceId     String?         @map("resource_id")
+  label          String?
+  snapshotData   Json            @map("snapshot_data")
+  createdById    String?         @map("created_by_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy      User?           @relation("ConfigSnapshotCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, resource, createdAt(sort: Desc)])
+  @@index([companyId, resourceId])
+  @@index([createdById])
+  @@map("config_snapshots")
 }

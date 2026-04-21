@@ -13,6 +13,7 @@
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { FeatureFlagsService } from '../../src/modules/feature-flags/feature-flags.service';
@@ -58,6 +59,7 @@ describe('FeatureFlagsService', () => {
         FeatureFlagsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CacheService, useValue: mockCache },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
     service = module.get(FeatureFlagsService);

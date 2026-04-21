@@ -31,18 +31,23 @@
 //   - Round-robin counter has Redis fallback (in-memory map)
 
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   AssignmentRule,
   AssignmentStrategy,
   AuditAction,
   ChatStatus,
+  ConfigResource,
   Prisma,
 } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
 import { CHAT_CREATED_EVENT, type ChatCreatedPayload } from './events/assignment-events';
+import {
+  CONFIG_CHANGED_EVENT,
+  type ConfigChangedPayload,
+} from '../config-snapshots/events/config-events';
 import { CreateAssignmentRuleDto, UpdateAssignmentRuleDto } from './dto/upsert-assignment-rule.dto';
 
 const RR_KEY_PREFIX = 'assign:rr:';
@@ -64,6 +69,7 @@ export class AssignmentRulesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ===== CRUD ============================================================
@@ -107,6 +113,13 @@ export class AssignmentRulesService {
         name: dto.name,
         strategy: dto.strategy,
       });
+      void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+        companyId,
+        actorId: actorId ?? null,
+        resource: ConfigResource.ASSIGNMENT_RULE,
+        resourceId: rule.id,
+        label: `create assignment rule "${rule.name}"`,
+      } satisfies ConfigChangedPayload);
       return rule;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -142,6 +155,13 @@ export class AssignmentRulesService {
         data,
       });
       void this.audit(companyId, actorId, AuditAction.UPDATE, id, { ...dto });
+      void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+        companyId,
+        actorId: actorId ?? null,
+        resource: ConfigResource.ASSIGNMENT_RULE,
+        resourceId: updated.id,
+        label: `update assignment rule "${updated.name}"`,
+      } satisfies ConfigChangedPayload);
       return updated;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -155,6 +175,13 @@ export class AssignmentRulesService {
     const existing = await this.findById(companyId, id);
     await this.prisma.assignmentRule.delete({ where: { id: existing.id } });
     void this.audit(companyId, actorId, AuditAction.DELETE, id, { name: existing.name });
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId,
+      actorId: actorId ?? null,
+      resource: ConfigResource.ASSIGNMENT_RULE,
+      resourceId: id,
+      label: `delete assignment rule "${existing.name}"`,
+    } satisfies ConfigChangedPayload);
   }
 
   // ===== Event handler ===================================================

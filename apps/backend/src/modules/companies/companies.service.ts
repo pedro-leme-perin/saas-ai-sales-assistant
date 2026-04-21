@@ -3,19 +3,25 @@
 // ====================================================
 
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CacheService } from '@infrastructure/cache/cache.service';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
-import { Prisma } from '@prisma/client';
+import { ConfigResource, Prisma } from '@prisma/client';
+import {
+  CONFIG_CHANGED_EVENT,
+  type ConfigChangedPayload,
+} from '../config-snapshots/events/config-events';
 
 @Injectable()
 export class CompaniesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /** Cache key matches AnalyticsService.dashboardCacheKey() */
@@ -106,10 +112,20 @@ export class CompaniesService {
       }
     }
 
-    return this.prisma.company.update({
+    const updated = await this.prisma.company.update({
       where: { id },
       data,
     });
+
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId: id,
+      actorId: null,
+      resource: ConfigResource.COMPANY_SETTINGS,
+      resourceId: id,
+      label: `update company settings`,
+    } satisfies ConfigChangedPayload);
+
+    return updated;
   }
 
   /**
@@ -137,6 +153,14 @@ export class CompaniesService {
 
     // Invalidate dashboard cache so KPIs reflect new company state immediately
     await this.cache.del(this.analyticsCacheKey(companyId));
+
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId,
+      actorId: null,
+      resource: ConfigResource.COMPANY_SETTINGS,
+      resourceId: companyId,
+      label: `complete onboarding`,
+    } satisfies ConfigChangedPayload);
 
     return updated;
   }

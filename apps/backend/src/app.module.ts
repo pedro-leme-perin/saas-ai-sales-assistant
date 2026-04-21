@@ -52,6 +52,8 @@ import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module
 import { UsageQuotasModule } from './modules/usage-quotas/usage-quotas.module';
 import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-messages.module';
 import { MacrosModule } from './modules/macros/macros.module';
+import { ImpersonationModule } from './modules/impersonation/impersonation.module';
+import { ConfigSnapshotsModule } from './modules/config-snapshots/config-snapshots.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -124,6 +126,8 @@ import configuration from './config/configuration';
     UsageQuotasModule,
     ScheduledMessagesModule,
     MacrosModule,
+    ImpersonationModule,
+    ConfigSnapshotsModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

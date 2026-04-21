@@ -16,10 +16,15 @@
 
 import { createHash } from 'crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { AuditAction, FeatureFlag, Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AuditAction, ConfigResource, FeatureFlag, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CreateFeatureFlagDto, UpdateFeatureFlagDto } from './dto/create-feature-flag.dto';
+import {
+  CONFIG_CHANGED_EVENT,
+  type ConfigChangedPayload,
+} from '../config-snapshots/events/config-events';
 
 const CACHE_TTL_SECONDS = 60;
 
@@ -36,6 +41,7 @@ export class FeatureFlagsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ===== CRUD ===========================================================
@@ -81,6 +87,13 @@ export class FeatureFlagsService {
         enabled: row.enabled,
         rolloutPercentage: row.rolloutPercentage,
       });
+      void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+        companyId,
+        actorId,
+        resource: ConfigResource.FEATURE_FLAG,
+        resourceId: row.id,
+        label: `create feature flag "${row.key}"`,
+      } satisfies ConfigChangedPayload);
       return row;
     } catch (err: unknown) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -120,6 +133,13 @@ export class FeatureFlagsService {
         rolloutPercentage: row.rolloutPercentage,
       },
     });
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId,
+      actorId,
+      resource: ConfigResource.FEATURE_FLAG,
+      resourceId: row.id,
+      label: `update feature flag "${row.key}"`,
+    } satisfies ConfigChangedPayload);
     return row;
   }
 
@@ -128,6 +148,13 @@ export class FeatureFlagsService {
     await this.prisma.featureFlag.delete({ where: { id: existing.id } });
     void this.invalidateCache(companyId, existing.key);
     void this.audit(actorId, companyId, AuditAction.DELETE, id, { key: existing.key });
+    void this.eventEmitter.emit(CONFIG_CHANGED_EVENT, {
+      companyId,
+      actorId,
+      resource: ConfigResource.FEATURE_FLAG,
+      resourceId: id,
+      label: `delete feature flag "${existing.key}"`,
+    } satisfies ConfigChangedPayload);
     return { success: true };
   }
 

@@ -1698,5 +1698,387 @@ Duas features enterprise em profundidade (opção A — plataforma): **Conversat
 
 ---
 
-*Documento atualizado em 20/04/2026*
+## Sessão 56 — 20/04/2026
+
+**Objetivo:** 2 features enterprise (opção A — produtividade WhatsApp) — Scheduled WhatsApp send (ScheduledMessage + BG handler via registry S49) + Conversation macros (ações compostas 1-click com execução atômica).
+
+### Feature A1 — Scheduled WhatsApp send (módulo novo `scheduled-messages`)
+
+**Schema** (migration `20260426010000_add_scheduled_messages_and_macros`):
+
+- ALTER TYPE `BackgroundJobType` ADD VALUE `SEND_SCHEDULED_MESSAGE`.
+- CREATE TYPE `ScheduledMessageStatus` AS ENUM (`PENDING`, `SENT`, `FAILED`, `CANCELED`).
+- Novo modelo `ScheduledMessage` (id, companyId, chatId, createdById, content Text, mediaUrl?, scheduledAt DateTime, status default PENDING, jobId? FK BackgroundJob SET NULL, runCount Int default 0, sentAt?, lastError? Text, createdAt, updatedAt). Índices `[companyId, status, scheduledAt]`, `[chatId, status]`. CASCADE em Company + Chat, SET NULL em User + BackgroundJob.
+
+**`ScheduledMessagesService`** (implements `OnModuleInit`):
+
+1. **Handler registration**: `onModuleInit` registra `BackgroundJobType.SEND_SCHEDULED_MESSAGE` via `this.jobs.registerHandler(type, job => this.handleSend(job))` — segue pattern S49 (zero circular deps).
+2. **`schedule(companyId, userId, dto)`**:
+   - Valida `chat.findFirst {id, companyId}` — NotFound se cross-tenant.
+   - Valida lead time: `scheduledAt - now >= MIN_LEAD_SECONDS=30`, `<= MAX_LEAD_DAYS=60` → BadRequestException.
+   - Cria row PENDING via `$transaction`.
+   - Enqueue job com `runAt: scheduledAt` via `jobs.enqueue(...)`.
+   - **Rollback pattern**: catch erro de enqueue → flip message status para FAILED com `lastError: 'enqueue_failed'`, re-throw erro original.
+   - Atualiza `jobId` no message após enqueue ok. Audit CREATE fire-and-forget.
+3. **`list(companyId, filters)`**: cursor pagination, filtros `status?` + `chatId?`, ordena `[scheduledAt desc, id desc]`.
+4. **`cancel(companyId, id)`**:
+   - NotFound cross-tenant. BadRequest se `status !== PENDING`.
+   - `$transaction` flip status CANCELED.
+   - **Best-effort `jobs.cancel(companyId, jobId)`**: try/catch swallow (handler tem CANCELED race guard).
+   - Audit UPDATE fire-and-forget.
+5. **`handleSend(job)`** (handler BG):
+   - Re-read `scheduledMessage.findUnique` com `include: {chat: true}`.
+   - **CANCELED race guard**: se `status !== PENDING` → log + return (skip silent).
+   - Invoca `whatsappService.sendMessage({chatId, content, mediaUrl, companyId, userId})`.
+   - Sucesso → SENT + sentAt + runCount increment + clear lastError.
+   - Throw → FAILED + lastError + re-throw (worker S49 aplica exponential backoff / DLQ).
+
+**Endpoints** (`@Controller('scheduled-messages')` + `TenantGuard`): `GET /scheduled-messages?status=&chatId=&limit=&cursor=`, `POST /scheduled-messages`, `DELETE /scheduled-messages/:id`.
+
+**Frontend**:
+
+- `<ScheduleMessageModal chatId>` via botão `CalendarClock` no chat header. datetime-local picker (min=now+30s, max=+60d).
+- Página `/dashboard/settings/scheduled-messages` — lista tenant-wide, filtro status, status icon color-coded (CalendarClock amber PENDING / CheckCircle2 emerald SENT / AlertTriangle red FAILED / Ban muted CANCELED), botão Cancel apenas em PENDING.
+- i18n: ~25 chaves (`scheduledMessages.*`) em pt-BR + en.
+
+### Feature A2 — Conversation macros (módulo novo `macros`)
+
+**Schema** (migration junto com A1):
+
+- Novo modelo `Macro` (id, companyId, createdById? SET NULL, name, description?, actions Json, isActive Bool default true, usageCount Int default 0, lastUsedAt?, timestamps). `@@unique([companyId, name], name: "macro_name_unique")`. Índice `[companyId, isActive]`.
+
+**Zod discriminated union `.strict()`** (`MAX_ACTIONS_PER_MACRO=10`):
+
+- `SEND_REPLY` (content 1-4096, mediaUrl? url)
+- `ATTACH_TAG` (tagId min 1)
+- `ASSIGN_AGENT` (userId nullable = unassign)
+- `CLOSE_CHAT` (nenhum param)
+
+**`MacrosService.execute` pipeline 3-fases**:
+
+1. **Phase 0 — Pre-validate FK ownership**: `chat.findFirst {id, companyId}`, `macro.findFirst {id, companyId, isActive}`, `conversationTag.findMany {id: {in: tagIds}, companyId}` + `user.findMany {id: {in: userIds}, companyId}` → count mismatch → BadRequestException (prevent cross-tenant enumeration).
+2. **Phase 1 — Outbound I/O (fora da transação)**: loop SEND_REPLY ações, `whatsappService.sendMessage`, error isolation per-action (try/catch). `executed[]` com `{type, success, error?}`.
+3. **Phase 2 — DB mutations em `$transaction`**:
+   - ATTACH_TAG: `chatTag.upsert({where: {chatId_tagId: ...}, create, update: {}})` — idempotente.
+   - ASSIGN_AGENT: `whatsappChat.update({data: {userId}})` (null = unassign).
+   - CLOSE_CHAT: `whatsappChat.update({data: {status: CLOSED, closedAt: now}})`.
+   - `macro.update({data: {usageCount: {increment: 1}, lastUsedAt: now}})`.
+4. Audit UPDATE resource `'MACRO'` com `executed[]` no newValues.
+
+**Endpoints** (`@Controller('macros')` + `TenantGuard/RolesGuard`): `GET /macros`, `GET /macros/:id`, `POST /macros` (OWNER/ADMIN/MANAGER), `PATCH /macros/:id` (OWNER/ADMIN/MANAGER), `DELETE /macros/:id` (OWNER/ADMIN), `POST /macros/:id/execute` (body `{chatId}`).
+
+**Frontend**:
+
+- `<MacroButton chatId>` dropdown (Zap icon) no chat header. Toast success/partial/error baseado em `executed[].filter(a => !a.success).length`.
+- Página `/dashboard/settings/macros` — actions builder com type-specific inputs (content / tagId select / userId select / none para CLOSE_CHAT).
+- i18n: ~45 chaves (`macros.*`) em pt-BR + en + `common.create` adicionado para fix fallback.
+
+### Integração com features prévias
+
+- Handler registry S49 expandido com 6º handler (`SEND_SCHEDULED_MESSAGE`). Workers S49 processam uniformemente.
+- `MacrosService` reusa `ConversationTag` (S47) + `WhatsappChat` + `User` tenant-scoped queries (S50 infra).
+- Audit trail compatível com export S43.
+- `WhatsappService` não muda.
+
+### Testes
+
+- `scheduled-messages.service.spec.ts` (~10 cases): schedule NotFound cross-tenant chat, BadRequest lead<30s, BadRequest lead>60d, success PENDING + enqueue + jobId, enqueue failure → FAILED rollback + re-throw. list cursor pagination. cancel NotFound cross-tenant, BadRequest se não PENDING, success flip CANCELED + best-effort swallow. handleSend CANCELED race skip silent, success SENT + runCount, whatsapp failure FAILED + lastError + re-throw.
+- `macros.service.spec.ts` (~12 cases): Zod rejeita empty/11+/unknown type/extra keys. CRUD tenant isolation + P2002 → BadRequest + audit. execute: Phase 0 NotFound chat + NotFound macro inactive + BadRequest cross-tenant tagId/userId. Phase 1 whatsapp.sendMessage params + error isolation. Phase 2 ATTACH_TAG composite upsert idempotent + ASSIGN_AGENT + CLOSE_CHAT status CLOSED + macro usageCount++.
+
+### Resilience notes
+
+- **Fail-safe scheduling**: `MIN_LEAD_SECONDS=30` evita race com worker primeiro tick (S49 30s). `MAX_LEAD_DAYS=60` evita zombies.
+- **Rollback em enqueue**: se BG job falha ao enfileirar, ScheduledMessage flip FAILED preserva observability.
+- **CANCELED race guard**: handler re-lê + skip silent se status !== PENDING. Cobre window entre cancel + jobs.cancel propagar.
+- **Best-effort `jobs.cancel`**: try/catch swallow. Pior caso: worker entra handler, vê CANCELED, skip.
+- **Phase 0 pre-validation**: prevent enumeration cross-tenant antes de qualquer I/O.
+- **Phase 1 fora de transaction**: WhatsApp I/O pode durar segundos — evita lock contention.
+- **Phase 2 `$transaction`**: tag + chat + macro atomic.
+- **Composite upsert `chatId_tagId`**: re-execute não duplica tag (PK update no-op).
+- **Error isolation per-action Phase 1**: uma SEND_REPLY falha não aborta demais; UI toast warning "X de Y ações".
+- **`MAX_ACTIONS_PER_MACRO=10`**: bulkhead anti-abuse.
+- **Zod `.strict()` discriminated union**: rejeita extra keys (defesa em profundidade XSS).
+- **Handler registry S49 reuse**: zero circular deps. Retry / DLQ / progress / cancel uniformes.
+- **Audit fire-and-forget**: não bloqueia hot path.
+- **Write-through**: row PENDING persiste com jobId — observável no dashboard S49.
+
+---
+
+## Sessão 57 — 20/04/2026
+
+**Objetivo:** 2 features enterprise (opção A — operações/CX) — Agent presence & capacity (heartbeat + auto-AWAY cron + capacity-aware assignment) + SLA escalation chain multi-tier (estende S49 sla-policies; presence-aware REASSIGN).
+
+### Feature A1 — Agent presence & capacity (módulo novo `presence`)
+
+**Schema** (migration `20260427010000_add_agent_presence_and_sla_escalation`):
+
+- CREATE TYPE `AgentStatus` AS ENUM (`ONLINE`, `AWAY`, `BREAK`, `OFFLINE`).
+- Novo modelo `AgentPresence` (id, userId @unique FK User CASCADE, companyId, status default OFFLINE, statusMessage? Text, maxConcurrentChats Int default 5, lastHeartbeatAt?, timestamps). Índices `[companyId, status]`, `[companyId, lastHeartbeatAt]`.
+
+**`PresenceService`**:
+
+1. **`heartbeat(userId, companyId, dto)`**: upsert por `userId` (unique). Create default status=ONLINE, maxConcurrentChats=5. Update stampa `lastHeartbeatAt=now` + merge seletivo (`statusMessage`/`maxConcurrentChats` só se fornecidos). Chamado pelo frontend a cada 30s.
+2. **`updateMine(userId, companyId, dto)`**: merge partial apenas campos providenciados (`status`/`statusMessage`/`maxConcurrentChats`). Se row ausente → create com defaults. Audit UPDATE com oldValues snapshot + newValues=dto.
+3. **`findMine(userId)`**: return row ou null (nunca throws).
+4. **`listActive(companyId)`**: findMany com `include: {user: {select}}`, filter `user.isActive !== false`, orderBy `[status asc, lastHeartbeatAt desc]`, take 500. Mapeia para shape `{...row, userName, userEmail}`.
+5. **`findForUser(companyId, userId)`**: findFirst tenant-scoped, NotFoundException se ausente.
+6. **`getCapacityFor(companyId, userId)`**: retorna `CapacityInfo {userId, status, isOnline, atCapacity, maxConcurrentChats, currentOpen, lastHeartbeatAt}`. Lookup single presence + `whatsappChat.count {userId, status in [OPEN, PENDING, ACTIVE]}`. `isOnline = status === ONLINE`, `atCapacity = currentOpen >= maxConcurrentChats`. Default OFFLINE + maxConcurrentChats=5 quando sem row.
+7. **`getCapacityMap(companyId, userIds[])`**: bulk lookup para AssignmentRules. Empty array → Map vazio (no DB round-trip). Caso geral: `Promise.all` de `agentPresence.findMany {userId in}` + `whatsappChat.groupBy by: ['userId'], _count: {_all}`. Build Map com defaults OFFLINE+0 para users sem presence row.
+8. **`@Cron(EVERY_MINUTE, 'presence-auto-away')` `autoAwayTick()`**:
+   - `threshold = now - PRESENCE_STALE_MS (2min)`.
+   - findMany `status: ONLINE, OR: [{lastHeartbeatAt: null}, {lastHeartbeatAt: {lt: threshold}}]`, bounded batch `AUTO_AWAY_BATCH=500`.
+   - `updateMany {id in ids} data: {status: AWAY}`.
+   - Blanket try/catch com warn log (não quebra loop).
+
+**`CapacityInfo` interface** (exportada pelo módulo):
+```ts
+{ userId, status: AgentStatus, isOnline: boolean, atCapacity: boolean,
+  maxConcurrentChats: number, currentOpen: number, lastHeartbeatAt: Date | null }
+```
+
+**Endpoints** (`@Controller('presence')` + `TenantGuard`): `POST /presence/heartbeat`, `GET /presence/me`, `PATCH /presence/me`, `GET /presence/active` (listActive company-wide), `GET /presence/:userId` (findForUser).
+
+### Feature A2 — SLA escalation chain (módulo novo `sla-escalation`)
+
+Estende S49 `sla-policies` com multi-tier escalation executado APÓS breach flagged.
+
+**Schema** (agrupado com A1):
+
+- CREATE TYPE `SlaEscalationAction` AS ENUM (`NOTIFY_MANAGER`, `REASSIGN_TO_USER`, `CHANGE_PRIORITY`).
+- ALTER TYPE `NotificationType` ADD VALUE `SLA_ALERT`.
+- ALTER TYPE `WebhookEvent` ADD VALUE `SLA_ESCALATED`.
+- Novo modelo `SlaEscalation` (id, companyId, policyId FK SlaPolicy CASCADE, level Int, triggerAfterMins Int, action `SlaEscalationAction`, targetUserIds String[], targetPriority `ChatPriority?`, isActive Bool default true, timestamps). `@@unique([policyId, level], name: "sla_escalation_policy_level_unique")`. Índice `[companyId, isActive]`.
+- ALTER `WhatsappChat` adiciona `slaEscalationsRun String[] default []` (ledger idempotency).
+
+**`SlaEscalationService`** (importa `PresenceModule` + usa `EventEmitter2`):
+
+1. **CRUD tenant-scoped**:
+   - `list(companyId, policyId?)`: orderBy `[policyId asc, level asc]`, cap 500.
+   - `findById(companyId, id)`: NotFoundException cross-tenant.
+   - `create`: guard policy pertence ao tenant (`slaPolicy.findFirst {id, companyId}`) → BadRequest. Guard `count >= MAX_ESCALATIONS_PER_POLICY=20` → BadRequest. `validateActionPayload` (REASSIGN_TO_USER exige targetUserIds; CHANGE_PRIORITY exige targetPriority). P2002 (policyId+level unique) → BadRequest. Audit CREATE.
+   - `update`: merge seletivo + re-validate action payload combinando dto + existing. P2002 → BadRequest. Audit UPDATE.
+   - `remove`: + audit DELETE.
+2. **`@Cron(EVERY_MINUTE, 'sla-escalation-dispatch')` `dispatchTick()`**: delega para `processDueEscalations(now)` com blanket try/catch.
+3. **`processDueEscalations(now)`** (público p/ tests):
+   - findMany chats `slaBreachedAt !== null, status in [OPEN, PENDING, ACTIVE]`, `take: MONITOR_BATCH=200`.
+   - Group chats por `(companyId, priority)`.
+   - findMany escalations `isActive + policy.isActive + policy.companyId in (set de companyIds do batch)`, `include: {policy: {priority, companyId}}`, orderBy `level asc`.
+   - Group escalations por `(companyId, priority)`.
+   - Inner loops `chatGroup × escGroup` com error isolation per-(chat, level).
+   - Retorna `{fired: number}`.
+4. **`fireEscalationIfDue(chat, esc, now)`**:
+   - **Idempotency guard**: `chat.slaEscalationsRun.includes(esc.id)` → return false (no-op).
+   - **Time guard**: `elapsedMs = now - chat.slaBreachedAt < esc.triggerAfterMins*60_000` → return false.
+   - Dispatch `applyAction(chat, esc)` (muta DB + append ledger em `$transaction`).
+   - Fire-and-forget `emitWebhook(chat, esc)` post-commit.
+5. **`applyAction(chat, esc)`** — dispatch por `SlaEscalationAction`:
+   - **NOTIFY_MANAGER**: `resolveNotifyRecipients(chat, esc)` → se `targetUserIds.length > 0` filtra por tenant+isActive; senão fallback findMany OWNER/ADMIN `take: 10`. `$transaction`: create N notifications (type SLA_ALERT, channel IN_APP, title "SLA escalation nível X", data {chatId, escalationId, level}) + update chat `slaEscalationsRun: {push: esc.id}`. Audit UPDATE.
+   - **REASSIGN_TO_USER**: `pickReassignTarget(companyId, esc)` — filtra targetUserIds ownership + presence-aware scan (prefere ONLINE + !atCapacity via `presence.getCapacityMap`); presence failure não-fatal (fallback first valid id). Target null → mark level run + return (evita tight loop). Target ok → `$transaction` update chat `{userId, slaEscalationsRun: {push}}`. Audit com `fromUserId/toUserId`.
+   - **CHANGE_PRIORITY**: se `!esc.targetPriority` → mark run + return. Senão `$transaction` update chat `{priority: targetPriority, slaEscalationsRun: {push}}`. Audit com `fromPriority/toPriority`.
+6. **`emitWebhook(chat, esc)`**: emit `WEBHOOK_EVENT_NAME` com `WebhookEvent.SLA_ESCALATED` + data `{chatId, escalationId, level, action, triggerAfterMins, priority}`. In-process bus + `WebhooksService` (S46) faz fan-out + HMAC signing.
+
+**Endpoints** (`@Controller('sla-escalations')` + `TenantGuard/RolesGuard`): `GET /sla-escalations?policyId=`, `GET /sla-escalations/:id`, `POST /sla-escalations` (OWNER/ADMIN/MANAGER), `PATCH /sla-escalations/:id` (OWNER/ADMIN/MANAGER), `DELETE /sla-escalations/:id` (OWNER/ADMIN).
+
+### Integração com features prévias
+
+- **S49 `sla-policies`**: SLA breach flagged em `WhatsappChat.slaBreachedAt`/`slaResponseBreached`/`slaResolutionBreached` continua inalterado. `sla-escalation` é consumer puro — lê `slaBreachedAt` para computar elapsed.
+- **S54 `assignment-rules`**: `AssignmentRulesService.pickRoundRobin` e `pickLeastBusy` ganham `presence.getCapacityMap` antes de rotacionar/escolher. ROUND_ROBIN: `filterEligible` filtra ONLINE + !atCapacity ANTES de aplicar Redis counter (rotação apenas sobre elegíveis). LEAST_BUSY: itera `targetUserIds`, pula !isOnline || atCapacity, picka min `currentOpen`. `null` graceful quando nenhum elegível. Redis counter key+TTL preservados; fallback in-memory Map intacto.
+- **S46 `webhooks`**: novo event `SLA_ESCALATED` fan-out via in-process `EventEmitter2` → `WebhooksService` com HMAC signing + retry/DLQ.
+- **Notifications**: novo type `SLA_ALERT` reaproveita infra multi-canal existente (default channel IN_APP).
+- **`AppModule`**: registro `PresenceModule` + `SlaEscalationModule` entre DataImportModule e AssignmentRulesModule.
+
+### Testes
+
+- `presence.service.spec.ts` (~20 cases): `heartbeat` upsert args (where={userId}, create defaults ONLINE+5, update merge seletivo sem statusMessage/max quando omitidos). `updateMine` merge partial (`data` exatamente `{status: BREAK}` quando dto só traz status) + audit oldValues snapshot. `updateMine` sem row → create com OFFLINE default. `listActive` filtra `user.isActive !== false`, mapeia userName/userEmail. `findForUser` tenant mismatch → NotFoundException. `getCapacityFor` ONLINE + chats<max → isOnline+!atCapacity; row ausente → OFFLINE defaults. `getCapacityMap` empty array → no DB round-trip, caso geral monta Map + defaults OFFLINE+0 para users sem row. `autoAwayTick` threshold `now - 2*60*1000`, updateMany com ids filtrados, empty stale → no updateMany; findMany rejeita → swallow sem throw nem updateMany.
+- `sla-escalation.service.spec.ts` (~17 cases): CRUD (list scope+order, findById NotFound, create sem policy tenant → BadRequest, create >=20 → BadRequest, create REASSIGN sem targetUserIds → BadRequest, create CHANGE_PRIORITY sem targetPriority → BadRequest, create P2002 → BadRequest, update re-validate payload, remove audit). `processDueEscalations`: empty batch → fired=0, idempotency skip quando level ∈ `slaEscalationsRun`, time skip quando `elapsed < trigger`, NOTIFY_MANAGER `$transaction` inclui N notification.create + chat.update ledger, REASSIGN presence-aware prefere ONLINE+!atCapacity, REASSIGN sem target elegível mark run + no update userId, CHANGE_PRIORITY update priority + ledger, webhook emit fire-and-forget com payload `SLA_ESCALATED`, error isolation per-chat.
+- `assignment-rules.service.spec.ts` (reescrito, ~25 cases): preserva CRUD + matching + priority S54, adiciona PresenceService DI mock. Novos cases S57: ROUND_ROBIN skip OFFLINE/AWAY (u1=OFFLINE, u2=AWAY → rotate só sobre u3), ROUND_ROBIN skip atCapacity, ROUND_ROBIN return null quando zero eligible. LEAST_BUSY min `currentOpen` across 3 agents ONLINE, LEAST_BUSY skip OFFLINE/AWAY mesmo com 0 chats, LEAST_BUSY skip atCapacity, LEAST_BUSY null quando todos ineligible. Removidos mocks obsoletos `whatsappChat.groupBy` (service agora usa `presence.getCapacityMap`).
+
+### Resilience notes
+
+- **Fail-open presence**: `PresenceService.getCapacityMap` exception no callsite `sla-escalation.pickReassignTarget` é catched (fallback first valid id) — SLA escalation não morre se presence cache falhar.
+- **Auto-AWAY cron blanket try/catch**: findMany failure não quebra próximo tick.
+- **Bounded batches**: `AUTO_AWAY_BATCH=500`, `MONITOR_BATCH=200`, `MAX_ESCALATIONS_PER_POLICY=20`.
+- **Error isolation per-(chat, level)** em `processDueEscalations` — uma escalation falha não aborta batch.
+- **Ledger `slaEscalationsRun` via `$transaction` `{push: esc.id}`**: mutation + ledger append atomic; re-run cron no-op via `includes` guard.
+- **"Mark run even when no-op"**: REASSIGN sem target elegível e CHANGE_PRIORITY sem targetPriority ainda adicionam esc.id ao ledger — evita tight loop do cron.
+- **Pre-validate FK ownership** em `resolveNotifyRecipients` + `pickReassignTarget`: `user.findMany {id in, companyId, isActive}` descarta silently stale/cross-tenant ids (no enumeration leak).
+- **Post-commit webhook emit**: side-effect fire-and-forget após `$transaction` commit — nunca rollback por falha de notify webhook.
+- **Round-robin eligibility first**: S57 filtra eligible ANTES do Redis counter — cohort rotation estável sobre conjunto elegível (não vaza para OFFLINE user se ele volta para ONLINE depois).
+- **Graceful degradation**: assignment rule `pickRoundRobin` e `pickLeastBusy` retornam null quando nenhum elegível — `tryAutoAssign` deixa chat unassigned (em vez de forçar OFFLINE agent).
+- **Audit fire-and-forget** (`void this.audit(...)`): não bloqueia hot path CRUD nem dispatch.
+- **Cron job names**: `presence-auto-away` + `sla-escalation-dispatch` (registrados explicitamente p/ observability + disable por nome).
+
+---
+
+## Sessão 58 — 21/04/2026
+
+### Objetivo
+
+2 features enterprise (opção A — operações/governança) — Admin impersonation com RBAC matrix + token one-shot SHA-256 + clamp 5-240min + lazy-expire + audit trail completo + ForbiddenException actor-only end, e Config versioning & rollback com snapshots append-only por resource + 3-fase `$transaction` rollback reversível + `@OnEvent('config.changed')` ingestion de 5 consumer services + diff byte-stable via `plainOf`.
+
+### Feature A1 — Admin impersonation (módulo novo `impersonation`)
+
+**Schema**: modelo `ImpersonationSession` (id, companyId, actorUserId, targetUserId, tokenHash @unique, reason Text, durationMinutes Int, isActive Bool default true, startedAt DateTime default now, expiresAt, endedAt?, endedReason?, ipAddress?, userAgent?, createdAt, updatedAt). Índices `[companyId, isActive]`, `[actorUserId, isActive]`, `[targetUserId, isActive]`, `[expiresAt]`. FKs: Company CASCADE; Actor User RESTRICT; Target User RESTRICT (previne hard-delete de usuário com sessão ativa como actor ou target). `AuditAction` enum expandido com `IMPERSONATE_START` + `IMPERSONATE_END`. Migration `20260428010000_add_impersonation_and_config_snapshots` (agrupada com A2).
+
+**`ImpersonationService`**:
+
+1. **Token generation**: `generateToken()` = `imp_${randomBytes(24).toString('base64url')}` → 192 bits de entropia. Plaintext retornado UMA vez em `start()`. DB armazena apenas `tokenHash = createHash('sha256').update(token).digest('hex')` — bulk leak de DB não recupera plaintexts.
+
+2. **RBAC matrix** (`assertCanImpersonate(actor, targetRole)`):
+   - OWNER → any non-OWNER (Forbidden OWNER→OWNER — protege co-founders).
+   - ADMIN → MANAGER ou VENDOR apenas (Forbidden ADMIN→OWNER ou ADMIN→ADMIN).
+   - MANAGER/VENDOR → Forbidden (sem capability).
+   - Self-impersonation rejected (BadRequest).
+   - Inactive target (`status !== ACTIVE` ou `deletedAt !== null`) rejected (BadRequest).
+
+3. **`start(companyId, actor, dto, ctx)`**:
+   - Target ownership check via `user.findFirst({id, companyId})` — cross-tenant → NotFound.
+   - `assertCanImpersonate(actor, target.role)` ou throw Forbidden/BadRequest.
+   - `durationMinutes` clamp `[MIN_DURATION_MIN=5, MAX_DURATION_MIN=240]` default `DEFAULT_DURATION_MIN=30`.
+   - `expiresAt = now + duration*60_000`.
+   - `session.create` com `tokenHash`, `isActive=true`, `ipAddress`/`userAgent` (500 char cap) capturados do `Request` via controller.
+   - Audit `IMPERSONATE_START` resource `'IMPERSONATION_SESSION'` com `newValues: {targetUserId, reason, durationMinutes, expiresAt}` fire-and-forget.
+   - Retorna `{sessionId, token (plaintext, uma vez), expiresAt, targetUserEmail, targetUserName}` — nunca re-emitido.
+
+4. **`end(companyId, actorUserId, sessionId, reason?)`**:
+   - `findFirst({id, companyId})` tenant-scoped → NotFound.
+   - **Owner-only**: `session.actorUserId !== actorUserId` → ForbiddenException (co-OWNER não pode encerrar sessão alheia).
+   - `isActive=false` já → BadRequest `'session already ended'`.
+   - `$transaction`: `update({isActive: false, endedAt: now, endedReason: reason ?? 'manual'})` + audit `IMPERSONATE_END` com `oldValues: {isActive: true}`, `newValues: {isActive: false, endedReason}`.
+
+5. **`resolveByToken(token)`** — chamado por middleware/guard futuro para validar token em cada request:
+   - `tokenHash = hashToken(token)` + `findUnique({tokenHash, isActive: true})`.
+   - **Lazy-expire**: `expiresAt.getTime() <= now` → `update({isActive: false, endedAt: now, endedReason: 'expired'})` + audit `IMPERSONATE_END` reason=`'expired'` + retorna `null`. Zero-trust timing — não confia apenas no cron.
+   - Success → retorna `{sessionId, actorUserId, targetUserId, companyId, expiresAt}`.
+
+6. **`listActive(companyId, actorUserId?)`**: findMany `{companyId, isActive: true, expiresAt: {gt: now}}` + optional filter `actorUserId`. OrderBy `[startedAt desc]`, cap 100. Include actor/target selects (`id, name, email, role`).
+
+7. **`findById(companyId, id)`** — NotFound cross-tenant.
+
+8. **`expireStale()` cron helper** (registrado via `@Cron(EVERY_MINUTE)` no module): `updateMany({where: {isActive: true, expiresAt: {lte: now}}, data: {isActive: false, endedAt: now, endedReason: 'expired'}})`. Bulk cleanup + safety net para tokens nunca usados. Blanket try/catch swallow.
+
+9. **Audit resource literal** `'IMPERSONATION_SESSION'`. Todas mutações fire-and-forget via `audit()` helper com try/catch + warn log.
+
+**Endpoints** (`@Controller('impersonation')` + `TenantGuard` + `RolesGuard` class-level + `@Roles(OWNER, ADMIN)`):
+
+- `POST /impersonation/start` (HttpCode 201) — body `StartImpersonationDto {targetUserId UUID, reason Length(10, 500), durationMinutes Int Min(5) Max(240)}`. Extrai IP via `x-forwarded-for` → `req.ip` → `req.socket.remoteAddress`. UA cap 500 chars.
+- `DELETE /impersonation/:id` (HttpCode 200) — ParseUUIDPipe. Query `reason?`.
+- `GET /impersonation/sessions` — query `actorUserId?`. Lista activas + não-expiradas.
+- `GET /impersonation/sessions/:id` — ParseUUIDPipe.
+
+**Frontend** (`/dashboard/admin/impersonate`):
+
+- RBAC-gated target picker: `eligibleUsers = users.filter(u => u.id !== me.id && canImpersonate(actorRole, u.role))` — mirror do backend matrix.
+- Form fields: target select, reason textarea (`MIN_REASON=10, MAX_REASON=500`, char counter live), duration number input (`MIN=5, MAX=240`, step=5, default=30).
+- `<TokenBanner>` amber-bordered Card mostrado UMA vez após `start` com code block do plaintext + copy-to-clipboard (2s check animation via `setTimeout`). Dismiss button limpa banner.
+- Active sessions card: polling `refetchInterval: 30_000`, grid de rows com targetUserId + reason + startedAt/expiresAt (Intl.DateTimeFormat locale-aware, red text se expired) + End button.
+- `impersonationService` em `/services`: `start / end / listActive / findById` com types `StartImpersonationResult` (inclui `token` plaintext) e `ImpersonationSession`.
+- Link em `/dashboard/settings` com icon `Eye`.
+
+**i18n** ~25 chaves (`impersonation.*` — title/subtitle/newSession/target/pickTarget/reason/reasonPh/reasonHint/durationMinutes/durationHint/start/end/noEligible/notAllowed/activeSessions/empty/startedAt/expiresAt/tokenBanner.{title,showOnce} + `impersonation.toast.{startOk,startErr,endOk,endErr,pickTarget,reasonShort,reasonLong,durationRange,copyErr}`) em pt-BR + en. `common.{back,dismiss}` reusados.
+
+### Feature A2 — Config versioning & rollback (módulo novo `config-snapshots`)
+
+**Schema**: modelo `ConfigSnapshot` (id, companyId, actorId? FK User SET NULL, resource `ConfigResource`, resourceId?, label?, snapshotData Json, createdAt). Índices `[companyId, resource, createdAt]`, `[companyId, resource, resourceId]`, `[companyId, createdAt]`. CASCADE em Company. Enum novo `ConfigResource` (5 valores: COMPANY_SETTINGS, FEATURE_FLAG, SLA_POLICY, ASSIGNMENT_RULE, NOTIFICATION_PREFERENCES). `AuditAction` expandido com `ROLLBACK`.
+
+**Append-only design**: nunca há update ou delete de snapshots. Rollback cria nova row "pre-rollback" ANTES de aplicar — toda operação é reversível via `preRollbackSnapshotId`.
+
+**`ConfigSnapshotsService`**:
+
+1. **`list(companyId, {resource?, resourceId?, limit?})`**: tenant-scoped, orderBy `createdAt desc`, default `LIST_DEFAULT_LIMIT=50`, cap `LIST_MAX_LIMIT=200`. Filtros opcionais compostos.
+
+2. **`findById(companyId, id)`** — NotFound cross-tenant.
+
+3. **`create(companyId, actorId, dto)`**: `captureLiveState(companyId, resource, resourceId)` → persist row. Audit `CREATE` resource `'CONFIG_SNAPSHOT'` + fire-and-forget.
+
+4. **`captureLiveState(companyId, resource, resourceId?)`** — 5-branch dispatch:
+   - `COMPANY_SETTINGS` → `company.findUnique({id: companyId})` + projeta subset `{name, settings, plan, planLimits, planFeatures}`.
+   - `FEATURE_FLAG` → `resourceId` obrigatório. `featureFlag.findFirst({id, companyId})` → `plainOf(row)` + BadRequest `'Resource not found'` se null.
+   - `SLA_POLICY` → idem feature flag.
+   - `ASSIGNMENT_RULE` → idem.
+   - `NOTIFICATION_PREFERENCES` → `resourceId` = userId. `notificationPreference.findMany({where: {userId, companyId}, orderBy: [{type asc}, {channel asc}]})` → `rows.map(plainOf)` — captura todo o matrix como array.
+   - Returna `snapshotData` plain-JSON.
+
+5. **`plainOf<T>(row: T): T` helper**: `JSON.parse(JSON.stringify(row))`. Drops Prisma Date/Decimal prototypes para comparações byte-stable no `diff`. Fix p/ `diff.changed` ser idempotente em re-snapshot do mesmo estado.
+
+6. **`diff(companyId, id)`** — compara snapshot vs live state:
+   - Load snapshot via `findById`.
+   - `currentData = captureLiveState(companyId, snap.resource, snap.resourceId)`.
+   - `changed = JSON.stringify(snap.snapshotData) !== JSON.stringify(currentData)`.
+   - Returna `SnapshotDiff {snapshotId, resource, resourceId, createdAt, snapshotData, currentData, changed}`.
+
+7. **`rollback(companyId, actorId, id)`** — **3 fases atomic-reversible**:
+   - **Fase 1 (pre-capture FORA do `$transaction`)**: `captureLiveState` do estado atual. Executa fora da tx para NÃO consumir budget de lock/timeout do `$transaction`. Se capture falhar, rollback aborta sem side-effect.
+   - **Fase 2 (INSIDE `$transaction`)**:
+     1. `configSnapshot.create` com `snapshotData: currentLive, label: \`pre-rollback of ${snap.id}\`` — pre-snapshot de reversibilidade.
+     2. `applyRollback(tx, snap, companyId)` — aplica estado do snapshot.
+     3. `auditLog.create` action `ROLLBACK` resource `'CONFIG_SNAPSHOT'` resourceId `snap.id` com `oldValues: currentLive, newValues: snap.snapshotData, metadata: {preRollbackSnapshotId}`.
+     4. Tx commit atomic.
+   - **Fase 3 (return)**: `{success: true, preRollbackSnapshotId}` — cliente pode chamar `rollback(preRollbackSnapshotId)` para desfazer a reversão.
+
+8. **`applyRollback(tx, snap, companyId)`** — 5-branch dispatch com guards defensivos:
+   - `COMPANY_SETTINGS` → `tx.company.update({id: companyId, data: {settings, planLimits, planFeatures, ...(name ? {name} : {})}})`.
+   - `FEATURE_FLAG` → `tx.featureFlag.findFirst({id: resourceId, companyId})` → null throws `'Feature flag no longer exists'` (não re-cria config soft-deleted). Update restaurando `enabled, rolloutPercentage, userAllowlist, description, name`.
+   - `SLA_POLICY` → idem feature flag (throws `'SLA policy no longer exists'`). Update `responseMins, resolutionMins, isActive, name`.
+   - `ASSIGNMENT_RULE` → idem (throws `'Assignment rule no longer exists'`). Update `name, priority, strategy, conditions, targetUserIds, isActive`.
+   - `NOTIFICATION_PREFERENCES` → replace semantics. `resourceId` = userId. `deleteMany({userId, companyId})` + for-loop `create` per-row com try/catch skip-on-fail (tolera duplicate key edge case se cron concorrente recriar).
+
+9. **`@OnEvent('config.changed')` `handleConfigChanged(payload)`**: fire-and-forget ingestion. Payload `{companyId, resource, resourceId?, actorId?, label?}`. Chama internamente `captureLiveState + configSnapshot.create` + audit. Try/catch swallow — consumer service emit nunca bloqueia.
+
+10. **Consumer services emitem via `EventEmitter2.emit('config.changed', {...})`** após persistir mutação:
+    - `CompaniesService.update` / `.updateSettings` → `resource: COMPANY_SETTINGS`.
+    - `FeatureFlagsService.create/update/remove` → `resource: FEATURE_FLAG, resourceId: flag.id`.
+    - `SlaPoliciesService.upsert/remove` → `resource: SLA_POLICY, resourceId: policy.id`.
+    - `AssignmentRulesService.create/update/remove` → `resource: ASSIGNMENT_RULE, resourceId: rule.id`.
+    - `NotificationPreferencesService.upsertMany/reset` → `resource: NOTIFICATION_PREFERENCES, resourceId: userId`.
+    - Todos envoltos em try/catch com warn — falha de ingestion NUNCA quebra hot path CRUD.
+
+**Endpoints** (`@Controller('config-snapshots')` + `TenantGuard` + `RolesGuard`):
+
+- `GET /config-snapshots` (OWNER/ADMIN/MANAGER) — query `resource?, resourceId?, limit?`.
+- `GET /config-snapshots/:id` (OWNER/ADMIN/MANAGER) — ParseUUIDPipe.
+- `POST /config-snapshots` (OWNER/ADMIN) (HttpCode 201) — body `CreateSnapshotDto {resource, resourceId?, label?}`.
+- `GET /config-snapshots/:id/diff` (OWNER/ADMIN/MANAGER) — ParseUUIDPipe.
+- `POST /config-snapshots/:id/rollback` (OWNER/ADMIN) (HttpCode 200) — ParseUUIDPipe.
+
+**Frontend** (`configSnapshotsService` em `/services` com types exportados):
+
+- `ConfigResource`, `ConfigSnapshot`, `SnapshotDiff`, `ListSnapshotsParams`, `CreateSnapshotPayload`.
+- Methods: `list / findById / create / diff / rollback`.
+- (UI page opcional p/ próxima sessão — módulos backend + service layer frontend já dão capacidade completa via dev tools/API direct.)
+
+### Integração com features prévias
+
+- `ImpersonationService` consome apenas Prisma + (futuro) guard middleware para validar `Authorization: Bearer imp_...`. Zero circular deps.
+- `ConfigSnapshotsService` usa `EventEmitter2` global (S46) como bus de ingestion — consumers são 5 services existentes (S42 companies, S53 feature-flags, S49 sla-policies, S54 assignment-rules, S48 notification-preferences) que ganham 1 linha de `emit` após cada mutação.
+- `AuditAction` enum expandido (10 → 13): `IMPERSONATE_START, IMPERSONATE_END, ROLLBACK`. Compatível com audit log export S43 (`/analytics/audit-logs/export`) — novos valores aparecem em CSV/NDJSON sem alteração de schema de export.
+- `RolesGuard` + `TenantGuard` reusados (S33). Impersonation não-substitutiva — actor continua identificado na AuditLog (não troca identidade da sessão no guard), apenas emite token paralelo validável por middleware futuro.
+
+### Testes
+
+- `impersonation.service.spec.ts` (novo, ~16 cases): start — target cross-tenant NotFound, self-impersonation BadRequest, inactive target BadRequest, RBAC matrix (OWNER→OWNER Forbidden, ADMIN→OWNER Forbidden, ADMIN→ADMIN Forbidden, MANAGER→anyone Forbidden, OWNER→ADMIN ok, ADMIN→VENDOR ok), duration clamp `[5,240]` (rejects 0, rejects 500), token format `imp_*` + length check, tokenHash persistido (plaintext nunca em DB), audit IMPERSONATE_START com newValues. end — NotFound cross-tenant, ForbiddenException actor mismatch, BadRequest se já isActive=false, success update + audit IMPERSONATE_END. resolveByToken — null se not found, lazy-expire ativo + audit 'expired' + return null, success retorna ids. expireStale — bulk updateMany com filter `{isActive: true, expiresAt: {lte: now}}`.
+- `config-snapshots.service.spec.ts` (novo, ~14 cases): list scope + cap 200, findById NotFound cross-tenant, create via captureLiveState (5 resources) + audit CREATE, BadRequest em FEATURE_FLAG sem resourceId ou com resourceId cross-tenant. diff — `changed: false` em re-snapshot idempotente (plainOf JSON round-trip), `changed: true` após live mutation. rollback — 3-fase: pre-capture OUTSIDE tx, tx cria pre-rollback snapshot + applyRollback + audit ROLLBACK com metadata.preRollbackSnapshotId, returns `{success: true, preRollbackSnapshotId}`. applyRollback guards — FEATURE_FLAG/SLA_POLICY/ASSIGNMENT_RULE null → throws 'no longer exists'. NOTIFICATION_PREFERENCES replace via deleteMany + for-loop create per-row try/catch. handleConfigChanged @OnEvent — swallows error (consumer emit protegido).
+
+### Resilience
+
+- **Token entropia**: 192 bits (`randomBytes(24).toString('base64url')`) — brute-force computationally infeasible.
+- **SHA-256 hash at rest**: bulk DB leak não recupera plaintexts. Comparação via `hashToken(input) === row.tokenHash` (case-sensitive hex).
+- **One-shot plaintext**: `start` é único retorno; `findById`/`listActive` nunca expõem token. Cliente perdeu → re-emite com `start` (nova sessão, nova audit).
+- **Lazy-expire em resolveByToken**: sessão expira em time-check ANTES de retornar, mesmo se cron atrasar — zero trust timing.
+- **expireStale cron safety net**: bulk cleanup garante isActive=false mesmo se token nunca foi usado (cleanup de rows órfãs).
+- **ForbiddenException actor-only end**: co-OWNER não pode cancelar sessão alheia sem audit trail — força actor original a encerrar ou aguardar expiração.
+- **FKs RESTRICT em User**: hard-delete de actor/target com sessão ativa bloqueia (garante audit preservado). Soft-delete via `deletedAt` permitido.
+- **Audit IMPERSONATE_START/IMPERSONATE_END/ROLLBACK**: 3 novos valores de enum preservam trail completo em `auditLog` table + export S43.
+- **Append-only ConfigSnapshot**: zero update/delete — toda operação adiciona row nova. Rollback cria pre-rollback snapshot ANTES de mutar (totalmente reversível).
+- **3-fase rollback**: pre-capture FORA do `$transaction` preserva budget de lock/timeout; tx cobre apenas create+apply+audit (fast path).
+- **Defensive findFirst guards em applyRollback**: throws `'no longer exists'` se config foi hard-deleted — não re-cria orfão com state antigo (prioriza intencional delete do usuário).
+- **NOTIFICATION_PREFERENCES replace via deleteMany+create per-row try/catch**: skip-on-fail tolera edge case de duplicate key em cron concorrente.
+- **`plainOf<T>` JSON round-trip**: drops Prisma Date/Decimal prototypes → `diff.changed` byte-stable, idempotente em re-snapshot.
+- **`@OnEvent('config.changed')` outer try/catch swallow**: ingestion falha não propaga para hot path CRUD. Consumers protegidos por try/catch individual no site da emit.
+- **`preRollbackSnapshotId` retornado em rollback**: cliente pode desfazer a reversão chamando `rollback(preRollbackSnapshotId)` — chain reversível arbitrariamente.
+- **`ConfigResource` enum fechado**: adicionar novo resource requer migration + branch em `captureLiveState` + `applyRollback` — compile-time guard previne dispatch silencioso incorreto.
+
+---
+
+*Documento atualizado em 21/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

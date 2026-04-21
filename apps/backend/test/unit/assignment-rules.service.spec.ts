@@ -21,6 +21,7 @@
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AssignmentStrategy, AuditAction, Prisma } from '@prisma/client';
 
 import { AssignmentRulesService } from '../../src/modules/assignment-rules/assignment-rules.service';
@@ -61,6 +62,7 @@ describe('AssignmentRulesService', () => {
         AssignmentRulesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CacheService, useValue: mockCache },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
     service = module.get(AssignmentRulesService);

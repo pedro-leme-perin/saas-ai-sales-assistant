@@ -1544,5 +1544,85 @@
       "updateOk": "Limite atualizado.",
       "updateErr": "Erro ao atualizar limite."
     }
+  },
+  "impersonation": {
+    "title": "Impersonar usuario",
+    "subtitle": "Assuma temporariamente uma sessao de outro usuario. Toda acao e auditada.",
+    "notAllowed": "Voce nao tem permissao para impersonar usuarios.",
+    "newSession": "Nova sessao",
+    "target": "Alvo",
+    "pickTarget": "Selecione um usuario",
+    "noEligible": "Nenhum usuario elegivel para impersonar.",
+    "reason": "Motivo",
+    "reasonPh": "Descreva o motivo (minimo 10 caracteres).",
+    "reasonHint": "Minimo {{min}} caracteres.",
+    "durationMinutes": "Duracao (minutos)",
+    "durationHint": "Entre {{min}} e {{max}} minutos.",
+    "start": "Iniciar impersonacao",
+    "end": "Encerrar",
+    "startedAt": "Iniciado",
+    "expiresAt": "Expira",
+    "activeSessions": "Sessoes ativas",
+    "empty": "Nenhuma sessao ativa.",
+    "tokenBanner": {
+      "title": "Token de impersonacao emitido",
+      "showOnce": "Copie agora. O token nao sera exibido novamente."
+    },
+    "toast": {
+      "startOk": "Impersonacao iniciada.",
+      "startErr": "Falha ao iniciar impersonacao.",
+      "endOk": "Sessao encerrada.",
+      "endErr": "Falha ao encerrar sessao.",
+      "pickTarget": "Selecione um usuario alvo.",
+      "reasonShort": "Motivo muito curto.",
+      "reasonLong": "Motivo excede o limite.",
+      "durationRange": "Duracao fora do intervalo permitido.",
+      "copyErr": "Falha ao copiar."
+    }
+  },
+  "snapshots": {
+    "title": "Snapshots de configuracao",
+    "subtitle": "Versionamento append-only + diff + rollback atomico.",
+    "new": "Novo snapshot",
+    "createTitle": "Criar snapshot",
+    "resource": "Recurso",
+    "resourceId": "ID do recurso",
+    "resourceIdPh": "Opcional para recursos unicos",
+    "resourceIdHint": "Deixe em branco para recursos globais do tenant.",
+    "label": "Rotulo",
+    "labelPh": "ex: antes da migracao",
+    "create": "Criar",
+    "timeline": "Linha do tempo",
+    "empty": "Nenhum snapshot registrado.",
+    "diffTitle": "Diferencas",
+    "diffErr": "Falha ao carregar diff.",
+    "selectHint": "Selecione um snapshot para ver o diff.",
+    "status": "Status",
+    "changed": "Divergente do atual",
+    "unchanged": "Identico ao atual",
+    "rollback": "Fazer rollback",
+    "rollbackConfirm": "Confirmar rollback",
+    "rollbackWarn": "Um snapshot pre-rollback sera criado antes. Acao auditada.",
+    "createdAt": "Criado",
+    "snapshotData": "Snapshot",
+    "currentData": "Atual",
+    "filter": {
+      "resource": "Filtrar por recurso",
+      "resourceId": "Filtrar por ID",
+      "resourceIdPh": "ID exato do recurso"
+    },
+    "resources": {
+      "COMPANY_SETTINGS": "Configuracoes da empresa",
+      "FEATURE_FLAG": "Feature flag",
+      "SLA_POLICY": "Politica de SLA",
+      "ASSIGNMENT_RULE": "Regra de atribuicao",
+      "NOTIFICATION_PREFERENCES": "Preferencias de notificacao"
+    },
+    "toast": {
+      "createOk": "Snapshot criado.",
+      "createErr": "Falha ao criar snapshot.",
+      "rollbackOk": "Rollback executado.",
+      "rollbackErr": "Falha no rollback."
+    }
   }
 }

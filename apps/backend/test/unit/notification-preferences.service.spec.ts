@@ -12,6 +12,7 @@
 // =============================================
 
 import { Test } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationChannel, NotificationType } from '@prisma/client';
 import { NotificationPreferencesService } from '../../src/modules/notification-preferences/notification-preferences.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
@@ -55,6 +56,7 @@ describe('NotificationPreferencesService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CacheService, useValue: mockCache },
         { provide: EmailService, useValue: mockEmail },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
     service = module.get(NotificationPreferencesService);

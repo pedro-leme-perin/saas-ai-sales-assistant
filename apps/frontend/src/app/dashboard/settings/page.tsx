@@ -28,6 +28,8 @@ import {
   Users,
   Database,
   Gauge,
+  Eye,
+  History,
   ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -401,6 +403,32 @@ export default function SettingsPage() {
                 <p className="font-medium">{t("usageQuotas.title")}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {t("usageQuotas.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/admin/impersonate"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <Eye className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("impersonation.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("impersonation.subtitle")}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/dashboard/settings/snapshots"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+            >
+              <History className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{t("snapshots.title")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("snapshots.subtitle")}
                 </p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />

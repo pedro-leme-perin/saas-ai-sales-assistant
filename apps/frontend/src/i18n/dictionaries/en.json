@@ -1544,5 +1544,85 @@
       "updateOk": "Limit updated.",
       "updateErr": "Failed to update limit."
     }
+  },
+  "impersonation": {
+    "title": "Impersonate user",
+    "subtitle": "Temporarily assume another user's session. Every action is audited.",
+    "notAllowed": "You do not have permission to impersonate users.",
+    "newSession": "New session",
+    "target": "Target",
+    "pickTarget": "Select a user",
+    "noEligible": "No eligible users to impersonate.",
+    "reason": "Reason",
+    "reasonPh": "Describe the reason (minimum 10 characters).",
+    "reasonHint": "Minimum {{min}} characters.",
+    "durationMinutes": "Duration (minutes)",
+    "durationHint": "Between {{min}} and {{max}} minutes.",
+    "start": "Start impersonation",
+    "end": "End",
+    "startedAt": "Started",
+    "expiresAt": "Expires",
+    "activeSessions": "Active sessions",
+    "empty": "No active sessions.",
+    "tokenBanner": {
+      "title": "Impersonation token issued",
+      "showOnce": "Copy now. The token will not be displayed again."
+    },
+    "toast": {
+      "startOk": "Impersonation started.",
+      "startErr": "Failed to start impersonation.",
+      "endOk": "Session ended.",
+      "endErr": "Failed to end session.",
+      "pickTarget": "Select a target user.",
+      "reasonShort": "Reason too short.",
+      "reasonLong": "Reason exceeds limit.",
+      "durationRange": "Duration out of allowed range.",
+      "copyErr": "Failed to copy."
+    }
+  },
+  "snapshots": {
+    "title": "Config snapshots",
+    "subtitle": "Append-only versioning + diff + atomic rollback.",
+    "new": "New snapshot",
+    "createTitle": "Create snapshot",
+    "resource": "Resource",
+    "resourceId": "Resource ID",
+    "resourceIdPh": "Optional for singleton resources",
+    "resourceIdHint": "Leave blank for tenant-wide resources.",
+    "label": "Label",
+    "labelPh": "e.g., before migration",
+    "create": "Create",
+    "timeline": "Timeline",
+    "empty": "No snapshots recorded.",
+    "diffTitle": "Differences",
+    "diffErr": "Failed to load diff.",
+    "selectHint": "Select a snapshot to view the diff.",
+    "status": "Status",
+    "changed": "Diverges from current",
+    "unchanged": "Matches current",
+    "rollback": "Rollback",
+    "rollbackConfirm": "Confirm rollback",
+    "rollbackWarn": "A pre-rollback snapshot will be created first. Action is audited.",
+    "createdAt": "Created",
+    "snapshotData": "Snapshot",
+    "currentData": "Current",
+    "filter": {
+      "resource": "Filter by resource",
+      "resourceId": "Filter by ID",
+      "resourceIdPh": "Exact resource ID"
+    },
+    "resources": {
+      "COMPANY_SETTINGS": "Company settings",
+      "FEATURE_FLAG": "Feature flag",
+      "SLA_POLICY": "SLA policy",
+      "ASSIGNMENT_RULE": "Assignment rule",
+      "NOTIFICATION_PREFERENCES": "Notification preferences"
+    },
+    "toast": {
+      "createOk": "Snapshot created.",
+      "createErr": "Failed to create snapshot.",
+      "rollbackOk": "Rollback executed.",
+      "rollbackErr": "Rollback failed."
+    }
   }
 }
