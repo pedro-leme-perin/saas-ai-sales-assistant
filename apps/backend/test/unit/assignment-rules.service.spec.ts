@@ -1,5 +1,5 @@
 // =============================================
-// 🎯 AssignmentRulesService — unit tests (Session 54 — Feature A2)
+// 🎯 AssignmentRulesService — unit tests (Session 54 + Session 57 extensions)
 // =============================================
 // Covers:
 //   - CRUD: list scope+orderBy+cap, findById NotFound, create+P2002→BadRequest,
@@ -10,24 +10,42 @@
 //     * chat already assigned → returns existing userId (idempotent)
 //     * first matching rule wins (priority asc)
 //     * MANUAL_ONLY → returns null (no assignment)
-//     * ROUND_ROBIN rotates via Redis counter
+//     * ROUND_ROBIN rotates via Redis counter (S57: presence-filtered)
 //     * ROUND_ROBIN falls back to local Map on Redis error
-//     * LEAST_BUSY picks vendor with 0 chats (absent from groupBy)
-//     * LEAST_BUSY picks vendor with min count when all present
+//     * ROUND_ROBIN skips OFFLINE / at-capacity agents (S57)
+//     * ROUND_ROBIN returns null when no eligible agents (S57)
+//     * LEAST_BUSY picks ONLINE + non-full agent with fewest currentOpen (S57)
+//     * LEAST_BUSY skips OFFLINE/AWAY agents (S57)
+//     * LEAST_BUSY skips at-capacity agents (S57)
+//     * LEAST_BUSY returns null when no eligible agents (S57)
 //     * emits audit on assign
 //   - matches: priority exact, tags any-overlap, phonePrefix startsWith,
 //     keywordsAny case-insensitive on name+preview, empty conditions → match
+//   - handleChatCreated: swallows errors
 // =============================================
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { AssignmentStrategy, AuditAction, Prisma } from '@prisma/client';
+import { AgentStatus, AssignmentStrategy, AuditAction, Prisma } from '@prisma/client';
 
 import { AssignmentRulesService } from '../../src/modules/assignment-rules/assignment-rules.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
+import { PresenceService, type CapacityInfo } from '../../src/modules/presence/presence.service';
 
 jest.setTimeout(10_000);
+
+function capacity(partial: Partial<CapacityInfo> & { userId: string }): CapacityInfo {
+  return {
+    status: AgentStatus.ONLINE,
+    isOnline: true,
+    atCapacity: false,
+    maxConcurrentChats: 5,
+    currentOpen: 0,
+    lastHeartbeatAt: null,
+    ...partial,
+  };
+}
 
 describe('AssignmentRulesService', () => {
   let service: AssignmentRulesService;
@@ -43,7 +61,6 @@ describe('AssignmentRulesService', () => {
     whatsappChat: {
       findUnique: jest.fn(),
       update: jest.fn().mockResolvedValue({}),
-      groupBy: jest.fn(),
     },
     user: { findMany: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
@@ -54,6 +71,10 @@ describe('AssignmentRulesService', () => {
     set: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockPresence = {
+    getCapacityMap: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     const module = await Test.createTestingModule({
@@ -61,6 +82,7 @@ describe('AssignmentRulesService', () => {
         AssignmentRulesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CacheService, useValue: mockCache },
+        { provide: PresenceService, useValue: mockPresence },
       ],
     }).compile();
     service = module.get(AssignmentRulesService);
@@ -133,7 +155,6 @@ describe('AssignmentRulesService', () => {
         targetUserIds: ['u1'],
       });
       expect(mockPrisma.assignmentRule.create).toHaveBeenCalled();
-      // audit is fire-and-forget — allow microtasks to flush
       await new Promise((r) => setImmediate(r));
       expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -240,7 +261,9 @@ describe('AssignmentRulesService', () => {
       expect(mockPrisma.whatsappChat.update).not.toHaveBeenCalled();
     });
 
-    it('ROUND_ROBIN: rotates via Redis counter (0 → u1, 1 → u2)', async () => {
+    // ===== ROUND_ROBIN =====================================================
+
+    it('ROUND_ROBIN: rotates via Redis counter among ONLINE non-full agents', async () => {
       mockPrisma.assignmentRule.findMany.mockResolvedValue([
         {
           id: 'r1',
@@ -252,6 +275,14 @@ describe('AssignmentRulesService', () => {
         },
       ]);
       mockPrisma.whatsappChat.findUnique.mockResolvedValue(baseChat);
+
+      // Both agents ONLINE + available
+      mockPresence.getCapacityMap.mockResolvedValue(
+        new Map([
+          ['u1', capacity({ userId: 'u1' })],
+          ['u2', capacity({ userId: 'u2' })],
+        ]),
+      );
 
       // First call: counter=0 → u1
       mockCache.get.mockResolvedValueOnce('0');
@@ -277,6 +308,12 @@ describe('AssignmentRulesService', () => {
         },
       ]);
       mockPrisma.whatsappChat.findUnique.mockResolvedValue(baseChat);
+      mockPresence.getCapacityMap.mockResolvedValue(
+        new Map([
+          ['u1', capacity({ userId: 'u1' })],
+          ['u2', capacity({ userId: 'u2' })],
+        ]),
+      );
       mockCache.get.mockRejectedValue(new Error('redis down'));
       mockCache.set.mockRejectedValue(new Error('redis down'));
 
@@ -286,7 +323,120 @@ describe('AssignmentRulesService', () => {
       expect(r2).toBe('u2');
     });
 
-    it('LEAST_BUSY: picks vendor with 0 chats (absent from groupBy)', async () => {
+    it('ROUND_ROBIN: skips OFFLINE agents (S57 presence filter)', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1', 'u2', 'u3'],
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      // u1 OFFLINE, u2 AWAY → both ineligible; only u3 remains
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([
+          [
+            'u1',
+            capacity({
+              userId: 'u1',
+              status: AgentStatus.OFFLINE,
+              isOnline: false,
+            }),
+          ],
+          [
+            'u2',
+            capacity({
+              userId: 'u2',
+              status: AgentStatus.AWAY,
+              isOnline: false,
+            }),
+          ],
+          ['u3', capacity({ userId: 'u3' })],
+        ]),
+      );
+      mockCache.get.mockResolvedValueOnce('0');
+
+      const res = await service.tryAutoAssign(basePayload);
+      expect(res).toBe('u3');
+    });
+
+    it('ROUND_ROBIN: skips at-capacity agents (S57 presence filter)', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([
+          [
+            'u1',
+            capacity({
+              userId: 'u1',
+              atCapacity: true,
+              currentOpen: 5,
+              maxConcurrentChats: 5,
+            }),
+          ],
+          ['u2', capacity({ userId: 'u2', currentOpen: 1 })],
+        ]),
+      );
+      mockCache.get.mockResolvedValueOnce('0');
+
+      const res = await service.tryAutoAssign(basePayload);
+      expect(res).toBe('u2');
+    });
+
+    it('ROUND_ROBIN: returns null when no eligible agents (S57)', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([
+          [
+            'u1',
+            capacity({
+              userId: 'u1',
+              status: AgentStatus.OFFLINE,
+              isOnline: false,
+            }),
+          ],
+          [
+            'u2',
+            capacity({
+              userId: 'u2',
+              atCapacity: true,
+              currentOpen: 5,
+              maxConcurrentChats: 5,
+            }),
+          ],
+        ]),
+      );
+
+      const res = await service.tryAutoAssign(basePayload);
+      expect(res).toBeNull();
+      expect(mockPrisma.whatsappChat.update).not.toHaveBeenCalled();
+    });
+
+    // ===== LEAST_BUSY ======================================================
+
+    it('LEAST_BUSY: picks ONLINE non-full agent with fewest currentOpen (S57)', async () => {
       mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
         {
           id: 'r1',
@@ -298,16 +448,18 @@ describe('AssignmentRulesService', () => {
         },
       ]);
       mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
-      mockPrisma.whatsappChat.groupBy.mockResolvedValueOnce([
-        { userId: 'u1', _count: { _all: 5 } },
-        { userId: 'u2', _count: { _all: 3 } },
-        // u3 absent → 0 chats
-      ]);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([
+          ['u1', capacity({ userId: 'u1', currentOpen: 5 })],
+          ['u2', capacity({ userId: 'u2', currentOpen: 2 })],
+          ['u3', capacity({ userId: 'u3', currentOpen: 0 })],
+        ]),
+      );
       const res = await service.tryAutoAssign(basePayload);
       expect(res).toBe('u3');
     });
 
-    it('LEAST_BUSY: picks min count among all present vendors', async () => {
+    it('LEAST_BUSY: skips OFFLINE/AWAY agents even if less busy (S57)', async () => {
       mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
         {
           id: 'r1',
@@ -319,13 +471,95 @@ describe('AssignmentRulesService', () => {
         },
       ]);
       mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
-      mockPrisma.whatsappChat.groupBy.mockResolvedValueOnce([
-        { userId: 'u1', _count: { _all: 5 } },
-        { userId: 'u2', _count: { _all: 2 } },
-      ]);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([
+          // u1 OFFLINE with 0 chats — must be skipped
+          [
+            'u1',
+            capacity({
+              userId: 'u1',
+              status: AgentStatus.OFFLINE,
+              isOnline: false,
+              currentOpen: 0,
+            }),
+          ],
+          // u2 ONLINE with 3 chats — wins by default
+          ['u2', capacity({ userId: 'u2', currentOpen: 3 })],
+        ]),
+      );
       const res = await service.tryAutoAssign(basePayload);
       expect(res).toBe('u2');
     });
+
+    it('LEAST_BUSY: skips at-capacity agents (S57)', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.LEAST_BUSY,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([
+          [
+            'u1',
+            capacity({
+              userId: 'u1',
+              atCapacity: true,
+              currentOpen: 5,
+              maxConcurrentChats: 5,
+            }),
+          ],
+          ['u2', capacity({ userId: 'u2', currentOpen: 4 })],
+        ]),
+      );
+      const res = await service.tryAutoAssign(basePayload);
+      expect(res).toBe('u2');
+    });
+
+    it('LEAST_BUSY: returns null when all targets ineligible (S57)', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.LEAST_BUSY,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([
+          [
+            'u1',
+            capacity({
+              userId: 'u1',
+              status: AgentStatus.OFFLINE,
+              isOnline: false,
+            }),
+          ],
+          [
+            'u2',
+            capacity({
+              userId: 'u2',
+              atCapacity: true,
+              currentOpen: 5,
+              maxConcurrentChats: 5,
+            }),
+          ],
+        ]),
+      );
+      const res = await service.tryAutoAssign(basePayload);
+      expect(res).toBeNull();
+      expect(mockPrisma.whatsappChat.update).not.toHaveBeenCalled();
+    });
+
+    // ===== Priority / conditions ===========================================
 
     it('first matching rule wins (priority asc)', async () => {
       mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
@@ -347,6 +581,9 @@ describe('AssignmentRulesService', () => {
         },
       ]);
       mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([['uA', capacity({ userId: 'uA' })]]),
+      );
       mockCache.get.mockResolvedValueOnce('0');
       const res = await service.tryAutoAssign(basePayload);
       expect(res).toBe('uA');
@@ -369,8 +606,11 @@ describe('AssignmentRulesService', () => {
       ]);
       mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce({
         ...baseChat,
-        tags: ['urgent'], // overlaps
+        tags: ['urgent'],
       });
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([['u1', capacity({ userId: 'u1' })]]),
+      );
       mockCache.get.mockResolvedValueOnce('0');
       const res = await service.tryAutoAssign(basePayload);
       expect(res).toBe('u1');
@@ -410,6 +650,9 @@ describe('AssignmentRulesService', () => {
         ...baseChat,
         lastMessagePreview: 'Need support urgently',
       });
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([['u1', capacity({ userId: 'u1' })]]),
+      );
       mockCache.get.mockResolvedValueOnce('0');
       const res = await service.tryAutoAssign(basePayload);
       expect(res).toBe('u1');
@@ -428,6 +671,9 @@ describe('AssignmentRulesService', () => {
         },
       ]);
       mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(
+        new Map([['u1', capacity({ userId: 'u1' })]]),
+      );
       mockCache.get.mockResolvedValueOnce('0');
       await service.tryAutoAssign(basePayload);
       expect(mockPrisma.whatsappChat.update).toHaveBeenCalledWith({

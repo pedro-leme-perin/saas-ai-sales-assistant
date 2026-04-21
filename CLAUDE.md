@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 20/04/2026 (sessão 56)
+> Última atualização: 20/04/2026 (sessão 57)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 56 (20/04/2026) | Scheduled WhatsApp send (ScheduledMessage + BG handler SEND_SCHEDULED_MESSAGE via registry S49 + MIN_LEAD_SECONDS=30/MAX_LEAD_DAYS=60 + cancel idempotente com best-effort job cancel + CANCELED race guard no handler) + Conversation macros (Macro + Zod `.strict()` discriminated union 4 types: SEND_REPLY/ATTACH_TAG/ASSIGN_AGENT/CLOSE_CHAT, max 10 ações/macro, 3 fases execute: pre-validate FK tenant → outbound I/O WhatsApp → `$transaction` DB com composite `chatId_tagId` upsert + usage count + audit) |
-| Backend (NestJS) | ✅ Produção | Railway — 40 módulos (+scheduled-messages, +macros), 72+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 41 routes (+settings/scheduled-messages, +settings/macros) |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 36 modelos (+ScheduledMessage, +Macro), 40 enums Prisma (+ScheduledMessageStatus, +BackgroundJobType.SEND_SCHEDULED_MESSAGE) + pg_trgm |
+| Último commit | sessão 57 (20/04/2026) | Agent presence & capacity (AgentPresence userId @unique + heartbeat upsert + @Cron autoAwayTick stale>2min + getCapacityMap via groupBy) + SLA escalation chain (SlaEscalation tiers + @Cron dispatch + ledger `WhatsappChat.slaEscalationsRun[]` idempotente + ações NOTIFY_MANAGER/REASSIGN_TO_USER/CHANGE_PRIORITY + REASSIGN presence-aware + WebhookEvent.SLA_ESCALATED + S54 ROUND_ROBIN/LEAST_BUSY reescritas presence-first) |
+| Backend (NestJS) | ✅ Produção | Railway — 42 módulos (+presence, +sla-escalation), 74+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 41 routes |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 38 modelos (+AgentPresence, +SlaEscalation), 42 enums Prisma (+AgentStatus, +SlaEscalationAction) + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -734,6 +734,53 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Resilience:** handler registry via `OnModuleInit` desacopla fila de domínios (zero circular deps), `MIN_LEAD_SECONDS=30` floor previne race com BG worker tick (EVERY_30_SECONDS em S49), `MAX_LEAD_DAYS=60` cap impede BG queue bloat, CANCELED race guard no handler (re-read row + skip se status !== PENDING) protege contra double-send, best-effort `jobs.cancel` em try/catch swallow (job pode estar em qualquer estado), enqueue failure → rollback status FAILED (atomicity pragmática sem cross-DB tx), handler re-throw em sendMessage failure → BG worker respeita `maxAttempts=3` + backoff exponencial S49, Zod `.strict()` em cada action variant rejeita unknown keys (anti-injection via JSON payload), pre-validate FK ownership ANTES de outbound I/O (stale tagId no action #3 não deixa mensagem órfã), 3-phase execute separa I/O externo do `$transaction` (network hiccup não poisona tx), composite `chatTag.upsert` idempotente (re-execute macro não duplica tags), phase 3 post-hooks fire-and-forget (template usageCount + audit não bloqueiam caller), `@@unique([companyId, name])` previne duplicate macro names, P2002 mapeado para BadRequest (não vaza Prisma internals), audit fire-and-forget em todas mutações.
 
+### 2.5.16 Sessão 57 — 20/04/2026
+
+**Objetivo:** 2 features enterprise (opção A — operações/produtividade) — Agent presence & capacity (heartbeat + auto-AWAY cron + capacity map via groupBy, consumido por S54 assignment rules) + SLA escalation chain (tiers por priority, dispatch cron presence-aware, ledger idempotente, webhook SLA_ESCALATED).
+
+**Feature A1 — Agent presence & capacity (módulo novo `presence`):**
+- Schema: modelo `AgentPresence` (id, userId @unique, companyId, status `AgentStatus`, statusMessage?, maxConcurrentChats Int default 5, lastHeartbeatAt DateTime default now, timestamps). Índices `[companyId, status]`, `[companyId, lastHeartbeatAt]`. CASCADE em User, RESTRICT em Company. Enum novo `AgentStatus` (ONLINE, AWAY, BREAK, OFFLINE). Migration `20260427010000_add_agent_presence_and_sla_escalation`.
+- `PresenceService`:
+  1. `heartbeat(userId, companyId, dto?)`: upsert por `userId` (@unique), `create` com defaults (`status: ONLINE, maxConcurrentChats: 5, lastHeartbeatAt: now`), `update` merge seletivo stampa `lastHeartbeatAt: now` sem sobrescrever `statusMessage/max` quando DTO omite.
+  2. `updateMine(userId, dto)` — merge partial apenas dos fields providenciados + audit fire-and-forget.
+  3. `findMine(userId)` / `findForUser(companyId, userId)` — tenant-scoped NotFoundException.
+  4. `listActive(companyId)` — findMany orderBy `[status asc, lastHeartbeatAt desc]`, take 500, filtra `user.isActive !== false`.
+  5. `getCapacityFor(companyId, userId)` — retorna single `CapacityInfo`.
+  6. **`getCapacityMap(companyId, userIds)`** — bulk lookup consumido por `AssignmentRulesService`. `Promise.all` de `agentPresence.findMany` + `whatsappChat.groupBy({by: ['userId'], _count: {_all: true}, where: {userId: {in}, companyId, status: {in: [OPEN, PENDING, ACTIVE]}}})`. Retorna `Map<userId, CapacityInfo>`; users sem row default `{status: OFFLINE, currentOpen: 0}`. Empty input → short-circuit.
+  7. `@Cron(EVERY_MINUTE, { name: 'presence-auto-away' })` `autoAwayTick()` — threshold `now - PRESENCE_STALE_MS(2*60*1000)`, findMany `{status: ONLINE, lastHeartbeatAt: {lt: threshold}}` take `AUTO_AWAY_BATCH=500`, `updateMany({data: {status: AWAY}})`. Blanket try/catch swallow (observability gracefully degrada).
+  8. Interface pública `CapacityInfo {userId, status, isOnline, atCapacity, maxConcurrentChats, currentOpen, lastHeartbeatAt}` — exportada para reuso cross-module.
+- Endpoints (`@Controller('presence')` + `TenantGuard`): `POST /presence/heartbeat`, `PATCH /presence/me`, `GET /presence/me`, `GET /presence/active` (lista equipe), `GET /presence/users/:userId`, `GET /presence/users/:userId/capacity`.
+
+**Feature A2 — SLA escalation chain (módulo novo `sla-escalation` — estende S49 `sla-policies`):**
+- Schema: modelo `SlaEscalation` (id, policyId FK CASCADE, level Int [1..10], triggerAfterMins Int, action `SlaEscalationAction`, targetUserIds `String[]`, targetPriority `ChatPriority?`, notifyRoles `UserRole[]`, isActive Bool default true, timestamps). Índice `[policyId, level]` + `@@unique([policyId, level])`. Enum novo `SlaEscalationAction` (NOTIFY_MANAGER, REASSIGN_TO_USER, CHANGE_PRIORITY). `WhatsappChat` ganha `slaEscalationsRun String[] default []` (ledger de escalations já disparadas — idempotency). `NotificationType` +SLA_ALERT. `WebhookEvent` +SLA_ESCALATED.
+- `SlaEscalationService`:
+  1. **CRUD**: `list(companyId, policyId?)` com tenant guard via `slaPolicy.findFirst {id, companyId}`, `findById`, `create` (`validateActionPayload` exige targetUserIds para REASSIGN, targetPriority para CHANGE_PRIORITY; count ≥ `MAX_ESCALATIONS_PER_POLICY=20` → BadRequest; P2002 → BadRequest), `update` re-valida action payload, `remove` + audit.
+  2. `@Cron(EVERY_MINUTE, { name: 'sla-escalation-dispatch' })` `dispatchTick()` → `processDueEscalations(now)` (método público para testes).
+  3. `processDueEscalations(now)`: findMany breached chats `{status IN [OPEN, PENDING, ACTIVE], OR: [{slaResponseBreached: true}, {slaResolutionBreached: true}]}` take `MONITOR_BATCH=200`. Group by `(companyId, priority)`, findMany escalations `policy: {isActive: true, companyId: {in: companySet}}` + sort level asc. Inner loops error-isolated per-(chat, level).
+  4. `fireEscalationIfDue(chat, esc, breachedAt, now)`:
+     - **Idempotency**: `slaEscalationsRun.includes(esc.id)` → return false (zero side effects em re-runs).
+     - **Time gate**: `elapsedMs < triggerMs` → return false.
+     - Else → `applyAction` + post-commit `emitWebhook`.
+  5. `applyAction` dispatch:
+     - **NOTIFY_MANAGER**: `user.findMany({companyId, role: {in: notifyRoles}}, take: 10)` → `$transaction([...notifications.create(N), chat.update({slaEscalationsRun: {push: esc.id}})])` atomic.
+     - **REASSIGN_TO_USER**: `pickReassignTarget(companyId, targetUserIds)` — presence-aware via `presence.getCapacityMap` (prefere `isOnline && !atCapacity`, fallback para primeiro valid id em presence failure), chat.update `{userId, slaEscalationsRun: {push: esc.id}}`. Sem target eligível → mark run ledger ainda assim (not infinite loop).
+     - **CHANGE_PRIORITY**: chat.update `{priority: targetPriority, slaEscalationsRun: {push: esc.id}}`.
+  6. `emitWebhook(chat, esc, policy)` — post-commit `eventEmitter.emit(WEBHOOK_EVENT_NAME, {companyId, event: SLA_ESCALATED, data: {chatId, escalationId, level, action, triggerAfterMins, priority}})`. Fire-and-forget via S46 infra.
+- Endpoints (`@Controller('sla-escalations')` + `TenantGuard/RolesGuard`): `GET /sla-escalations?policyId=`, `GET /sla-escalations/:id`, `POST /sla-escalations` (OWNER/ADMIN/MANAGER), `PATCH /sla-escalations/:id` (OWNER/ADMIN/MANAGER), `DELETE /sla-escalations/:id` (OWNER/ADMIN).
+
+**Integração com features prévias:**
+- `SlaEscalationModule` importa `PresenceModule` para consumir `getCapacityMap` no REASSIGN action.
+- `AssignmentRulesService` (S54) reescrito: construtor `(prisma, cache, presence)`. `pickRoundRobin` agora chama `filterEligible(companyId, targetUserIds)` → `presence.getCapacityMap` → filter `isOnline && !atCapacity` ANTES da rotação Redis (counter rotaciona apenas sobre eligíveis, evita assignar para offline/lotado). `pickLeastBusy` substitui `prisma.whatsappChat.groupBy` por `presence.getCapacityMap` — itera `targetUserIds`, skip `!isOnline || atCapacity`, pick min `currentOpen`. Graceful degradation: presence failure → fallback para first valid id.
+- `WebhookEvent.SLA_ESCALATED` novo — S46 webhook dispatcher faz fan-out via HMAC signing para clientes inscritos.
+- `AppModule` importa `PresenceModule` + `SlaEscalationModule`. `PresenceModule` exporta `PresenceService` consumido por `AssignmentRulesModule` e `SlaEscalationModule`.
+
+**Testes:**
+- `presence.service.spec.ts` (novo, ~16 cases): heartbeat `where: {userId}` + create defaults (ONLINE, max=5, lastHeartbeatAt=now) + update merge seletivo omite statusMessage/max quando DTO omite. updateMine `data` equals exactly `{status: BREAK}` quando só status fornecido + audit UPDATE. findMine/findForUser NotFound tenant mismatch. listActive filtra user.isActive !== false + order `[status asc, lastHeartbeatAt desc]` + take 500. getCapacityFor single. **getCapacityMap**: empty array → `findMany.not.toHaveBeenCalled()`, bulk findMany + groupBy Promise.all, users sem row default `{status: OFFLINE, currentOpen: 0}`, atCapacity flag quando currentOpen >= maxConcurrentChats. autoAwayTick threshold `new Date(now - 2*60*1000)` + updateMany AWAY + error isolation (findMany rejects → resolves undefined, updateMany NOT called).
+- `sla-escalation.service.spec.ts` (novo, ~17 cases): CRUD (list scope+order, findById NotFound, policy cross-tenant BadRequest, count ≥20 BadRequest, REASSIGN sem targetUserIds BadRequest, CHANGE_PRIORITY sem targetPriority BadRequest, P2002 BadRequest, update re-validate action payload, remove audit DELETE). processDueEscalations: empty batch no-op, idempotency skip (level ∈ ledger), time skip (elapsed < trigger), **NOTIFY_MANAGER** `$transaction` com N notifications + chat.update ledger push, **REASSIGN** presence-aware picks ONLINE+!atCapacity (preferência sobre OFFLINE+free), REASSIGN no eligible target mark run ainda assim, **CHANGE_PRIORITY** update chat.priority + ledger, webhook emit event SLA_ESCALATED com payload completo, error isolation per-chat (um throw não aborta lote).
+- `assignment-rules.service.spec.ts` (reescrito): preserva casos S54 CRUD/matching/priority, adiciona PresenceService DI mock + helper `capacity()` para `CapacityInfo`. Novos casos S57: ROUND_ROBIN skip OFFLINE/AWAY, skip atCapacity, null quando nenhum eligível; LEAST_BUSY min count across 3 ONLINE, skip OFFLINE/AWAY mesmo com 0 chats, skip atCapacity, null quando todos ineligíveis. Removido `mockPrisma.whatsappChat.groupBy` obsoleto para LEAST_BUSY (service agora usa `presence.getCapacityMap`).
+
+**Resilience:** presence fail-open em REASSIGN (capacity map throws → fallback para first valid target — chat não fica órfão), autoAwayTick com blanket try/catch (observabilidade gracefully degrada; agents offline visual pode ficar stale mas nunca bloqueia heartbeat), bulkheads bounded (`AUTO_AWAY_BATCH=500`, `MONITOR_BATCH=200`, `MAX_ESCALATIONS_PER_POLICY=20`), error isolation per-(chat, level) em processDueEscalations (uma falha não aborta tick), idempotency via `slaEscalationsRun[].push` dentro de `$transaction` garante atomic ledger append — re-runs são no-op, **mark-run-when-no-op** em REASSIGN sem eligible target previne infinite loop de dispatch, pre-validate FK ownership em create/update (REASSIGN exige targetUserIds não vazio, CHANGE_PRIORITY exige targetPriority), post-commit webhook emit (transaction first, notification external depois) evita emit webhook em tx rollback, `@@unique([policyId, level])` previne duplicate tiers, presence-first ROUND_ROBIN/LEAST_BUSY reduz latency de primeira resposta (não rotaciona/atribui para offline), CapacityInfo default OFFLINE para users sem row (fail-safe), audit fire-and-forget em todas mutações CRUD, named cron jobs (`presence-auto-away`, `sla-escalation-dispatch`) para observability em logs/NestJS scheduler registry.
+
 ### 2.6 Histórico de Sessões (resumo)
 
 | Sessão | Data | Tema principal | CI |
@@ -765,6 +812,7 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 | 54 | 20/04 | Data import CSV → Contacts (chunked upsert via S49 BG jobs + contact_phone_unique + per-row error isolation) + Assignment rules (round-robin Redis counter + least-busy groupBy + @OnEvent chat.created auto-assign) | ⏳ |
 | 55 | 20/04 | Custom fields Contact (CustomFieldDefinition + validateAndCoerce TEXT/NUMBER/BOOLEAN/DATE/SELECT + cap 100/resource) + Usage quotas metered (month-anchored UTC + PLAN_DEFAULTS + threshold 80/95/100 @OnEvent fan-out email/webhook/notif + fail-open metering + cron rollover) | ⏳ |
 | 56 | 20/04 | Scheduled WhatsApp send (ScheduledMessage + BG handler SEND_SCHEDULED_MESSAGE + MIN_LEAD_SECONDS=30/MAX_LEAD_DAYS=60 + cancel idempotente com best-effort job cancel) + Conversation macros (Zod `.strict()` discriminated union 4 types + 3 fases execute: pre-validate FK tenant → outbound I/O WhatsApp → `$transaction` DB com composite `chatId_tagId` upsert + usage count + audit) | ⏳ |
+| 57 | 20/04 | Agent presence & capacity (AgentPresence userId @unique + heartbeat upsert + @Cron autoAwayTick stale>2min + getCapacityMap via groupBy + CapacityInfo export) + SLA escalation chain (SlaEscalation tiers + @Cron dispatch + ledger `WhatsappChat.slaEscalationsRun[]` idempotente + NOTIFY_MANAGER/REASSIGN_TO_USER/CHANGE_PRIORITY + REASSIGN presence-aware + WebhookEvent.SLA_ESCALATED + S54 ROUND_ROBIN/LEAST_BUSY reescritas presence-first) | ⏳ |
 
 Detalhes completos de cada sessão em `PROJECT_HISTORY.md`.
 
@@ -1086,11 +1134,13 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── notifications/  # WebSocket gateway, rooms, preferences
 │   │       │   ├── onboarding/     # Checklist state (JSON in Company.settings), auto-detect
 │   │       │   ├── payment-recovery/ # Dunning cron, grace period, pause/exit-survey
+│   │       │   ├── presence/       # Agent presence & capacity (AgentPresence @unique userId + heartbeat upsert + @Cron autoAwayTick stale>2min + getCapacityMap Promise.all(findMany+groupBy) + CapacityInfo export)
 │   │       │   ├── reply-templates/ # Saved reply library (CRUD) + LLM-ranked /suggest + heuristic fallback
 │   │       │   ├── retention-policies/ # Per-resource TTL (LGPD floor 180d AUDIT_LOGS) + hourly auto-purge cron + state-aware filters
 │   │       │   ├── saved-filters/  # Smart lists (own + shared) with Zod strict filterJson + pin
 │   │       │   ├── scheduled-exports/ # Recurring CSV/JSON email delivery + preset cron (hourly/daily/weekly/monthly) + error-isolated worker
 │   │       │   ├── scheduled-messages/ # WhatsApp scheduled sends (ScheduledMessage + SEND_SCHEDULED_MESSAGE BG handler + MIN_LEAD_SECONDS=30/MAX_LEAD_DAYS=60 + cancel idempotente com best-effort jobs.cancel + CANCELED race guard)
+│   │       │   ├── sla-escalation/ # SLA escalation chain tiers (SlaEscalation + @Cron dispatch presence-aware + ledger WhatsappChat.slaEscalationsRun[] idempotente + NOTIFY_MANAGER/REASSIGN_TO_USER/CHANGE_PRIORITY + WebhookEvent.SLA_ESCALATED post-commit)
 │   │       │   ├── summaries/      # Conversation summaries on-demand (Redis cache, OpenAI)
 │   │       │   ├── tags/           # ConversationTag library + CallTag/ChatTag joins + cross-channel search (pg_trgm)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
@@ -1148,7 +1198,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (38)
+### 6.1 Modelos (40)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -1190,10 +1240,12 @@ Infrastructure (Prisma, API Clients, Redis)
 | **UsageQuota** | Quota metered mensal per (companyId × metric × periodStart). Month-anchored UTC (1º 00:00Z → próximo 1º exclusive). limit Int (`-1` = UNLIMITED), currentValue (atomic increment), warnedThresholds[] ⊆ {80,95,100} (idempotent). Unique `usage_quota_period_unique`. Plan defaults STARTER/PROFESSIONAL/ENTERPRISE | → Company |
 | **ScheduledMessage** | Envio WhatsApp agendado. content Text, mediaUrl?, scheduledAt, status (PENDING/SENT/FAILED/CANCELED), jobId? FK para BackgroundJob, runCount, sentAt?, lastError?. MIN_LEAD_SECONDS=30, MAX_LEAD_DAYS=60. Índice `[companyId, status, scheduledAt]`. CANCELED race guard no handler | → Company, WhatsappChat (CASCADE), User (createdBy), BackgroundJob? |
 | **Macro** | Macro de ações compostas 1-clique. name unique por tenant, description?, actions Json (Zod `.strict()` discriminated union: SEND_REPLY/ATTACH_TAG/ASSIGN_AGENT/CLOSE_CHAT, max 10), isActive, usageCount (increment em execute), lastUsedAt?. Execute 3 fases: pre-validate FK tenant → outbound WhatsApp → `$transaction` DB. Unique `macro_name_unique` (companyId, name) | → Company, User? (createdBy) |
+| **AgentPresence** | Presença em tempo real do agente. userId @unique (1 row per user), status `AgentStatus` (ONLINE/AWAY/BREAK/OFFLINE), statusMessage?, maxConcurrentChats Int default 5, lastHeartbeatAt (stamped em cada heartbeat). CASCADE em User. Índices `[companyId, status]` + `[companyId, lastHeartbeatAt]`. Consumido por AssignmentRules (ROUND_ROBIN/LEAST_BUSY presence-aware) + SlaEscalation (REASSIGN pick ONLINE+!atCapacity) | → Company, User |
+| **SlaEscalation** | Tier de escalation para SlaPolicy. level Int [1..10] unique por policy (`@@unique([policyId, level])`), triggerAfterMins, action `SlaEscalationAction` (NOTIFY_MANAGER/REASSIGN_TO_USER/CHANGE_PRIORITY), targetUserIds[] (REASSIGN), targetPriority? (CHANGE_PRIORITY), notifyRoles[] (NOTIFY), isActive. Cap `MAX_ESCALATIONS_PER_POLICY=20`. CASCADE em SlaPolicy. Dispatch via `@Cron EVERY_MINUTE` + idempotency via `WhatsappChat.slaEscalationsRun[]` ledger push em `$transaction` + post-commit WebhookEvent.SLA_ESCALATED | → SlaPolicy |
 
-### 6.2 Enums (40)
+### 6.2 Enums (42)
 
-`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (8) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (5) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (7) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6) · `AnnouncementLevel` (3) · `AssignmentStrategy` (3) · `CustomFieldResource` (1) · `CustomFieldType` (5) · `UsageMetric` (4) · `ScheduledMessageStatus` (4)
+`Plan` (3) · `CompanySize` (5) · `UserRole` (4) · `UserStatus` (4) · `CallDirection` (2) · `CallStatus` (8) · `SentimentLabel` (5) · `ChatStatus` (6) · `ChatPriority` (4) · `MessageType` (9) · `MessageDirection` (2) · `MessageStatus` (5) · `SuggestionType` (9) · `SuggestionFeedback` (3) · `SubscriptionStatus` (7) · `InvoiceStatus` (5) · `NotificationType` (9, +SLA_ALERT) · `NotificationChannel` (4) · `AuditAction` (10) · `GoalMetric` (5) · `GoalPeriodType` (2) · `WebhookEvent` (6, +SLA_ESCALATED) · `WebhookDeliveryStatus` (4) · `ReplyTemplateChannel` (3) · `FilterResource` (2) · `BackgroundJobType` (7) · `BackgroundJobStatus` (6) · `CsatTrigger` (2) · `CsatChannel` (2) · `CsatResponseStatus` (5) · `ScheduledExportResource` (5) · `ScheduledExportFormat` (2) · `ScheduledExportRunStatus` (2) · `RetentionResource` (6) · `AnnouncementLevel` (3) · `AssignmentStrategy` (3) · `CustomFieldResource` (1) · `CustomFieldType` (5) · `UsageMetric` (4) · `ScheduledMessageStatus` (4) · `AgentStatus` (4) · `SlaEscalationAction` (3)
 
 ### 6.3 Regras de Schema
 

@@ -7,10 +7,12 @@
 
 import { Module } from '@nestjs/common';
 
+import { PresenceModule } from '@modules/presence/presence.module';
 import { AssignmentRulesController } from './assignment-rules.controller';
 import { AssignmentRulesService } from './assignment-rules.service';
 
 @Module({
+  imports: [PresenceModule],
   controllers: [AssignmentRulesController],
   providers: [AssignmentRulesService],
   exports: [AssignmentRulesService],
