@@ -15,13 +15,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  AuditAction,
-  ChatStatus,
-  Macro,
-  Prisma,
-  ReplyTemplateChannel,
-} from '@prisma/client';
+import { AuditAction, ChatStatus, Macro, Prisma, ReplyTemplateChannel } from '@prisma/client';
 import { z } from 'zod';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
@@ -72,10 +66,7 @@ const MacroActionSchema = z.discriminatedUnion('type', [
   CloseChatAction,
 ]);
 
-const MacroActionsSchema = z
-  .array(MacroActionSchema)
-  .min(1)
-  .max(MAX_ACTIONS_PER_MACRO);
+const MacroActionsSchema = z.array(MacroActionSchema).min(1).max(MAX_ACTIONS_PER_MACRO);
 
 export type MacroAction = z.infer<typeof MacroActionSchema>;
 
@@ -113,11 +104,7 @@ export class MacrosService {
     return row;
   }
 
-  async create(
-    companyId: string,
-    createdById: string | null,
-    dto: CreateMacroDto,
-  ): Promise<Macro> {
+  async create(companyId: string, createdById: string | null, dto: CreateMacroDto): Promise<Macro> {
     this.assertTenant(companyId);
     const actions = this.validateActions(dto.actions);
     try {
@@ -151,17 +138,14 @@ export class MacrosService {
   ): Promise<Macro> {
     const existing = await this.findById(companyId, id);
 
-    const nextActions =
-      dto.actions !== undefined ? this.validateActions(dto.actions) : undefined;
+    const nextActions = dto.actions !== undefined ? this.validateActions(dto.actions) : undefined;
 
     try {
       const row = await this.prisma.macro.update({
         where: { id },
         data: {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
-          ...(dto.description !== undefined
-            ? { description: dto.description || null }
-            : {}),
+          ...(dto.description !== undefined ? { description: dto.description || null } : {}),
           ...(nextActions !== undefined
             ? { actions: nextActions as unknown as Prisma.InputJsonValue }
             : {}),
@@ -189,11 +173,7 @@ export class MacrosService {
     }
   }
 
-  async remove(
-    companyId: string,
-    id: string,
-    actorId: string | null,
-  ): Promise<{ success: true }> {
+  async remove(companyId: string, id: string, actorId: string | null): Promise<{ success: true }> {
     await this.findById(companyId, id);
     await this.prisma.macro.delete({ where: { id } });
     void this.audit(companyId, actorId, AuditAction.DELETE, id, {});
@@ -275,9 +255,7 @@ export class MacrosService {
         );
       }
       if (template.channel === ReplyTemplateChannel.CALL) {
-        throw new BadRequestException(
-          'CALL-only template cannot be used in a WhatsApp macro',
-        );
+        throw new BadRequestException('CALL-only template cannot be used in a WhatsApp macro');
       }
       const content = this.applyVariables(template.content, action.variables ?? {});
       await this.whatsapp.sendMessage(chat.id, companyId, { content });
@@ -331,9 +309,7 @@ export class MacrosService {
         });
       });
     } catch (err) {
-      this.logger.error(
-        `Macro ${macro.id} tx failed after send phase: ${String(err)}`,
-      );
+      this.logger.error(`Macro ${macro.id} tx failed after send phase: ${String(err)}`);
       throw err;
     }
 

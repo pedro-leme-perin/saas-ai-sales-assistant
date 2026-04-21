@@ -31,7 +31,6 @@ import {
 import {
   AuditAction,
   BackgroundJob,
-  BackgroundJobStatus,
   BackgroundJobType,
   Prisma,
   ScheduledMessage,
@@ -80,7 +79,9 @@ export class ScheduledMessagesService implements OnModuleInit {
     const now = Date.now();
     const leadMs = scheduledAt.getTime() - now;
     if (leadMs < MIN_LEAD_SECONDS * 1000) {
-      throw new BadRequestException(`scheduledAt must be at least ${MIN_LEAD_SECONDS}s in the future`);
+      throw new BadRequestException(
+        `scheduledAt must be at least ${MIN_LEAD_SECONDS}s in the future`,
+      );
     }
     if (leadMs > MAX_LEAD_DAYS * 24 * 60 * 60 * 1000) {
       throw new BadRequestException(`scheduledAt must be within ${MAX_LEAD_DAYS} days`);
@@ -114,7 +115,9 @@ export class ScheduledMessagesService implements OnModuleInit {
       });
       jobId = job.id;
     } catch (err) {
-      this.logger.error(`Failed to enqueue job for scheduled message ${message.id}: ${String(err)}`);
+      this.logger.error(
+        `Failed to enqueue job for scheduled message ${message.id}: ${String(err)}`,
+      );
       await this.prisma.scheduledMessage.update({
         where: { id: message.id },
         data: {
@@ -163,11 +166,7 @@ export class ScheduledMessagesService implements OnModuleInit {
     return row;
   }
 
-  async cancel(
-    companyId: string,
-    actorId: string | null,
-    id: string,
-  ): Promise<ScheduledMessage> {
+  async cancel(companyId: string, actorId: string | null, id: string): Promise<ScheduledMessage> {
     const existing = await this.findById(companyId, id);
     if (existing.status !== ScheduledMessageStatus.PENDING) {
       throw new BadRequestException(`Cannot cancel message in status ${existing.status}`);

@@ -141,7 +141,7 @@ export class AssignmentRulesService {
         where: { id: existing.id },
         data,
       });
-      void this.audit(companyId, actorId, AuditAction.UPDATE, id, { ...dto });
+      void this.audit(companyId, actorId, AuditAction.UPDATE, id, dto);
       return updated;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

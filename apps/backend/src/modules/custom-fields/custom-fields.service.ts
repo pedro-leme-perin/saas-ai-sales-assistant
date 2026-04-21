@@ -16,7 +16,12 @@
 // Required fields error on missing value (ignored for inactive definitions).
 // Unknown keys are stripped (defense in depth).
 
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   AuditAction,
   CustomFieldDefinition,
@@ -27,7 +32,10 @@ import {
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
-import { CreateCustomFieldDto, UpdateCustomFieldDto } from './dto/upsert-custom-field.dto';
+import {
+  CreateCustomFieldDto,
+  UpdateCustomFieldDto,
+} from './dto/upsert-custom-field.dto';
 
 const MAX_DEFS_PER_RESOURCE = 100;
 const MAX_TEXT_LEN = 1000;
@@ -42,7 +50,10 @@ export class CustomFieldsService {
 
   // ===== CRUD ===========================================================
 
-  async list(companyId: string, resource?: CustomFieldResource): Promise<CustomFieldDefinition[]> {
+  async list(
+    companyId: string,
+    resource?: CustomFieldResource,
+  ): Promise<CustomFieldDefinition[]> {
     return this.prisma.customFieldDefinition.findMany({
       where: {
         companyId,

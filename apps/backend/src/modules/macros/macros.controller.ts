@@ -40,10 +40,7 @@ export class MacrosController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a macro by id' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 

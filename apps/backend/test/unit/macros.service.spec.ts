@@ -20,11 +20,7 @@
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import {
-  ChatStatus,
-  Prisma,
-  ReplyTemplateChannel,
-} from '@prisma/client';
+import { ChatStatus, Prisma, ReplyTemplateChannel } from '@prisma/client';
 
 import { MacrosService } from '../../src/modules/macros/macros.service';
 import { WhatsappService } from '../../src/modules/whatsapp/whatsapp.service';
@@ -115,20 +111,14 @@ describe('MacrosService', () => {
       expect(mockPrisma.macro.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { companyId: 'c1' },
-          orderBy: [
-            { isActive: 'desc' },
-            { usageCount: 'desc' },
-            { createdAt: 'desc' },
-          ],
+          orderBy: [{ isActive: 'desc' }, { usageCount: 'desc' }, { createdAt: 'desc' }],
         }),
       );
     });
 
     it('findById NotFound cross-tenant', async () => {
       mockPrisma.macro.findFirst.mockResolvedValueOnce(null);
-      await expect(service.findById('c1', 'm404')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findById('c1', 'm404')).rejects.toThrow(NotFoundException);
     });
 
     it('create persists + audits CREATE', async () => {
@@ -188,9 +178,7 @@ describe('MacrosService', () => {
       });
       await service.update('c1', 'm1', 'u1', {
         name: 'NewName',
-        actions: [
-          { type: 'CLOSE_CHAT' },
-        ],
+        actions: [{ type: 'CLOSE_CHAT' }],
       });
       expect(mockPrisma.macro.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -222,16 +210,16 @@ describe('MacrosService', () => {
 
   describe('validateActions via create', () => {
     it('rejects empty actions array', async () => {
-      await expect(
-        service.create('c1', 'u1', { name: 'x', actions: [] }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create('c1', 'u1', { name: 'x', actions: [] })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('rejects >10 actions', async () => {
       const actions = Array.from({ length: 11 }, () => ({ type: 'CLOSE_CHAT' }));
-      await expect(
-        service.create('c1', 'u1', { name: 'x', actions }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create('c1', 'u1', { name: 'x', actions })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('rejects unknown discriminator', async () => {
@@ -292,19 +280,17 @@ describe('MacrosService', () => {
         ...macroWith([{ type: 'CLOSE_CHAT' }]),
         isActive: false,
       });
-      await expect(
-        service.execute('c1', 'u1', MACRO_ID, CHAT_ID),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.execute('c1', 'u1', MACRO_ID, CHAT_ID)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('NotFound when chat is cross-tenant', async () => {
-      mockPrisma.macro.findFirst.mockResolvedValueOnce(
-        macroWith([{ type: 'CLOSE_CHAT' }]),
-      );
+      mockPrisma.macro.findFirst.mockResolvedValueOnce(macroWith([{ type: 'CLOSE_CHAT' }]));
       mockPrisma.whatsappChat.findFirst.mockResolvedValueOnce(null);
-      await expect(
-        service.execute('c1', 'u1', MACRO_ID, CHAT_ID),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.execute('c1', 'u1', MACRO_ID, CHAT_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('BadRequest when tagId is outside tenant', async () => {
@@ -316,9 +302,9 @@ describe('MacrosService', () => {
         status: ChatStatus.OPEN,
       });
       mockPrisma.conversationTag.findMany.mockResolvedValueOnce([]); // no ownership
-      await expect(
-        service.execute('c1', 'u1', MACRO_ID, CHAT_ID),
-      ).rejects.toThrow(/tag outside tenant/);
+      await expect(service.execute('c1', 'u1', MACRO_ID, CHAT_ID)).rejects.toThrow(
+        /tag outside tenant/,
+      );
     });
 
     it('BadRequest when assign userId is outside tenant', async () => {
@@ -330,9 +316,9 @@ describe('MacrosService', () => {
         status: ChatStatus.OPEN,
       });
       mockPrisma.user.findMany.mockResolvedValueOnce([]);
-      await expect(
-        service.execute('c1', 'u1', MACRO_ID, CHAT_ID),
-      ).rejects.toThrow(/user outside tenant/);
+      await expect(service.execute('c1', 'u1', MACRO_ID, CHAT_ID)).rejects.toThrow(
+        /user outside tenant/,
+      );
     });
 
     it('rejects CALL-only template', async () => {
@@ -349,9 +335,9 @@ describe('MacrosService', () => {
         channel: ReplyTemplateChannel.CALL,
         content: 'hi',
       });
-      await expect(
-        service.execute('c1', 'u1', MACRO_ID, CHAT_ID),
-      ).rejects.toThrow(/CALL-only template/);
+      await expect(service.execute('c1', 'u1', MACRO_ID, CHAT_ID)).rejects.toThrow(
+        /CALL-only template/,
+      );
       expect(mockWhatsapp.sendMessage).not.toHaveBeenCalled();
     });
 
@@ -364,9 +350,9 @@ describe('MacrosService', () => {
         status: ChatStatus.OPEN,
       });
       mockPrisma.replyTemplate.findFirst.mockResolvedValueOnce(null);
-      await expect(
-        service.execute('c1', 'u1', MACRO_ID, CHAT_ID),
-      ).rejects.toThrow(/template .* outside tenant/);
+      await expect(service.execute('c1', 'u1', MACRO_ID, CHAT_ID)).rejects.toThrow(
+        /template .* outside tenant/,
+      );
     });
 
     it('full happy path: send outside tx, tag/assign/close inside tx, increment usage', async () => {
@@ -442,12 +428,7 @@ describe('MacrosService', () => {
 
       expect(res.executed).toHaveLength(4);
       expect(res.executed.map((e) => e.type)).toEqual(
-        expect.arrayContaining([
-          'SEND_REPLY',
-          'ATTACH_TAG',
-          'ASSIGN_AGENT',
-          'CLOSE_CHAT',
-        ]),
+        expect.arrayContaining(['SEND_REPLY', 'ATTACH_TAG', 'ASSIGN_AGENT', 'CLOSE_CHAT']),
       );
     });
 

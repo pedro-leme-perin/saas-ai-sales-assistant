@@ -6,14 +6,7 @@
 // at the DTO layer so class-validator does not reject unknown
 // action shapes before we can produce a precise error message.
 
-import {
-  IsArray,
-  IsBoolean,
-  IsOptional,
-  IsString,
-  Length,
-  MaxLength,
-} from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 export class CreateMacroDto {
   @IsString()

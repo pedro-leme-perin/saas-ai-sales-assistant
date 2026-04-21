@@ -2,16 +2,7 @@
 // 📅 SCHEDULED MESSAGES CONTROLLER (Session 56)
 // =============================================
 
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ScheduledMessageStatus, UserRole } from '@prisma/client';
 
@@ -65,11 +56,7 @@ export class ScheduledMessagesController {
   @Delete('scheduled-messages/:id')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.VENDOR)
   @ApiOperation({ summary: 'Cancel a pending scheduled message' })
-  async cancel(
-    @CompanyId() companyId: string,
-    @UserId() userId: string,
-    @Param('id') id: string,
-  ) {
+  async cancel(@CompanyId() companyId: string, @UserId() userId: string, @Param('id') id: string) {
     return this.service.cancel(companyId, userId, id);
   }
 }

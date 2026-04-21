@@ -17,10 +17,7 @@
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import {
-  BackgroundJobType,
-  ScheduledMessageStatus,
-} from '@prisma/client';
+import { BackgroundJobType, ScheduledMessageStatus } from '@prisma/client';
 
 import { ScheduledMessagesService } from '../../src/modules/scheduled-messages/scheduled-messages.service';
 import { BackgroundJobsService } from '../../src/modules/background-jobs/background-jobs.service';
@@ -58,8 +55,7 @@ describe('ScheduledMessagesService', () => {
     sendMessage: jest.fn(),
   };
 
-  const futureIso = (offsetMs: number) =>
-    new Date(Date.now() + offsetMs).toISOString();
+  const futureIso = (offsetMs: number) => new Date(Date.now() + offsetMs).toISOString();
 
   const flush = () => new Promise((r) => setImmediate(r));
 
@@ -207,9 +203,7 @@ describe('ScheduledMessagesService', () => {
         status: ScheduledMessageStatus.SENT,
         jobId: 'j1',
       });
-      await expect(service.cancel('c1', 'u1', 'm1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.cancel('c1', 'u1', 'm1')).rejects.toThrow(BadRequestException);
     });
 
     it('PENDING → CANCELED + calls jobs.cancel + audit', async () => {
