@@ -1086,6 +1086,59 @@
       "breached": "SLA breached"
     }
   },
+  "slaEscalation": {
+    "title": "Escalation tiers",
+    "empty": "No tiers configured. Tiers escalate the SLA after the first breach.",
+    "new": "New tier",
+    "edit": "Edit tier",
+    "level": "Level",
+    "triggerAfterMins": "Trigger after (min)",
+    "afterMins": "+{{n}}min",
+    "action": "Action",
+    "actions": {
+      "NOTIFY_MANAGER": "Notify manager",
+      "REASSIGN_TO_USER": "Reassign agent",
+      "CHANGE_PRIORITY": "Raise priority"
+    },
+    "notifyRoles": "Notified roles",
+    "targetUsers": "Target agents",
+    "targetPriority": "New priority",
+    "noUsers": "No agents available.",
+    "isActive": "Active",
+    "inactive": "Inactive",
+    "confirmDelete": "Remove this tier?",
+    "errNeedUsers": "Select at least one target agent.",
+    "toast": {
+      "saveOk": "Tier saved.",
+      "saveErr": "Failed to save tier.",
+      "deleteOk": "Tier removed.",
+      "deleteErr": "Failed to remove tier."
+    }
+  },
+  "presence": {
+    "title": "Team presence",
+    "subtitle": "Real-time agent status. Used by auto-assign and SLA escalation.",
+    "myStatus": "My status",
+    "statusMessage": "Status message",
+    "statusMessagePh": "In a meeting until 3pm...",
+    "maxConcurrentChats": "Max concurrent chats",
+    "maxHint": "Used by assignment rules (least-busy) as a capacity cap.",
+    "team": "Active team",
+    "empty": "Nobody active right now.",
+    "now": "now",
+    "minutesAgo": "{{n}}min ago",
+    "status": {
+      "label": "Status",
+      "ONLINE": "Online",
+      "AWAY": "Away",
+      "BREAK": "Break",
+      "OFFLINE": "Offline"
+    },
+    "toast": {
+      "saveOk": "Presence updated.",
+      "saveErr": "Failed to update presence."
+    }
+  },
   "contacts": {
     "title": "Contacts",
     "subtitle": "Unified customer base with cross-channel history.",

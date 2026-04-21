@@ -1086,6 +1086,59 @@
       "breached": "SLA violado"
     }
   },
+  "slaEscalation": {
+    "title": "Escalation tiers",
+    "empty": "Nenhum tier configurado. Tiers escalam o SLA apos o primeiro breach.",
+    "new": "Novo tier",
+    "edit": "Editar tier",
+    "level": "Nivel",
+    "triggerAfterMins": "Disparar apos (min)",
+    "afterMins": "+{{n}}min",
+    "action": "Acao",
+    "actions": {
+      "NOTIFY_MANAGER": "Notificar gestor",
+      "REASSIGN_TO_USER": "Reatribuir agente",
+      "CHANGE_PRIORITY": "Aumentar prioridade"
+    },
+    "notifyRoles": "Papeis notificados",
+    "targetUsers": "Agentes alvo",
+    "targetPriority": "Nova prioridade",
+    "noUsers": "Sem agentes disponiveis.",
+    "isActive": "Ativo",
+    "inactive": "Inativo",
+    "confirmDelete": "Remover este tier?",
+    "errNeedUsers": "Selecione pelo menos um agente alvo.",
+    "toast": {
+      "saveOk": "Tier salvo.",
+      "saveErr": "Erro ao salvar tier.",
+      "deleteOk": "Tier removido.",
+      "deleteErr": "Erro ao remover tier."
+    }
+  },
+  "presence": {
+    "title": "Presenca da equipe",
+    "subtitle": "Status em tempo real dos agentes. Usado por auto-assign e escalation do SLA.",
+    "myStatus": "Meu status",
+    "statusMessage": "Mensagem de status",
+    "statusMessagePh": "Em reuniao ate as 15h...",
+    "maxConcurrentChats": "Max de conversas simultaneas",
+    "maxHint": "Limite usado por regras de assignment (least-busy).",
+    "team": "Equipe ativa",
+    "empty": "Ninguem ativo agora.",
+    "now": "agora",
+    "minutesAgo": "{{n}}min atras",
+    "status": {
+      "label": "Status",
+      "ONLINE": "Online",
+      "AWAY": "Ausente",
+      "BREAK": "Pausa",
+      "OFFLINE": "Offline"
+    },
+    "toast": {
+      "saveOk": "Presenca atualizada.",
+      "saveErr": "Erro ao atualizar presenca."
+    }
+  },
   "contacts": {
     "title": "Contatos",
     "subtitle": "Base unica de clientes com historico cross-channel.",

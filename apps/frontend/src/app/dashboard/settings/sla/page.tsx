@@ -17,6 +17,7 @@ import {
   type ChatPriority,
   type SlaPolicy,
 } from "@/services/sla-policies.service";
+import { EscalationTiers } from "@/components/sla/escalation-tiers";
 
 const PRIORITIES: ChatPriority[] = ["LOW", "NORMAL", "HIGH", "URGENT"];
 
@@ -273,6 +274,14 @@ export default function SlaPoliciesPage() {
                       {t("common.save")}
                     </Button>
                   </div>
+                  {row.existing && (
+                    <div className="md:col-span-5 border-t pt-3">
+                      <EscalationTiers
+                        policyId={row.existing.id}
+                        policyName={row.name}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
