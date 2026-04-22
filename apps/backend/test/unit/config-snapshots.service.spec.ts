@@ -15,12 +15,7 @@
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import {
-  AuditAction,
-  ConfigResource,
-  NotificationChannel,
-  NotificationType,
-} from '@prisma/client';
+import { AuditAction, ConfigResource, NotificationChannel, NotificationType } from '@prisma/client';
 
 import { ConfigSnapshotsService } from '../../src/modules/config-snapshots/config-snapshots.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
@@ -70,10 +65,7 @@ describe('ConfigSnapshotsService', () => {
     );
 
     const module = await Test.createTestingModule({
-      providers: [
-        ConfigSnapshotsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [ConfigSnapshotsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
     service = module.get(ConfigSnapshotsService);
   });

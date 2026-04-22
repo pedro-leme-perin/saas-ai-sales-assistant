@@ -16,11 +16,7 @@
 // =============================================
 
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AuditAction, UserRole } from '@prisma/client';
 import { createHash } from 'crypto';
 import { ImpersonationService } from '../../src/modules/impersonation/impersonation.service';
@@ -53,10 +49,7 @@ describe('ImpersonationService', () => {
     mockPrisma.auditLog.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ImpersonationService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [ImpersonationService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get(ImpersonationService);
@@ -67,10 +60,14 @@ describe('ImpersonationService', () => {
   describe('start', () => {
     it('rejects empty companyId', async () => {
       await expect(
-        service.start('', { id: 'actor-1', role: UserRole.OWNER }, {
-          targetUserId,
-          reason: 'debugging customer issue x1',
-        }),
+        service.start(
+          '',
+          { id: 'actor-1', role: UserRole.OWNER },
+          {
+            targetUserId,
+            reason: 'debugging customer issue x1',
+          },
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -87,10 +84,14 @@ describe('ImpersonationService', () => {
     it('NotFound when target user missing', async () => {
       mockPrisma.user.findFirst.mockResolvedValueOnce(null);
       await expect(
-        service.start('c1', { id: 'actor-1', role: UserRole.OWNER }, {
-          targetUserId,
-          reason: 'debugging customer issue x1',
-        }),
+        service.start(
+          'c1',
+          { id: 'actor-1', role: UserRole.OWNER },
+          {
+            targetUserId,
+            reason: 'debugging customer issue x1',
+          },
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -103,10 +104,14 @@ describe('ImpersonationService', () => {
         isActive: false,
       });
       await expect(
-        service.start('c1', { id: 'actor-1', role: UserRole.OWNER }, {
-          targetUserId,
-          reason: 'debugging customer issue x1',
-        }),
+        service.start(
+          'c1',
+          { id: 'actor-1', role: UserRole.OWNER },
+          {
+            targetUserId,
+            reason: 'debugging customer issue x1',
+          },
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -119,10 +124,14 @@ describe('ImpersonationService', () => {
         isActive: true,
       });
       await expect(
-        service.start('c1', { id: 'actor-1', role: UserRole.ADMIN }, {
-          targetUserId,
-          reason: 'debugging customer issue x1',
-        }),
+        service.start(
+          'c1',
+          { id: 'actor-1', role: UserRole.ADMIN },
+          {
+            targetUserId,
+            reason: 'debugging customer issue x1',
+          },
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -135,18 +144,26 @@ describe('ImpersonationService', () => {
         isActive: true,
       });
       await expect(
-        service.start('c1', { id: 'actor-1', role: UserRole.OWNER }, {
-          targetUserId,
-          reason: 'debugging customer issue x1',
-          durationMinutes: 4,
-        }),
+        service.start(
+          'c1',
+          { id: 'actor-1', role: UserRole.OWNER },
+          {
+            targetUserId,
+            reason: 'debugging customer issue x1',
+            durationMinutes: 4,
+          },
+        ),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.start('c1', { id: 'actor-1', role: UserRole.OWNER }, {
-          targetUserId,
-          reason: 'debugging customer issue x1',
-          durationMinutes: 241,
-        }),
+        service.start(
+          'c1',
+          { id: 'actor-1', role: UserRole.OWNER },
+          {
+            targetUserId,
+            reason: 'debugging customer issue x1',
+            durationMinutes: 241,
+          },
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -196,9 +213,7 @@ describe('ImpersonationService', () => {
   describe('end', () => {
     it('NotFound when session missing or tenant mismatch', async () => {
       mockPrisma.impersonationSession.findFirst.mockResolvedValueOnce(null);
-      await expect(service.end('c1', 'actor-1', 's-missing')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.end('c1', 'actor-1', 's-missing')).rejects.toThrow(NotFoundException);
     });
 
     it('idempotent no-op when already inactive', async () => {
@@ -220,9 +235,7 @@ describe('ImpersonationService', () => {
         actorUserId: 'actor-1',
         isActive: true,
       });
-      await expect(service.end('c1', 'intruder', 's1')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.end('c1', 'intruder', 's1')).rejects.toThrow(ForbiddenException);
     });
 
     it('success: sets isActive=false + endedAt + audits IMPERSONATE_END', async () => {
@@ -255,9 +268,7 @@ describe('ImpersonationService', () => {
     it('returns null for short tokens', async () => {
       expect(await service.resolveByToken('')).toBeNull();
       expect(await service.resolveByToken('too-short')).toBeNull();
-      expect(
-        mockPrisma.impersonationSession.findUnique,
-      ).not.toHaveBeenCalled();
+      expect(mockPrisma.impersonationSession.findUnique).not.toHaveBeenCalled();
     });
 
     it('returns null when session absent or inactive', async () => {
@@ -361,45 +372,35 @@ describe('ImpersonationService', () => {
 
   describe('assertCanImpersonate', () => {
     it('OWNER may impersonate any non-OWNER', () => {
-      expect(() =>
-        service.assertCanImpersonate(UserRole.OWNER, UserRole.ADMIN),
-      ).not.toThrow();
-      expect(() =>
-        service.assertCanImpersonate(UserRole.OWNER, UserRole.MANAGER),
-      ).not.toThrow();
-      expect(() =>
-        service.assertCanImpersonate(UserRole.OWNER, UserRole.VENDOR),
-      ).not.toThrow();
+      expect(() => service.assertCanImpersonate(UserRole.OWNER, UserRole.ADMIN)).not.toThrow();
+      expect(() => service.assertCanImpersonate(UserRole.OWNER, UserRole.MANAGER)).not.toThrow();
+      expect(() => service.assertCanImpersonate(UserRole.OWNER, UserRole.VENDOR)).not.toThrow();
     });
 
     it('OWNER forbidden from impersonating OWNER', () => {
-      expect(() =>
-        service.assertCanImpersonate(UserRole.OWNER, UserRole.OWNER),
-      ).toThrow(ForbiddenException);
+      expect(() => service.assertCanImpersonate(UserRole.OWNER, UserRole.OWNER)).toThrow(
+        ForbiddenException,
+      );
     });
 
     it('ADMIN limited to MANAGER | VENDOR', () => {
-      expect(() =>
-        service.assertCanImpersonate(UserRole.ADMIN, UserRole.MANAGER),
-      ).not.toThrow();
-      expect(() =>
-        service.assertCanImpersonate(UserRole.ADMIN, UserRole.VENDOR),
-      ).not.toThrow();
-      expect(() =>
-        service.assertCanImpersonate(UserRole.ADMIN, UserRole.ADMIN),
-      ).toThrow(ForbiddenException);
-      expect(() =>
-        service.assertCanImpersonate(UserRole.ADMIN, UserRole.OWNER),
-      ).toThrow(ForbiddenException);
+      expect(() => service.assertCanImpersonate(UserRole.ADMIN, UserRole.MANAGER)).not.toThrow();
+      expect(() => service.assertCanImpersonate(UserRole.ADMIN, UserRole.VENDOR)).not.toThrow();
+      expect(() => service.assertCanImpersonate(UserRole.ADMIN, UserRole.ADMIN)).toThrow(
+        ForbiddenException,
+      );
+      expect(() => service.assertCanImpersonate(UserRole.ADMIN, UserRole.OWNER)).toThrow(
+        ForbiddenException,
+      );
     });
 
     it('MANAGER/VENDOR never allowed', () => {
-      expect(() =>
-        service.assertCanImpersonate(UserRole.MANAGER, UserRole.VENDOR),
-      ).toThrow(ForbiddenException);
-      expect(() =>
-        service.assertCanImpersonate(UserRole.VENDOR, UserRole.VENDOR),
-      ).toThrow(ForbiddenException);
+      expect(() => service.assertCanImpersonate(UserRole.MANAGER, UserRole.VENDOR)).toThrow(
+        ForbiddenException,
+      );
+      expect(() => service.assertCanImpersonate(UserRole.VENDOR, UserRole.VENDOR)).toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

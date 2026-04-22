@@ -78,10 +78,7 @@ export class ImpersonationController {
   @Get('sessions/:id')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get impersonation session detail.' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 

@@ -51,10 +51,7 @@ export class ConfigSnapshotsController {
   @Get(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Get snapshot by id.' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 
@@ -73,10 +70,7 @@ export class ConfigSnapshotsController {
   @Get(':id/diff')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Diff snapshot against current live state.' })
-  async diff(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async diff(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.diff(companyId, id);
   }
 

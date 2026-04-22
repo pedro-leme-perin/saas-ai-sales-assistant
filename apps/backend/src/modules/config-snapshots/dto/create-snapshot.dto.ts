@@ -11,7 +11,10 @@ export class CreateSnapshotDto {
   @IsEnum(ConfigResource)
   resource!: ConfigResource;
 
-  @ApiPropertyOptional({ description: 'Specific resource id (required for FEATURE_FLAG, ASSIGNMENT_RULE; optional for COMPANY_SETTINGS, SLA_POLICY, NOTIFICATION_PREFERENCES)' })
+  @ApiPropertyOptional({
+    description:
+      'Specific resource id (required for FEATURE_FLAG, ASSIGNMENT_RULE; optional for COMPANY_SETTINGS, SLA_POLICY, NOTIFICATION_PREFERENCES)',
+  })
   @IsOptional()
   @IsString()
   resourceId?: string;

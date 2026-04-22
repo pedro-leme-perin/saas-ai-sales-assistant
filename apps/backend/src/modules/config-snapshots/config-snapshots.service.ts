@@ -21,26 +21,13 @@
 //     sla-policies, assignment-rules, notification-preferences, companies.
 //     Listener is fire-and-forget (hot path protected via try/catch).
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import {
-  AuditAction,
-  ConfigResource,
-  ConfigSnapshot,
-  Prisma,
-} from '@prisma/client';
+import { AuditAction, ConfigResource, ConfigSnapshot, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CreateSnapshotDto } from './dto/create-snapshot.dto';
-import {
-  CONFIG_CHANGED_EVENT,
-  type ConfigChangedPayload,
-} from './events/config-events';
+import { CONFIG_CHANGED_EVENT, type ConfigChangedPayload } from './events/config-events';
 
 export interface SnapshotDiff {
   snapshotId: string;
@@ -97,11 +84,7 @@ export class ConfigSnapshotsService {
     dto: CreateSnapshotDto,
   ): Promise<ConfigSnapshot> {
     this.assertTenant(companyId);
-    const data = await this.captureLiveState(
-      companyId,
-      dto.resource,
-      dto.resourceId ?? null,
-    );
+    const data = await this.captureLiveState(companyId, dto.resource, dto.resourceId ?? null);
     return this.prisma.configSnapshot.create({
       data: {
         companyId,
@@ -116,11 +99,9 @@ export class ConfigSnapshotsService {
 
   async diff(companyId: string, id: string): Promise<SnapshotDiff> {
     const snap = await this.findById(companyId, id);
-    const current = await this.captureLiveState(
-      companyId,
-      snap.resource,
-      snap.resourceId,
-    ).catch(() => null);
+    const current = await this.captureLiveState(companyId, snap.resource, snap.resourceId).catch(
+      () => null,
+    );
     return {
       snapshotId: snap.id,
       resource: snap.resource,
@@ -141,14 +122,11 @@ export class ConfigSnapshotsService {
 
     // Pre-capture current state OUTSIDE the transaction to keep live-state
     // fetch (which may hit multiple tables) off the tx timeout budget.
-    const liveBefore = await this.captureLiveState(
-      companyId,
-      snap.resource,
-      snap.resourceId,
-    ).catch(() => null);
+    const liveBefore = await this.captureLiveState(companyId, snap.resource, snap.resourceId).catch(
+      () => null,
+    );
 
-    const preSnapshotData =
-      liveBefore ?? (snap.snapshotData as unknown as Record<string, unknown>);
+    const preSnapshotData = liveBefore ?? (snap.snapshotData as unknown as Record<string, unknown>);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const pre = await tx.configSnapshot.create({
@@ -198,9 +176,7 @@ export class ConfigSnapshotsService {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(
-        `Non-blocking: config snapshot ingest failed (${payload.resource}): ${msg}`,
-      );
+      this.logger.warn(`Non-blocking: config snapshot ingest failed (${payload.resource}): ${msg}`);
     }
   }
 
@@ -251,7 +227,9 @@ export class ConfigSnapshotsService {
       }
       case ConfigResource.NOTIFICATION_PREFERENCES: {
         if (!resourceId)
-          throw new BadRequestException('resourceId (userId) required for NOTIFICATION_PREFERENCES');
+          throw new BadRequestException(
+            'resourceId (userId) required for NOTIFICATION_PREFERENCES',
+          );
         const prefs = await this.prisma.notificationPreference.findMany({
           where: { companyId, userId: resourceId },
           orderBy: [{ type: 'asc' }, { channel: 'asc' }],
@@ -279,23 +257,20 @@ export class ConfigSnapshotsService {
           data: {
             settings: (data.settings ?? {}) as Prisma.InputJsonValue,
             ...(typeof data.name === 'string' ? { name: data.name as string } : {}),
-            ...(typeof data.timezone === 'string'
-              ? { timezone: data.timezone as string }
-              : {}),
+            ...(typeof data.timezone === 'string' ? { timezone: data.timezone as string } : {}),
           },
         });
         return;
       }
       case ConfigResource.FEATURE_FLAG: {
         if (!snap.resourceId) throw new BadRequestException('snapshot missing resourceId');
-        const { enabled, rolloutPercentage, userAllowlist, name, description } =
-          data as {
-            enabled?: boolean;
-            rolloutPercentage?: number;
-            userAllowlist?: string[];
-            name?: string;
-            description?: string | null;
-          };
+        const { enabled, rolloutPercentage, userAllowlist, name, description } = data as {
+          enabled?: boolean;
+          rolloutPercentage?: number;
+          userAllowlist?: string[];
+          name?: string;
+          description?: string | null;
+        };
         // Defensive guard: only update if the flag still exists (prevents
         // re-creating soft-deleted config). Callers must re-create manually.
         const exists = await tx.featureFlag.findFirst({
@@ -341,14 +316,7 @@ export class ConfigSnapshotsService {
       }
       case ConfigResource.ASSIGNMENT_RULE: {
         if (!snap.resourceId) throw new BadRequestException('snapshot missing resourceId');
-        const {
-          name,
-          priority,
-          strategy,
-          conditions,
-          targetUserIds,
-          isActive,
-        } = data as {
+        const { name, priority, strategy, conditions, targetUserIds, isActive } = data as {
           name?: string;
           priority?: number;
           strategy?: string;
@@ -379,8 +347,7 @@ export class ConfigSnapshotsService {
         return;
       }
       case ConfigResource.NOTIFICATION_PREFERENCES: {
-        if (!snap.resourceId)
-          throw new BadRequestException('snapshot missing userId (resourceId)');
+        if (!snap.resourceId) throw new BadRequestException('snapshot missing userId (resourceId)');
         const { items } = data as { items?: Array<Record<string, unknown>> };
         if (!Array.isArray(items)) {
           throw new BadRequestException('snapshot payload missing items[]');
@@ -398,8 +365,7 @@ export class ConfigSnapshotsService {
                 companyId,
                 userId: snap.resourceId,
                 type: item.type as Prisma.NotificationPreferenceCreateInput['type'],
-                channel:
-                  item.channel as Prisma.NotificationPreferenceCreateInput['channel'],
+                channel: item.channel as Prisma.NotificationPreferenceCreateInput['channel'],
                 enabled: typeof item.enabled === 'boolean' ? item.enabled : true,
                 quietHoursStart: (item.quietHoursStart as string | null) ?? null,
                 quietHoursEnd: (item.quietHoursEnd as string | null) ?? null,
