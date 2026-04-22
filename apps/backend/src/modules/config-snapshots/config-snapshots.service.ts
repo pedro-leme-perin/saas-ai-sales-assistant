@@ -109,7 +109,7 @@ export class ConfigSnapshotsService {
       createdAt: snap.createdAt,
       snapshotData: snap.snapshotData,
       currentData: current as Prisma.JsonValue | null,
-      changed: JSON.stringify(snap.snapshotData) !== JSON.stringify(current),
+      changed: this.stableStringify(snap.snapshotData) !== this.stableStringify(current),
     };
   }
 
@@ -392,6 +392,22 @@ export class ConfigSnapshotsService {
     // Serialize through JSON to drop Prisma Date/Decimal prototypes. Keeps the
     // snapshot byte-stable for diff comparisons.
     return JSON.parse(JSON.stringify(row)) as Record<string, unknown>;
+  }
+
+  private stableStringify(value: unknown): string {
+    // Key-sorted JSON serialization so diff() is insensitive to insertion
+    // order. Required because captureLiveState reconstructs objects with a
+    // canonical key order that may differ from the persisted snapshotData.
+    return JSON.stringify(this.sortKeys(value));
+  }
+
+  private sortKeys(value: unknown): unknown {
+    if (value === null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map((v) => this.sortKeys(v));
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((k) => [k, this.sortKeys((value as Record<string, unknown>)[k])] as const);
+    return Object.fromEntries(entries);
   }
 
   private assertTenant(companyId: string): void {
