@@ -1,5 +1,5 @@
 # SaaS AI Sales Assistant — Project Instructions
-**Versão:** 5.3
+**Versão:** 5.4
 **Atualização:** Abril 2026
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
 **Histórico detalhado de sessões:** ver `PROJECT_HISTORY.md`
@@ -22,17 +22,17 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 21/04/2026 (sessão 58)
+> Última atualização: 23/04/2026 (sessão 59)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 58 (21/04/2026) | Admin impersonation (ImpersonationSession + `imp_` base64url token SHA-256 hash one-shot + RBAC matrix OWNER/ADMIN + clamp 5-240min + lazy-expire + ForbiddenException actor-only end + expireStale cron helper) + Config versioning & rollback (ConfigSnapshot + 5-value ConfigResource enum + 3-phase rollback pre-capture OUTSIDE tx → `$transaction{pre-snapshot + applyRollback + audit ROLLBACK}` + reversível via preRollbackSnapshotId + defensive findFirst guards + `@OnEvent('config.changed')` ingestion de 5 consumer services + `plainOf` JSON round-trip byte-stable diff) |
-| Backend (NestJS) | ✅ Produção | Railway — 44 módulos (+impersonation, +config-snapshots), 76+ test suites, 40 env vars |
-| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 43 routes |
-| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 40 modelos (+ImpersonationSession, +ConfigSnapshot), 43 enums Prisma (+ConfigResource, AuditAction +3 valores) + pg_trgm |
+| Último commit | sessão 59 (23/04/2026) | Routing skills (AgentSkill catalogue per-tenant + AssignmentRule.requiredSkills[]/minSkillLevel + `filterUsersBySkills` ALL-semantics com level gate [1..5] clamp + defensive slug regex sanitization + presence-aware pool via `PresenceService.getCapacityMap` filtrando `OFFLINE\|atCapacity` + fallback-to-skill-filtered quando todos offline + per-layer try/catch degradation + audit ledger flags `skillFiltered/presenceFiltered/fellBackToUnfiltered`) + CSAT trending (`CsatTrendsService` time-series day/week/month UTC-anchored dense zero-fill + NPS 5-ponto [5=promoter/4=passive/1-3=detractor] + breakdown axis agent\|tag\|channel + manual Call/WhatsappChat hydrate join por ausência de Prisma relation + window cap 180d + /dashboard/csat/trends page com inline SVG chart zero-dep + i18n pt-BR/en) |
+| Backend (NestJS) | ✅ Produção | Railway — 46 módulos (+agent-skills, +csat-trends), 78+ test suites, 40 env vars |
+| Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 44 routes (+/dashboard/csat/trends) |
+| Banco de dados | ✅ Produção | PostgreSQL (Neon) — 41 modelos (+AgentSkill), 43 enums Prisma + pg_trgm |
 | Auth (Clerk) | ✅ Produção | Production keys, Google OAuth, webhooks, public route matcher |
 | Twilio (Voz) | ✅ Produção | Pay-as-you-go, +1 507 763 4719, webhook configurado |
 | WhatsApp Business API | ⚠️ Código pronto | Backend funcional, credenciais NÃO configuradas (requer CNPJ/MEI) |
@@ -192,11 +192,12 @@ Infrastructure (Prisma, API Clients, Redis)
 │   ├── backend/                    # @saas/backend (NestJS)
 │   │   └── src/
 │   │       ├── modules/
+│   │       │   ├── agent-skills/   # Per-tenant skill catalogue (AgentSkill, level 1-5, slug regex, bulk-replace $transaction + 100-cap per-user) + `filterUsersBySkills` ALL-semantics + defensive slug sanitization
 │   │       │   ├── ai/             # LLM providers, suggestions, fallback
 │   │       │   ├── analytics/      # Dashboard stats, sentiment, AI perf
 │   │       │   ├── announcements/  # In-app banners (targetRoles + per-user read/dismiss via composite PK)
 │   │       │   ├── api-keys/       # API keys CRUD (sk_live_ + SHA-256 hash) + scopes + per-key rate limit
-│   │       │   ├── assignment-rules/ # Auto-assign chats via @OnEvent(chat.created) + ROUND_ROBIN (Redis)/LEAST_BUSY (groupBy)/MANUAL_ONLY + first-match priority
+│   │       │   ├── assignment-rules/ # Auto-assign chats via @OnEvent(chat.created) + ROUND_ROBIN (Redis)/LEAST_BUSY (groupBy)/MANUAL_ONLY + first-match priority + S59 skill-filter (requiredSkills/minSkillLevel via AgentSkillsService) + presence-aware pool via PresenceService capacity map + fallback-to-unfiltered quando todos offline/atCapacity
 │   │       │   ├── auth/           # Clerk integration, guards, strategies
 │   │       │   ├── billing/        # Stripe subscriptions, invoices, webhooks
 │   │       │   ├── calls/          # Twilio calls, Deepgram STT, recordings
@@ -205,6 +206,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── config-snapshots/ # Append-only ConfigSnapshot (5-value ConfigResource) + diff viewer + 3-phase $transaction rollback (pre-capture OUTSIDE tx → pre-snapshot + applyRollback + audit) + @OnEvent(config.changed) ingestion
 │   │       │   ├── contacts/       # Customer 360 (dedupe natural key + timeline merge-sort + notes + merge tx)
 │   │       │   ├── csat/           # CSAT surveys (trigger-driven cron + public token + NPS analytics)
+│   │       │   ├── csat-trends/    # Time-series CSAT analytics (day/week/month UTC-anchored dense zero-fill + NPS 5-ponto + breakdown agent/tag/channel + manual Call/Chat hydrate + window cap 180d)
 │   │       │   ├── custom-fields/  # Per-tenant extensible schema (CustomFieldDefinition + validateAndCoerce TEXT/NUMBER/BOOLEAN/DATE/SELECT + cap 100/resource)
 │   │       │   ├── data-import/    # CSV → Contacts chunked upsert (RFC 4180 parser, phone normalize, wired a S49 BackgroundJobs via handler registry)
 │   │       │   ├── email/          # Resend integration, templates
@@ -281,7 +283,7 @@ Infrastructure (Prisma, API Clients, Redis)
 
 ## 6. SCHEMA DE DADOS (Prisma)
 
-### 6.1 Modelos (42)
+### 6.1 Modelos (43)
 
 | Modelo | Responsabilidade | Relações-chave |
 |---|---|---|
@@ -318,7 +320,8 @@ Infrastructure (Prisma, API Clients, Redis)
 | **FeatureFlag** | Toggle + rollout gradual. key unique por tenant (`feature_flag_key_unique`), enabled, rolloutPercentage 0-100, userAllowlist[]. Avaliação SHA-256 bucket determinístico + Redis cache 60s | → Company |
 | **Announcement** | Aviso in-app. title/body/level (INFO/WARNING/URGENT), publishAt/expireAt janela, targetRoles[] (empty = broadcast). Rendering via banner polling 2min | → Company, User (createdBy), Reads[] |
 | **AnnouncementRead** | Estado per-user. Composite PK `[announcementId, userId]`, readAt + dismissedAt. CASCADE em Announcement, RESTRICT em User. Upsert idempotente | → Announcement, User |
-| **AssignmentRule** | Regra de auto-assign de chats. priority asc determina ordem de avaliação, strategy (ROUND_ROBIN/LEAST_BUSY/MANUAL_ONLY), conditions Json (priority/tags/phonePrefix/keywordsAny), targetUserIds[]. Unique `assignment_rule_name_unique` (companyId, name) | → Company |
+| **AssignmentRule** | Regra de auto-assign de chats. priority asc determina ordem de avaliação, strategy (ROUND_ROBIN/LEAST_BUSY/MANUAL_ONLY), conditions Json (priority/tags/phonePrefix/keywordsAny), targetUserIds[]. S59: `requiredSkills String[]` + `minSkillLevel Int?` — skill-filter ALL-semantics via AgentSkillsService.filterUsersBySkills antes de strategy dispatch. Unique `assignment_rule_name_unique` (companyId, name) | → Company |
+| **AgentSkill** | Skill catalogue per-agent. skill slug (`^[a-z0-9][a-z0-9_-]{0,79}$`) + level Int [1..5] + notes + isActive. Unique `agent_skill_user_skill_unique` (userId, skill). Cap 100 skills/user. CASCADE em Company e User. Consumido por AssignmentRulesService para skill-based routing (S59) | → Company (CASCADE), User (CASCADE) |
 | **CustomFieldDefinition** | Schema extensível per-tenant para resources (CONTACT). key (snake_case slug), label, type (TEXT/NUMBER/BOOLEAN/DATE/SELECT), required, options[] (SELECT), isActive, displayOrder. Unique `[companyId, resource, key]`. Cap 100/resource. Valores persistidos em `Contact.customFields` JSON | → Company |
 | **UsageQuota** | Quota metered mensal per (companyId × metric × periodStart). Month-anchored UTC (1º 00:00Z → próximo 1º exclusive). limit Int (`-1` = UNLIMITED), currentValue (atomic increment), warnedThresholds[] ⊆ {80,95,100} (idempotent). Unique `usage_quota_period_unique`. Plan defaults STARTER/PROFESSIONAL/ENTERPRISE | → Company |
 | **ScheduledMessage** | Envio WhatsApp agendado. content Text, mediaUrl?, scheduledAt, status (PENDING/SENT/FAILED/CANCELED), jobId? FK para BackgroundJob, runCount, sentAt?, lastError?. MIN_LEAD_SECONDS=30, MAX_LEAD_DAYS=60. Índice `[companyId, status, scheduledAt]`. CANCELED race guard no handler | → Company, WhatsappChat (CASCADE), User (createdBy), BackgroundJob? |

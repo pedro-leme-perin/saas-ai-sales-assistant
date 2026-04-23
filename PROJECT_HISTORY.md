@@ -2080,5 +2080,148 @@ Estende S49 `sla-policies` com multi-tier escalation executado APÓS breach flag
 
 ---
 
-*Documento atualizado em 21/04/2026*
+## Sessão 59 — 23/04/2026
+
+### Objetivo
+
+2 features enterprise — Routing skills (skill-based routing para AssignmentRules, estende S54+S57) + CSAT trending (time-series analytics sobre CsatResponse, estende S50).
+
+### Feature A1 — Routing skills (módulo novo `agent-skills`)
+
+**Schema**: modelo `AgentSkill` (id, companyId, userId, skill VARCHAR(80), level Int default 3, notes VARCHAR(300)?, isActive Bool default true, createdAt, updatedAt). Unique `agent_skill_user_skill_unique` (userId, skill). Índices `[companyId, skill, level]`, `[companyId, userId]`. FKs CASCADE em Company e User. `AssignmentRule` ganha `requiredSkills String[] default []` + `minSkillLevel Int?`. Migration `20260429010000_add_agent_skills_and_routing` idempotente (CREATE TABLE IF NOT EXISTS + ALTER TABLE ADD COLUMN IF NOT EXISTS). Defaults preservam comportamento legacy.
+
+**`AgentSkillsService`**:
+
+1. **Slug regex**: `^[a-z0-9][a-z0-9_-]{0,79}$` — lowercase slug kebab/snake-case, ≤80 chars. Re-asserted em `assertValidDto` como defesa em profundidade (DTO class-validator `@Matches` é primeira barreira).
+2. **Level 1..5**: `@Min(1) @Max(5) @IsInt`. Service re-valida para rotas internas/programáticas.
+3. **`assignToUser(dto)`**: upsert via `agent_skill_user_skill_unique` (userId, skill). Pre-checks: `assertUserOwned(companyId, userId)` (cross-tenant rejected BadRequest) + `assertCapacity()` — nova skill com cap 100/user trip BadRequest; update path ignora cap. P2002 → BadRequest.
+4. **`update(id, dto)`**: slug **imutável** (troca exige delete+create). Só atualiza `level/notes/isActive`.
+5. **`bulkSetForUser(userId, skills[])`**: atomic replace via `$transaction` — `deleteMany({companyId, userId})` + `createMany(data)` em single tx. Payload valida: `≤100 skills`, sem duplicates, cada entry passa slug+level validation. Fail closed: qualquer throw rollback completo.
+6. **`filterUsersBySkills(companyId, candidateUserIds, requiredSkills, minSkillLevel)`** — **core matcher usado por AssignmentRulesService**:
+   - Empty `requiredSkills` → returns `[...candidateUserIds]` (bypass, zero query).
+   - Empty `candidateUserIds` → returns `[]`.
+   - Normaliza/dedupe `requiredSkills` + descarta slugs inválidos defensively. Se todos inválidos → bypass.
+   - `levelFloor` clamp `[1..5]` (protege contra injeção de level=99 ou -1).
+   - Single `findMany` com `companyId + userId∈ + skill∈ + isActive=true + (level gte levelFloor)?` + `select:{userId, skill}`.
+   - In-memory: map `userId → Set<skill>`, intersection semantics — user precisa ter ALL skills de `requiredSkills`. O(n) pós-query.
+7. **Audit trail**: UPDATE em assign + DELETE em remove + UPDATE (action='bulk-replace') em bulkSetForUser. Fire-and-forget (`void this.audit`), nunca bloqueia hot path.
+8. **RBAC (controller)**: `list/findById/listForUser` público a tenant. `assign/update/remove/bulkReplace` → `OWNER/ADMIN/MANAGER`. Skill slug path/body consistency check em bulk replace (defense in depth).
+
+**`AssignmentRulesService` extension (S59 — 3 layers antes de strategy dispatch)**:
+
+Layer 1 — **skill filter**:
+```
+bySkill = await agentSkills.filterUsersBySkills(companyId, targetUserIds, requiredSkills ?? [], minSkillLevel ?? null);
+```
+- Empty `requiredSkills` → no-op (todo tenant sem skills configuradas permanece backward-compat).
+- `bySkill.length === 0` com `requiredSkills` não-vazio → **skip rule** (não fallback — semantics: rule exigiu skill e ninguém qualifica). Matcher throw → degrade para pool original.
+
+Layer 2 — **presence+capacity filter** (usa `PresenceService.getCapacityMap` S57):
+- Exclui `status === OFFLINE` + `atCapacity === true`.
+- **Fallback**: se TODOS os remanescentes forem offline/atCapacity, `candidates = skill-filtered-pool` (i.e. recua para layer 1). Justificativa: SLA não deve ficar refém de heartbeat — melhor atribuir a agente offline e notificar do que deixar chat permanentemente unassigned em off-hours. Flag `fellBackToUnfiltered=true` no audit ledger.
+- Presence throw → degrade para skill-filtered pool (try/catch log).
+
+Layer 3 — **strategy dispatch** (ROUND_ROBIN/LEAST_BUSY/MANUAL_ONLY) sobre pool narrow:
+- `pickRoundRobin(rule, pool)`: cursor `assign:rr:<ruleId>` no Redis (counter monotonic, modulo pool.length atual — cursor não reseta quando composição muda). Fallback local Map em Redis down.
+- `pickLeastBusy(rule, pool)`: groupBy `whatsappChat` com `userId ∈ pool` + status `OPEN|PENDING|ACTIVE`, tie-break por ordem de pool.
+- MANUAL_ONLY → null (informational rule, chat fica unassigned).
+
+**`tryAutoAssign` envelope**:
+```
+const picked = await this.pickUser(rule); // {userId, skillFiltered, presenceFiltered, fellBackToUnfiltered}
+if (!picked) continue;
+await whatsappChat.update({where:{id:chat.id}, data:{userId:picked.userId}});
+audit('auto-assign', {ruleId, strategy, userId, skillFiltered, presenceFiltered, fellBackToUnfiltered});
+```
+Ledger completo permite auditoria ex-post de "por que este chat foi para este agente?".
+
+### Feature A2 — CSAT trending (módulo novo `csat-trends`)
+
+**`CsatTrendsService`** — read-only analytics, zero side-effects. Endpoint `GET /csat/trends` (mounted sob controlador dedicado, preserva `/csat/analytics` legacy S50).
+
+1. **Window parsing** (`parseWindow`):
+   - Default: last 30 days. Custom `since`/`until` ISO-8601 validados via DTO `@IsDateString`.
+   - `since >= until` → BadRequest.
+   - Janela > `MAX_WINDOW_DAYS=180` → BadRequest (proteção custo + UX sanity).
+   - Bucket: `day` (default) | `week` | `month`.
+
+2. **Hydrate join manual** (Prisma schema NÃO declara `CsatResponse.call`/`chat` relations — não queremos mudar schema só para analytics):
+   - 2 `findMany` paralelos: `call.findMany({id ∈ callIds, companyId})` + `whatsappChat.findMany({id ∈ chatIds, companyId})` + select `{id, userId, tags}`.
+   - Tenant scope reforçado em ambos os queries.
+   - In-memory merge: `{ ...csatRow, call?:{userId,tags}, chat?:{userId,tags} }`.
+   - `MAX_RESPONSES_PER_QUERY=10_000` cap protege memória.
+
+3. **`computeSummary(rows)`** — global totals para a janela:
+   - `distribution[1..5]` zerado + incrementado por score.
+   - `avgScore = round(scoreSum/scoreCount × 100)/100` (2 casas).
+   - NPS 5-ponto: `promoters=score 5`, `passives=score 4`, `detractors=score 1..3`. Formula `round(100 × (promoters - detractors) / total)`. `total=0 → 0` (zero NaN).
+
+4. **`computeTimeSeries(rows, since, until, bucket)`** — dense series (zero-fill):
+   - `bucketStart(d, bucket)`: day=UTC midnight; week=Monday UTC ((dow+6)%7 distance); month=1st UTC.
+   - `advanceBucket` increments day/7-day/month correspondentemente.
+   - Pre-popula map com todos os buckets no intervalo → slots vazios são retornados com zeros (evita séries esburacadas em charts).
+   - Cada RESPONDED row com score válido incrementa `responded`, `scoreSum`, `p` (se 5) e `d` (se ≤3) no bucket do `respondedAt ?? createdAt`.
+   - Output ordenado asc por bucketStart.
+
+5. **`computeBreakdown(rows, groupBy)`**:
+   - `channel`: group by `CsatResponse.channel` (WHATSAPP/EMAIL).
+   - `tag`: **union** de `call.tags[]` + `chat.tags[]` por row; bucket `(untagged)` quando ambos vazios. Row pode contribuir para múltiplos buckets (correto — mesma response vale para cada tag).
+   - `agent`: `userId = call.userId ?? chat.userId ?? null`; bucket `(unassigned)` para null. Follow-up `user.findMany({id ∈ userIds, companyId})` resolve label (name ?? email).
+   - Todas ordenadas desc por `responded`.
+
+6. **Controller `/csat/trends`** sob `TenantGuard + RolesGuard`. DTO `TrendsQueryDto` Zod-like via class-validator (`@IsDateString`, `@IsEnum` para bucket/groupBy/channel/trigger).
+
+### Frontend — `/dashboard/csat/trends` page
+
+Página Next.js nova com:
+- **Filter bar**: preset (7d/30d/90d/180d — auto-bucket day≤45d else week), groupBy (none/agent/tag/channel), channel (all/WHATSAPP/EMAIL), trigger (all/CALL_END/CHAT_CLOSE).
+- **KPI grid**: 8 cards (total/responded/responseRate/avgScore/NPS/promoters/passives/detractors).
+- **Inline SVG chart** (zero dep — não foi adicionado recharts): line de avgScore (escala 0-5) sobre barras de volume de respostas. X axis sparse labels (`showEvery = ceil(rows.length/8)`). `<title>` em cada ponto para tooltip a11y. Bucket format localizado via `toLocaleDateString`.
+- **Breakdown table** com rows ordenadas por responded, avgScore colorido (`≥4 emerald`, `<3 destructive`), NPS Badge (`≥50 success`, `≥0 outline`, `<0 destructive`).
+- **i18n**: chaves novas `csatTrends.*` em pt-BR + en (~40 strings cada), reaproveitando `common.retry` para error boundary local.
+- **Error boundary**: `error.tsx` local + layout inheritance.
+
+### Schema changes
+
+- `AgentSkill` model (7 colunas + 2 relations + 2 índices + unique).
+- `AssignmentRule` ganha `required_skills TEXT[]` + `min_skill_level INTEGER`.
+- Migration idempotente (DO block + CREATE TABLE IF NOT EXISTS + ALTER TABLE ADD COLUMN IF NOT EXISTS + FK constraint checks via `pg_constraint`).
+
+### Testes
+
+- **`agent-skills.service.spec.ts`** (novo, 14 specs): CRUD happy path + 2 failure modes, cap 100 enforcement, slug immutability, $transaction bulk replace, `filterUsersBySkills` (bypass empty req, empty candidates, single-skill filter, multi-skill ALL intersection, levelFloor gate, level clamp, defensive slug drop).
+- **`assignment-rules.service.spec.ts`** estendido: injeção de `AgentSkillsService` + `PresenceService` mocks; 8 specs novos S59 (empty req bypass, req narrows pool, req-empty-pool skip, presence exclude OFFLINE, presence exclude atCapacity, all-offline fallback, presence error degrade, skill error degrade). Specs legacy continuam verdes (defaults: filter=pass-through, presence=all-online).
+- **`csat-trends.service.spec.ts`** (novo, 13 specs): window parse (empty companyId, invalid date, >180d, since≥until), tenant isolation na hydrate, summary (avg/NPS/distribution + RESPONDED-only filter + total=0 edge), time-series (day dense, week Monday anchor, month 1st anchor), breakdown (channel split, tag union+untagged, agent name fallback+unassigned).
+
+### Arquivos impactados
+
+- Backend novos: `apps/backend/src/modules/agent-skills/` (service+controller+module+dto), `apps/backend/src/modules/csat-trends/` (service+controller+module+dto).
+- Backend modificados: `assignment-rules/{service,module,dto/upsert-assignment-rule.dto}.ts`, `app.module.ts`, `schema.prisma`, migration nova.
+- Frontend novos: `apps/frontend/src/app/dashboard/csat/trends/{page,error}.tsx`.
+- Frontend modificados: `services/csat.service.ts` (trends call + types), `i18n/dictionaries/{pt-BR,en}.json` (+csatTrends block).
+- Testes novos: `test/unit/{agent-skills,csat-trends}.service.spec.ts`. Ampliado: `test/unit/assignment-rules.service.spec.ts`.
+- Docs: `CLAUDE.md` §2.1 (último commit + counts), §5 (2 módulos novos descritos), §6 (1 modelo novo + AssignmentRule extension). `PROJECT_HISTORY.md` entrada S59.
+
+### Invariantes preservadas
+
+- **Dependency Rule**: Domain zero-import de Prisma; service layer consome PrismaService via DI.
+- **Tenant isolation no repositório**: toda query S59 inclui `companyId` (filterUsersBySkills, getTrends baseWhere, hydrate joins).
+- **Fail-closed $transaction**: bulkSetForUser deleteMany+createMany rollback on any throw.
+- **Backward-compat schema**: `required_skills` default `[]` + `min_skill_level` nullable → rules pre-existentes executam skill-filter como no-op.
+- **Audit trail completo**: CRUD AGENT_SKILL + auto-assign com ledger de flags (skillFiltered/presenceFiltered/fellBackToUnfiltered).
+- **Circuit-breaker-adjacent degradation**: skill matcher throw / presence throw cada qual degrada para layer anterior, chat nunca fica bloqueado por infra secundária.
+- **LGPD**: zero novo PII. AgentSkill.notes é livre-texto interno (não cliente).
+- **i18n completo**: pt-BR.json + en.json atualizados simetricamente (40 chaves novas cada).
+- **Presence-aware pool**: S57 `CapacityInfo` agora consumido por AssignmentRules — circuito fechado `presence → assignment` documentado.
+
+### Decisões contra-intuitivas
+
+- **Fallback-to-unfiltered em presence layer**: SLA compliance > heartbeat rigor. Auditoria rastreia (`fellBackToUnfiltered=true`) para dashboards futuros.
+- **Skill matcher SEM fallback**: se rule exige skill, ninguém qualifica = skip rule (próxima priority). Falha alta, consistente com semântica explícita da regra.
+- **Inline SVG chart em vez de recharts**: evita dependência nova (bundle +30KB gzip) e revisão extra do Pedro. Gráfico simples (line + bars) não justifica biblioteca.
+- **Manual Call/Chat hydrate em vez de declarar Prisma relations**: relations em CsatResponse → Call/Chat exigiriam mudar S50 schema + migrations + back-references em Call/WhatsappChat. 2 findMany paralelos custam ~2ms em payload típico e preservam schema stable.
+
+---
+
+*Documento atualizado em 23/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

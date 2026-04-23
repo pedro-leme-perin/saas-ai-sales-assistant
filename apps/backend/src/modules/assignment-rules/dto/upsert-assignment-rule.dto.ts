@@ -12,11 +12,16 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
+
+// Skill slug regex mirrors the AgentSkill DTO regex. Kept local to avoid
+// cross-module import cycles between two Nest modules.
+const SKILL_SLUG_REGEX = /^[a-z0-9][a-z0-9_-]{0,79}$/;
 
 /**
  * Conditions JSON shape (validated structurally in service):
@@ -50,6 +55,20 @@ export class CreateAssignmentRuleDto {
   @IsString({ each: true })
   targetUserIds!: string[];
 
+  // Session 59 — skill-based routing:
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @Matches(SKILL_SLUG_REGEX, { each: true, message: 'each requiredSkill must be a valid slug' })
+  requiredSkills?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  minSkillLevel?: number;
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
@@ -81,6 +100,20 @@ export class UpdateAssignmentRuleDto {
   @ArrayMaxSize(200)
   @IsString({ each: true })
   targetUserIds?: string[];
+
+  // Session 59 — skill-based routing (same semantics as CreateDto):
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @Matches(SKILL_SLUG_REGEX, { each: true, message: 'each requiredSkill must be a valid slug' })
+  requiredSkills?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  minSkillLevel?: number;
 
   @IsOptional()
   @IsBoolean()

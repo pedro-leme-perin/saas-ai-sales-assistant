@@ -1,5 +1,5 @@
 // =============================================
-// 🎯 AssignmentRulesService (Session 54 — Feature A2)
+// 🎯 AssignmentRulesService (Session 54 — Feature A2, extended by S59)
 // =============================================
 // Auto-assigns newly-created chats to vendors based on a tenant's
 // configured rule set. Listens to `chat.created` events emitted by
@@ -24,15 +24,28 @@
 //
 // Rule selection: highest priority (lowest number) first; first match wins.
 //
+// Session 59 — pre-dispatch candidate filter (applied BEFORE strategy pick):
+//   1. requiredSkills/minSkillLevel — AgentSkillsService.filterUsersBySkills
+//      narrows targetUserIds to those possessing ALL required skills at
+//      level ≥ minSkillLevel. Empty requiredSkills = bypass.
+//   2. Presence+capacity filter — PresenceService.getCapacityMap narrows to
+//      users whose presence.status is NOT OFFLINE and who are below
+//      maxConcurrentChats. If ALL candidates are offline/at-capacity, we
+//      fall back to the original (skill-filtered) list so a chat is not
+//      left permanently unassigned during off-hours.
+//
 // Resilience:
 //   - Bounded findMany (200 rules/tenant)
 //   - try/catch around evaluation; one bad rule never blocks the chat
 //   - Audit logged fire-and-forget
 //   - Round-robin counter has Redis fallback (in-memory map)
+//   - Skill matcher + presence lookup are best-effort: if either throws, we
+//     log + fall through to the unfiltered candidate list.
 
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
+  AgentStatus,
   AssignmentRule,
   AssignmentStrategy,
   AuditAction,
@@ -49,6 +62,8 @@ import {
   type ConfigChangedPayload,
 } from '../config-snapshots/events/config-events';
 import { CreateAssignmentRuleDto, UpdateAssignmentRuleDto } from './dto/upsert-assignment-rule.dto';
+import { AgentSkillsService } from '../agent-skills/agent-skills.service';
+import { PresenceService } from '../presence/presence.service';
 
 const RR_KEY_PREFIX = 'assign:rr:';
 const RR_TTL_SEC = 60 * 60 * 24 * 30; // 30 days
@@ -70,6 +85,8 @@ export class AssignmentRulesService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly agentSkills: AgentSkillsService,
+    private readonly presence: PresenceService,
   ) {}
 
   // ===== CRUD ============================================================
@@ -106,6 +123,8 @@ export class AssignmentRulesService {
           strategy: dto.strategy,
           conditions: dto.conditions as Prisma.InputJsonValue,
           targetUserIds: dto.targetUserIds,
+          requiredSkills: dto.requiredSkills ?? [],
+          minSkillLevel: dto.minSkillLevel ?? null,
           isActive: dto.isActive ?? true,
         },
       });
@@ -147,6 +166,8 @@ export class AssignmentRulesService {
         ? { conditions: dto.conditions as Prisma.InputJsonValue }
         : {}),
       ...(dto.targetUserIds !== undefined ? { targetUserIds: dto.targetUserIds } : {}),
+      ...(dto.requiredSkills !== undefined ? { requiredSkills: dto.requiredSkills } : {}),
+      ...(dto.minSkillLevel !== undefined ? { minSkillLevel: dto.minSkillLevel } : {}),
       ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
     };
     try {
@@ -225,20 +246,23 @@ export class AssignmentRulesService {
 
     for (const rule of rules) {
       if (!this.matches(rule, chat)) continue;
-      const userId = await this.pickUser(rule);
-      if (!userId) continue;
+      const picked = await this.pickUser(rule);
+      if (!picked) continue;
       await this.prisma.whatsappChat.update({
         where: { id: chat.id },
-        data: { userId },
+        data: { userId: picked.userId },
       });
       void this.audit(payload.companyId, null, AuditAction.UPDATE, chat.id, {
         action: 'auto-assign',
         ruleId: rule.id,
         ruleName: rule.name,
         strategy: rule.strategy,
-        userId,
+        userId: picked.userId,
+        skillFiltered: picked.skillFiltered,
+        presenceFiltered: picked.presenceFiltered,
+        fellBackToUnfiltered: picked.fellBackToUnfiltered,
       });
-      return userId;
+      return picked.userId;
     }
     return null;
   }
@@ -274,20 +298,95 @@ export class AssignmentRulesService {
 
   // ===== Strategy dispatch ===============================================
 
-  private async pickUser(rule: AssignmentRule): Promise<string | null> {
+  /**
+   * Decision envelope returned by pickUser — lets the caller log which
+   * filters narrowed the candidate pool for auditability.
+   */
+  private async pickUser(rule: AssignmentRule): Promise<{
+    userId: string;
+    skillFiltered: boolean;
+    presenceFiltered: boolean;
+    fellBackToUnfiltered: boolean;
+  } | null> {
     if (rule.strategy === AssignmentStrategy.MANUAL_ONLY) return null;
     if (rule.targetUserIds.length === 0) return null;
 
+    // Candidate narrowing happens in layers so any layer failure degrades
+    // gracefully without blocking assignment.
+    let skillFiltered = false;
+    let presenceFiltered = false;
+    let fellBackToUnfiltered = false;
+
+    // Layer 1 — skill filter (S59). Empty requiredSkills is a no-op.
+    let candidates = [...rule.targetUserIds];
+    try {
+      const bySkill = await this.agentSkills.filterUsersBySkills(
+        rule.companyId,
+        candidates,
+        rule.requiredSkills ?? [],
+        rule.minSkillLevel ?? null,
+      );
+      if ((rule.requiredSkills ?? []).length > 0) {
+        skillFiltered = true;
+        if (bySkill.length === 0) {
+          // No one qualifies — do NOT fall back (rule semantics demand skill).
+          return null;
+        }
+        candidates = bySkill;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`skill filter failed for rule ${rule.id}: ${msg}`);
+    }
+
+    // Layer 2 — presence/capacity filter (S57+S59). Best-effort: if every
+    // remaining candidate is offline/at-capacity, fall back to the
+    // skill-filtered set so SLA is not held hostage to heartbeats.
+    try {
+      const capMap = await this.presence.getCapacityMap(rule.companyId, candidates);
+      const present = candidates.filter((uid) => {
+        const cap = capMap.get(uid);
+        if (!cap) return false;
+        if (cap.status === AgentStatus.OFFLINE) return false;
+        if (cap.atCapacity) return false;
+        return true;
+      });
+      if (present.length > 0) {
+        presenceFiltered = true;
+        candidates = present;
+      } else {
+        fellBackToUnfiltered = true;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`presence filter failed for rule ${rule.id}: ${msg}`);
+    }
+
+    // Layer 3 — strategy dispatch over the narrowed pool.
+    let userId: string | null;
     if (rule.strategy === AssignmentStrategy.ROUND_ROBIN) {
-      return this.pickRoundRobin(rule);
+      userId = await this.pickRoundRobin(rule, candidates);
+    } else if (rule.strategy === AssignmentStrategy.LEAST_BUSY) {
+      userId = await this.pickLeastBusy(rule, candidates);
+    } else {
+      userId = null;
     }
-    if (rule.strategy === AssignmentStrategy.LEAST_BUSY) {
-      return this.pickLeastBusy(rule);
-    }
-    return null;
+
+    if (!userId) return null;
+    return { userId, skillFiltered, presenceFiltered, fellBackToUnfiltered };
   }
 
-  private async pickRoundRobin(rule: AssignmentRule): Promise<string | null> {
+  /**
+   * Round-robin over the given pool (skill+presence-filtered). The cursor
+   * persists per rule.id — changing the pool composition does NOT reset it
+   * (idx is computed modulo current pool length). This keeps the cursor
+   * monotonic across heartbeats/presence fluctuations.
+   */
+  private async pickRoundRobin(
+    rule: AssignmentRule,
+    pool: string[],
+  ): Promise<string | null> {
+    if (pool.length === 0) return null;
     const key = `${RR_KEY_PREFIX}${rule.id}`;
     let counter = 0;
     try {
@@ -296,29 +395,36 @@ export class AssignmentRulesService {
     } catch {
       counter = this.localRrCounter.get(rule.id) ?? 0;
     }
-    const idx = counter % rule.targetUserIds.length;
+    const idx = counter % pool.length;
     const next = counter + 1;
     try {
       await this.cache.set(key, String(next), RR_TTL_SEC);
     } catch {
       this.localRrCounter.set(rule.id, next);
     }
-    return rule.targetUserIds[idx] ?? null;
+    return pool[idx] ?? null;
   }
 
-  private async pickLeastBusy(rule: AssignmentRule): Promise<string | null> {
+  /**
+   * Least-busy pick over the given pool. Counts only OPEN|PENDING|ACTIVE
+   * chats. Tie-break on insertion order (Map iteration order = pool order).
+   */
+  private async pickLeastBusy(
+    rule: AssignmentRule,
+    pool: string[],
+  ): Promise<string | null> {
+    if (pool.length === 0) return null;
     const counts = await this.prisma.whatsappChat.groupBy({
       by: ['userId'],
       where: {
         companyId: rule.companyId,
-        userId: { in: rule.targetUserIds },
+        userId: { in: pool },
         status: { in: [ChatStatus.OPEN, ChatStatus.PENDING, ChatStatus.ACTIVE] },
       },
       _count: { _all: true },
     });
-    // Build full map (vendors with 0 chats are absent from groupBy)
     const map = new Map<string, number>();
-    for (const u of rule.targetUserIds) map.set(u, 0);
+    for (const u of pool) map.set(u, 0);
     for (const row of counts) {
       if (row.userId) map.set(row.userId, row._count._all);
     }

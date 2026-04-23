@@ -48,6 +48,8 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
 import { DataImportModule } from './modules/data-import/data-import.module';
 import { PresenceModule } from './modules/presence/presence.module';
 import { AssignmentRulesModule } from './modules/assignment-rules/assignment-rules.module';
+import { AgentSkillsModule } from './modules/agent-skills/agent-skills.module';
+import { CsatTrendsModule } from './modules/csat-trends/csat-trends.module';
 import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module';
 import { UsageQuotasModule } from './modules/usage-quotas/usage-quotas.module';
 import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-messages.module';
@@ -122,6 +124,8 @@ import configuration from './config/configuration';
     DataImportModule,
     PresenceModule,
     AssignmentRulesModule,
+    AgentSkillsModule,
+    CsatTrendsModule,
     CustomFieldsModule,
     UsageQuotasModule,
     ScheduledMessagesModule,

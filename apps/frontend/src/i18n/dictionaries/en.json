@@ -1277,6 +1277,56 @@
       "submitErr": "Failed to submit rating."
     }
   },
+  "csatTrends": {
+    "title": "CSAT trends",
+    "subtitle": "Satisfaction, NPS and response evolution over time.",
+    "all": "All",
+    "error": "Unable to load trends.",
+    "filters": {
+      "window": "Window",
+      "groupBy": "Group by",
+      "channel": "Channel",
+      "trigger": "Trigger"
+    },
+    "presets": {
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days",
+      "180d": "180 days"
+    },
+    "groupBy": {
+      "none": "None",
+      "agent": "Agent",
+      "tag": "Tag",
+      "channel": "Channel"
+    },
+    "kpi": {
+      "total": "Total sent",
+      "responded": "Responded",
+      "responseRate": "Response rate",
+      "avgScore": "Avg score",
+      "nps": "NPS",
+      "promoters": "Promoters",
+      "passives": "Passives",
+      "detractors": "Detractors"
+    },
+    "chart": {
+      "timeSeries": "Time series — avg score and responses",
+      "empty": "No data for the selected window.",
+      "responses": "responses",
+      "legend": "Line: avg score (0-5). Bars: response volume."
+    },
+    "breakdown": {
+      "title": "Breakdown",
+      "empty": "No responses available for this grouping.",
+      "col": {
+        "key": "Key",
+        "responded": "Responded",
+        "avgScore": "Avg score",
+        "nps": "NPS"
+      }
+    }
+  },
   "exports": {
     "title": "Scheduled exports",
     "subtitle": "Recurring CSV/JSON deliveries by email on a preset schedule.",

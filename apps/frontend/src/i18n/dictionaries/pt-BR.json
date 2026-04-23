@@ -1277,6 +1277,56 @@
       "submitErr": "Erro ao enviar avaliacao."
     }
   },
+  "csatTrends": {
+    "title": "Tendencias de CSAT",
+    "subtitle": "Evolucao de satisfacao, NPS e respostas ao longo do tempo.",
+    "all": "Todos",
+    "error": "Nao foi possivel carregar as tendencias.",
+    "filters": {
+      "window": "Janela",
+      "groupBy": "Agrupar por",
+      "channel": "Canal",
+      "trigger": "Gatilho"
+    },
+    "presets": {
+      "7d": "7 dias",
+      "30d": "30 dias",
+      "90d": "90 dias",
+      "180d": "180 dias"
+    },
+    "groupBy": {
+      "none": "Nenhum",
+      "agent": "Agente",
+      "tag": "Tag",
+      "channel": "Canal"
+    },
+    "kpi": {
+      "total": "Total enviadas",
+      "responded": "Respondidas",
+      "responseRate": "Taxa de resposta",
+      "avgScore": "Nota media",
+      "nps": "NPS",
+      "promoters": "Promotores",
+      "passives": "Neutros",
+      "detractors": "Detratores"
+    },
+    "chart": {
+      "timeSeries": "Serie temporal — nota media e respostas",
+      "empty": "Sem dados no intervalo selecionado.",
+      "responses": "respostas",
+      "legend": "Linha: nota media (0-5). Barras: volume de respostas."
+    },
+    "breakdown": {
+      "title": "Detalhamento",
+      "empty": "Sem respostas com agrupamento disponivel.",
+      "col": {
+        "key": "Chave",
+        "responded": "Respondidas",
+        "avgScore": "Nota media",
+        "nps": "NPS"
+      }
+    }
+  },
   "exports": {
     "title": "Exportacoes agendadas",
     "subtitle": "Entrega recorrente de CSV/JSON por email em horarios pre-definidos.",

@@ -73,6 +73,56 @@ export interface CsatPublicLookup {
   comment: string | null;
 }
 
+// =============================================
+// 📈 TRENDS (Session 59)
+// =============================================
+
+export type TrendBucket = "day" | "week" | "month";
+export type TrendGroupBy = "agent" | "tag" | "channel";
+
+export interface TrendBucketRow {
+  bucketStart: string;
+  responded: number;
+  avgScore: number;
+  nps: number;
+}
+
+export interface TrendBreakdownRow {
+  key: string;
+  label: string;
+  responded: number;
+  avgScore: number;
+  nps: number;
+}
+
+export interface TrendSummary {
+  total: number;
+  responded: number;
+  responseRate: number;
+  avgScore: number;
+  nps: number;
+  distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
+  promoters: number;
+  passives: number;
+  detractors: number;
+}
+
+export interface TrendPayload {
+  window: { since: string; until: string; bucket: TrendBucket };
+  summary: TrendSummary;
+  timeSeries: TrendBucketRow[];
+  breakdown: TrendBreakdownRow[] | null;
+}
+
+export interface TrendsQueryInput {
+  since?: string;
+  until?: string;
+  bucket?: TrendBucket;
+  groupBy?: TrendGroupBy;
+  channel?: CsatChannel;
+  trigger?: CsatTrigger;
+}
+
 export const csatService = {
   listConfigs: async () => {
     const res = await apiClient.get<{ data: CsatSurveyConfig[] }>(`/csat/configs`);
@@ -101,6 +151,20 @@ export const csatService = {
     if (params.until) qs.set("until", params.until);
     return apiClient.get<CsatAnalytics>(
       `/csat/analytics${qs.toString() ? `?${qs.toString()}` : ""}`,
+    );
+  },
+
+  // Session 59 — trend analytics
+  trends: (params: TrendsQueryInput = {}) => {
+    const qs = new URLSearchParams();
+    if (params.since) qs.set("since", params.since);
+    if (params.until) qs.set("until", params.until);
+    if (params.bucket) qs.set("bucket", params.bucket);
+    if (params.groupBy) qs.set("groupBy", params.groupBy);
+    if (params.channel) qs.set("channel", params.channel);
+    if (params.trigger) qs.set("trigger", params.trigger);
+    return apiClient.get<TrendPayload>(
+      `/csat/trends${qs.toString() ? `?${qs.toString()}` : ""}`,
     );
   },
 

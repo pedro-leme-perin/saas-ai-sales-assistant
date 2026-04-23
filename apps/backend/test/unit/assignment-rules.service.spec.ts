@@ -22,11 +22,13 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AssignmentStrategy, AuditAction, Prisma } from '@prisma/client';
+import { AgentStatus, AssignmentStrategy, AuditAction, Prisma } from '@prisma/client';
 
 import { AssignmentRulesService } from '../../src/modules/assignment-rules/assignment-rules.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { CacheService } from '../../src/infrastructure/cache/cache.service';
+import { AgentSkillsService } from '../../src/modules/agent-skills/agent-skills.service';
+import { PresenceService } from '../../src/modules/presence/presence.service';
 
 jest.setTimeout(10_000);
 
@@ -55,14 +57,50 @@ describe('AssignmentRulesService', () => {
     set: jest.fn().mockResolvedValue(undefined),
   };
 
+  // S59 — skill matcher always returns the full pool by default (= no skill gate),
+  // so pre-S59 tests continue to pass unchanged.
+  const mockAgentSkills = {
+    filterUsersBySkills: jest.fn(),
+  };
+
+  // S59 — presence service defaults to "all ONLINE, 0 chats" so capacity
+  // filter does not narrow candidates in legacy tests. Each S59-specific
+  // test re-configures this mock.
+  const mockPresence = {
+    getCapacityMap: jest.fn(),
+  };
+
+  const allOnlineCapacityMap = (userIds: string[]): Map<string, unknown> => {
+    const map = new Map<string, unknown>();
+    for (const uid of userIds) {
+      map.set(uid, {
+        userId: uid,
+        status: AgentStatus.ONLINE,
+        isOnline: true,
+        atCapacity: false,
+        maxConcurrentChats: 5,
+        currentOpen: 0,
+        lastHeartbeatAt: new Date(),
+      });
+    }
+    return map;
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
+    // default pass-through for skill filter and full-online presence map
+    mockAgentSkills.filterUsersBySkills.mockImplementation(async (_c, ids) => [...ids]);
+    mockPresence.getCapacityMap.mockImplementation(async (_c, ids) =>
+      allOnlineCapacityMap(ids),
+    );
     const module = await Test.createTestingModule({
       providers: [
         AssignmentRulesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CacheService, useValue: mockCache },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        { provide: AgentSkillsService, useValue: mockAgentSkills },
+        { provide: PresenceService, useValue: mockPresence },
       ],
     }).compile();
     service = module.get(AssignmentRulesService);
@@ -458,6 +496,289 @@ describe('AssignmentRulesService', () => {
           customerPhone: '+5511999',
         }),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  // ===== S59 — skill + presence awareness ================================
+
+  describe('S59 skill + presence filters', () => {
+    const baseChat = {
+      id: 'chat1',
+      companyId: 'c1',
+      userId: null as string | null,
+      priority: 'NORMAL',
+      tags: [] as string[],
+      customerPhone: '+5511999',
+      customerName: null as string | null,
+      lastMessagePreview: null as string | null,
+    };
+
+    it('empty requiredSkills → skill matcher bypassed, all candidates pass', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+          requiredSkills: [],
+          minSkillLevel: null,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockCache.get.mockResolvedValueOnce('0');
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      expect(res).toBe('u1');
+      // Matcher still invoked but with empty list → no-op
+      expect(mockAgentSkills.filterUsersBySkills).toHaveBeenCalledWith(
+        'c1',
+        ['u1', 'u2'],
+        [],
+        null,
+      );
+    });
+
+    it('requiredSkills narrows pool; strategy picks from filtered set only', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.LEAST_BUSY,
+          conditions: {},
+          targetUserIds: ['u1', 'u2', 'u3'],
+          requiredSkills: ['spanish'],
+          minSkillLevel: 3,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      // Only u2 has spanish ≥ level 3
+      mockAgentSkills.filterUsersBySkills.mockResolvedValueOnce(['u2']);
+      mockPresence.getCapacityMap.mockResolvedValueOnce(allOnlineCapacityMap(['u2']));
+      mockPrisma.whatsappChat.groupBy.mockResolvedValueOnce([
+        { userId: 'u2', _count: { _all: 4 } },
+      ]);
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      expect(res).toBe('u2');
+      // groupBy should ONLY count chats for the skill-filtered pool
+      expect(mockPrisma.whatsappChat.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId: { in: ['u2'] } }),
+        }),
+      );
+    });
+
+    it('requiredSkills with no candidates → skip rule (no fallback)', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+          requiredSkills: ['italian'],
+          minSkillLevel: null,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockAgentSkills.filterUsersBySkills.mockResolvedValueOnce([]);
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      expect(res).toBeNull();
+      expect(mockPrisma.whatsappChat.update).not.toHaveBeenCalled();
+    });
+
+    it('presence filter excludes OFFLINE candidates', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+          requiredSkills: [],
+          minSkillLevel: null,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      const map = new Map();
+      map.set('u1', {
+        userId: 'u1',
+        status: AgentStatus.OFFLINE,
+        isOnline: false,
+        atCapacity: false,
+        maxConcurrentChats: 5,
+        currentOpen: 0,
+        lastHeartbeatAt: null,
+      });
+      map.set('u2', {
+        userId: 'u2',
+        status: AgentStatus.ONLINE,
+        isOnline: true,
+        atCapacity: false,
+        maxConcurrentChats: 5,
+        currentOpen: 0,
+        lastHeartbeatAt: new Date(),
+      });
+      mockPresence.getCapacityMap.mockResolvedValueOnce(map);
+      mockCache.get.mockResolvedValueOnce('0');
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      expect(res).toBe('u2');
+    });
+
+    it('presence filter excludes atCapacity candidates', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.LEAST_BUSY,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+          requiredSkills: [],
+          minSkillLevel: null,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      const map = new Map();
+      map.set('u1', {
+        userId: 'u1',
+        status: AgentStatus.ONLINE,
+        isOnline: true,
+        atCapacity: true, // saturated
+        maxConcurrentChats: 5,
+        currentOpen: 5,
+        lastHeartbeatAt: new Date(),
+      });
+      map.set('u2', {
+        userId: 'u2',
+        status: AgentStatus.ONLINE,
+        isOnline: true,
+        atCapacity: false,
+        maxConcurrentChats: 5,
+        currentOpen: 1,
+        lastHeartbeatAt: new Date(),
+      });
+      mockPresence.getCapacityMap.mockResolvedValueOnce(map);
+      mockPrisma.whatsappChat.groupBy.mockResolvedValueOnce([
+        { userId: 'u2', _count: { _all: 1 } },
+      ]);
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      expect(res).toBe('u2');
+    });
+
+    it('all candidates offline → fall back to unfiltered (skill-filtered) pool', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1', 'u2'],
+          requiredSkills: [],
+          minSkillLevel: null,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      const map = new Map();
+      map.set('u1', {
+        userId: 'u1',
+        status: AgentStatus.OFFLINE,
+        isOnline: false,
+        atCapacity: false,
+        maxConcurrentChats: 5,
+        currentOpen: 0,
+        lastHeartbeatAt: null,
+      });
+      map.set('u2', {
+        userId: 'u2',
+        status: AgentStatus.OFFLINE,
+        isOnline: false,
+        atCapacity: false,
+        maxConcurrentChats: 5,
+        currentOpen: 0,
+        lastHeartbeatAt: null,
+      });
+      mockPresence.getCapacityMap.mockResolvedValueOnce(map);
+      mockCache.get.mockResolvedValueOnce('0');
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      // RR picks u1 from unfiltered pool ['u1','u2']
+      expect(res).toBe('u1');
+    });
+
+    it('presence service throws → degrades to skill-filtered pool', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1'],
+          requiredSkills: [],
+          minSkillLevel: null,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockPresence.getCapacityMap.mockRejectedValueOnce(new Error('presence down'));
+      mockCache.get.mockResolvedValueOnce('0');
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      expect(res).toBe('u1');
+    });
+
+    it('skill matcher throws → degrades to original targetUserIds', async () => {
+      mockPrisma.assignmentRule.findMany.mockResolvedValueOnce([
+        {
+          id: 'r1',
+          companyId: 'c1',
+          priority: 100,
+          strategy: AssignmentStrategy.ROUND_ROBIN,
+          conditions: {},
+          targetUserIds: ['u1'],
+          requiredSkills: ['portuguese'],
+          minSkillLevel: null,
+        },
+      ]);
+      mockPrisma.whatsappChat.findUnique.mockResolvedValueOnce(baseChat);
+      mockAgentSkills.filterUsersBySkills.mockRejectedValueOnce(new Error('skills down'));
+      mockCache.get.mockResolvedValueOnce('0');
+      const res = await service.tryAutoAssign({
+        companyId: 'c1',
+        chatId: 'chat1',
+        customerPhone: '+5511999',
+      });
+      expect(res).toBe('u1');
     });
   });
 });
