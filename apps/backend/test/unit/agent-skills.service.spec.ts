@@ -56,10 +56,7 @@ describe('AgentSkillsService', () => {
     mockPrisma.agentSkill.count.mockResolvedValue(0);
     mockPrisma.agentSkill.findUnique.mockResolvedValue(null);
     const module = await Test.createTestingModule({
-      providers: [
-        AgentSkillsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [AgentSkillsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
     service = module.get(AgentSkillsService);
   });
@@ -103,18 +100,14 @@ describe('AgentSkillsService', () => {
 
     it('rejects cross-tenant user', async () => {
       mockPrisma.user.findFirst.mockResolvedValueOnce(null);
-      await expect(service.assignToUser('c1', 'actor', dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.assignToUser('c1', 'actor', dto)).rejects.toThrow(BadRequestException);
       expect(mockPrisma.agentSkill.upsert).not.toHaveBeenCalled();
     });
 
     it('rejects when user is at capacity cap (100 skills)', async () => {
       mockPrisma.agentSkill.findUnique.mockResolvedValueOnce(null); // new skill
       mockPrisma.agentSkill.count.mockResolvedValueOnce(100);
-      await expect(service.assignToUser('c1', 'actor', dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.assignToUser('c1', 'actor', dto)).rejects.toThrow(BadRequestException);
     });
 
     it('allows update path even when user is at cap', async () => {
@@ -136,9 +129,7 @@ describe('AgentSkillsService', () => {
           clientVersion: 'x',
         }),
       );
-      await expect(service.assignToUser('c1', 'actor', dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.assignToUser('c1', 'actor', dto)).rejects.toThrow(BadRequestException);
     });
 
     it('persists via upsert + audits UPDATE', async () => {
@@ -234,25 +225,33 @@ describe('AgentSkillsService', () => {
     });
 
     it('atomically replaces via $transaction', async () => {
-      mockPrisma.$transaction.mockImplementationOnce(async (cb: any) => {
-        const tx = {
-          agentSkill: {
-            deleteMany: jest.fn().mockResolvedValue({ count: 3 }),
-            createMany: jest.fn().mockResolvedValue({ count: 2 }),
-          },
+      type TxClient = {
+        agentSkill: {
+          deleteMany: jest.Mock;
+          createMany: jest.Mock;
         };
-        await cb(tx);
-        // Verify both operations ran inside the callback
-        expect(tx.agentSkill.deleteMany).toHaveBeenCalledWith({
-          where: { companyId: 'c1', userId: 'u1' },
-        });
-        expect(tx.agentSkill.createMany).toHaveBeenCalledWith({
-          data: expect.arrayContaining([
-            expect.objectContaining({ skill: 'spanish', level: 4 }),
-            expect.objectContaining({ skill: 'portuguese', level: 5 }),
-          ]),
-        });
-      });
+      };
+      mockPrisma.$transaction.mockImplementationOnce(
+        async (cb: (tx: TxClient) => Promise<unknown>) => {
+          const tx: TxClient = {
+            agentSkill: {
+              deleteMany: jest.fn().mockResolvedValue({ count: 3 }),
+              createMany: jest.fn().mockResolvedValue({ count: 2 }),
+            },
+          };
+          await cb(tx);
+          // Verify both operations ran inside the callback
+          expect(tx.agentSkill.deleteMany).toHaveBeenCalledWith({
+            where: { companyId: 'c1', userId: 'u1' },
+          });
+          expect(tx.agentSkill.createMany).toHaveBeenCalledWith({
+            data: expect.arrayContaining([
+              expect.objectContaining({ skill: 'spanish', level: 4 }),
+              expect.objectContaining({ skill: 'portuguese', level: 5 }),
+            ]),
+          });
+        },
+      );
       mockPrisma.agentSkill.findMany.mockResolvedValueOnce([]);
 
       await service.bulkSetForUser('c1', 'actor', {
@@ -283,15 +282,8 @@ describe('AgentSkillsService', () => {
     });
 
     it('single-skill filter keeps only users with that skill', async () => {
-      mockPrisma.agentSkill.findMany.mockResolvedValueOnce([
-        { userId: 'u1', skill: 'spanish' },
-      ]);
-      const res = await service.filterUsersBySkills(
-        'c1',
-        ['u1', 'u2', 'u3'],
-        ['spanish'],
-        null,
-      );
+      mockPrisma.agentSkill.findMany.mockResolvedValueOnce([{ userId: 'u1', skill: 'spanish' }]);
+      const res = await service.filterUsersBySkills('c1', ['u1', 'u2', 'u3'], ['spanish'], null);
       expect(res).toEqual(['u1']);
     });
 
@@ -333,9 +325,7 @@ describe('AgentSkillsService', () => {
     });
 
     it('drops invalid slugs from requiredSkills defensively', async () => {
-      mockPrisma.agentSkill.findMany.mockResolvedValueOnce([
-        { userId: 'u1', skill: 'spanish' },
-      ]);
+      mockPrisma.agentSkill.findMany.mockResolvedValueOnce([{ userId: 'u1', skill: 'spanish' }]);
       const res = await service.filterUsersBySkills(
         'c1',
         ['u1'],

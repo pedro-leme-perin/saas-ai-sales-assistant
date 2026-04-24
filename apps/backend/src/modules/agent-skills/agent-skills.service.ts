@@ -17,12 +17,7 @@
 // - Audit log fire-and-forget (never blocks hot path).
 // - Max 100 skills per (tenant, user) — cap also enforced in DTO/service.
 
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AgentSkill, AuditAction, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
@@ -275,7 +270,8 @@ export class AgentSkillsService {
     );
     if (normalizedSkills.length === 0) return [...candidateUserIds];
 
-    const levelFloor = typeof minSkillLevel === 'number' ? Math.max(1, Math.min(5, minSkillLevel)) : null;
+    const levelFloor =
+      typeof minSkillLevel === 'number' ? Math.max(1, Math.min(5, minSkillLevel)) : null;
 
     const rows = await this.prisma.agentSkill.findMany({
       where: {
@@ -337,11 +333,7 @@ export class AgentSkillsService {
    * cannot push the user past MAX_SKILLS_PER_USER. Existing skill (update
    * path) does not trip the cap.
    */
-  private async assertCapacity(
-    companyId: string,
-    userId: string,
-    skill: string,
-  ): Promise<void> {
+  private async assertCapacity(companyId: string, userId: string, skill: string): Promise<void> {
     const existing = await this.prisma.agentSkill.findUnique({
       where: { agent_skill_user_skill_unique: { userId, skill } },
       select: { id: true },

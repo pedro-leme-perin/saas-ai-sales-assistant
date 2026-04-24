@@ -69,10 +69,7 @@ export class AgentSkillsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get one skill row by id' })
-  async findById(
-    @CompanyId() companyId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  async findById(@CompanyId() companyId: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findById(companyId, id);
   }
 
@@ -113,7 +110,7 @@ export class AgentSkillsController {
 
   @Put('users/:userId')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
-  @ApiOperation({ summary: 'Bulk-replace a user\'s full skill set atomically' })
+  @ApiOperation({ summary: "Bulk-replace a user's full skill set atomically" })
   async bulkReplace(
     @CompanyId() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

@@ -25,20 +25,10 @@
 //   - Queries are bounded by a hard TAKE cap for safety.
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import {
-  CsatChannel,
-  CsatResponse,
-  CsatResponseStatus,
-  CsatTrigger,
-  Prisma,
-} from '@prisma/client';
+import { CsatChannel, CsatResponse, CsatResponseStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
-import {
-  TrendBucket,
-  TrendGroupBy,
-  TrendsQueryDto,
-} from './dto/trends-query.dto';
+import { TrendBucket, TrendGroupBy, TrendsQueryDto } from './dto/trends-query.dto';
 
 const MAX_WINDOW_DAYS = 180;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -131,16 +121,9 @@ export class CsatTrendsService {
    * Attach Call{userId,tags} and WhatsappChat{userId,tags} to each row via
    * tenant-scoped bulk lookups. Missing FK rows hydrate to null.
    */
-  private async hydrate(
-    companyId: string,
-    rows: CsatResponse[],
-  ): Promise<HydratedResponse[]> {
-    const callIds = Array.from(
-      new Set(rows.map((r) => r.callId).filter((v): v is string => !!v)),
-    );
-    const chatIds = Array.from(
-      new Set(rows.map((r) => r.chatId).filter((v): v is string => !!v)),
-    );
+  private async hydrate(companyId: string, rows: CsatResponse[]): Promise<HydratedResponse[]> {
+    const callIds = Array.from(new Set(rows.map((r) => r.callId).filter((v): v is string => !!v)));
+    const chatIds = Array.from(new Set(rows.map((r) => r.chatId).filter((v): v is string => !!v)));
 
     const [calls, chats] = await Promise.all([
       callIds.length
@@ -173,9 +156,7 @@ export class CsatTrendsService {
 
   // ===== Window / where =================================================
 
-  private parseWindow(
-    query: TrendsQueryDto,
-  ): { since: Date; until: Date; bucket: TrendBucket } {
+  private parseWindow(query: TrendsQueryDto): { since: Date; until: Date; bucket: TrendBucket } {
     const now = new Date();
     const defaultSince = new Date(now.getTime() - DEFAULT_WINDOW_DAYS * 86_400_000);
     const since = query.since ? new Date(query.since) : defaultSince;
@@ -257,7 +238,10 @@ export class CsatTrendsService {
     bucket: TrendBucket,
   ): TrendBucketRow[] {
     // Build dense bucket map → zero-fill empty periods.
-    const buckets = new Map<number, { responded: number; scoreSum: number; p: number; d: number }>();
+    const buckets = new Map<
+      number,
+      { responded: number; scoreSum: number; p: number; d: number }
+    >();
     const cursor = this.bucketStart(since, bucket);
     const endMs = until.getTime();
     while (cursor.getTime() <= endMs) {
@@ -419,7 +403,7 @@ export class CsatTrendsService {
     return Array.from(map.entries())
       .map(([key, a]) => ({
         key,
-        label: key === '(unassigned)' ? key : labelById.get(key) ?? key,
+        label: key === '(unassigned)' ? key : (labelById.get(key) ?? key),
         responded: a.responded,
         avgScore: a.responded > 0 ? Math.round((a.scoreSum / a.responded) * 100) / 100 : 0,
         nps: this.computeNps(a.p, a.d, a.responded),

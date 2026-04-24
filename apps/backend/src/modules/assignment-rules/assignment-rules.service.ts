@@ -382,10 +382,7 @@ export class AssignmentRulesService {
    * (idx is computed modulo current pool length). This keeps the cursor
    * monotonic across heartbeats/presence fluctuations.
    */
-  private async pickRoundRobin(
-    rule: AssignmentRule,
-    pool: string[],
-  ): Promise<string | null> {
+  private async pickRoundRobin(rule: AssignmentRule, pool: string[]): Promise<string | null> {
     if (pool.length === 0) return null;
     const key = `${RR_KEY_PREFIX}${rule.id}`;
     let counter = 0;
@@ -409,10 +406,7 @@ export class AssignmentRulesService {
    * Least-busy pick over the given pool. Counts only OPEN|PENDING|ACTIVE
    * chats. Tie-break on insertion order (Map iteration order = pool order).
    */
-  private async pickLeastBusy(
-    rule: AssignmentRule,
-    pool: string[],
-  ): Promise<string | null> {
+  private async pickLeastBusy(rule: AssignmentRule, pool: string[]): Promise<string | null> {
     if (pool.length === 0) return null;
     const counts = await this.prisma.whatsappChat.groupBy({
       by: ['userId'],

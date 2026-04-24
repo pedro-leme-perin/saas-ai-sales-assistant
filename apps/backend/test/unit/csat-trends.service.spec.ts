@@ -17,11 +17,7 @@
 
 import { Test } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
-import {
-  CsatChannel,
-  CsatResponseStatus,
-  CsatTrigger,
-} from '@prisma/client';
+import { CsatChannel, CsatResponse, CsatResponseStatus, CsatTrigger } from '@prisma/client';
 
 import { CsatTrendsService } from '../../src/modules/csat-trends/csat-trends.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
@@ -46,10 +42,7 @@ describe('CsatTrendsService', () => {
     mockPrisma.csatResponse.findMany.mockResolvedValue([]);
 
     const module = await Test.createTestingModule({
-      providers: [
-        CsatTrendsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [CsatTrendsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
     service = module.get(CsatTrendsService);
   });
@@ -66,7 +59,7 @@ describe('CsatTrendsService', () => {
       callId: string | null;
       chatId: string | null;
     }> = {},
-  ): any => ({
+  ): CsatResponse => ({
     id: overrides.id ?? 'r1',
     companyId: 'c1',
     contactId: null,
@@ -95,9 +88,7 @@ describe('CsatTrendsService', () => {
     });
 
     it('rejects invalid since', async () => {
-      await expect(
-        service.getTrends('c1', { since: 'garbage' }),
-      ).rejects.toThrow();
+      await expect(service.getTrends('c1', { since: 'garbage' })).rejects.toThrow();
     });
 
     it('rejects window larger than 180 days', async () => {
@@ -123,9 +114,7 @@ describe('CsatTrendsService', () => {
 
   describe('tenant isolation', () => {
     it('scopes csatResponse.findMany + hydration by companyId', async () => {
-      mockPrisma.csatResponse.findMany.mockResolvedValueOnce([
-        respondedRow({ callId: 'call1' }),
-      ]);
+      mockPrisma.csatResponse.findMany.mockResolvedValueOnce([respondedRow({ callId: 'call1' })]);
       await service.getTrends('c1', {
         since: '2026-04-10T00:00:00Z',
         until: '2026-04-20T00:00:00Z',
@@ -154,7 +143,7 @@ describe('CsatTrendsService', () => {
         respondedRow({ id: 'r4', score: 1 }),
         // non-RESPONDED row should be excluded from score math
         {
-          ...respondedRow({ id: 'r5', score: null as any }),
+          ...respondedRow({ id: 'r5', score: null as unknown as number }),
           status: CsatResponseStatus.SENT,
         },
       ];
@@ -316,9 +305,7 @@ describe('CsatTrendsService', () => {
         respondedRow({ id: 'r2', score: 4, chatId: 'chat1' }),
         respondedRow({ id: 'r3', score: 3 }), // unassigned
       ]);
-      mockPrisma.call.findMany.mockResolvedValueOnce([
-        { id: 'call1', userId: 'u1', tags: [] },
-      ]);
+      mockPrisma.call.findMany.mockResolvedValueOnce([{ id: 'call1', userId: 'u1', tags: [] }]);
       mockPrisma.whatsappChat.findMany.mockResolvedValueOnce([
         { id: 'chat1', userId: 'u2', tags: [] },
       ]);
