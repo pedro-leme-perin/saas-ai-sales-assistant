@@ -90,9 +90,7 @@ describe('AssignmentRulesService', () => {
     jest.clearAllMocks();
     // default pass-through for skill filter and full-online presence map
     mockAgentSkills.filterUsersBySkills.mockImplementation(async (_c, ids) => [...ids]);
-    mockPresence.getCapacityMap.mockImplementation(async (_c, ids) =>
-      allOnlineCapacityMap(ids),
-    );
+    mockPresence.getCapacityMap.mockImplementation(async (_c, ids) => allOnlineCapacityMap(ids));
     const module = await Test.createTestingModule({
       providers: [
         AssignmentRulesService,

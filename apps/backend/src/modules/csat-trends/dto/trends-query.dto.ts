@@ -9,11 +9,7 @@
 //   - trigger: optional filter (CALL_END | CHAT_CLOSE)
 
 import { CsatChannel, CsatTrigger } from '@prisma/client';
-import {
-  IsDateString,
-  IsEnum,
-  IsOptional,
-} from 'class-validator';
+import { IsDateString, IsEnum, IsOptional } from 'class-validator';
 
 export type TrendBucket = 'day' | 'week' | 'month';
 export type TrendGroupBy = 'agent' | 'tag' | 'channel';
