@@ -91,9 +91,7 @@ export class DsarExtractService implements OnModuleInit {
 
     // Idempotency: only APPROVED rows transition to PROCESSING.
     if (dsar.status !== DsarStatus.APPROVED) {
-      this.logger.warn(
-        `EXTRACT_DSAR ${dsar.id} skipping — status=${dsar.status} (not APPROVED)`,
-      );
+      this.logger.warn(`EXTRACT_DSAR ${dsar.id} skipping — status=${dsar.status} (not APPROVED)`);
       return { dsarRequestId, status: 'NOOP', error: `unexpected status ${dsar.status}` };
     }
 
@@ -111,7 +109,10 @@ export class DsarExtractService implements OnModuleInit {
           resource: 'DSAR_REQUEST',
           resourceId: dsar.id,
           description: 'DSAR processing started by EXTRACT_DSAR worker',
-          newValues: { status: DsarStatus.PROCESSING, jobId: job.id } as unknown as Prisma.InputJsonValue,
+          newValues: {
+            status: DsarStatus.PROCESSING,
+            jobId: job.id,
+          } as unknown as Prisma.InputJsonValue,
         },
       });
     });
@@ -130,7 +131,10 @@ export class DsarExtractService implements OnModuleInit {
       }
 
       const expiresAt = new Date(Date.now() + DSAR_ARTIFACT_TTL_DAYS * 24 * 3600 * 1000);
-      const ttlSeconds = Math.min(DSAR_MAX_DOWNLOAD_TTL_SECONDS, DSAR_ARTIFACT_TTL_DAYS * 24 * 3600);
+      const ttlSeconds = Math.min(
+        DSAR_MAX_DOWNLOAD_TTL_SECONDS,
+        DSAR_ARTIFACT_TTL_DAYS * 24 * 3600,
+      );
       const key = this.buildArtifactKey(dsar);
 
       const uploaded = await this.upload.putObject({
@@ -230,10 +234,7 @@ export class DsarExtractService implements OnModuleInit {
    * Metadata-only artifact for type=INFO (LGPD Art. 18 VII).
    * Contains processing purposes, data categories, retention defaults — no PII.
    */
-  private async buildInfoArtifact(
-    dsar: DsarRequest,
-    generatedAt: string,
-  ): Promise<DsarArtifact> {
+  private async buildInfoArtifact(dsar: DsarRequest, generatedAt: string): Promise<DsarArtifact> {
     const company = await this.prisma.company.findFirst({
       where: { id: dsar.companyId },
       select: { id: true, name: true, plan: true, createdAt: true },
@@ -341,14 +342,8 @@ export class DsarExtractService implements OnModuleInit {
     // 3) Resource fan-out — capped + counted.
     // Calls/Chats match by phone (no contactId FK on these models today).
     const matchPhone = contact?.phone ?? null;
-    const { calls, callsTotal, callsTruncated } = await this.fetchCalls(
-      dsar.companyId,
-      matchPhone,
-    );
-    const { chats, chatsTotal, chatsTruncated } = await this.fetchChats(
-      dsar.companyId,
-      matchPhone,
-    );
+    const { calls, callsTotal, callsTruncated } = await this.fetchCalls(dsar.companyId, matchPhone);
+    const { chats, chatsTotal, chatsTruncated } = await this.fetchChats(dsar.companyId, matchPhone);
     const { suggestions, suggestionsTotal } = await this.fetchAiSuggestions(
       dsar.companyId,
       user?.id ?? null,
@@ -419,7 +414,11 @@ export class DsarExtractService implements OnModuleInit {
   private async fetchCalls(
     companyId: string,
     phone: string | null,
-  ): Promise<{ calls: Array<Record<string, unknown>>; callsTotal: number; callsTruncated: boolean }> {
+  ): Promise<{
+    calls: Array<Record<string, unknown>>;
+    callsTotal: number;
+    callsTruncated: boolean;
+  }> {
     if (!phone) return { calls: [], callsTotal: 0, callsTruncated: false };
     const where: Prisma.CallWhereInput = { companyId, phoneNumber: phone };
 
@@ -456,7 +455,11 @@ export class DsarExtractService implements OnModuleInit {
   private async fetchChats(
     companyId: string,
     phone: string | null,
-  ): Promise<{ chats: Array<Record<string, unknown>>; chatsTotal: number; chatsTruncated: boolean }> {
+  ): Promise<{
+    chats: Array<Record<string, unknown>>;
+    chatsTotal: number;
+    chatsTruncated: boolean;
+  }> {
     if (!phone) return { chats: [], chatsTotal: 0, chatsTruncated: false };
     const where: Prisma.WhatsappChatWhereInput = { companyId, customerPhone: phone };
 

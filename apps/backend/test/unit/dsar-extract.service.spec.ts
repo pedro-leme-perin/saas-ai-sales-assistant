@@ -60,7 +60,10 @@ describe('DsarExtractService', () => {
         count: jest.fn().mockResolvedValue(0),
         findMany: jest.fn().mockResolvedValue([]),
       },
-      auditLogQ: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      auditLogQ: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(prisma)),
     };
   }
@@ -80,7 +83,9 @@ describe('DsarExtractService', () => {
 
     // The auditLog under prisma.* is reused as the audit-fetch mock too,
     // so plug count/findMany onto it (used by fetchAuditLogs).
-    (prisma.auditLog as unknown as Record<string, jest.Mock>).count = jest.fn().mockResolvedValue(0);
+    (prisma.auditLog as unknown as Record<string, jest.Mock>).count = jest
+      .fn()
+      .mockResolvedValue(0);
     (prisma.auditLog as unknown as Record<string, jest.Mock>).findMany = jest
       .fn()
       .mockResolvedValue([]);
@@ -122,9 +127,7 @@ describe('DsarExtractService', () => {
   describe('handleExtract() — guards', () => {
     it('throws when payload is missing dsarRequestId', async () => {
       const job = mkJob({ payload: {} });
-      await expect(service.handleExtract(job, ctx)).rejects.toThrow(
-        /missing dsarRequestId/i,
-      );
+      await expect(service.handleExtract(job, ctx)).rejects.toThrow(/missing dsarRequestId/i);
     });
 
     it('returns NOOP when DSAR row not found for tenant', async () => {
@@ -306,7 +309,9 @@ describe('DsarExtractService', () => {
   });
 });
 
-function mkJob(overrides: Record<string, unknown> = {}): Parameters<DsarExtractService['handleExtract']>[0] {
+function mkJob(
+  overrides: Record<string, unknown> = {},
+): Parameters<DsarExtractService['handleExtract']>[0] {
   return {
     id: 'job-1',
     companyId: 'c1',

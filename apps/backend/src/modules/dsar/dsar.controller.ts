@@ -20,12 +20,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 
-import {
-  CompanyId,
-  CurrentUser,
-  Roles,
-  type AuthenticatedUser,
-} from '@common/decorators';
+import { CompanyId, CurrentUser, Roles, type AuthenticatedUser } from '@common/decorators';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { TenantGuard } from '@modules/auth/guards/tenant.guard';
 
@@ -45,10 +40,7 @@ export class DsarController {
   @Get()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'List DSAR requests (filterable, paginated)' })
-  async list(
-    @CompanyId() companyId: string,
-    @Query() query: ListDsarQueryDto,
-  ): Promise<unknown> {
+  async list(@CompanyId() companyId: string, @Query() query: ListDsarQueryDto): Promise<unknown> {
     return this.service.list(companyId, query);
   }
 

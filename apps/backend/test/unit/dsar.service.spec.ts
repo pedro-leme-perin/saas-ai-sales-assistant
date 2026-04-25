@@ -124,15 +124,15 @@ describe('DsarService', () => {
 
     it('rejects when actor role below ADMIN (Forbidden)', async () => {
       // Vendor actor (rank 1) cannot create.
-      await expect(
-        service.create(COMPANY, ACTOR_VENDOR, baseDto()),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.create(COMPANY, ACTOR_VENDOR, baseDto())).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
     it('rejects when companyId is missing (BadRequest)', async () => {
-      await expect(
-        service.create('', ACTOR_ADMIN, baseDto()),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create('', ACTOR_ADMIN, baseDto())).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects CORRECTION without correctionPayload', async () => {
@@ -169,9 +169,9 @@ describe('DsarService', () => {
 
     it('blocks creation when open requester cap reached (Conflict)', async () => {
       prisma.dsarRequest.count.mockResolvedValue(3); // DSAR_MAX_OPEN_PER_REQUESTER
-      await expect(
-        service.create(COMPANY, ACTOR_ADMIN, baseDto()),
-      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.create(COMPANY, ACTOR_ADMIN, baseDto())).rejects.toBeInstanceOf(
+        ConflictException,
+      );
     });
 
     it('persists ACCESS request, lower-cases email, audits DSAR_REQUESTED', async () => {
@@ -217,11 +217,7 @@ describe('DsarService', () => {
       prisma.dsarRequest.count.mockResolvedValue(0);
       prisma.dsarRequest.create.mockResolvedValue({ id: 'r-2' });
 
-      await service.create(
-        COMPANY,
-        ACTOR_OWNER,
-        baseDto({ cpf: '123.456.789-09' }),
-      );
+      await service.create(COMPANY, ACTOR_OWNER, baseDto({ cpf: '123.456.789-09' }));
 
       const callArg = prisma.dsarRequest.create.mock.calls[0][0] as {
         data: { cpf: string | null };
@@ -248,16 +244,16 @@ describe('DsarService', () => {
     };
 
     it('rejects when actor role below MANAGER', async () => {
-      await expect(
-        service.approve(COMPANY, ACTOR_VENDOR, 'dsar-1', {}),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.approve(COMPANY, ACTOR_VENDOR, 'dsar-1', {})).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
     it('returns 404 when DSAR not found', async () => {
       prisma.dsarRequest.findFirst.mockResolvedValue(null);
-      await expect(
-        service.approve(COMPANY, ACTOR_MANAGER, 'dsar-1', {}),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.approve(COMPANY, ACTOR_MANAGER, 'dsar-1', {})).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('rejects when status≠PENDING (Conflict)', async () => {
@@ -265,9 +261,9 @@ describe('DsarService', () => {
         ...dsarRow,
         status: DsarStatus.APPROVED,
       });
-      await expect(
-        service.approve(COMPANY, ACTOR_MANAGER, 'dsar-1', {}),
-      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.approve(COMPANY, ACTOR_MANAGER, 'dsar-1', {})).rejects.toBeInstanceOf(
+        ConflictException,
+      );
     });
 
     it('flips PENDING → APPROVED, enqueues EXTRACT_DSAR, stamps jobId', async () => {
@@ -416,8 +412,8 @@ describe('DsarService', () => {
         csatResponse: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
         contact: { delete: jest.fn().mockResolvedValue({}) },
       };
-      prisma.$transaction.mockImplementationOnce(
-        async (cb: (tx: unknown) => Promise<unknown>) => cb(txDeleteHooks),
+      prisma.$transaction.mockImplementationOnce(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb(txDeleteHooks),
       );
       prisma.dsarRequest.update.mockResolvedValue({
         ...dsar,
@@ -530,9 +526,9 @@ describe('DsarService', () => {
     };
 
     it('rejects when actor below ADMIN', async () => {
-      await expect(
-        service.download(COMPANY, ACTOR_MANAGER, 'dsar-x'),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.download(COMPANY, ACTOR_MANAGER, 'dsar-x')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
     it('rejects when status≠COMPLETED', async () => {
@@ -540,9 +536,9 @@ describe('DsarService', () => {
         ...completedRow,
         status: DsarStatus.PROCESSING,
       });
-      await expect(
-        service.download(COMPANY, ACTOR_ADMIN, 'dsar-x'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.download(COMPANY, ACTOR_ADMIN, 'dsar-x')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects when expiresAt has passed', async () => {
@@ -550,9 +546,9 @@ describe('DsarService', () => {
         ...completedRow,
         expiresAt: new Date(Date.now() - 1000),
       });
-      await expect(
-        service.download(COMPANY, ACTOR_ADMIN, 'dsar-x'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.download(COMPANY, ACTOR_ADMIN, 'dsar-x')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects when artifactKey is missing', async () => {
@@ -560,9 +556,9 @@ describe('DsarService', () => {
         ...completedRow,
         artifactKey: null,
       });
-      await expect(
-        service.download(COMPANY, ACTOR_ADMIN, 'dsar-x'),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.download(COMPANY, ACTOR_ADMIN, 'dsar-x')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('issues fresh signed URL via UploadService and audits READ', async () => {

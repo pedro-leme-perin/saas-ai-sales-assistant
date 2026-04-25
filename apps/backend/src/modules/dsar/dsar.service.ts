@@ -343,8 +343,10 @@ export class DsarService {
     }
     if (filters.fromDate || filters.toDate) {
       where.requestedAt = {};
-      if (filters.fromDate) (where.requestedAt as Prisma.DateTimeFilter).gte = new Date(filters.fromDate);
-      if (filters.toDate) (where.requestedAt as Prisma.DateTimeFilter).lt = new Date(filters.toDate);
+      if (filters.fromDate)
+        (where.requestedAt as Prisma.DateTimeFilter).gte = new Date(filters.fromDate);
+      if (filters.toDate)
+        (where.requestedAt as Prisma.DateTimeFilter).lt = new Date(filters.toDate);
     }
 
     const [items, total] = await Promise.all([
@@ -458,9 +460,7 @@ export class DsarService {
         });
         expired++;
       } catch (err) {
-        this.logger.warn(
-          `Failed to flip DSAR ${candidate.id} → EXPIRED: ${String(err)}`,
-        );
+        this.logger.warn(`Failed to flip DSAR ${candidate.id} → EXPIRED: ${String(err)}`);
       }
     }
     if (expired > 0) {
