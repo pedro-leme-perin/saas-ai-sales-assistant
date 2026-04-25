@@ -69,6 +69,15 @@ describe('DsarExtractService', () => {
     jest.resetAllMocks();
     prisma = buildPrismaMock();
 
+    // Default-resolved fallback for `prisma.dsarRequest.update` so any call
+    // beyond the explicit `mockResolvedValueOnce` chain (e.g. the FAILED flip
+    // invoked from the handler's catch block via `.catch(() => undefined)`)
+    // still returns a Promise instead of `undefined`. Without this, the
+    // secondary FAILED flip in failure-path tests throws
+    // "Cannot read properties of undefined (reading 'catch')" and masks the
+    // original error we're asserting on.
+    prisma.dsarRequest.update.mockResolvedValue({});
+
     // The auditLog under prisma.* is reused as the audit-fetch mock too,
     // so plug count/findMany onto it (used by fetchAuditLogs).
     (prisma.auditLog as unknown as Record<string, jest.Mock>).count = jest.fn().mockResolvedValue(0);

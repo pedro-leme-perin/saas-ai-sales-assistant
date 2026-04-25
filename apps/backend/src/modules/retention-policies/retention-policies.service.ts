@@ -30,6 +30,10 @@ const MIN_DAYS: Record<RetentionResource, number> = {
   AI_SUGGESTIONS: 7,
   CSAT_RESPONSES: 7,
   NOTIFICATIONS: 7,
+  // S60a: DSAR artefacts — presigned download URL TTL is capped at 7d (R2 limit).
+  // Floor must be >= 7 so the retention cron never purges an artefact before its
+  // download URL expires.
+  DSAR_ARTIFACTS: 7,
 };
 
 @Injectable()
