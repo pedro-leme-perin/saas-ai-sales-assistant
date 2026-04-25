@@ -2223,5 +2223,67 @@ Página Next.js nova com:
 
 ---
 
-*Documento atualizado em 23/04/2026*
+---
+
+## Sessão 59-hotfix — 24–25/04/2026 — CI red → green em `c3f44a9`
+
+### Contexto
+
+S59 (`ce63398`) havia sido mergeada em main com briefing reportando "CI verde", mas verificação via GitHub API revelou CI **vermelho**: backend job falhando em `Lint` (primeiro step), mascarando regressões downstream (type-check, build, unit tests, integration). Corrigido em 3 commits incrementais.
+
+### Commits
+
+| Commit | Natureza | Escopo |
+|---|---|---|
+| `f727ce6` | prettier + type tightening | 13 erros prettier em 4 src + 2 specs; `any` → `CsatResponse` / `TxClient` discriminated type (CLAUDE.md §8 "proibido any") |
+| `be36642` | prettier residual | 2 erros descobertos após Lint finalmente rodar: `trends-query.dto.ts` imports + `assignment-rules.service.spec.ts` mock line |
+| `c3f44a9` | Jest mock-queue leak fix | `agent-skills.service.spec.ts`: removido `count.mockResolvedValueOnce(100)` morto no teste `allows update path even when user is at cap` (service early-return em `assertCapacity` quando existing skill found → count nunca chamado → mock vaza) |
+
+### Root cause — Jest mock-queue leak (bug principal)
+
+Encadeamento:
+1. Teste T3 enfileirava `count.mockResolvedValueOnce(100)` supondo que seria consumido. Não foi (early-return em assertCapacity).
+2. `jest.clearAllMocks()` no beforeEach limpa `.calls/.instances` mas **não** limpa queues de `mockImplementationOnce` (documentação Jest confirmada).
+3. T4 (`maps P2002`) consome o 100 vazado → throw BadRequest cap → upsert nunca chamado → `upsert.mockRejectedValueOnce(P2002)` vaza.
+4. T5 (`persists via upsert + audits UPDATE`) consome P2002 vazado → catch → `BadRequestException('Skill already exists for this user')` (sintoma observado).
+
+Fix: remover mock morto + comentário explicando por que `*Once` não pode ser enfileirado quando o caminho não o consome. Minimum surgical change, zero source logic changes.
+
+### Verificação — CI run `24917415481` em `c3f44a9`
+
+| Job | Conclusion | Tempo |
+|---|---|---|
+| Install | ✅ success | 29s |
+| Frontend (lint+type+build+bundle+Playwright 10 specs) | ✅ success | 2m 41s |
+| Backend (lint+type+build+jest unit+prisma migrate+integration) | ✅ success | 2m 35s |
+| CI Gate | ✅ success | 2s |
+
+Total 3m 16s. 44 unit + 2 integration + 10 E2E = 56 suites verdes.
+
+### Lições operacionais (aplicáveis a sessões futuras)
+
+1. **Nunca confiar em "CI verde" reportado por briefings** — verificar via `GET /repos/.../commits/<sha>/check-runs` antes de empilhar trabalho novo. Ordem dos steps em ci.yml faz primeiro failure mascarar seguintes.
+2. **`jest.resetAllMocks()` > `clearAllMocks()`** em specs com uso extensivo de `mock*Once` — elimina leaks entre testes. Refactor candidate nos 44 specs backend.
+3. **Mock`*Once` só quando o caminho GARANTE consumo** — se há early-return condicional, usar `mockImplementation` persistente.
+4. **Windows + `pnpm test:unit` default = freeze risk**: Jest fork `cpus-1` workers, cada ~250MB. Sempre `--runInBand` + `NODE_OPTIONS=--max-old-space-size=1024` em máquinas com RAM apertada.
+5. **Sandbox bindfs + Edit tool**: arquivos encolhidos por Edit ficam com NULs terminais. Arquivos MUITO crescidos por Edit podem truncar. Para edições grandes em arquivos grandes, usar Python `open('w')` direto.
+
+### Arquivos (5 arquivos backend, 3 commits)
+
+```
+apps/backend/src/modules/agent-skills/agent-skills.service.ts         (f727ce6)
+apps/backend/src/modules/agent-skills/agent-skills.controller.ts      (f727ce6)
+apps/backend/src/modules/assignment-rules/assignment-rules.service.ts (f727ce6)
+apps/backend/src/modules/csat-trends/csat-trends.service.ts           (f727ce6)
+apps/backend/src/modules/csat-trends/dto/trends-query.dto.ts          (be36642)
+apps/backend/test/unit/agent-skills.service.spec.ts          (f727ce6 + c3f44a9)
+apps/backend/test/unit/csat-trends.service.spec.ts                    (f727ce6)
+apps/backend/test/unit/assignment-rules.service.spec.ts               (be36642)
+```
+
+S60a (DSAR) deliberadamente bloqueada — sessão nova dedicada.
+
+---
+
+*Documento atualizado em 25/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

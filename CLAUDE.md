@@ -22,14 +22,14 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 23/04/2026 (sessão 59)
+> Última atualização: 25/04/2026 (sessão 59-hotfix — CI verde em `c3f44a9`)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | sessão 59 (23/04/2026) | Routing skills (AgentSkill catalogue per-tenant + AssignmentRule.requiredSkills[]/minSkillLevel + `filterUsersBySkills` ALL-semantics com level gate [1..5] clamp + defensive slug regex sanitization + presence-aware pool via `PresenceService.getCapacityMap` filtrando `OFFLINE\|atCapacity` + fallback-to-skill-filtered quando todos offline + per-layer try/catch degradation + audit ledger flags `skillFiltered/presenceFiltered/fellBackToUnfiltered`) + CSAT trending (`CsatTrendsService` time-series day/week/month UTC-anchored dense zero-fill + NPS 5-ponto [5=promoter/4=passive/1-3=detractor] + breakdown axis agent\|tag\|channel + manual Call/WhatsappChat hydrate join por ausência de Prisma relation + window cap 180d + /dashboard/csat/trends page com inline SVG chart zero-dep + i18n pt-BR/en) |
+| Último commit | S59-hotfix `c3f44a9` (25/04/2026) | **CI totalmente verde** (3m 16s: install 29s + frontend 2m 41s + backend 2m 35s + gate 2s). Hotfix em 3 commits (`f727ce6` → `be36642` → `c3f44a9`) corrigiu 15 prettier errors + 1 Jest mock-queue leak bug em `agent-skills.service.spec.ts` pré-existentes em S59 mas mascarados por CI red (ver `PROJECT_HISTORY.md` entrada S59-hotfix para cascata completa + lições operacionais). Zero source logic changes. Feature S59 Routing skills + CSAT trending (ver sessão 59 abaixo) mantida intacta. |
 | Backend (NestJS) | ✅ Produção | Railway — 46 módulos (+agent-skills, +csat-trends), 78+ test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 44 routes (+/dashboard/csat/trends) |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 41 modelos (+AgentSkill), 43 enums Prisma + pg_trgm |
