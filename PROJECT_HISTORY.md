@@ -2496,3 +2496,108 @@ Registrado como decisão consciente, não como gap.
 
 *Documento atualizado em 30/04/2026 (encerramento operacional)*
 *Próxima atualização: a cada sessão de trabalho*
+
+---
+
+## Sessão 60b (25/04/2026) — S60a continuação operacional: smoke test E2E prod
+
+> **Não é uma sessão nova de feature — é o encerramento real do S60a com smoke test E2E em prod, fix de 7 bugs descobertos durante validação UI, e ajuste fino do artefato.**
+
+### Contexto
+
+Após S60a-deploy declarar "encerrado" em 30/04/2026, o smoke test E2E (criar DSAR INFO via UI logada → aprovar → verificar artefato → email) revelou que o frontend nunca chegou em produção operável: nenhum dos 4 commits de fix de UI havia deployado, e mesmo após desbloqueio o serviço de listagem retornava lista vazia. Sequência de descobertas e correções está abaixo. Total: 7 commits incrementais (`f2483f2` → `2701264`) + 1 commit de encerramento (`<close-commit>`).
+
+### Sintomas reportados pelo usuário
+
+1. Form `/dashboard/admin/dsar` com **inputs ilegíveis** (texto branco em fundo branco) em modo dark.
+2. Após múltiplos fixes, sintoma persistia.
+3. Após bypass do bug raiz, lista DSAR aparecia **vazia** mesmo com registros no banco.
+4. Após bypass do bug do front, artefato JSON gerado com `legalBasis` incorreto para tipo INFO.
+
+### Bugs descobertos e corrigidos (em ordem cronológica)
+
+**1. Tailwind `border-zinc-300` sem dark adaptation** (commit `f2483f2`):
+- 5 inputs do form principal usavam classe light-only (`border-zinc-300`), invisíveis em dark.
+- Fix: substituir por `border ... bg-background text-foreground` (theme-aware via shadcn CSS vars).
+- **Insuficiente isoladamente** — apenas 5 dos 9+ alvos cobertos.
+
+**2. Sub-componentes não cobertos pelo replace_all** (commit `c0ffbf0`):
+- `CorrectionField`, `FilterBar` (2 selects), `RejectModal` (textarea + card), 5 labels (`text-zinc-700`).
+- Fix: cobertura total com `bg-background text-foreground` + `text-foreground` em labels + `bg-card text-card-foreground` em modal.
+- **Insuficiente isoladamente** — input `type="email"` continuava branco.
+
+**3. Chrome autofill `:-webkit-autofill`** (commit `59c5d60`):
+- Chrome pinta inputs autofill com `!important` interno do user-agent CSS, derrotando Tailwind.
+- Fix: regras `:-webkit-autofill` em globals.css com `box-shadow: 0 0 0 1000px hsl(var(--background)) inset !important` + `-webkit-text-fill-color` + `transition: 9999s` (atrasa repaint do Chrome).
+- **Insuficiente isoladamente** — bug ainda persistia.
+
+**4. CSS `color-scheme` ausente** (commit `e5825b9`, declarada raiz mas insuficiente sozinha):
+- Sem `color-scheme: dark` no `.dark`, browser pinta native controls (`<input>`, `<textarea>`, scrollbar) com **field-color light** (branco) por default, ignorando Tailwind `bg-*`.
+- Fix: `:root { color-scheme: light }` + `.dark { color-scheme: dark }` + global `input, textarea, select { background-color: transparent; color: inherit }` como fallback defensivo.
+
+**5. Edit tool truncando arquivos com CRLF** (causa raiz real, commit `90709e2`):
+- DOM inspect revelou que **bundle do Vercel ainda servia o `a7b9442` original** após 4 deploys. CI Frontend falhava em todos os 4 commits com `PostCSS Syntax error: globals.css Unknown word backgroun (149:5)`.
+- Diagnóstico: o Edit tool, ao escrever via mount OneDrive em arquivos com CRLF, silenciosamente truncava o arquivo. `globals.css` foi cortado em `backgroun` (linha 149 incompleta) e `dsar/page.tsx` em `{p` (linha 521 incompleta). Cada `git hash-object` no sandbox bash capturava a versão truncada → blob commit defeituoso → CI falhava → Vercel não promovia deploy.
+- Fix: reescrita atômica de ambos arquivos via `cat > file << 'EOF'` heredoc dentro do sandbox bash, contornando o Edit. CI Frontend verde 4/4 pela primeira vez desde `f2483f2`.
+- **Lição operacional crítica**: validar `wc -l` + `tail` no sandbox bash após cada Edit em arquivo grande ou com CRLF. Edit tool não é confiável nessas condições.
+
+**6. `dsar.service.ts` não desempacotava envelope `TransformInterceptor`** (commit `2701264`):
+- API retornava `{success, statusCode, data: {items, total}, ...}` (envelope global do Nest interceptor) mas o service tipava como `Promise<ListDsarResult>` e retornava o envelope cru. Page fazia `data?.items` no envelope → undefined → "Nenhuma solicitação".
+- Fix: tipar como `{ data: T }` e retornar `res.data` em todas as 6 funções (list/findById/create/approve/reject/download). Pattern já correto em `impersonation.service.ts`.
+
+**7. `legalBasis` hardcoded incorreto para tipo INFO** (commit `<close-commit>`):
+- `buildInfoArtifact` stampava `'LGPD Art. 18 V (PORTABILITY)'` no artefato gerado para tipo INFO. Deveria ser `'LGPD Art. 18 VII (INFORMATION)'`.
+- Fix: novo mapping `DSAR_LEGAL_BASIS: Record<DsarType, string>` em `constants.ts` (5 sub-direitos LGPD), substituição em `buildInfoArtifact` (linha 294) + `buildSubjectDataArtifact` (linha 404 — antes era ternário ACCESS/PORTABILITY) usando `DSAR_LEGAL_BASIS[dsar.type]`. Tipo `DsarArtifact.legalBasis` relaxado de union literal para `string` (data-driven, evolui com LGPD). `DSAR_TYPES_WITH_ARTIFACT` expandido para incluir `DsarType.INFO` (ajusta intent declarado no comentário).
+
+### Validação E2E em prod
+
+| Item | Resultado |
+|---|---|
+| DSAR INFO criado via UI | ✓ `812ca109-2a3c-4a7f-b7f9-36fc30ac9677` |
+| Aprovação admin | ✓ status PENDING → APPROVED → PROCESSING |
+| Background worker EXTRACT_DSAR | ✓ ~30s para COMPLETED |
+| Upload R2 + presigned URL 7d | ✓ artefato JSON 1.2KB |
+| Download via UI | ✓ JSON válido com schema correto |
+| Email Resend `sendDsarReadyEmail` | ✓ caixa `leme.baseapr@gmail.com` |
+| Tenant isolation | ✓ DSARs ficam confinados em `companyId` `06b6f28a` |
+
+### Limpeza de quota anti-abuse
+
+Após smoke test, 2 DSARs PENDING duplicados (`ba7c1b56` e `328e5b68`) foram rejeitados via API com motivo padronizado para liberar a cota `DSAR_MAX_OPEN_PER_REQUESTER=3` no janelamento de 7d. Estado final do tenant: 1 COMPLETED + 2 REJECTED.
+
+### Lições operacionais (complementares a S60a-deploy)
+
+1. **`color-scheme` é obrigatório em qualquer aplicação dark-mode com inputs nativos**. Tailwind `bg-*` em isolation não vence o user-agent CSS para `<input>`/`<textarea>`/`scrollbar`. Pattern: `:root { color-scheme: light }` + `.dark { color-scheme: dark }` em globals.css.
+2. **Validar bundle deployado, não código local**, ao depurar bug que "não some". DOM inspect via Chrome MCP (`getComputedStyle(input).backgroundColor` + `Array.from(scripts).map(s=>s.src)`) é mais confiável que assumir que o último push está em prod.
+3. **CI status > assumir deploy automático**: `curl https://api.github.com/repos/{owner}/{repo}/commits/{sha}/check-runs` para confirmar `conclusion: success` antes de assumir que Vercel pegou o commit.
+4. **Edit tool com CRLF + arquivo grande = bug silencioso de truncation**. Mitigação enterprise: pre-commit hook `wc -l` + `tail -1` para garantir que arquivo termina em char esperado (`}`, `;`, etc.) antes de `git add`.
+5. **TransformInterceptor envelope unwrapping deve ser teste de integração**: mock do apiClient retornando envelope completo, asserção de que o service retorna o payload desembrulhado. S59 introduziu `impersonation.service` com pattern correto; S60a copiou pattern errado de outro service legado.
+6. **Mapping vs hardcoded literal**: para qualquer atributo que varia por enum (legalBasis, displayLabel, color), usar `Record<EnumType, T>` em constants.ts em vez de ternário/switch inline. Garante exhaustiveness check em compile-time + single source of truth.
+
+### Commits da continuação
+
+```
+f2483f2 fix(s60a): dark mode contrast on DSAR form inputs
+c0ffbf0 fix(s60a): comprehensive dark-mode contrast on DSAR page
+59c5d60 fix(s60a): preserve dark theme on Chrome autofill (DSAR form)
+e5825b9 fix(s60a): color-scheme + native control theming (root cause)
+90709e2 fix(s60a): repair truncated globals.css + page.tsx blocking Vercel deploy
+2701264 fix(s60a): unwrap envelope in dsar.service to expose items to UI
+<close>  fix(s60a): legalBasis map per DsarType (Art. 18 II/V/III/VI/VII)
+```
+
+### Arquivos tocados na continuação
+
+```
+apps/frontend/src/app/globals.css                               (+19 lines — color-scheme + autofill + native control reset)
+apps/frontend/src/app/dashboard/admin/dsar/page.tsx             (~9 className changes — bg-background/text-foreground cleanup)
+apps/frontend/src/services/dsar.service.ts                      (6 functions — envelope unwrap)
+apps/backend/src/modules/dsar/constants.ts                      (+ DSAR_LEGAL_BASIS map; INFO added to DSAR_TYPES_WITH_ARTIFACT)
+apps/backend/src/modules/dsar/types.ts                          (legalBasis: union → string + comment)
+apps/backend/src/modules/dsar/dsar-extract.service.ts           (2 spots use DSAR_LEGAL_BASIS[dsar.type])
+PROJECT_HISTORY.md                                              (+ esta entrada)
+```
+
+S60a (incluindo continuação) ENCERRADO. Smoke test E2E prod ✓ executado, lições documentadas, quota limpa.
+
+---

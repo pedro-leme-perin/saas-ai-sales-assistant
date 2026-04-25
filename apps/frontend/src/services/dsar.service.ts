@@ -1,5 +1,5 @@
 // =============================================
-// DSAR service (Session 60a) — LGPD Art. 18
+// 🛡️ DSAR service (Session 60a) — LGPD Art. 18
 // =============================================
 
 import { apiClient } from "@/lib/api-client";
@@ -86,10 +86,6 @@ export interface DownloadDsarResult {
   expiresAt: string;
 }
 
-// Backend wraps every response in { success, statusCode, data, ... } via
-// the global TransformInterceptor. apiClient.get returns the whole envelope,
-// so each method here must unwrap `.data` before handing the payload to
-// React Query. Without this the components see `undefined` for every field.
 async function list(filters: ListDsarFilters = {}): Promise<ListDsarResult> {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => {
@@ -97,46 +93,27 @@ async function list(filters: ListDsarFilters = {}): Promise<ListDsarResult> {
     params.append(k, String(v));
   });
   const qs = params.toString();
-  const res = await apiClient.get<{ data: ListDsarResult }>(
-    `/dsar${qs ? `?${qs}` : ""}`,
-  );
-  return res.data;
+  return apiClient.get<ListDsarResult>(`/dsar${qs ? `?${qs}` : ""}`);
 }
 
 async function findById(id: string): Promise<DsarRequestRow> {
-  const res = await apiClient.get<{ data: DsarRequestRow }>(`/dsar/${id}`);
-  return res.data;
+  return apiClient.get<DsarRequestRow>(`/dsar/${id}`);
 }
 
 async function create(payload: CreateDsarPayload): Promise<DsarRequestRow> {
-  const res = await apiClient.post<{ data: DsarRequestRow }>("/dsar", payload);
-  return res.data;
+  return apiClient.post<DsarRequestRow>("/dsar", payload);
 }
 
-async function approve(
-  id: string,
-  note?: string,
-): Promise<DsarRequestRow> {
-  const res = await apiClient.post<{ data: DsarRequestRow }>(
-    `/dsar/${id}/approve`,
-    { note },
-  );
-  return res.data;
+async function approve(id: string, note?: string): Promise<DsarRequestRow> {
+  return apiClient.post<DsarRequestRow>(`/dsar/${id}/approve`, { note });
 }
 
 async function reject(id: string, reason: string): Promise<DsarRequestRow> {
-  const res = await apiClient.post<{ data: DsarRequestRow }>(
-    `/dsar/${id}/reject`,
-    { reason },
-  );
-  return res.data;
+  return apiClient.post<DsarRequestRow>(`/dsar/${id}/reject`, { reason });
 }
 
 async function download(id: string): Promise<DownloadDsarResult> {
-  const res = await apiClient.get<{ data: DownloadDsarResult }>(
-    `/dsar/${id}/download`,
-  );
-  return res.data;
+  return apiClient.get<DownloadDsarResult>(`/dsar/${id}/download`);
 }
 
 export const dsarService = {

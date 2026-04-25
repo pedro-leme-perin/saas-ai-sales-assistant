@@ -1,7 +1,7 @@
 // =============================================
-// 🧩 DSAR — Internal types (S60a)
+// DSAR — Internal types (S60a)
 // =============================================
-// Strongly-typed contracts for service ↔ worker ↔ controller boundaries.
+// Strongly-typed contracts for service <-> worker <-> controller boundaries.
 // NO Prisma types leak into Domain — these are pure TS interfaces.
 
 import { DsarStatus, DsarType } from '@prisma/client';
@@ -63,9 +63,15 @@ export interface CorrectionPayload {
 }
 
 /**
- * Aggregated artefact shape produced by ACCESS/PORTABILITY extracts.
+ * Aggregated artefact shape produced by extracts (ACCESS/PORTABILITY/INFO).
  * Persisted to R2 as JSON (UTF-8). `format` differentiates downstream
  * frontend rendering should we ever ship HTML reports.
+ *
+ * `legalBasis` is the human-readable LGPD Art. 18 sub-right citation
+ * stamped on the artefact for the requester's awareness — derived from
+ * `DSAR_LEGAL_BASIS[type]` in constants.ts. Typed as `string` (not a
+ * literal union) because the mapping is data-driven and may grow as
+ * the LGPD evolves; runtime values are still constrained by that map.
  */
 export interface DsarArtifact {
   format: 'json';
@@ -101,6 +107,6 @@ export interface DsarArtifact {
     auditLogs: number;
     truncated: boolean;
   };
-  /** LGPD article reference for the requester's awareness. */
-  legalBasis: 'LGPD Art. 18 II (ACCESS)' | 'LGPD Art. 18 V (PORTABILITY)';
+  /** LGPD article reference (see constants.DSAR_LEGAL_BASIS). */
+  legalBasis: string;
 }

@@ -43,6 +43,7 @@ import { UploadService } from '@modules/upload/upload.service';
 import {
   DSAR_ARTIFACT_TTL_DAYS,
   DSAR_AUDIT_DESCRIPTIONS,
+  DSAR_LEGAL_BASIS,
   DSAR_MAX_ARTIFACT_BYTES,
   DSAR_MAX_DOWNLOAD_TTL_SECONDS,
   DSAR_MAX_ROWS_PER_RESOURCE,
@@ -290,7 +291,7 @@ export class DsarExtractService implements OnModuleInit {
         auditLogs: 0,
         truncated: false,
       },
-      legalBasis: 'LGPD Art. 18 V (PORTABILITY)',
+      legalBasis: DSAR_LEGAL_BASIS[dsar.type],
     };
   }
 
@@ -400,10 +401,7 @@ export class DsarExtractService implements OnModuleInit {
         auditLogs: auditLogsTotal,
         truncated,
       },
-      legalBasis:
-        dsar.type === DsarType.PORTABILITY
-          ? 'LGPD Art. 18 V (PORTABILITY)'
-          : 'LGPD Art. 18 II (ACCESS)',
+      legalBasis: DSAR_LEGAL_BASIS[dsar.type],
     };
   }
 

@@ -1,9 +1,10 @@
 // =============================================
-// 📜 DSAR — Constants (S60a)
+// DSAR — Constants (S60a)
 // =============================================
 // LGPD Art. 18 — Data Subject Access Request workflow constants.
-// Centralised so RetentionPolicy floor + email TTL + payload caps are
-// consistent across DsarService, DsarExtractService, controller, tests.
+// Centralised so RetentionPolicy floor + email TTL + payload caps + legal
+// basis citations are consistent across DsarService, DsarExtractService,
+// controller, tests.
 
 import { DsarType } from '@prisma/client';
 
@@ -57,13 +58,29 @@ export const DSAR_CPF_REGEX = /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/;
 /**
  * Allowed DSAR types that produce a downloadable artefact (i.e. EXTRACT_DSAR
  * worker generates a JSON or HTML payload). DELETION delegates to LGPD;
- * INFO returns processing metadata in-band; CORRECTION mutates the contact
- * record and returns a confirmation only.
+ * CORRECTION mutates the contact record and returns a confirmation only.
+ * INFO produces a metadata-only artefact (no PII fan-out).
  */
 export const DSAR_TYPES_WITH_ARTIFACT: ReadonlySet<DsarType> = new Set([
   DsarType.ACCESS,
   DsarType.PORTABILITY,
+  DsarType.INFO,
 ]);
+
+/**
+ * LGPD Art. 18 sub-right citation per DSAR type. Used to stamp the
+ * generated artefact with the precise legal basis communicated to the
+ * data subject. Centralised so the controller/service/worker/email
+ * templates never disagree, and so adding a new sub-right is a single
+ * touch-point. Mapping mirrors LGPD Art. 18 verbatim.
+ */
+export const DSAR_LEGAL_BASIS: Record<DsarType, string> = {
+  [DsarType.ACCESS]: 'LGPD Art. 18 II (ACCESS)',
+  [DsarType.PORTABILITY]: 'LGPD Art. 18 V (PORTABILITY)',
+  [DsarType.CORRECTION]: 'LGPD Art. 18 III (CORRECTION)',
+  [DsarType.DELETION]: 'LGPD Art. 18 VI (DELETION)',
+  [DsarType.INFO]: 'LGPD Art. 18 VII (INFORMATION)',
+};
 
 /**
  * Audit description bodies (kept short — full context lives in AuditLog
