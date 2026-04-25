@@ -2285,5 +2285,142 @@ S60a (DSAR) deliberadamente bloqueada — sessão nova dedicada.
 
 ---
 
-*Documento atualizado em 25/04/2026*
+## Sessão 60a — DSAR Workflow (LGPD Art. 18)
+**Data:** 30/04/2026
+**Branch:** `main`
+**Objetivo:** Implementar workflow completo de Data Subject Access Requests cobrindo os 5 sub-direitos do titular sob LGPD Art. 18: ACCESS (II), PORTABILITY (V), CORRECTION (III), DELETION (VI), INFO (VII). Pipeline: admin recebe solicitação externa → cria registro PENDING → manager+ aprova → background extract → R2 upload + email assinado → audit completo.
+
+### Decisões arquiteturais
+
+1. **DELETION integration com LgpdDeletionModule (S43)** — REUSO via grace period 30d.
+   - Quando `requesterEmail` matches `User.email` → `scheduleDeletionForDsar` agenda hard-delete em 30d via cron `processScheduledDeletions @EVERY_HOUR`.
+   - Sem User match mas com Contact → soft-delete imediato (sem grace) + anonymize `CsatResponse.contactId/comment`.
+   - Justificativa: ANPD recomenda grace period contra erros operacionais; Contact rows não têm conta para suspender.
+   - Idempotente: re-aprovar não estende prazo se já agendado.
+
+2. **Identificação requester** — email NOT NULL + cpf opcional (digits-normalised). `requesterEmail` lower-cased no persist; CPF strip non-digits + length=11 enforced.
+
+3. **Artefato server-side** — `UploadService.putObject` (R2 V4 SHA-256 signed PUT, distinto do `generatePresignedUrl` client-side). Key layout: `dsar/<companyId>/<yyyy>/<mm>/<requestId>.json`. Download URL re-issued via `generateDownloadUrl` com TTL = `expiresAt - now` (R2 limit 7d).
+
+4. **Anti-abuse** — cap 3 requests abertas por (companyId, requesterEmail) em 7d (`DSAR_MAX_OPEN_PER_REQUESTER=3`, `DSAR_DEDUPE_WINDOW_DAYS=7`). PENDING/APPROVED/PROCESSING contam.
+
+5. **State machine** — `DSAR_STATE_MACHINE` const, transitions enforced via `assertTransition()`. PENDING→APPROVED/REJECTED, APPROVED→PROCESSING/FAILED, PROCESSING→COMPLETED/FAILED, COMPLETED→EXPIRED. REJECTED, EXPIRED, FAILED terminais.
+
+### Schema changes
+
+**Novo modelo `DsarRequest`** (42 modelos): 22 colunas (id, companyId, type, status, requesterEmail VARCHAR(254), requesterName?, cpf?, notes Text?, correctionPayload Json?, requestedById, approvedById?, rejectedReason Text?, jobId?, downloadUrl Text?, artifactKey VARCHAR(500)?, artifactBytes Int?, lifecycle timestamps). FKs: companyId CASCADE, requestedById RESTRICT, approvedById SET NULL. Indexes: [companyId, status, requestedAt DESC], [companyId, type, requestedAt DESC], [companyId, requesterEmail], [expiresAt].
+
+**Enums novos**: `DsarType` (5), `DsarStatus` (7).
+**Enum extensions**: AuditAction +DSAR_REQUESTED/APPROVED/REJECTED/COMPLETED → 17. BackgroundJobType +EXTRACT_DSAR → 9. RetentionResource +DSAR_ARTIFACTS → 7.
+
+**Migration manual:** `apps/backend/prisma/migrations/20260430010000_add_dsar_requests/migration.sql` (idempotent, DO blocks para FK constraints, ALTER TYPE para enum extensions).
+
+### Módulos / arquivos
+
+**Backend (`apps/backend/src/modules/dsar/`)**:
+- `dsar.module.ts` — imports BackgroundJobsModule + EmailModule + UploadModule + LgpdDeletionModule.
+- `dsar.controller.ts` — 6 endpoints (list, findById, create, approve, reject, download). RBAC: list/get manager+, create/download admin+, approve/reject manager+.
+- `dsar.service.ts` — núcleo state machine + RBAC + integração. Métodos: create(), approve(), reject(), list(), findById(), download(), expireArtifacts() @Cron EVERY_HOUR. Internos: executeCorrectionAndComplete(), executeDeletionAndComplete(), softDeleteContact(), assertTransition(), assertMinRole(), normaliseCpf(), normalisePhone(), assertUnderRequesterCap().
+- `dsar-extract.service.ts` — Worker handler EXTRACT_DSAR registrado em OnModuleInit. Pipeline: APPROVED guard → PROCESSING flip → buildArtifact (INFO metadata-only OR ACCESS/PORTABILITY subject-data fan-out) → R2 putObject → COMPLETED + audit + email best-effort. Failure: flip FAILED + rethrow.
+- `constants.ts` — TTL/caps/regex/AUDIT_DESCRIPTIONS.
+- `types.ts` — ExtractDsarPayload, ExtractDsarResult, CorrectionPayload, DsarArtifact, DSAR_STATE_MACHINE.
+- `dto/` — 4 DTOs (create, approve, reject, list-query) com class-validator + Swagger.
+
+**Backend (módulos estendidos)**:
+- `upload.service.ts` — adicionado `putObject(key, contentType, body, downloadTtlSeconds)` + `generateDownloadUrl(key, expiresInSeconds)`. R2 V4 SHA-256 signed PUT (não UNSIGNED-PAYLOAD). Mock fallback quando creds ausentes.
+- `email.service.ts` — `sendDsarReadyEmail()` + `sendDsarRejectedEmail()` + 2 HTML templates. Best-effort: log + return success=false sem throw quando RESEND_API_KEY ausente.
+- `lgpd-deletion.service.ts` — `scheduleDeletionForDsar({companyId, requesterEmail, reason, graceDays?=30})`. Idempotente. `$transaction` user.update + auditLog.create. Retorna `{matched:false}` ou `{matched:true, userId, scheduledDeletionAt}`.
+
+**Backend (registry)**: `app.module.ts` — DsarModule registrado.
+
+**Frontend (`apps/frontend/src/`)**:
+- `services/dsar.service.ts` — 6 métodos (list, findById, create, approve, reject, download).
+- `app/dashboard/admin/dsar/page.tsx` — Client Component: filter bar, list table com badges color-coded por status, create form (collapsible, type-aware com correction sub-form), approve/reject inline, download para COMPLETED. Mutations via TanStack Query + toast.
+- `i18n/dictionaries/pt-BR.json` + `en.json` — bloco `dsar.*`.
+
+### Tests
+
+- `test/unit/dsar.service.spec.ts` — 25 specs cobrindo:
+  - `create()`: RBAC ladder (VENDOR rejected, ADMIN OK, OWNER OK), tenant assertion, type↔correctionPayload coupling, dedupe cap, email lower-casing, CPF normalisation.
+  - `approve()` ACCESS: NotFound, status≠PENDING (Conflict), enqueue EXTRACT_DSAR + jobId stamp.
+  - `approve()` CORRECTION: matched contact mutation, no-contact-still-completes.
+  - `approve()` DELETION: User-match → LgpdDeletion delegate, no-User → Contact softdelete fallback ($transaction csat.updateMany + contact.delete).
+  - `reject()`: success state + email best-effort, email failure non-fatal, status≠PENDING.
+  - `download()`: status guard, expiry guard, missing key guard, signed URL re-issue + READ audit.
+  - `expireArtifacts()`: error-isolated batch flip + zero-batch noop.
+  - `list()`: filter composition + pagination.
+  - **Lessons S59-hotfix aplicadas**: jest.resetAllMocks() (não clearAllMocks), zero mock*Once em paths com early-return, mock factory buildPrismaMock() invocado em cada beforeEach.
+
+- `test/unit/dsar-extract.service.spec.ts` — 9 specs cobrindo:
+  - onModuleInit registers handler.
+  - Guards: missing payload, NOOP not-found, NOOP wrong-status.
+  - INFO type: metadata-only build (no PII fan-out).
+  - ACCESS type Contact match: phoneNumber-based Call/Chat fetch.
+  - Failure path: putObject reject → FAILED flip + rethrow.
+
+### Operational considerations
+
+- **OneDrive/sandbox**: Pedro repo NOT no OneDrive. Sandbox sem prisma CLI buildable — pré-merge: `pnpm exec prisma format` + `prisma validate` localmente.
+- **R2**: novo path `dsar/<companyId>/<yyyy>/<mm>/`. RetentionPolicy DSAR_ARTIFACTS per-tenant (default 30d sugerido, floor 7d).
+- **Email opt-out**: RESEND_API_KEY ausente → DSAR ainda completa (status=COMPLETED), só sem notificação. Subject pode usar /download admin-mediated.
+- **Pendente Pedro/ops**: rodar `pnpm exec prisma migrate deploy` em Neon staging+prod; criar RetentionPolicy seed DSAR_ARTIFACTS=30d.
+
+### Invariantes preservadas
+
+- Tenant isolation no repositório: 100% queries DSAR scopam companyId (list, findById, count, $transaction, fetchers extract).
+- Dependency Rule: types.ts só importa enum-types do Prisma; Service depende de PrismaService abstraction.
+- State machine atomic: toda transição via $transaction + auditLog.create no mesmo bloco.
+- Idempotency: assertTransition() rejeita re-aprovações; lazy-expire em download; LgpdDeletion preserva schedule existente; worker NOOP em status≠APPROVED.
+- Bulkheads: 5_000 rows/resource em extract, 50MB cap artefact, 200 rows/cron tick em expireArtifacts.
+
+### Lições operacionais (S60a-specific, complementares a S59-hotfix)
+
+1. **Edit tool em arquivos grandes truncou conteúdo silenciosamente** — schema.prisma, upload.service.ts, email.service.ts, lgpd-deletion.service.ts, app.module.ts, PROJECT_HISTORY.md e ambos i18n JSON foram truncados. Sintoma: o arquivo aparenta-se OK no retorno do tool mas validação byte-level revela conteúdo perdido. Mitigação: SEMPRE rodar validador Python pós-edit em arquivos >40KB ou edits grandes, e usar `python3` para reparo via prefix-cut + tail-graft.
+2. **Validação byte-level obrigatória pós-Edit em edits >5KB** ou em arquivos críticos (schema.prisma, app.module.ts, i18n). Critérios: brace balance, marker-presence, JSON/Prisma syntactic sanity. Se descrepância detectada → reparar via `Write` ou Python prefix+tail.
+3. **Pre-commit hook recomendado pós-S60a**: `node -e "JSON.parse(require('fs').readFileSync('apps/frontend/src/i18n/dictionaries/pt-BR.json'))"` + `pnpm exec prisma validate`.
+
+### Próximas ações sugeridas
+
+1. CI verde: `pnpm typecheck` (backend + frontend), `pnpm test:unit --testPathPattern=dsar` (runInBand --bail), `pnpm exec prisma format`.
+2. Pedro local: rodar migration em DB local + Neon staging.
+3. RetentionPolicy seed DSAR_ARTIFACTS = 30d default.
+4. S60b: Frontend i18n menu link sidebar para /dashboard/admin/dsar.
+
+### Arquivos novos
+
+```
+apps/backend/prisma/migrations/20260430010000_add_dsar_requests/migration.sql
+apps/backend/src/modules/dsar/constants.ts
+apps/backend/src/modules/dsar/types.ts
+apps/backend/src/modules/dsar/dto/create-dsar.dto.ts
+apps/backend/src/modules/dsar/dto/approve-dsar.dto.ts
+apps/backend/src/modules/dsar/dto/reject-dsar.dto.ts
+apps/backend/src/modules/dsar/dto/list-dsar-query.dto.ts
+apps/backend/src/modules/dsar/dsar.service.ts
+apps/backend/src/modules/dsar/dsar-extract.service.ts
+apps/backend/src/modules/dsar/dsar.controller.ts
+apps/backend/src/modules/dsar/dsar.module.ts
+apps/backend/test/unit/dsar.service.spec.ts
+apps/backend/test/unit/dsar-extract.service.spec.ts
+apps/frontend/src/services/dsar.service.ts
+apps/frontend/src/app/dashboard/admin/dsar/page.tsx
+```
+
+### Arquivos modificados
+
+```
+apps/backend/prisma/schema.prisma                              (+model DsarRequest, 2 enums, 6 enum values, 3 relations)
+apps/backend/src/app.module.ts                                 (+DsarModule import + register)
+apps/backend/src/modules/upload/upload.service.ts              (+putObject + generateDownloadUrl)
+apps/backend/src/modules/email/email.service.ts                (+sendDsarReadyEmail + sendDsarRejectedEmail + 2 templates)
+apps/backend/src/modules/lgpd-deletion/lgpd-deletion.service.ts (+scheduleDeletionForDsar)
+apps/frontend/src/i18n/dictionaries/pt-BR.json                 (+dsar.* block)
+apps/frontend/src/i18n/dictionaries/en.json                    (+dsar.* block)
+CLAUDE.md                                                       (§2.1 status, §5 module, §6 schema + enums)
+PROJECT_HISTORY.md                                             (+entrada S60a)
+```
+
+---
+
+*Documento atualizado em 30/04/2026*
 *Próxima atualização: a cada sessão de trabalho*

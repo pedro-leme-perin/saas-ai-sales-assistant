@@ -21,79 +21,80 @@ datasource db {
 // =============================================
 
 model Company {
-  id               String    @id @default(uuid())
-  name             String
-  slug             String?    @unique
-  plan             Plan      @default(STARTER)
-  
+  id   String  @id @default(uuid())
+  name String
+  slug String? @unique
+  plan Plan    @default(STARTER)
+
   // Stripe Integration
-  stripeCustomerId String?   @unique @map("stripe_customer_id")
-  billingEmail     String?   @map("billing_email")
-  
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+  billingEmail     String? @map("billing_email")
+
   // Company Details
-  logoUrl          String?   @map("logo_url")
-  website          String?
-  industry         String?
-  size             CompanySize?
-  timezone         String    @default("America/Sao_Paulo")
-  
+  logoUrl  String?      @map("logo_url")
+  website  String?
+  industry String?
+  size     CompanySize?
+  timezone String       @default("America/Sao_Paulo")
+
   // Feature Limits (based on plan)
-  maxUsers         Int       @default(5) @map("max_users")
-  maxCallsPerMonth Int       @default(100) @map("max_calls_per_month")
-  maxChatsPerMonth Int       @default(50) @map("max_chats_per_month")
-  
+  maxUsers         Int @default(5) @map("max_users")
+  maxCallsPerMonth Int @default(100) @map("max_calls_per_month")
+  maxChatsPerMonth Int @default(50) @map("max_chats_per_month")
+
   // Settings (JSON for flexibility)
-  settings         Json      @default("{}")
-  
+  settings Json @default("{}")
+
   // WhatsApp Business API
-  whatsappPhoneNumberId  String?  @map("whatsapp_phone_number_id")
-  whatsappAccessToken    String?  @map("whatsapp_access_token")
-  whatsappVerifyToken    String?  @map("whatsapp_verify_token")
+  whatsappPhoneNumberId String? @map("whatsapp_phone_number_id")
+  whatsappAccessToken   String? @map("whatsapp_access_token")
+  whatsappVerifyToken   String? @map("whatsapp_verify_token")
 
   // Status
-  isActive         Boolean   @default(true) @map("is_active")
-  deletedAt        DateTime? @map("deleted_at")
-  
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+
   // Timestamps
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  users            User[]
-  calls            Call[]
-  whatsappChats    WhatsappChat[]
-  subscriptions    Subscription[]
-  invoices         Invoice[]
-  apiKeys          ApiKey[]
-  auditLogs        AuditLog[]
-  notifications    Notification[]
-  coachingReports  CoachingReport[]
-  teamGoals        TeamGoal[]
-  callSummaries    CallSummary[]
-  webhookEndpoints WebhookEndpoint[]
-  replyTemplates   ReplyTemplate[]
-  conversationTags ConversationTag[]
-  notificationPrefs NotificationPreference[]
-  savedFilters     SavedFilter[]
-  backgroundJobs   BackgroundJob[]
-  slaPolicies      SlaPolicy[]
-  contacts         Contact[]
-  csatConfigs      CsatSurveyConfig[]
-  csatResponses    CsatResponse[]
-  scheduledExports ScheduledExport[]
-  retentionPolicies RetentionPolicy[]
-  apiRequestLogs   ApiRequestLog[]
-  featureFlags     FeatureFlag[]
-  announcements    Announcement[]
-  assignmentRules  AssignmentRule[]
-  agentSkills      AgentSkill[]
+  users                  User[]
+  calls                  Call[]
+  whatsappChats          WhatsappChat[]
+  subscriptions          Subscription[]
+  invoices               Invoice[]
+  apiKeys                ApiKey[]
+  auditLogs              AuditLog[]
+  notifications          Notification[]
+  coachingReports        CoachingReport[]
+  teamGoals              TeamGoal[]
+  callSummaries          CallSummary[]
+  webhookEndpoints       WebhookEndpoint[]
+  replyTemplates         ReplyTemplate[]
+  conversationTags       ConversationTag[]
+  notificationPrefs      NotificationPreference[]
+  savedFilters           SavedFilter[]
+  backgroundJobs         BackgroundJob[]
+  slaPolicies            SlaPolicy[]
+  contacts               Contact[]
+  csatConfigs            CsatSurveyConfig[]
+  csatResponses          CsatResponse[]
+  scheduledExports       ScheduledExport[]
+  retentionPolicies      RetentionPolicy[]
+  apiRequestLogs         ApiRequestLog[]
+  featureFlags           FeatureFlag[]
+  announcements          Announcement[]
+  assignmentRules        AssignmentRule[]
+  agentSkills            AgentSkill[]
   customFieldDefinitions CustomFieldDefinition[]
-  usageQuotas      UsageQuota[]
-  scheduledMessages ScheduledMessage[]
-  macros           Macro[]
-  slaEscalations   SlaEscalation[]
-  impersonationSessions ImpersonationSession[]
-  configSnapshots  ConfigSnapshot[]
+  usageQuotas            UsageQuota[]
+  scheduledMessages      ScheduledMessage[]
+  macros                 Macro[]
+  slaEscalations         SlaEscalation[]
+  impersonationSessions  ImpersonationSession[]
+  configSnapshots        ConfigSnapshot[]
+  dsarRequests           DsarRequest[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -106,44 +107,44 @@ model Company {
 // =============================================
 
 model User {
-  id                      String     @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Authentication (Clerk)
-  clerkId                 String     @unique @map("clerk_id")
-  email                   String
-  
+  clerkId String @unique @map("clerk_id")
+  email   String
+
   // Profile
-  name                    String
-  avatarUrl               String?    @map("avatar_url")
-  phone                   String?
-  
+  name      String
+  avatarUrl String? @map("avatar_url")
+  phone     String?
+
   // Role & Permissions
-  role                    UserRole   @default(VENDOR)
-  permissions             String[]   @default([])
-  
+  role        UserRole @default(VENDOR)
+  permissions String[] @default([])
+
   // Status
-  status                  UserStatus @default(ACTIVE)
-  isActive                Boolean    @default(true) @map("is_active")
-  lastActiveAt            DateTime?  @map("last_active_at")
-  
+  status       UserStatus @default(ACTIVE)
+  isActive     Boolean    @default(true) @map("is_active")
+  lastActiveAt DateTime?  @map("last_active_at")
+
   // Preferences
-  notificationPreferences Json?      @map("notification_preferences")
-  uiPreferences           Json?      @map("ui_preferences")
-  
+  notificationPreferences Json? @map("notification_preferences")
+  uiPreferences           Json? @map("ui_preferences")
+
   // Soft Delete
-  deletedAt               DateTime?  @map("deleted_at")
+  deletedAt DateTime? @map("deleted_at")
 
   // LGPD — Scheduled Hard Deletion (Art. 16, III — eliminação)
-  scheduledDeletionAt     DateTime?  @map("scheduled_deletion_at")
-  deletionReason          String?    @map("deletion_reason")
+  scheduledDeletionAt DateTime? @map("scheduled_deletion_at")
+  deletionReason      String?   @map("deletion_reason")
 
   // Tenant Relationship
-  companyId               String     @map("company_id")
-  company                 Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Timestamps
-  createdAt               DateTime   @default(now()) @map("created_at")
-  updatedAt               DateTime   @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   calls                   Call[]
@@ -152,26 +153,28 @@ model User {
   auditLogs               AuditLog[]
   notifications           Notification[]
   coachingReports         CoachingReport[]
-  teamGoalsCreated        TeamGoal[]        @relation("TeamGoalCreator")
-  teamGoalsAssigned       TeamGoal[]        @relation("TeamGoalAssignee")
-  webhookEndpointsCreated WebhookEndpoint[] @relation("WebhookEndpointCreator")
-  replyTemplatesCreated   ReplyTemplate[]   @relation("ReplyTemplateCreator")
-  conversationTagsCreated ConversationTag[] @relation("ConversationTagCreator")
-  apiKeysCreated          ApiKey[]          @relation("ApiKeyCreator")
+  teamGoalsCreated        TeamGoal[]               @relation("TeamGoalCreator")
+  teamGoalsAssigned       TeamGoal[]               @relation("TeamGoalAssignee")
+  webhookEndpointsCreated WebhookEndpoint[]        @relation("WebhookEndpointCreator")
+  replyTemplatesCreated   ReplyTemplate[]          @relation("ReplyTemplateCreator")
+  conversationTagsCreated ConversationTag[]        @relation("ConversationTagCreator")
+  apiKeysCreated          ApiKey[]                 @relation("ApiKeyCreator")
   notificationPrefs       NotificationPreference[]
-  savedFilters            SavedFilter[]     @relation("SavedFilterOwner")
-  backgroundJobsCreated   BackgroundJob[]   @relation("BackgroundJobCreator")
-  contactNotes            ContactNote[]     @relation("ContactNoteAuthor")
+  savedFilters            SavedFilter[]            @relation("SavedFilterOwner")
+  backgroundJobsCreated   BackgroundJob[]          @relation("BackgroundJobCreator")
+  contactNotes            ContactNote[]            @relation("ContactNoteAuthor")
   apiRequestLogs          ApiRequestLog[]
-  featureFlagsCreated     FeatureFlag[]     @relation("FeatureFlagCreator")
-  announcementsCreated    Announcement[]    @relation("AnnouncementCreator")
+  featureFlagsCreated     FeatureFlag[]            @relation("FeatureFlagCreator")
+  announcementsCreated    Announcement[]           @relation("AnnouncementCreator")
   announcementReads       AnnouncementRead[]
-  assignmentRulesCreated  AssignmentRule[]  @relation("AssignmentRuleCreatedBy")
+  assignmentRulesCreated  AssignmentRule[]         @relation("AssignmentRuleCreatedBy")
   presence                AgentPresence?
-  impersonationActor      ImpersonationSession[] @relation("ImpersonationActor")
-  impersonationTarget     ImpersonationSession[] @relation("ImpersonationTarget")
-  configSnapshotsCreated  ConfigSnapshot[]       @relation("ConfigSnapshotCreator")
+  impersonationActor      ImpersonationSession[]   @relation("ImpersonationActor")
+  impersonationTarget     ImpersonationSession[]   @relation("ImpersonationTarget")
+  configSnapshotsCreated  ConfigSnapshot[]         @relation("ConfigSnapshotCreator")
   agentSkills             AgentSkill[]
+  dsarRequestsRequested   DsarRequest[]            @relation("DsarRequestRequester")
+  dsarRequestsApproved    DsarRequest[]            @relation("DsarRequestApprover")
 
   @@unique([companyId, email])
   @@index([clerkId])
@@ -187,58 +190,58 @@ model User {
 // =============================================
 
 model Call {
-  id                  String        @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Tenant & User
-  companyId           String        @map("company_id")
-  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId              String        @map("user_id")
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Call Details
-  phoneNumber         String        @map("phone_number")
-  contactName         String?       @map("contact_name")
-  direction           CallDirection
-  status              CallStatus    @default(INITIATED)
-  duration            Int           @default(0)
-  
+  phoneNumber String        @map("phone_number")
+  contactName String?       @map("contact_name")
+  direction   CallDirection
+  status      CallStatus    @default(INITIATED)
+  duration    Int           @default(0)
+
   // Twilio Integration
-  twilioCallSid       String?       @unique @map("twilio_call_sid")
-  twilioRecordingSid  String?       @map("twilio_recording_sid")
-  recordingUrl        String?       @map("recording_url")
-  
+  twilioCallSid      String? @unique @map("twilio_call_sid")
+  twilioRecordingSid String? @map("twilio_recording_sid")
+  recordingUrl       String? @map("recording_url")
+
   // Transcription
-  transcript          String?       @db.Text
-  transcriptSegments  Json?         @map("transcript_segments")
-  
+  transcript         String? @db.Text
+  transcriptSegments Json?   @map("transcript_segments")
+
   // AI Analysis
-  summary             String?       @db.Text
-  sentiment           Float?
-  sentimentLabel      SentimentLabel?  @map("sentiment_label")
-  keywords            String[]      @default([])
-  actionItems         Json?         @map("action_items")
-  
+  summary        String?         @db.Text
+  sentiment      Float?
+  sentimentLabel SentimentLabel? @map("sentiment_label")
+  keywords       String[]        @default([])
+  actionItems    Json?           @map("action_items")
+
   // Organization
-  tags                String[]      @default([])
-  notes               String?       @db.Text
-  metadata            Json?
-  
+  tags     String[] @default([])
+  notes    String?  @db.Text
+  metadata Json?
+
   // Timestamps
-  startedAt           DateTime?     @map("started_at")
-  endedAt             DateTime?     @map("ended_at")
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
+  startedAt DateTime? @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  aiSuggestions       AISuggestion[]
-  callSummary         CallSummary?
-  tagLinks            CallTag[]
+  aiSuggestions AISuggestion[]
+  callSummary   CallSummary?
+  tagLinks      CallTag[]
 
   @@index([companyId])
   @@index([userId])
   @@index([companyId, status])
   @@index([companyId, createdAt(sort: Desc)])
-  @@index([companyId, sentiment])      // Sentiment analytics queries
+  @@index([companyId, sentiment]) // Sentiment analytics queries
   @@index([phoneNumber])
   @@index([twilioCallSid])
   @@map("calls")
@@ -249,54 +252,54 @@ model Call {
 // =============================================
 
 model WhatsappChat {
-  id                  String        @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Tenant
-  companyId           String        @map("company_id")
-  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   // Assigned Agent (optional)
-  userId              String?       @map("user_id")
-  user                User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Customer Info
-  customerPhone       String        @map("customer_phone")
-  customerName        String?       @map("customer_name")
-  customerAvatar      String?       @map("customer_avatar")
-  
+  customerPhone  String  @map("customer_phone")
+  customerName   String? @map("customer_name")
+  customerAvatar String? @map("customer_avatar")
+
   // Chat Status
-  status              ChatStatus    @default(OPEN)
-  priority            ChatPriority  @default(NORMAL)
-  unreadCount         Int           @default(0) @map("unread_count")
-  
+  status      ChatStatus   @default(OPEN)
+  priority    ChatPriority @default(NORMAL)
+  unreadCount Int          @default(0) @map("unread_count")
+
   // Last Message Preview
-  lastMessageAt       DateTime?     @map("last_message_at")
-  lastMessagePreview  String?       @map("last_message_preview")
-  
+  lastMessageAt      DateTime? @map("last_message_at")
+  lastMessagePreview String?   @map("last_message_preview")
+
   // Organization
-  tags                String[]      @default([])
-  metadata            Json?
+  tags     String[] @default([])
+  metadata Json?
 
   // SLA tracking (session 49)
-  firstAgentReplyAt   DateTime?     @map("first_agent_reply_at")
-  resolvedAt          DateTime?     @map("resolved_at")
-  slaResponseBreached Boolean       @default(false) @map("sla_response_breached")
-  slaResolutionBreached Boolean     @default(false) @map("sla_resolution_breached")
-  slaBreachedAt       DateTime?     @map("sla_breached_at")
+  firstAgentReplyAt     DateTime? @map("first_agent_reply_at")
+  resolvedAt            DateTime? @map("resolved_at")
+  slaResponseBreached   Boolean   @default(false) @map("sla_response_breached")
+  slaResolutionBreached Boolean   @default(false) @map("sla_resolution_breached")
+  slaBreachedAt         DateTime? @map("sla_breached_at")
   // SLA escalation (session 57) — tracks which escalation level IDs already ran (idempotency)
-  slaEscalationsRun   String[]      @default([]) @map("sla_escalations_run")
+  slaEscalationsRun     String[]  @default([]) @map("sla_escalations_run")
 
   // Timestamps
-  archivedAt          DateTime?     @map("archived_at")
-  deletedAt           DateTime?     @map("deleted_at")
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
+  archivedAt DateTime? @map("archived_at")
+  deletedAt  DateTime? @map("deleted_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  messages            WhatsappMessage[]
-  aiSuggestions       AISuggestion[]
-  tagLinks            ChatTag[]
-  scheduledMessages   ScheduledMessage[]
+  messages          WhatsappMessage[]
+  aiSuggestions     AISuggestion[]
+  tagLinks          ChatTag[]
+  scheduledMessages ScheduledMessage[]
 
   @@unique([companyId, customerPhone])
   @@index([companyId])
@@ -308,35 +311,35 @@ model WhatsappChat {
 }
 
 model WhatsappMessage {
-  id              String            @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Chat Relationship
-  chatId          String            @map("chat_id")
-  chat            WhatsappChat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId String       @map("chat_id")
+  chat   WhatsappChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   // Message Details
-  waMessageId     String?           @unique @map("wa_message_id")
-  type            MessageType       @default(TEXT)
-  direction       MessageDirection
-  status          MessageStatus     @default(PENDING)
-  
+  waMessageId String?          @unique @map("wa_message_id")
+  type        MessageType      @default(TEXT)
+  direction   MessageDirection
+  status      MessageStatus    @default(PENDING)
+
   // Content
-  content         String            @db.Text
-  mediaUrl        String?           @map("media_url")
-  mediaType       String?           @map("media_type")
-  mediaMimeType   String?           @map("media_mime_type")
-  
+  content       String  @db.Text
+  mediaUrl      String? @map("media_url")
+  mediaType     String? @map("media_type")
+  mediaMimeType String? @map("media_mime_type")
+
   // AI Tracking
-  aiSuggestionUsed Boolean          @default(false) @map("ai_suggestion_used")
-  
+  aiSuggestionUsed Boolean @default(false) @map("ai_suggestion_used")
+
   // Metadata
-  metadata        Json?
-  
+  metadata Json?
+
   // Timestamps
-  sentAt          DateTime?         @map("sent_at")
-  deliveredAt     DateTime?         @map("delivered_at")
-  readAt          DateTime?         @map("read_at")
-  createdAt       DateTime          @default(now()) @map("created_at")
+  sentAt      DateTime? @map("sent_at")
+  deliveredAt DateTime? @map("delivered_at")
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([chatId])
   @@index([chatId, createdAt(sort: Desc)])
@@ -353,49 +356,49 @@ model WhatsappMessage {
 // =============================================
 
 model AISuggestion {
-  id              String          @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Context - One of these will be set
-  callId          String?         @map("call_id")
-  call            Call?           @relation(fields: [callId], references: [id], onDelete: Cascade)
-  chatId          String?         @map("chat_id")
-  chat            WhatsappChat?   @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  
+  callId String?       @map("call_id")
+  call   Call?         @relation(fields: [callId], references: [id], onDelete: Cascade)
+  chatId String?       @map("chat_id")
+  chat   WhatsappChat? @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
   // Created by
-  userId          String?         @map("user_id")
-  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   // Suggestion Content
-  type            SuggestionType
-  content         String          @db.Text
-  confidence      Float           @default(0.8)
-  
+  type       SuggestionType
+  content    String         @db.Text
+  confidence Float          @default(0.8)
+
   // Context that generated the suggestion
-  triggerText     String?         @db.Text @map("trigger_text")
-  
+  triggerText String? @map("trigger_text") @db.Text
+
   // Usage Tracking
-  wasUsed         Boolean         @default(false) @map("was_used")
-  usedAt          DateTime?       @map("used_at")
-  
+  wasUsed Boolean   @default(false) @map("was_used")
+  usedAt  DateTime? @map("used_at")
+
   // Feedback
-  feedback        SuggestionFeedback? 
-  feedbackNote    String?         @map("feedback_note")
-  
+  feedback     SuggestionFeedback?
+  feedbackNote String?             @map("feedback_note")
+
   // AI Metadata
-  model           String?
-  promptTokens    Int?            @map("prompt_tokens")
-  completionTokens Int?           @map("completion_tokens")
-  latencyMs       Int?            @map("latency_ms")
-  
+  model            String?
+  promptTokens     Int?    @map("prompt_tokens")
+  completionTokens Int?    @map("completion_tokens")
+  latencyMs        Int?    @map("latency_ms")
+
   // Timestamps
-  createdAt       DateTime        @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([callId])
   @@index([chatId])
   @@index([userId])
   @@index([createdAt(sort: Desc)])
-  @@index([callId, wasUsed])    // Analytics: suggestion adoption per call
-  @@index([chatId, wasUsed])    // Analytics: suggestion adoption per chat
+  @@index([callId, wasUsed]) // Analytics: suggestion adoption per call
+  @@index([chatId, wasUsed]) // Analytics: suggestion adoption per chat
   @@map("ai_suggestions")
 }
 
@@ -404,37 +407,37 @@ model AISuggestion {
 // =============================================
 
 model Subscription {
-  id                    String              @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Company
-  companyId             String              @map("company_id")
-  company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Stripe
-  stripeSubscriptionId  String              @unique @map("stripe_subscription_id")
-  stripePriceId         String              @map("stripe_price_id")
-  stripeCustomerId      String?             @map("stripe_customer_id")
+  stripeSubscriptionId String  @unique @map("stripe_subscription_id")
+  stripePriceId        String  @map("stripe_price_id")
+  stripeCustomerId     String? @map("stripe_customer_id")
 
   // Subscription Details
-  plan                  Plan
-  status                SubscriptionStatus
-  
+  plan   Plan
+  status SubscriptionStatus
+
   // Billing Period
-  currentPeriodStart    DateTime            @map("current_period_start")
-  currentPeriodEnd      DateTime            @map("current_period_end")
-  
+  currentPeriodStart DateTime @map("current_period_start")
+  currentPeriodEnd   DateTime @map("current_period_end")
+
   // Trial
-  trialStart            DateTime?           @map("trial_start")
-  trialEnd              DateTime?           @map("trial_end")
-  
+  trialStart DateTime? @map("trial_start")
+  trialEnd   DateTime? @map("trial_end")
+
   // Cancellation
-  cancelAtPeriodEnd     Boolean             @default(false) @map("cancel_at_period_end")
-  canceledAt            DateTime?           @map("canceled_at")
-  cancelReason          String?             @map("cancel_reason")
+  cancelAtPeriodEnd Boolean   @default(false) @map("cancel_at_period_end")
+  canceledAt        DateTime? @map("canceled_at")
+  cancelReason      String?   @map("cancel_reason")
 
   // Timestamps
-  createdAt             DateTime            @default(now()) @map("created_at")
-  updatedAt             DateTime            @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([companyId])
   @@index([stripeSubscriptionId])
@@ -443,41 +446,41 @@ model Subscription {
 }
 
 model Invoice {
-  id                  String        @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Company
-  companyId           String        @map("company_id")
-  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Stripe
-  stripeInvoiceId     String        @unique @map("stripe_invoice_id")
-  stripeCustomerId    String?       @map("stripe_customer_id")
-  
+  stripeInvoiceId  String  @unique @map("stripe_invoice_id")
+  stripeCustomerId String? @map("stripe_customer_id")
+
   // Invoice Details
-  status              InvoiceStatus
-  currency            String        @default("brl")
-  amount              Int           @default(0)
-  amountPaid          Int           @default(0) @map("amount_paid")
-  
+  status     InvoiceStatus
+  currency   String        @default("brl")
+  amount     Int           @default(0)
+  amountPaid Int           @default(0) @map("amount_paid")
+
   // URLs
-  hostedInvoiceUrl    String?       @map("hosted_invoice_url")
-  pdfUrl              String?       @map("pdf_url")
-  
+  hostedInvoiceUrl String? @map("hosted_invoice_url")
+  pdfUrl           String? @map("pdf_url")
+
   // Dates
-  periodStart         DateTime?     @map("period_start")
-  periodEnd           DateTime?     @map("period_end")
-  dueDate             DateTime?     @map("due_date")
-  paidAt              DateTime?     @map("paid_at")
+  periodStart DateTime? @map("period_start")
+  periodEnd   DateTime? @map("period_end")
+  dueDate     DateTime? @map("due_date")
+  paidAt      DateTime? @map("paid_at")
 
   // Dunning (Sessão 42 — payment recovery)
-  paymentAttempts     Int           @default(0) @map("payment_attempts")
-  lastPaymentError    String?       @map("last_payment_error")
-  nextDunningAt       DateTime?     @map("next_dunning_at")
-  dunningStage        String?       @map("dunning_stage") // D1 | D3 | D7 | SUSPENDED
+  paymentAttempts  Int       @default(0) @map("payment_attempts")
+  lastPaymentError String?   @map("last_payment_error")
+  nextDunningAt    DateTime? @map("next_dunning_at")
+  dunningStage     String?   @map("dunning_stage") // D1 | D3 | D7 | SUSPENDED
 
   // Timestamps
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([companyId])
   @@index([stripeInvoiceId])
@@ -491,30 +494,30 @@ model Invoice {
 // =============================================
 
 model Notification {
-  id            String            @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Relationships
-  companyId     String            @map("company_id")
-  company       Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId        String            @map("user_id")
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Notification
-  type          NotificationType
-  title         String
-  message       String            @db.Text
-  data          Json?
-  
+  type    NotificationType
+  title   String
+  message String           @db.Text
+  data    Json?
+
   // Status
-  read          Boolean           @default(false)
-  readAt        DateTime?         @map("read_at")
-  
+  read   Boolean   @default(false)
+  readAt DateTime? @map("read_at")
+
   // Delivery
-  channel       NotificationChannel @default(IN_APP)
-  sentAt        DateTime?         @map("sent_at")
+  channel NotificationChannel @default(IN_APP)
+  sentAt  DateTime?           @map("sent_at")
 
   // Timestamps
-  createdAt     DateTime          @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, read])
   @@index([companyId])
@@ -527,39 +530,39 @@ model Notification {
 // =============================================
 
 model ApiKey {
-  id               String    @id @default(uuid())
+  id String @id @default(uuid())
 
   // Company
-  companyId        String    @map("company_id")
-  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Key
-  name             String
-  keyHash          String    @unique @map("key_hash")
-  keyPrefix        String    @map("key_prefix")
+  name      String
+  keyHash   String @unique @map("key_hash")
+  keyPrefix String @map("key_prefix")
 
   // Permissions
-  scopes           String[]  @default([])
+  scopes String[] @default([])
 
   // Per-key rate limit (requests per minute). NULL = plan default.
-  rateLimitPerMin  Int?      @map("rate_limit_per_min")
+  rateLimitPerMin Int? @map("rate_limit_per_min")
 
   // Who created it (nullable for legacy rows)
-  createdById      String?   @map("created_by_id")
-  createdBy        User?     @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   // Status
-  isActive         Boolean   @default(true) @map("is_active")
-  expiresAt        DateTime? @map("expires_at")
-  lastUsedAt       DateTime? @map("last_used_at")
-  usageCount       Int       @default(0) @map("usage_count")
+  isActive   Boolean   @default(true) @map("is_active")
+  expiresAt  DateTime? @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  usageCount Int       @default(0) @map("usage_count")
 
   // Timestamps
-  createdAt        DateTime  @default(now()) @map("created_at")
-  revokedAt        DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
 
   // Relations
-  requestLogs      ApiRequestLog[]
+  requestLogs ApiRequestLog[]
 
   @@index([companyId])
   @@index([keyHash])
@@ -572,31 +575,31 @@ model ApiKey {
 // =============================================
 
 model AuditLog {
-  id            String    @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Context
-  companyId     String    @map("company_id")
-  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId        String?   @map("user_id")
-  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String? @map("user_id")
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Action
-  action        AuditAction
-  resource      String
-  resourceId    String?   @map("resource_id")
-  
+  action     AuditAction
+  resource   String
+  resourceId String?     @map("resource_id")
+
   // Details
-  description   String?
-  oldValues     Json?     @map("old_values")
-  newValues     Json?     @map("new_values")
-  
+  description String?
+  oldValues   Json?   @map("old_values")
+  newValues   Json?   @map("new_values")
+
   // Request Context
-  ipAddress     String?   @map("ip_address")
-  userAgent     String?   @map("user_agent")
-  requestId     String?   @map("request_id")
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  requestId String? @map("request_id")
 
   // Timestamp
-  createdAt     DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([companyId])
   @@index([userId])
@@ -729,17 +732,17 @@ enum SuggestionFeedback {
 // =============================================
 
 model CoachingReport {
-  id              String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Tenant + Vendor
-  companyId       String   @map("company_id")
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId          String   @map("user_id")
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Period (ISO week boundaries, UTC)
-  weekStart       DateTime @map("week_start")
-  weekEnd         DateTime @map("week_end")
+  weekStart DateTime @map("week_start")
+  weekEnd   DateTime @map("week_end")
 
   // Aggregated metrics (schema-on-read JSON):
   //   {
@@ -748,19 +751,19 @@ model CoachingReport {
   //     ai: { suggestionsShown, suggestionsUsed, adoptionRate },
   //     sentiment: { positive, neutral, negative }
   //   }
-  metrics         Json
+  metrics Json
 
   // LLM output
-  insights        String[]  // 3-5 bullet-sized observations
-  recommendations String[]  // 2-4 actionable suggestions
-  provider        String    @default("openai")
+  insights        String[] // 3-5 bullet-sized observations
+  recommendations String[] // 2-4 actionable suggestions
+  provider        String   @default("openai")
 
   // Email delivery tracking
-  emailSentAt     DateTime? @map("email_sent_at")
-  emailError      String?   @map("email_error")
+  emailSentAt DateTime? @map("email_sent_at")
+  emailError  String?   @map("email_error")
 
   // Timestamps
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([userId, weekStart], name: "user_week_unique")
   @@index([companyId, weekStart])
@@ -819,6 +822,10 @@ enum AuditAction {
   IMPERSONATE_START
   IMPERSONATE_END
   ROLLBACK
+  DSAR_REQUESTED
+  DSAR_APPROVED
+  DSAR_REJECTED
+  DSAR_COMPLETED
 }
 
 // =============================================
@@ -842,28 +849,28 @@ enum ConfigResource {
 // =============================================
 
 model CallSummary {
-  id               String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // 1:1 with Call
-  callId           String   @unique @map("call_id")
-  call             Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callId String @unique @map("call_id")
+  call   Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
 
   // Redundant tenant filter (denormalised for query perf + tenant guards)
-  companyId        String   @map("company_id")
-  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Summary payload (mirrors ConversationSummary shape from SummariesService)
-  keyPoints        String[]                            // 3-8 bullet observations
-  sentimentTimeline Json                               // [{ position: 0..1, sentiment: 'positive'|'neutral'|'negative' }]
-  nextBestAction   String                              @db.Text
+  keyPoints         String[] // 3-8 bullet observations
+  sentimentTimeline Json // [{ position: 0..1, sentiment: 'positive'|'neutral'|'negative' }]
+  nextBestAction    String   @db.Text
 
   // Provenance
-  provider         String   @default("openai")         // openai | fallback:error | fallback:non-json
-  contentHash      String   @map("content_hash")       // SHA-256 prefix of transcript (for staleness check)
+  provider    String @default("openai") // openai | fallback:error | fallback:non-json
+  contentHash String @map("content_hash") // SHA-256 prefix of transcript (for staleness check)
 
   // Timestamps
-  generatedAt      DateTime @default(now()) @map("generated_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  generatedAt DateTime @default(now()) @map("generated_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([companyId, generatedAt(sort: Desc)])
   @@map("call_summaries")
@@ -877,32 +884,32 @@ model CallSummary {
 // =============================================
 
 model TeamGoal {
-  id             String         @id @default(uuid())
+  id String @id @default(uuid())
 
   // Tenant
-  companyId      String         @map("company_id")
-  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String  @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Nullable: null = company-wide goal; set = per-vendor goal
-  userId         String?        @map("user_id")
-  user           User?          @relation("TeamGoalAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  userId String? @map("user_id")
+  user   User?   @relation("TeamGoalAssignee", fields: [userId], references: [id], onDelete: Cascade)
 
   // What to track
-  metric         GoalMetric
-  target         Int                                    // Numeric target (count or percentage 0-100)
-  periodType     GoalPeriodType @map("period_type")
+  metric     GoalMetric
+  target     Int // Numeric target (count or percentage 0-100)
+  periodType GoalPeriodType @map("period_type")
 
   // Period window (inclusive start, exclusive end — UTC)
-  periodStart    DateTime       @map("period_start")
-  periodEnd      DateTime       @map("period_end")
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
 
   // Who created it (audit + display)
-  createdById    String         @map("created_by_id")
-  createdBy      User           @relation("TeamGoalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdById String @map("created_by_id")
+  createdBy   User   @relation("TeamGoalCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   // Timestamps
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // One active goal per (company, user|null, metric, periodStart)
   @@unique([companyId, userId, metric, periodStart], name: "goal_period_unique")
@@ -913,11 +920,11 @@ model TeamGoal {
 }
 
 enum GoalMetric {
-  CALLS_TOTAL           // Total calls placed/received
-  CALLS_COMPLETED       // Calls reaching COMPLETED status
-  CONVERSION_RATE       // % completed / total
-  AI_ADOPTION_RATE      // % AI suggestions used
-  WHATSAPP_MESSAGES     // Outgoing WhatsApp messages
+  CALLS_TOTAL // Total calls placed/received
+  CALLS_COMPLETED // Calls reaching COMPLETED status
+  CONVERSION_RATE // % completed / total
+  AI_ADOPTION_RATE // % AI suggestions used
+  WHATSAPP_MESSAGES // Outgoing WhatsApp messages
 }
 
 enum GoalPeriodType {
@@ -930,23 +937,23 @@ enum GoalPeriodType {
 // =============================================
 
 model WebhookEndpoint {
-  id            String           @id @default(uuid())
-  companyId     String           @map("company_id")
+  id            String         @id @default(uuid())
+  companyId     String         @map("company_id")
   url           String
   description   String?
-  secret        String           // HMAC SHA-256 secret
+  secret        String // HMAC SHA-256 secret
   events        WebhookEvent[]
-  isActive      Boolean          @default(true) @map("is_active")
-  createdById   String           @map("created_by_id")
-  lastSuccessAt DateTime?        @map("last_success_at")
-  lastFailureAt DateTime?        @map("last_failure_at")
-  failureCount  Int              @default(0) @map("failure_count")
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt
+  isActive      Boolean        @default(true) @map("is_active")
+  createdById   String         @map("created_by_id")
+  lastSuccessAt DateTime?      @map("last_success_at")
+  lastFailureAt DateTime?      @map("last_failure_at")
+  failureCount  Int            @default(0) @map("failure_count")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt
 
-  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy     User             @relation("WebhookEndpointCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  deliveries    WebhookDelivery[]
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy  User              @relation("WebhookEndpointCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  deliveries WebhookDelivery[]
 
   @@index([companyId, isActive])
   @@index([companyId, createdAt])
@@ -954,23 +961,23 @@ model WebhookEndpoint {
 }
 
 model WebhookDelivery {
-  id               String                @id @default(uuid())
-  endpointId       String                @map("endpoint_id")
-  companyId        String                @map("company_id")
-  event            WebhookEvent
-  payload          Json
-  status           WebhookDeliveryStatus @default(PENDING)
-  attempts         Int                   @default(0)
-  lastAttemptAt    DateTime?             @map("last_attempt_at")
-  nextAttemptAt    DateTime?             @map("next_attempt_at")
-  responseStatus   Int?                  @map("response_status")
-  responseBody     String?               @map("response_body") @db.Text
-  errorMessage     String?               @map("error_message") @db.Text
-  deliveredAt      DateTime?             @map("delivered_at")
-  createdAt        DateTime              @default(now()) @map("created_at")
-  updatedAt        DateTime              @updatedAt
+  id             String                @id @default(uuid())
+  endpointId     String                @map("endpoint_id")
+  companyId      String                @map("company_id")
+  event          WebhookEvent
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  lastAttemptAt  DateTime?             @map("last_attempt_at")
+  nextAttemptAt  DateTime?             @map("next_attempt_at")
+  responseStatus Int?                  @map("response_status")
+  responseBody   String?               @map("response_body") @db.Text
+  errorMessage   String?               @map("error_message") @db.Text
+  deliveredAt    DateTime?             @map("delivered_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt
 
-  endpoint         WebhookEndpoint       @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
 
   @@index([companyId, createdAt(sort: Desc)])
   @@index([endpointId, createdAt(sort: Desc)])
@@ -999,22 +1006,22 @@ enum WebhookDeliveryStatus {
 // =============================================
 
 model ReplyTemplate {
-  id          String                 @id @default(uuid())
-  companyId   String                 @map("company_id")
-  createdById String                 @map("created_by_id")
+  id          String               @id @default(uuid())
+  companyId   String               @map("company_id")
+  createdById String               @map("created_by_id")
   name        String
   channel     ReplyTemplateChannel
-  category    String?                // e.g. "objection", "greeting", "follow-up"
-  content     String                 @db.Text
-  variables   String[]               // variable keys allowed, e.g. ["customerName","product"]
-  isActive    Boolean                @default(true) @map("is_active")
-  usageCount  Int                    @default(0) @map("usage_count")
-  lastUsedAt  DateTime?              @map("last_used_at")
-  createdAt   DateTime               @default(now()) @map("created_at")
-  updatedAt   DateTime               @updatedAt
+  category    String? // e.g. "objection", "greeting", "follow-up"
+  content     String               @db.Text
+  variables   String[] // variable keys allowed, e.g. ["customerName","product"]
+  isActive    Boolean              @default(true) @map("is_active")
+  usageCount  Int                  @default(0) @map("usage_count")
+  lastUsedAt  DateTime?            @map("last_used_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt
 
-  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy   User                   @relation("ReplyTemplateCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("ReplyTemplateCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@unique([companyId, name], name: "template_name_unique")
   @@index([companyId, channel, isActive])
@@ -1036,20 +1043,20 @@ enum ReplyTemplateChannel {
 // (kept for backward compat — new code should use join tables).
 
 model ConversationTag {
-  id          String     @id @default(uuid())
-  companyId   String     @map("company_id")
-  createdById String     @map("created_by_id")
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  createdById String   @map("created_by_id")
   name        String
-  color       String     @default("#6366F1") // indigo-500
+  color       String   @default("#6366F1") // indigo-500
   description String?
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt
 
-  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy   User       @relation("ConversationTagCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("ConversationTagCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
-  callLinks   CallTag[]
-  chatLinks   ChatTag[]
+  callLinks CallTag[]
+  chatLinks ChatTag[]
 
   @@unique([companyId, name], name: "tag_name_unique")
   @@index([companyId])
@@ -1057,12 +1064,12 @@ model ConversationTag {
 }
 
 model CallTag {
-  callId      String          @map("call_id")
-  tagId       String          @map("tag_id")
-  createdAt   DateTime        @default(now()) @map("created_at")
+  callId    String   @map("call_id")
+  tagId     String   @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  call        Call            @relation(fields: [callId], references: [id], onDelete: Cascade)
-  tag         ConversationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  call Call            @relation(fields: [callId], references: [id], onDelete: Cascade)
+  tag  ConversationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([callId, tagId])
   @@index([tagId])
@@ -1070,19 +1077,17 @@ model CallTag {
 }
 
 model ChatTag {
-  chatId      String          @map("chat_id")
-  tagId       String          @map("tag_id")
-  createdAt   DateTime        @default(now()) @map("created_at")
+  chatId    String   @map("chat_id")
+  tagId     String   @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  chat        WhatsappChat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  tag         ConversationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  chat WhatsappChat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  tag  ConversationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([chatId, tagId])
   @@index([tagId])
   @@map("chat_tags")
 }
-
-
 
 // =============================================
 // 🔔 NOTIFICATION PREFERENCES (session 48)
@@ -1092,26 +1097,26 @@ model ChatTag {
 // (kept for backward-read during migration).
 
 model NotificationPreference {
-  id              String               @id @default(uuid())
-  userId          String               @map("user_id")
-  companyId       String               @map("company_id")
-  type            NotificationType
-  channel         NotificationChannel
-  enabled         Boolean              @default(true)
+  id        String              @id @default(uuid())
+  userId    String              @map("user_id")
+  companyId String              @map("company_id")
+  type      NotificationType
+  channel   NotificationChannel
+  enabled   Boolean             @default(true)
 
   // Quiet hours (user-local). HH:MM in 24h; null = disabled.
-  quietHoursStart String?              @map("quiet_hours_start")
-  quietHoursEnd   String?              @map("quiet_hours_end")
-  timezone        String?              // IANA — defaults to user profile tz or company tz
+  quietHoursStart String? @map("quiet_hours_start")
+  quietHoursEnd   String? @map("quiet_hours_end")
+  timezone        String? // IANA — defaults to user profile tz or company tz
 
   // Digest: bundle EMAIL notifications into a daily recap instead of real-time.
-  digestMode      Boolean              @default(false) @map("digest_mode")
+  digestMode Boolean @default(false) @map("digest_mode")
 
-  createdAt       DateTime             @default(now()) @map("created_at")
-  updatedAt       DateTime             @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt
 
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([userId, type, channel], name: "user_type_channel_unique")
   @@index([companyId])
@@ -1126,18 +1131,18 @@ model NotificationPreference {
 // filterJson is Zod-validated on write. userId null = shared tenant-wide.
 
 model SavedFilter {
-  id          String         @id @default(uuid())
-  companyId   String         @map("company_id")
-  userId      String?        @map("user_id") // null = shared
-  name        String
-  resource    FilterResource
-  filterJson  Json           @map("filter_json")
-  isPinned    Boolean        @default(false) @map("is_pinned")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt
+  id         String         @id @default(uuid())
+  companyId  String         @map("company_id")
+  userId     String?        @map("user_id") // null = shared
+  name       String
+  resource   FilterResource
+  filterJson Json           @map("filter_json")
+  isPinned   Boolean        @default(false) @map("is_pinned")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt
 
-  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user        User?          @relation("SavedFilterOwner", fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation("SavedFilterOwner", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([companyId, resource])
   @@index([companyId, userId])
@@ -1157,25 +1162,25 @@ enum FilterResource {
 // processes with exponential backoff, fails to DEAD_LETTER after maxAttempts.
 
 model BackgroundJob {
-  id             String             @id @default(uuid())
-  companyId      String             @map("company_id")
-  createdById    String?            @map("created_by_id")
-  type           BackgroundJobType
-  status         BackgroundJobStatus @default(PENDING)
-  payload        Json               @default("{}")
-  result         Json?
-  progress       Int                @default(0) // 0..100
-  attempts       Int                @default(0)
-  maxAttempts    Int                @default(5) @map("max_attempts")
-  runAt          DateTime           @default(now()) @map("run_at")
-  startedAt      DateTime?          @map("started_at")
-  finishedAt     DateTime?          @map("finished_at")
-  lastError      String?            @map("last_error") @db.Text
-  createdAt      DateTime           @default(now()) @map("created_at")
-  updatedAt      DateTime           @updatedAt
+  id          String              @id @default(uuid())
+  companyId   String              @map("company_id")
+  createdById String?             @map("created_by_id")
+  type        BackgroundJobType
+  status      BackgroundJobStatus @default(PENDING)
+  payload     Json                @default("{}")
+  result      Json?
+  progress    Int                 @default(0) // 0..100
+  attempts    Int                 @default(0)
+  maxAttempts Int                 @default(5) @map("max_attempts")
+  runAt       DateTime            @default(now()) @map("run_at")
+  startedAt   DateTime?           @map("started_at")
+  finishedAt  DateTime?           @map("finished_at")
+  lastError   String?             @map("last_error") @db.Text
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt
 
-  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy      User?              @relation("BackgroundJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("BackgroundJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([companyId, status])
   @@index([status, runAt])
@@ -1192,6 +1197,7 @@ enum BackgroundJobType {
   EXPORT_ANALYTICS
   IMPORT_CONTACTS
   SEND_SCHEDULED_MESSAGE
+  EXTRACT_DSAR
 }
 
 enum BackgroundJobStatus {
@@ -1210,18 +1216,18 @@ enum BackgroundJobStatus {
 // Breach monitor cron flags OPEN chats past the target and emits notification + webhook.
 
 model SlaPolicy {
-  id               String        @id @default(uuid())
-  companyId        String        @map("company_id")
-  name             String
-  priority         ChatPriority
-  responseMins     Int           @map("response_mins") // time to first agent reply
-  resolutionMins   Int           @map("resolution_mins") // time to close
-  isActive         Boolean       @default(true) @map("is_active")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt
+  id             String       @id @default(uuid())
+  companyId      String       @map("company_id")
+  name           String
+  priority       ChatPriority
+  responseMins   Int          @map("response_mins") // time to first agent reply
+  resolutionMins Int          @map("resolution_mins") // time to close
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt
 
-  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  escalations      SlaEscalation[]
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  escalations SlaEscalation[]
 
   @@unique([companyId, priority], name: "sla_company_priority_unique")
   @@index([companyId, isActive])
@@ -1235,26 +1241,26 @@ model SlaPolicy {
 // Auto-upserted on inbound call/whatsapp via events. Powers timeline + notes.
 
 model Contact {
-  id                  String        @id @default(uuid())
-  companyId           String        @map("company_id")
-  phone               String        // E.164 normalized
-  name                String?
-  email               String?
-  timezone            String?
-  metadata            Json          @default("{}")
+  id                String    @id @default(uuid())
+  companyId         String    @map("company_id")
+  phone             String // E.164 normalized
+  name              String?
+  email             String?
+  timezone          String?
+  metadata          Json      @default("{}")
   // Session 55: per-tenant extensible schema via CustomFieldDefinition
-  customFields        Json          @default("{}") @map("custom_fields")
-  tags                String[]      @default([])
-  firstSeenAt         DateTime      @default(now()) @map("first_seen_at")
-  lastInteractionAt   DateTime?     @map("last_interaction_at")
-  totalCalls          Int           @default(0) @map("total_calls")
-  totalChats          Int           @default(0) @map("total_chats")
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
+  customFields      Json      @default("{}") @map("custom_fields")
+  tags              String[]  @default([])
+  firstSeenAt       DateTime  @default(now()) @map("first_seen_at")
+  lastInteractionAt DateTime? @map("last_interaction_at")
+  totalCalls        Int       @default(0) @map("total_calls")
+  totalChats        Int       @default(0) @map("total_chats")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  notes               ContactNote[]
-  csatResponses       CsatResponse[]
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  notes         ContactNote[]
+  csatResponses CsatResponse[]
 
   @@unique([companyId, phone], name: "contact_phone_unique")
   @@index([companyId, lastInteractionAt])
@@ -1263,15 +1269,15 @@ model Contact {
 }
 
 model ContactNote {
-  id          String    @id @default(uuid())
-  contactId   String    @map("contact_id")
-  authorId    String    @map("author_id")
-  content     String    @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  contactId String   @map("contact_id")
+  authorId  String   @map("author_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  author      User      @relation("ContactNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author  User    @relation("ContactNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([contactId, createdAt])
   @@map("contact_notes")
@@ -1284,17 +1290,17 @@ model ContactNote {
 // signed token. Public submit endpoint captures score + optional comment.
 
 model CsatSurveyConfig {
-  id            String          @id @default(uuid())
-  companyId     String          @map("company_id")
-  trigger       CsatTrigger
-  delayMinutes  Int             @default(5) @map("delay_minutes")
-  channel       CsatChannel     @default(WHATSAPP)
-  messageTpl    String          @db.Text @map("message_tpl")
-  isActive      Boolean         @default(true) @map("is_active")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
+  id           String      @id @default(uuid())
+  companyId    String      @map("company_id")
+  trigger      CsatTrigger
+  delayMinutes Int         @default(5) @map("delay_minutes")
+  channel      CsatChannel @default(WHATSAPP)
+  messageTpl   String      @map("message_tpl") @db.Text
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, trigger], name: "csat_config_unique")
   @@index([companyId, isActive])
@@ -1302,27 +1308,27 @@ model CsatSurveyConfig {
 }
 
 model CsatResponse {
-  id            String              @id @default(uuid())
-  companyId     String              @map("company_id")
-  contactId     String?             @map("contact_id")
-  callId        String?             @map("call_id")
-  chatId        String?             @map("chat_id")
-  trigger       CsatTrigger
-  channel       CsatChannel
-  token         String              @unique
-  score         Int?                // 1..5, null until responded
-  comment       String?             @db.Text
-  status        CsatResponseStatus  @default(SCHEDULED)
-  scheduledFor  DateTime            @map("scheduled_for")
-  sentAt        DateTime?           @map("sent_at")
-  respondedAt   DateTime?           @map("responded_at")
-  expiresAt     DateTime            @map("expires_at")
-  lastError     String?             @db.Text @map("last_error")
-  createdAt     DateTime            @default(now()) @map("created_at")
-  updatedAt     DateTime            @updatedAt @map("updated_at")
+  id           String             @id @default(uuid())
+  companyId    String             @map("company_id")
+  contactId    String?            @map("contact_id")
+  callId       String?            @map("call_id")
+  chatId       String?            @map("chat_id")
+  trigger      CsatTrigger
+  channel      CsatChannel
+  token        String             @unique
+  score        Int? // 1..5, null until responded
+  comment      String?            @db.Text
+  status       CsatResponseStatus @default(SCHEDULED)
+  scheduledFor DateTime           @map("scheduled_for")
+  sentAt       DateTime?          @map("sent_at")
+  respondedAt  DateTime?          @map("responded_at")
+  expiresAt    DateTime           @map("expires_at")
+  lastError    String?            @map("last_error") @db.Text
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
 
-  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact       Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([companyId, status, scheduledFor])
   @@index([companyId, respondedAt])
@@ -1356,27 +1362,27 @@ enum CsatResponseStatus {
 // with a deep link, persists lastRunStatus/lastError/runCount.
 
 model ScheduledExport {
-  id             String                      @id @default(uuid())
-  companyId      String                      @map("company_id")
-  createdById    String?                     @map("created_by_id")
+  id             String                    @id @default(uuid())
+  companyId      String                    @map("company_id")
+  createdById    String?                   @map("created_by_id")
   name           String
   resource       ScheduledExportResource
-  format         ScheduledExportFormat       @default(CSV)
-  cronExpression String                      @map("cron_expression")
-  timezone       String                      @default("America/Sao_Paulo")
+  format         ScheduledExportFormat     @default(CSV)
+  cronExpression String                    @map("cron_expression")
+  timezone       String                    @default("America/Sao_Paulo")
   recipients     String[]
-  filters        Json                        @default("{}")
-  isActive       Boolean                     @default(true) @map("is_active")
-  lastRunAt      DateTime?                   @map("last_run_at")
-  lastRunStatus  ScheduledExportRunStatus?   @map("last_run_status")
-  lastError      String?                     @db.Text @map("last_error")
-  lastRowCount   Int?                        @map("last_row_count")
-  runCount       Int                         @default(0) @map("run_count")
-  nextRunAt      DateTime?                   @map("next_run_at")
-  createdAt      DateTime                    @default(now()) @map("created_at")
-  updatedAt      DateTime                    @updatedAt @map("updated_at")
+  filters        Json                      @default("{}")
+  isActive       Boolean                   @default(true) @map("is_active")
+  lastRunAt      DateTime?                 @map("last_run_at")
+  lastRunStatus  ScheduledExportRunStatus? @map("last_run_status")
+  lastError      String?                   @map("last_error") @db.Text
+  lastRowCount   Int?                      @map("last_row_count")
+  runCount       Int                       @default(0) @map("run_count")
+  nextRunAt      DateTime?                 @map("next_run_at")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
 
-  company        Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, isActive])
   @@index([isActive, nextRunAt])
@@ -1410,18 +1416,18 @@ enum ScheduledExportRunStatus {
 // aligned: audit logs have a minimum floor enforced at service layer.
 
 model RetentionPolicy {
-  id               String                @id @default(uuid())
-  companyId        String                @map("company_id")
+  id               String            @id @default(uuid())
+  companyId        String            @map("company_id")
   resource         RetentionResource
-  retentionDays    Int                   @map("retention_days")
-  isActive         Boolean               @default(true) @map("is_active")
-  lastRunAt        DateTime?             @map("last_run_at")
-  lastDeletedCount Int?                  @map("last_deleted_count")
-  lastError        String?               @db.Text @map("last_error")
-  createdAt        DateTime              @default(now()) @map("created_at")
-  updatedAt        DateTime              @updatedAt @map("updated_at")
+  retentionDays    Int               @map("retention_days")
+  isActive         Boolean           @default(true) @map("is_active")
+  lastRunAt        DateTime?         @map("last_run_at")
+  lastDeletedCount Int?              @map("last_deleted_count")
+  lastError        String?           @map("last_error") @db.Text
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
-  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, resource], name: "retention_policy_unique")
   @@index([companyId, isActive])
@@ -1435,6 +1441,7 @@ enum RetentionResource {
   AI_SUGGESTIONS
   CSAT_RESPONSES
   NOTIFICATIONS
+  DSAR_ARTIFACTS
 }
 
 // =============================================
@@ -1445,22 +1452,22 @@ enum RetentionResource {
 // to avoid adding latency to the hot path.
 
 model ApiRequestLog {
-  id          String   @id @default(uuid())
-  companyId   String   @map("company_id")
-  apiKeyId    String?  @map("api_key_id")
-  userId      String?  @map("user_id")
-  method      String   @db.VarChar(10)
-  path        String   @db.VarChar(500)
-  statusCode  Int      @map("status_code")
-  latencyMs   Int      @map("latency_ms")
-  requestId   String?  @map("request_id")
-  ipAddress   String?  @map("ip_address")
-  userAgent   String?  @map("user_agent") @db.VarChar(500)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid())
+  companyId  String   @map("company_id")
+  apiKeyId   String?  @map("api_key_id")
+  userId     String?  @map("user_id")
+  method     String   @db.VarChar(10)
+  path       String   @db.VarChar(500)
+  statusCode Int      @map("status_code")
+  latencyMs  Int      @map("latency_ms")
+  requestId  String?  @map("request_id")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent") @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  apiKey      ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  apiKey  ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([companyId, createdAt(sort: Desc)])
   @@index([companyId, apiKeyId, createdAt(sort: Desc)])
@@ -1474,20 +1481,20 @@ model ApiRequestLog {
 // =============================================
 
 model FeatureFlag {
-  id                 String   @id @default(uuid())
-  companyId          String   @map("company_id")
-  createdById        String?  @map("created_by_id")
-  key                String   @db.VarChar(120)
-  name               String   @db.VarChar(160)
-  description        String?  @db.VarChar(500)
-  enabled            Boolean  @default(false)
-  rolloutPercentage  Int      @default(0) @map("rollout_percentage")
-  userAllowlist      String[] @default([]) @map("user_allowlist")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(uuid())
+  companyId         String   @map("company_id")
+  createdById       String?  @map("created_by_id")
+  key               String   @db.VarChar(120)
+  name              String   @db.VarChar(160)
+  description       String?  @db.VarChar(500)
+  enabled           Boolean  @default(false)
+  rolloutPercentage Int      @default(0) @map("rollout_percentage")
+  userAllowlist     String[] @default([]) @map("user_allowlist")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy          User?    @relation("FeatureFlagCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("FeatureFlagCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@unique([companyId, key], name: "feature_flag_key_unique")
   @@index([companyId, enabled])
@@ -1499,21 +1506,21 @@ model FeatureFlag {
 // =============================================
 
 model Announcement {
-  id            String             @id @default(uuid())
-  companyId     String             @map("company_id")
-  createdById   String?            @map("created_by_id")
-  title         String             @db.VarChar(200)
-  body          String             @db.Text
-  level         AnnouncementLevel  @default(INFO)
-  publishAt     DateTime           @default(now()) @map("publish_at")
-  expireAt      DateTime?          @map("expire_at")
-  targetRoles   UserRole[]         @default([]) @map("target_roles")
-  createdAt     DateTime           @default(now()) @map("created_at")
-  updatedAt     DateTime           @updatedAt @map("updated_at")
+  id          String            @id @default(uuid())
+  companyId   String            @map("company_id")
+  createdById String?           @map("created_by_id")
+  title       String            @db.VarChar(200)
+  body        String            @db.Text
+  level       AnnouncementLevel @default(INFO)
+  publishAt   DateTime          @default(now()) @map("publish_at")
+  expireAt    DateTime?         @map("expire_at")
+  targetRoles UserRole[]        @default([]) @map("target_roles")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
-  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy     User?              @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  reads         AnnouncementRead[]
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?              @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reads     AnnouncementRead[]
 
   @@index([companyId, publishAt])
   @@index([companyId, expireAt])
@@ -1527,8 +1534,8 @@ model AnnouncementRead {
   dismissedAt    DateTime? @map("dismissed_at")
   createdAt      DateTime  @default(now()) @map("created_at")
 
-  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([announcementId, userId])
   @@index([userId, dismissedAt])
@@ -1548,23 +1555,23 @@ enum AnnouncementLevel {
 // Evaluated by priority asc; first matching rule wins. Redis ZSET persists round-robin cursor per rule.
 
 model AssignmentRule {
-  id             String              @id @default(uuid())
-  companyId      String              @map("company_id")
-  createdById    String?             @map("created_by_id")
+  id             String             @id @default(uuid())
+  companyId      String             @map("company_id")
+  createdById    String?            @map("created_by_id")
   name           String
-  priority       Int                 @default(100) // lower wins; unique per tenant enforced via @@unique
+  priority       Int                @default(100) // lower wins; unique per tenant enforced via @@unique
   strategy       AssignmentStrategy
-  conditions     Json                @default("{}") // { priorities?: ChatPriority[], tagIds?: string[], keywords?: string[] }
-  targetUserIds  String[]            @map("target_user_ids")
+  conditions     Json               @default("{}") // { priorities?: ChatPriority[], tagIds?: string[], keywords?: string[] }
+  targetUserIds  String[]           @map("target_user_ids")
   // Session 59 — skill-based routing:
   //   requiredSkills: candidate must possess every skill in this list (ALL semantics).
   //   minSkillLevel : applied uniformly to every skill in requiredSkills (null = any level).
   //   preserveOrder : when true, rule evaluates even if requiredSkills is empty (backward-compat).
-  requiredSkills String[]            @default([]) @map("required_skills")
-  minSkillLevel  Int?                @map("min_skill_level")
-  isActive       Boolean             @default(true) @map("is_active")
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
+  requiredSkills String[]           @default([]) @map("required_skills")
+  minSkillLevel  Int?               @map("min_skill_level")
+  isActive       Boolean            @default(true) @map("is_active")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy User?   @relation("AssignmentRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1589,18 +1596,18 @@ enum AssignmentStrategy {
 // per-tenant (no global skill master table — tenant-sovereign).
 
 model AgentSkill {
-  id         String   @id @default(uuid())
-  companyId  String   @map("company_id")
-  userId     String   @map("user_id")
-  skill      String   @db.VarChar(80)  // slug: [a-z0-9][a-z0-9_-]{0,79}
-  level      Int      @default(3)      // 1..5
-  notes      String?  @db.VarChar(300)
-  isActive   Boolean  @default(true) @map("is_active")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  userId    String   @map("user_id")
+  skill     String   @db.VarChar(80) // slug: [a-z0-9][a-z0-9_-]{0,79}
+  level     Int      @default(3) // 1..5
+  notes     String?  @db.VarChar(300)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, skill], name: "agent_skill_user_skill_unique")
   @@index([companyId, skill, level])
@@ -1619,8 +1626,8 @@ model CustomFieldDefinition {
   id           String              @id @default(uuid())
   companyId    String              @map("company_id")
   resource     CustomFieldResource
-  key          String              // machine key (a-z0-9_, unique per tenant+resource)
-  label        String              // human label
+  key          String // machine key (a-z0-9_, unique per tenant+resource)
+  label        String // human label
   type         CustomFieldType
   required     Boolean             @default(false)
   options      String[]            @default([]) // SELECT only
@@ -1629,7 +1636,7 @@ model CustomFieldDefinition {
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt @map("updated_at")
 
-  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, resource, key], name: "custom_field_key_unique")
   @@index([companyId, resource, isActive])
@@ -1660,15 +1667,15 @@ model UsageQuota {
   companyId        String      @map("company_id")
   metric           UsageMetric
   periodStart      DateTime    @map("period_start") // UTC month start
-  periodEnd        DateTime    @map("period_end")   // UTC next month start (exclusive)
-  limit            Int         // -1 = unlimited
+  periodEnd        DateTime    @map("period_end") // UTC next month start (exclusive)
+  limit            Int // -1 = unlimited
   currentValue     Int         @default(0) @map("current_value")
   warnedThresholds Int[]       @default([]) @map("warned_thresholds") // subset of [80, 95, 100]
   lastUpdatedAt    DateTime    @default(now()) @map("last_updated_at")
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
 
-  company          Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, metric, periodStart], name: "usage_quota_period_unique")
   @@index([companyId, metric])
@@ -1690,23 +1697,23 @@ enum UsageMetric {
 // Cancel window: while status=PENDING. Idempotency: one BG job per message (createdBy OnModuleInit handler registry).
 
 model ScheduledMessage {
-  id            String                  @id @default(uuid())
-  companyId     String                  @map("company_id")
-  chatId        String                  @map("chat_id")
-  createdById   String?                 @map("created_by_id")
-  content       String                  @db.Text
-  mediaUrl      String?                 @map("media_url")
-  scheduledAt   DateTime                @map("scheduled_at")
-  status        ScheduledMessageStatus  @default(PENDING)
-  jobId         String?                 @map("job_id") // FK to BackgroundJob (soft ref, no constraint)
-  runCount      Int                     @default(0) @map("run_count")
-  sentAt        DateTime?               @map("sent_at")
-  lastError     String?                 @db.Text @map("last_error")
-  createdAt     DateTime                @default(now()) @map("created_at")
-  updatedAt     DateTime                @updatedAt @map("updated_at")
+  id          String                 @id @default(uuid())
+  companyId   String                 @map("company_id")
+  chatId      String                 @map("chat_id")
+  createdById String?                @map("created_by_id")
+  content     String                 @db.Text
+  mediaUrl    String?                @map("media_url")
+  scheduledAt DateTime               @map("scheduled_at")
+  status      ScheduledMessageStatus @default(PENDING)
+  jobId       String?                @map("job_id") // FK to BackgroundJob (soft ref, no constraint)
+  runCount    Int                    @default(0) @map("run_count")
+  sentAt      DateTime?              @map("sent_at")
+  lastError   String?                @map("last_error") @db.Text
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
 
-  company       Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  chat          WhatsappChat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chat    WhatsappChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
   @@index([status, scheduledAt])
@@ -1740,7 +1747,7 @@ model Macro {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, name], name: "macro_name_unique")
   @@index([companyId, isActive])
@@ -1761,17 +1768,17 @@ enum AgentStatus {
 }
 
 model AgentPresence {
-  id                   String       @id @default(uuid())
-  userId               String       @unique @map("user_id")
-  companyId            String       @map("company_id")
-  status               AgentStatus  @default(OFFLINE)
-  statusMessage        String?      @map("status_message")
-  maxConcurrentChats   Int          @default(5) @map("max_concurrent_chats")
-  lastHeartbeatAt      DateTime?    @map("last_heartbeat_at")
-  createdAt            DateTime     @default(now()) @map("created_at")
-  updatedAt            DateTime     @updatedAt @map("updated_at")
+  id                 String      @id @default(uuid())
+  userId             String      @unique @map("user_id")
+  companyId          String      @map("company_id")
+  status             AgentStatus @default(OFFLINE)
+  statusMessage      String?     @map("status_message")
+  maxConcurrentChats Int         @default(5) @map("max_concurrent_chats")
+  lastHeartbeatAt    DateTime?   @map("last_heartbeat_at")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
 
-  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
   @@index([lastHeartbeatAt])
@@ -1792,20 +1799,20 @@ enum SlaEscalationAction {
 }
 
 model SlaEscalation {
-  id                 String              @id @default(uuid())
-  companyId          String              @map("company_id")
-  policyId           String              @map("policy_id")
-  level              Int                 // 1-based tier order
-  triggerAfterMins   Int                 @map("trigger_after_mins") // mins since breachedAt
-  action             SlaEscalationAction
-  targetUserIds      String[]            @default([]) @map("target_user_ids")
-  targetPriority     ChatPriority?       @map("target_priority") // used when action=CHANGE_PRIORITY
-  isActive           Boolean             @default(true) @map("is_active")
-  createdAt          DateTime            @default(now()) @map("created_at")
-  updatedAt          DateTime            @updatedAt @map("updated_at")
+  id               String              @id @default(uuid())
+  companyId        String              @map("company_id")
+  policyId         String              @map("policy_id")
+  level            Int // 1-based tier order
+  triggerAfterMins Int                 @map("trigger_after_mins") // mins since breachedAt
+  action           SlaEscalationAction
+  targetUserIds    String[]            @default([]) @map("target_user_ids")
+  targetPriority   ChatPriority?       @map("target_priority") // used when action=CHANGE_PRIORITY
+  isActive         Boolean             @default(true) @map("is_active")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
 
-  policy             SlaPolicy           @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  policy  SlaPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  company Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([policyId, level], name: "sla_escalation_level_unique")
   @@index([companyId, isActive])
@@ -1821,24 +1828,24 @@ model SlaEscalation {
 // token hash (SHA-256) em DB, AuditLog em start/end, exit idempotente.
 
 model ImpersonationSession {
-  id            String   @id @default(uuid())
-  companyId     String   @map("company_id")
-  actorUserId   String   @map("actor_user_id")
-  targetUserId  String   @map("target_user_id")
-  reason        String
-  tokenHash     String   @unique @map("token_hash")
-  ipAddress     String?  @map("ip_address")
-  userAgent     String?  @map("user_agent")
-  expiresAt     DateTime @map("expires_at")
-  endedAt       DateTime? @map("ended_at")
-  endedReason   String?  @map("ended_reason")
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String    @id @default(uuid())
+  companyId    String    @map("company_id")
+  actorUserId  String    @map("actor_user_id")
+  targetUserId String    @map("target_user_id")
+  reason       String
+  tokenHash    String    @unique @map("token_hash")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  expiresAt    DateTime  @map("expires_at")
+  endedAt      DateTime? @map("ended_at")
+  endedReason  String?   @map("ended_reason")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  actor         User     @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
-  target        User     @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User    @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  target  User    @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   @@index([companyId, isActive])
   @@index([actorUserId])
@@ -1855,20 +1862,102 @@ model ImpersonationSession {
 // auditar mudanças + rollback em $transaction.
 
 model ConfigSnapshot {
-  id             String          @id @default(uuid())
-  companyId      String          @map("company_id")
-  resource       ConfigResource
-  resourceId     String?         @map("resource_id")
-  label          String?
-  snapshotData   Json            @map("snapshot_data")
-  createdById    String?         @map("created_by_id")
-  createdAt      DateTime        @default(now()) @map("created_at")
+  id           String         @id @default(uuid())
+  companyId    String         @map("company_id")
+  resource     ConfigResource
+  resourceId   String?        @map("resource_id")
+  label        String?
+  snapshotData Json           @map("snapshot_data")
+  createdById  String?        @map("created_by_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
 
-  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy      User?           @relation("ConfigSnapshotCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("ConfigSnapshotCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([companyId, resource, createdAt(sort: Desc)])
   @@index([companyId, resourceId])
   @@index([createdById])
   @@map("config_snapshots")
+}
+
+// =============================================
+// DSAR — Data Subject Access Requests (session 60a)
+// =============================================
+// LGPD Art. 18 — exercício dos direitos do titular dos dados pessoais.
+// Workflow: admin recebe solicitação externa (canal/email/jurídico) → cria
+// DsarRequest (status=PENDING) → manager+ aprova → BackgroundJob EXTRACT_DSAR
+// monta artefato → upload R2 + email signed link → completedAt timestamped.
+//
+// Tipos suportados (LGPD Art. 18 incisos):
+//   ACCESS       (II)  — acesso a dados pessoais tratados (relatório legível)
+//   PORTABILITY  (V)   — portabilidade (JSON estruturado)
+//   CORRECTION   (III) — correção de dados (correctionPayload)
+//   DELETION     (VI)  — eliminação (delega para LgpdDeletionService grace 30d)
+//   INFO         (VII) — informações sobre tratamento (sem dados pessoais)
+//
+// Identificação: requesterEmail NOT NULL, cpf opcional. Lookup no extract
+// faz match por email (Contact.email + User.email).
+//
+// Artefato: downloadUrl é uma URL pre-signed do R2 com expiresAt (default 7d).
+// Cleanup via RetentionPolicy resource=DSAR_ARTIFACTS (TTL configurável,
+// floor enforced em service: MIN_DAYS=7).
+
+model DsarRequest {
+  id                String     @id @default(uuid())
+  companyId         String     @map("company_id")
+  type              DsarType
+  status            DsarStatus @default(PENDING)
+  requesterEmail    String     @map("requester_email") @db.VarChar(254)
+  requesterName     String?    @map("requester_name") @db.VarChar(200)
+  cpf               String?    @db.VarChar(14)
+  notes             String?    @db.Text
+  correctionPayload Json?      @map("correction_payload")
+  // Lifecycle FKs — actor (the admin who created the row) & approver.
+  requestedById     String     @map("requested_by_id")
+  approvedById      String?    @map("approved_by_id")
+  rejectedReason    String?    @map("rejected_reason") @db.Text
+  // Job linkage — lazily filled when worker picks the request up.
+  jobId             String?    @map("job_id")
+  // Artefact metadata (set on COMPLETED).
+  downloadUrl       String?    @map("download_url") @db.Text
+  artifactKey       String?    @map("artifact_key") @db.VarChar(500)
+  artifactBytes     Int?       @map("artifact_bytes")
+  // Lifecycle timestamps.
+  requestedAt       DateTime   @default(now()) @map("requested_at")
+  approvedAt        DateTime?  @map("approved_at")
+  rejectedAt        DateTime?  @map("rejected_at")
+  startedAt         DateTime?  @map("started_at")
+  completedAt       DateTime?  @map("completed_at")
+  // Download artefact expiry — pre-signed URL TTL.
+  expiresAt         DateTime?  @map("expires_at")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requestedBy User    @relation("DsarRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedBy  User?   @relation("DsarRequestApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, requestedAt(sort: Desc)])
+  @@index([companyId, type, requestedAt(sort: Desc)])
+  @@index([companyId, requesterEmail])
+  @@index([expiresAt])
+  @@map("dsar_requests")
+}
+
+enum DsarType {
+  ACCESS
+  PORTABILITY
+  CORRECTION
+  DELETION
+  INFO
+}
+
+enum DsarStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  EXPIRED
+  FAILED
 }

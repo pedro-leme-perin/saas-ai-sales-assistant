@@ -56,6 +56,7 @@ import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-
 import { MacrosModule } from './modules/macros/macros.module';
 import { ImpersonationModule } from './modules/impersonation/impersonation.module';
 import { ConfigSnapshotsModule } from './modules/config-snapshots/config-snapshots.module';
+import { DsarModule } from './modules/dsar/dsar.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -132,6 +133,7 @@ import configuration from './config/configuration';
     MacrosModule,
     ImpersonationModule,
     ConfigSnapshotsModule,
+    DsarModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId
@@ -146,7 +148,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Security headers + request ID first (stateless, no DB dependency)
     consumer.apply(RequestIdMiddleware, SecurityHeadersMiddleware).forRoutes('*');
-    // Inject company.plan into request for rate limiting
+    // Inject company.plan into request for rate-limit guard (per-tenant tiers)
     consumer.apply(CompanyPlanMiddleware).forRoutes('*');
   }
 }

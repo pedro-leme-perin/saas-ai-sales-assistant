@@ -82,6 +82,91 @@ export class LgpdDeletionService {
   }
 
   // =============================================
+  // PUBLIC — DSAR DELETION integration (S60a)
+  // =============================================
+  /**
+   * Schedule a hard-delete for the User row whose `(companyId, email)`
+   * matches the requester. Reuses the same grace-period mechanism as
+   * `UsersService.requestAccountDeletion`: sets `scheduledDeletionAt = now + 30d`
+   * and suspends the account. The hourly cron `processScheduledDeletions`
+   * picks the row up after the grace period elapses.
+   *
+   * Idempotent: if the user already has a scheduledDeletionAt in the future,
+   * the existing schedule is preserved (no early extension).
+   *
+   * @returns `{ matched: false }` when no User matches the email under the
+   *          tenant — caller (DsarService) falls back to Contact-side
+   *          deletion. `{ matched: true }` with the userId + scheduled date
+   *          on success.
+   */
+  async scheduleDeletionForDsar(params: {
+    companyId: string;
+    requesterEmail: string;
+    reason: string;
+    graceDays?: number;
+  }): Promise<
+    | { matched: false }
+    | { matched: true; userId: string; scheduledDeletionAt: Date }
+  > {
+    const { companyId, requesterEmail, reason } = params;
+    const graceDays = params.graceDays ?? 30;
+    if (graceDays < 1 || graceDays > 90) {
+      throw new Error(`Invalid graceDays=${graceDays} (allowed 1..90)`);
+    }
+
+    const normalised = requesterEmail.trim().toLowerCase();
+    if (normalised.length === 0) return { matched: false };
+
+    const user = await this.prisma.user.findFirst({
+      where: { companyId, email: normalised },
+      select: { id: true, scheduledDeletionAt: true, status: true },
+    });
+    if (!user) return { matched: false };
+
+    const now = new Date();
+    const requestedSchedule = new Date(now.getTime() + graceDays * 24 * 3600 * 1000);
+    // If already scheduled in the future, do not extend (idempotent).
+    const finalSchedule =
+      user.scheduledDeletionAt && user.scheduledDeletionAt.getTime() > now.getTime()
+        ? user.scheduledDeletionAt
+        : requestedSchedule;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          status: 'SUSPENDED',
+          isActive: false,
+          scheduledDeletionAt: finalSchedule,
+          deletionReason: reason.slice(0, 500),
+          updatedAt: now,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          companyId,
+          userId: user.id,
+          action: AuditAction.DELETE,
+          resource: 'USER',
+          resourceId: user.id,
+          description: `LGPD DSAR DELETION — scheduled for ${finalSchedule.toISOString()}`,
+          oldValues: { status: user.status } as unknown as Prisma.InputJsonValue,
+          newValues: {
+            status: 'SUSPENDED',
+            scheduledDeletionAt: finalSchedule.toISOString(),
+            source: 'DSAR',
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+    });
+
+    this.logger.log(
+      `📅 DSAR scheduled deletion user=${user.id} company=${companyId} at=${finalSchedule.toISOString()}`,
+    );
+    return { matched: true, userId: user.id, scheduledDeletionAt: finalSchedule };
+  }
+
+  // =============================================
   // PUBLIC — manual trigger (for ops / tests)
   // =============================================
   async executeDeletionById(userId: string): Promise<void> {

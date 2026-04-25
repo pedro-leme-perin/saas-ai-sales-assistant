@@ -1674,5 +1674,17 @@
       "rollbackOk": "Rollback executado.",
       "rollbackErr": "Falha no rollback."
     }
+  },
+"dsar": {
+    "title": "Solicitacoes LGPD (DSAR)",
+    "subtitle": "Gerencie pedidos de acesso, portabilidade, correcao, eliminacao e informacao do titular dos dados (LGPD Art. 18).",
+    "list": { "title": "Solicitacoes", "empty": "Nenhuma solicitacao DSAR encontrada." },
+    "create": { "title": "Nova solicitacao DSAR", "correctionHint": "Preencha apenas os campos a serem corrigidos. Demais permanecem inalterados." },
+    "reject": { "title": "Recusar solicitacao DSAR", "subtitle": "A justificativa sera enviada por email ao titular (LGPD Art. 18 Sec. 6).", "placeholder": "Ex.: identidade do titular nao foi confirmada apos verificacao." },
+    "fields": { "type": "Tipo", "email": "Email do titular", "name": "Nome do titular", "cpf": "CPF (opcional)", "notes": "Observacoes internas", "correction": { "name": "Novo nome", "email": "Novo email", "phone": "Novo telefone", "timezone": "Novo fuso horario" } },
+    "cols": { "requester": "Titular", "type": "Tipo", "status": "Status", "requestedAt": "Solicitado em", "expiresAt": "Expira em", "actions": "Acoes" },
+    "actions": { "create": "Nova solicitacao", "approve": "Aprovar", "reject": "Recusar", "download": "Baixar artefato" },
+    "toast": { "created": "Solicitacao DSAR criada.", "approved": "Solicitacao aprovada.", "rejected": "Solicitacao recusada." },
+    "errors": { "emailRequired": "Email do titular e obrigatorio.", "correctionPayloadRequired": "Pelo menos um campo de correcao e obrigatorio.", "rejectReasonShort": "Justificativa deve ter ao menos 5 caracteres." }
   }
 }

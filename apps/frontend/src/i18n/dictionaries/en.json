@@ -1674,5 +1674,17 @@
       "rollbackOk": "Rollback executed.",
       "rollbackErr": "Rollback failed."
     }
+  },
+"dsar": {
+    "title": "LGPD requests (DSAR)",
+    "subtitle": "Handle data subject access, portability, correction, deletion and information requests (LGPD Art. 18).",
+    "list": { "title": "Requests", "empty": "No DSAR requests found." },
+    "create": { "title": "New DSAR request", "correctionHint": "Fill only the fields to correct. Others remain unchanged." },
+    "reject": { "title": "Reject DSAR request", "subtitle": "The reason is emailed to the data subject (LGPD Art. 18 Sec. 6).", "placeholder": "E.g. requester identity could not be verified." },
+    "fields": { "type": "Type", "email": "Subject email", "name": "Subject name", "cpf": "CPF (optional)", "notes": "Internal notes", "correction": { "name": "New name", "email": "New email", "phone": "New phone", "timezone": "New timezone" } },
+    "cols": { "requester": "Subject", "type": "Type", "status": "Status", "requestedAt": "Requested at", "expiresAt": "Expires at", "actions": "Actions" },
+    "actions": { "create": "New request", "approve": "Approve", "reject": "Reject", "download": "Download artefact" },
+    "toast": { "created": "DSAR request created.", "approved": "Request approved.", "rejected": "Request rejected." },
+    "errors": { "emailRequired": "Subject email is required.", "correctionPayloadRequired": "At least one correction field is required.", "rejectReasonShort": "Justification must be at least 5 characters." }
   }
 }

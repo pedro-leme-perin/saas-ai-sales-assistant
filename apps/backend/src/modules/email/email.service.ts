@@ -999,4 +999,158 @@ export class EmailService {
   </table>
 </body></html>`.trim();
   }
+
+  // =====================================================
+  // DSAR (S60a) — LGPD Art. 18
+  // =====================================================
+  /**
+   * Notifies the data subject (titular) that their DSAR artefact is ready.
+   * Sent post-completion of EXTRACT_DSAR background job.
+   *
+   * Best-effort: if Resend is not configured we log + return success=false
+   * so the worker does NOT retry the entire DSAR job (idempotent).
+   */
+  async sendDsarReadyEmail(params: {
+    recipientEmail: string;
+    recipientName?: string | null;
+    requestType: string;
+    downloadUrl: string;
+    expiresAt: Date;
+    requestId: string;
+  }): Promise<{ success: boolean; messageId?: string }> {
+    const { recipientEmail, recipientName, requestType, downloadUrl, expiresAt, requestId } =
+      params;
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping DSAR ready email');
+      return { success: false };
+    }
+
+    const html = this.buildDsarReadyHtml({
+      recipientName: recipientName ?? null,
+      requestType,
+      downloadUrl,
+      expiresAt,
+      requestId,
+    });
+    try {
+      const result = await this.send({
+        to: recipientEmail,
+        subject: `Sua solicitação LGPD (${requestType}) está disponível`,
+        html,
+      });
+      this.logger.log(`DSAR ready email sent to ${recipientEmail} (id=${result?.id})`);
+      return { success: true, messageId: result?.id };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      this.logger.error(`DSAR ready email failed for ${recipientEmail}: ${msg}`);
+      return { success: false };
+    }
+  }
+
+  /**
+   * Notifies the data subject that their DSAR was rejected, with reason.
+   * Sent immediately after manager reject action (sync, fire-and-forget).
+   */
+  async sendDsarRejectedEmail(params: {
+    recipientEmail: string;
+    recipientName?: string | null;
+    requestType: string;
+    reason: string;
+    requestId: string;
+  }): Promise<{ success: boolean; messageId?: string }> {
+    const { recipientEmail, recipientName, requestType, reason, requestId } = params;
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not configured — skipping DSAR rejection email');
+      return { success: false };
+    }
+
+    const html = this.buildDsarRejectedHtml({
+      recipientName: recipientName ?? null,
+      requestType,
+      reason,
+      requestId,
+    });
+    try {
+      const result = await this.send({
+        to: recipientEmail,
+        subject: `Atualização sobre sua solicitação LGPD (${requestType})`,
+        html,
+      });
+      this.logger.log(`DSAR rejection email sent to ${recipientEmail} (id=${result?.id})`);
+      return { success: true, messageId: result?.id };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      this.logger.error(`DSAR rejection email failed for ${recipientEmail}: ${msg}`);
+      return { success: false };
+    }
+  }
+
+  private buildDsarReadyHtml(params: {
+    recipientName: string | null;
+    requestType: string;
+    downloadUrl: string;
+    expiresAt: Date;
+    requestId: string;
+  }): string {
+    const { recipientName, requestType, downloadUrl, expiresAt, requestId } = params;
+    const greeting = recipientName ? `Olá, ${this.escapeHtml(recipientName)}` : 'Olá';
+    const expiry = this.escapeHtml(expiresAt.toISOString());
+    return `<!DOCTYPE html>
+<html><body style="margin:0;background:#f4f4f5;font-family:Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;">
+      <tr><td style="background:linear-gradient(135deg,#10B981,#0EA5E9);padding:32px;border-radius:12px 12px 0 0;">
+        <h1 style="margin:0;color:#fff;font-size:22px;">Sua solicitação está pronta</h1>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.9);">${this.escapeHtml(requestType)} · LGPD Art. 18</p>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <p style="font-size:16px;color:#18181b;">${greeting},</p>
+        <p style="font-size:14px;color:#3f3f46;">
+          Concluímos o processamento da sua solicitação <strong>${this.escapeHtml(requestType)}</strong>.
+          O artefato gerado está disponível para download através do link seguro abaixo.
+        </p>
+        <p style="text-align:center;margin:24px 0;">
+          <a href="${this.escapeHtml(downloadUrl)}" style="display:inline-block;padding:14px 28px;background:#10B981;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Baixar artefato</a>
+        </p>
+        <p style="font-size:12px;color:#71717a;">
+          Este link expira em <strong>${expiry}</strong> (UTC). Após expirar, será necessário abrir uma nova solicitação.
+        </p>
+        <p style="font-size:11px;color:#a1a1aa;margin-top:24px;">ID da solicitação: ${this.escapeHtml(requestId)}</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`.trim();
+  }
+
+  private buildDsarRejectedHtml(params: {
+    recipientName: string | null;
+    requestType: string;
+    reason: string;
+    requestId: string;
+  }): string {
+    const { recipientName, requestType, reason, requestId } = params;
+    const greeting = recipientName ? `Olá, ${this.escapeHtml(recipientName)}` : 'Olá';
+    return `<!DOCTYPE html>
+<html><body style="margin:0;background:#f4f4f5;font-family:Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;">
+      <tr><td style="background:linear-gradient(135deg,#F59E0B,#EF4444);padding:32px;border-radius:12px 12px 0 0;">
+        <h1 style="margin:0;color:#fff;font-size:22px;">Atualização sobre sua solicitação</h1>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.9);">${this.escapeHtml(requestType)} · LGPD Art. 18</p>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <p style="font-size:16px;color:#18181b;">${greeting},</p>
+        <p style="font-size:14px;color:#3f3f46;">
+          Após análise, sua solicitação <strong>${this.escapeHtml(requestType)}</strong> não pôde ser concluída.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border-left:4px solid #EF4444;padding:16px;margin:16px 0;">
+          <tr><td style="font-size:13px;color:#991b1b;">${this.escapeHtml(reason)}</td></tr>
+        </table>
+        <p style="font-size:12px;color:#71717a;">Você pode contestar esta decisão respondendo a este e-mail ou abrindo nova solicitação com informações adicionais.</p>
+        <p style="font-size:11px;color:#a1a1aa;margin-top:24px;">ID da solicitação: ${this.escapeHtml(requestId)}</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`.trim();
+  }
 }
