@@ -181,7 +181,7 @@ export default function DsarAdminPage() {
               <label className="text-sm">
                 <span className="text-zinc-700 font-medium">{t("dsar.fields.type")}</span>
                 <select
-                  className="mt-1 w-full border border-zinc-300 rounded-md px-3 py-2 text-sm"
+                  className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   value={form.type}
                   onChange={(e) =>
                     setForm({ ...form, type: e.target.value as DsarType, correctionPayload: undefined })
@@ -199,7 +199,7 @@ export default function DsarAdminPage() {
                 <input
                   type="email"
                   required
-                  className="mt-1 w-full border border-zinc-300 rounded-md px-3 py-2 text-sm"
+                  className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   value={form.requesterEmail}
                   onChange={(e) => setForm({ ...form, requesterEmail: e.target.value })}
                 />
@@ -207,7 +207,7 @@ export default function DsarAdminPage() {
               <label className="text-sm">
                 <span className="text-zinc-700 font-medium">{t("dsar.fields.name")}</span>
                 <input
-                  className="mt-1 w-full border border-zinc-300 rounded-md px-3 py-2 text-sm"
+                  className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   value={form.requesterName ?? ""}
                   onChange={(e) => setForm({ ...form, requesterName: e.target.value })}
                 />
@@ -215,7 +215,7 @@ export default function DsarAdminPage() {
               <label className="text-sm">
                 <span className="text-zinc-700 font-medium">{t("dsar.fields.cpf")}</span>
                 <input
-                  className="mt-1 w-full border border-zinc-300 rounded-md px-3 py-2 text-sm"
+                  className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   placeholder="XXX.XXX.XXX-XX"
                   value={form.cpf ?? ""}
                   onChange={(e) => setForm({ ...form, cpf: e.target.value })}
@@ -224,7 +224,7 @@ export default function DsarAdminPage() {
               <label className="text-sm md:col-span-2">
                 <span className="text-zinc-700 font-medium">{t("dsar.fields.notes")}</span>
                 <textarea
-                  className="mt-1 w-full border border-zinc-300 rounded-md px-3 py-2 text-sm"
+                  className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   rows={2}
                   value={form.notes ?? ""}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -520,10 +520,4 @@ function RejectModal({ onClose, reason, setReason, onSubmit, pending, t }: Rejec
           </Button>
           <Button onClick={onSubmit} disabled={pending}>
             {pending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-            {t("dsar.actions.reject")}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
+            {t("dsar.actions.reject
