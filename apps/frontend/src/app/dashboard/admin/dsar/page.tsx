@@ -179,7 +179,7 @@ export default function DsarAdminPage() {
           <CardContent>
             <form onSubmit={submitCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="text-sm">
-                <span className="text-zinc-700 font-medium">{t("dsar.fields.type")}</span>
+                <span className="text-foreground font-medium">{t("dsar.fields.type")}</span>
                 <select
                   className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   value={form.type}
@@ -195,7 +195,7 @@ export default function DsarAdminPage() {
                 </select>
               </label>
               <label className="text-sm">
-                <span className="text-zinc-700 font-medium">{t("dsar.fields.email")}</span>
+                <span className="text-foreground font-medium">{t("dsar.fields.email")}</span>
                 <input
                   type="email"
                   required
@@ -205,7 +205,7 @@ export default function DsarAdminPage() {
                 />
               </label>
               <label className="text-sm">
-                <span className="text-zinc-700 font-medium">{t("dsar.fields.name")}</span>
+                <span className="text-foreground font-medium">{t("dsar.fields.name")}</span>
                 <input
                   className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   value={form.requesterName ?? ""}
@@ -213,7 +213,7 @@ export default function DsarAdminPage() {
                 />
               </label>
               <label className="text-sm">
-                <span className="text-zinc-700 font-medium">{t("dsar.fields.cpf")}</span>
+                <span className="text-foreground font-medium">{t("dsar.fields.cpf")}</span>
                 <input
                   className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   placeholder="XXX.XXX.XXX-XX"
@@ -222,7 +222,7 @@ export default function DsarAdminPage() {
                 />
               </label>
               <label className="text-sm md:col-span-2">
-                <span className="text-zinc-700 font-medium">{t("dsar.fields.notes")}</span>
+                <span className="text-foreground font-medium">{t("dsar.fields.notes")}</span>
                 <textarea
                   className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
                   rows={2}
@@ -427,9 +427,9 @@ interface CorrectionFieldProps {
 function CorrectionField({ label, value, onChange }: CorrectionFieldProps) {
   return (
     <label className="text-sm">
-      <span className="text-zinc-700 font-medium">{label}</span>
+      <span className="text-foreground font-medium">{label}</span>
       <input
-        className="mt-1 w-full border border-zinc-300 rounded-md px-3 py-2 text-sm"
+        className="mt-1 w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -445,7 +445,7 @@ function FilterBar({ filters, setFilters }: FilterBarProps) {
   return (
     <div className="flex items-center gap-2 text-sm font-normal">
       <select
-        className="border border-zinc-300 rounded-md px-2 py-1 text-xs"
+        className="border rounded-md px-2 py-1 bg-background text-foreground text-xs"
         value={filters.status ?? ""}
         onChange={(e) =>
           setFilters({
@@ -465,7 +465,7 @@ function FilterBar({ filters, setFilters }: FilterBarProps) {
         )}
       </select>
       <select
-        className="border border-zinc-300 rounded-md px-2 py-1 text-xs"
+        className="border rounded-md px-2 py-1 bg-background text-foreground text-xs"
         value={filters.type ?? ""}
         onChange={(e) =>
           setFilters({ ...filters, type: (e.target.value || undefined) as DsarType | undefined, offset: 0 })
@@ -497,16 +497,16 @@ function RejectModal({ onClose, reason, setReason, onSubmit, pending, t }: Rejec
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+        className="bg-card text-card-foreground rounded-lg shadow-xl max-w-md w-full p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
           <ShieldX className="h-5 w-5 text-rose-600" />
           {t("dsar.reject.title")}
         </h2>
-        <p className="text-xs text-zinc-500 mb-4">{t("dsar.reject.subtitle")}</p>
+        <p className="text-xs text-muted-foreground mb-4">{t("dsar.reject.subtitle")}</p>
         <textarea
-          className="w-full border border-zinc-300 rounded-md px-3 py-2 text-sm"
+          className="w-full border rounded-md px-3 py-2 bg-background text-foreground text-sm"
           rows={4}
           minLength={5}
           maxLength={2000}
@@ -519,5 +519,4 @@ function RejectModal({ onClose, reason, setReason, onSubmit, pending, t }: Rejec
             {t("common.cancel")}
           </Button>
           <Button onClick={onSubmit} disabled={pending}>
-            {pending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-            {t("dsar.actions.reject
+            {p
