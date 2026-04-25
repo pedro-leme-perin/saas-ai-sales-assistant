@@ -104,10 +104,7 @@ export class LgpdDeletionService {
     requesterEmail: string;
     reason: string;
     graceDays?: number;
-  }): Promise<
-    | { matched: false }
-    | { matched: true; userId: string; scheduledDeletionAt: Date }
-  > {
+  }): Promise<{ matched: false } | { matched: true; userId: string; scheduledDeletionAt: Date }> {
     const { companyId, requesterEmail, reason } = params;
     const graceDays = params.graceDays ?? 30;
     if (graceDays < 1 || graceDays > 90) {
