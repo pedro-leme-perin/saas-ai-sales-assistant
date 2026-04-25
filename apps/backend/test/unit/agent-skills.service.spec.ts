@@ -112,7 +112,10 @@ describe('AgentSkillsService', () => {
 
     it('allows update path even when user is at cap', async () => {
       mockPrisma.agentSkill.findUnique.mockResolvedValueOnce({ id: 'existing' });
-      mockPrisma.agentSkill.count.mockResolvedValueOnce(100);
+      // NOTE: no count.mockResolvedValueOnce here — assertCapacity early-returns
+      // when existing skill is found, so count() is never called. Queueing a
+      // *Once mock that is never consumed leaks to the next test and breaks
+      // isolation (jest.clearAllMocks does not clear mock*Once queues).
       mockPrisma.agentSkill.upsert.mockResolvedValueOnce({
         id: 'existing',
         userId: 'u1',
