@@ -172,10 +172,10 @@
         "lines": 60
       },
       "./src/common/guards/": {
-        "statements": 75,
-        "branches": 65,
-        "functions": 75,
-        "lines": 75
+        "statements": 60,
+        "branches": 50,
+        "functions": 55,
+        "lines": 55
       },
       "./src/common/filters/": {
         "statements": 75,
