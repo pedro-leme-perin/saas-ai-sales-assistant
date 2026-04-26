@@ -37,7 +37,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { callsService } from "@/services/api";
 import { summariesService, type ConversationSummary } from "@/services/summaries.service";
-import { SummaryModal } from "@/components/dashboard/summaries/summary-modal";
+import dynamic from "next/dynamic";
+const SummaryModal = dynamic(
+  () => import("@/components/dashboard/summaries/summary-modal").then((m) => m.SummaryModal),
+  { ssr: false }
+);
 import {
   formatDuration,
   formatDateTime,

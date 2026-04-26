@@ -17,7 +17,11 @@ import {
   type ChatPriority,
   type SlaPolicy,
 } from "@/services/sla-policies.service";
-import { EscalationTiers } from "@/components/sla/escalation-tiers";
+import dynamic from "next/dynamic";
+const EscalationTiers = dynamic(
+  () => import("@/components/sla/escalation-tiers").then((m) => m.EscalationTiers),
+  { ssr: false }
+);
 
 const PRIORITIES: ChatPriority[] = ["LOW", "NORMAL", "HIGH", "URGENT"];
 

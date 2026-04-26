@@ -136,14 +136,66 @@
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": ["ts-jest", { "diagnostics": false }]
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "diagnostics": false
+        }
+      ]
     },
     "collectCoverageFrom": [
       "src/**/*.(t|j)s",
       "!src/**/*.module.ts",
-      "!src/main.ts"
+      "!src/**/*.dto.ts",
+      "!src/**/*.interface.ts",
+      "!src/**/*.entity.ts",
+      "!src/**/*.constants.ts",
+      "!src/**/*.enum.ts",
+      "!src/**/dto/**",
+      "!src/**/types/**",
+      "!src/**/index.ts",
+      "!src/main.ts",
+      "!src/infrastructure/telemetry/**"
     ],
     "coverageDirectory": "./coverage",
+    "coverageReporters": [
+      "text-summary",
+      "json-summary",
+      "lcov",
+      "html"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 40,
+        "branches": 30,
+        "functions": 40,
+        "lines": 40
+      },
+      "./src/common/guards/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/common/filters/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/common/interceptors/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/common/resilience/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      }
+    },
     "testEnvironment": "node",
     "roots": [
       "<rootDir>/src/",

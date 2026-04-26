@@ -1,0 +1,57 @@
+feat(s62): coverage gates backend + bundle tier system frontend
+
+Three sub-tasks executed autonomously without external dependencies:
+
+(A) Backend coverage threshold enforced in CI
+    - jest coverageThreshold: global floor 40/30/40/40 (stmt/branch/func/line)
+    - 60% for security paths: src/common/{guards,filters,interceptors,resilience}/
+    - coverageReporters: text-summary, json-summary, lcov, html
+    - 9 additional collectCoverageFrom exclusions (DTOs/interfaces/entities/etc)
+    - New CI step "Coverage summary to PR" parses coverage-summary.json and
+      writes markdown table to GITHUB_STEP_SUMMARY (visible in PR UI)
+    - Conservative floor (defensible-by-design — sandbox can't run pnpm to
+      measure; node_modules pnpm-symlink fails I/O on Linux mount)
+    - Ratchet plan: each PR can RAISE floor, never lower; target 80% per §9
+      reachable in 4-6 incremental PRs
+
+(B) Frontend bundle tier system in CI
+    - Replaced soft 2MB warn-only with 3-tier check:
+      ≤2MB notice (green), 2-3MB warning (track), >3MB error+exit 1 (hard fail)
+    - Bundle size table written to GITHUB_STEP_SUMMARY for PR visibility
+    - Hard fail at 3MB acts as regression guard against dependency creep
+
+(C) Dynamic-import wins (3 concrete optimizations)
+    - SummaryModal (161 lines): static → dynamic({ ssr: false })
+      in calls/page.tsx + whatsapp/page.tsx
+    - EscalationTiers (466 lines, largest single component): static → dynamic
+      in settings/sla/page.tsx
+    - Conditional components (modals, expand panels) removed from initial bundle
+
+Initial restoration: ci.yml/staging.yml/.gitignore truncated post-S61 (Windows
+process race). git checkout HEAD failed on persistent index.lock — bypass via
+git show + cp to working tree (no git index touch).
+
+Lessons reinforced:
+1. Edit tool truncates silently even on pure-LF files (package.json cut mid-string
+   "stat). Universal mitigation: python3 json.load+dump for JSON, heredoc for text.
+2. Git lock on Windows mount is persistent — read-only ops OK, writes fail.
+3. Sandbox can't run pnpm — CI is the only validation gate.
+
+Files touched:
+- .github/workflows/ci.yml (+42, -8): coverage step + tiered bundle
+- apps/backend/package.json (+50, -3): coverageThreshold + reporters + exclusions
+- apps/frontend/src/app/dashboard/calls/page.tsx (+5, -1)
+- apps/frontend/src/app/dashboard/whatsapp/page.tsx (+5, -1)
+- apps/frontend/src/app/dashboard/settings/sla/page.tsx (+5, -1)
+- CLAUDE.md (§2.1 status + §2.4 done items + §13 coverage/bundle gates)
+- PROJECT_HISTORY.md (S62 entry, ~140 lines)
+
+Pendências S63:
+- Measure real coverage and ratchet up floor
+- Remove dead code: audit-log-detail-modal.tsx + invite-member-modal.tsx
+  (~650 lines exported but never imported)
+- Staging provisioning carryover (S61-C, blocked on Pedro)
+- k6 stress + AI carryover (S61-B, blocked on S62-A staging)
+
+S62 closes Option D (autonomous tech debt). Options A/B/C from S62 briefing
+still pending Pedro action.

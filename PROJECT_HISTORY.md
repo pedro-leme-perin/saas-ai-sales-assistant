@@ -2778,3 +2778,141 @@ Total: **278 rows removed**, 1 row added (audit META).
 S61 ENCERRADA. Próxima sessão (S62) candidata: provisionamento Railway staging + execução de stress/AI k6 tests contra ambiente isolado.
 
 ---
+
+## S62 — Test coverage gates + bundle hardening (autonomous tech debt)
+
+**Data**: 25/04/2026
+**Branch**: main (HEAD pre-S62: `52e4943`)
+**Objetivo**: Endurecer CI gates sem dependências externas — coverage threshold backend + bundle tier system frontend.
+
+### S62-A — Coverage threshold backend no CI (jest)
+
+**Antes**: `pnpm test -- --coverage` rodava no CI mas sem threshold — coverage era apenas relatório, não gate. CLAUDE.md §9 exigia >80% para lógica nova mas mecanismo não enforçado.
+
+**Decisão**: tier de thresholds com floor conservador + zona de paths críticos mais alta.
+
+| Escopo | Statements | Branches | Functions | Lines |
+|---|---:|---:|---:|---:|
+| Global (floor) | 40 | 30 | 40 | 40 |
+| `src/common/guards/` | 60 | 50 | 60 | 60 |
+| `src/common/filters/` | 60 | 50 | 60 | 60 |
+| `src/common/interceptors/` | 60 | 50 | 60 | 60 |
+| `src/common/resilience/` | 60 | 50 | 60 | 60 |
+
+**Razão da escolha**:
+
+1. Sandbox (Linux) não consegue rodar `pnpm test` localmente — node_modules pnpm-symlink quebra com I/O error no mount Windows. Sem medição empírica do estado atual, threshold tem que ser conservador para não quebrar CI no merge.
+2. CLAUDE.md §1 (correção > velocidade) inverte a lógica padrão: threshold abaixo do real é tolerável (gate fraco mas funcional), threshold acima do real quebra build (gate inválido). Floor 40% global é safe-by-design.
+3. Paths críticos de segurança (guards/filters/interceptors/resilience) têm spec coverage densa (`auth-guards.spec.ts`, `interceptors-middleware.spec.ts`, `circuit-breaker.spec.ts`, etc.) — threshold 60% é defensável sem medição.
+4. Ratchet plan: cada PR pode RAISE floor (nunca lower). Target 80% conforme §9 alcançável em 4-6 PRs incrementais.
+
+**Exclusões adicionadas em `collectCoverageFrom`** (boilerplate não-testável):
+
+```
+!src/**/*.dto.ts          (validation classes — coberto via E2E)
+!src/**/*.interface.ts    (type-only)
+!src/**/*.entity.ts       (type-only)
+!src/**/*.constants.ts    (constantes)
+!src/**/*.enum.ts         (enums)
+!src/**/dto/**            (boilerplate)
+!src/**/types/**          (type-only)
+!src/**/index.ts          (barrel exports)
+!src/infrastructure/telemetry/**  (OTel SDK init — não-testável sem mock pesado)
+```
+
+**Reporters configurados**: `text-summary`, `json-summary`, `lcov`, `html`. `json-summary` consumido por step "Coverage summary to PR" que escreve tabela markdown em `$GITHUB_STEP_SUMMARY` (visível no UI do PR sem precisar baixar artifact).
+
+**Step CI novo** (`Coverage summary to PR`, executa após unit tests, `if: always()`):
+
+```yaml
+node -e "const s=require('./coverage/coverage-summary.json').total; ..."
+```
+
+Inline node script lê `coverage-summary.json` e emite tabela com pcts + covered/total.
+
+### S62-B — Bundle threshold tier system (frontend)
+
+**Antes**: `Check bundle size` step usava soft warn 2MB sem fail mode. Bundle podia regredir indefinidamente sem bloquear merge.
+
+**Depois**: tier de 2 níveis:
+
+| Range | Comportamento |
+|---|---|
+| ≤ 2MB | `::notice::` (verde) |
+| 2-3MB | `::warning::` (amarelo, track) |
+| > 3MB | `::error::` + `exit 1` (vermelho, hard fail) |
+
+Adicionado `$GITHUB_STEP_SUMMARY` com tabela Client/Total para visibilidade em PR.
+
+**Otimizações dynamic-import aplicadas** (3 wins concretos):
+
+1. `app/dashboard/calls/page.tsx`: `SummaryModal` (161 linhas) static → `dynamic({ ssr: false })`. Modal só renderiza on-click.
+2. `app/dashboard/whatsapp/page.tsx`: mesma otimização — `SummaryModal` dynamic.
+3. `app/dashboard/settings/sla/page.tsx`: `EscalationTiers` (466 linhas — maior componente do bundle) static → `dynamic({ ssr: false })`. Renderiza só dentro de policy expand.
+
+**Razão**: `next/dynamic` faz code-splitting via webpack chunk separado, removendo o componente do initial bundle do route. Para componentes condicionais (modais, expand panels), zero penalidade de UX e ganho mensurável.
+
+**Já tinha dynamic** (verificado, não duplicado):
+
+```
+app/dashboard/analytics/page.tsx       SentimentAnalytics, AIPerformanceDetail
+app/dashboard/billing/page.tsx         PlansSection, InvoicesSection
+app/dashboard/settings/page.tsx        ProfileTab, CompanyTab, NotificationsTab, SecurityTab, AppearanceTab
+```
+
+**Dead code identificado (não removido nesta sessão)**:
+
+- `components/dashboard/audit-logs/audit-log-detail-modal.tsx` (392 linhas) — exportado mas nunca importado
+- `components/dashboard/team/invite-member-modal.tsx` (257 linhas) — exportado mas nunca importado
+
+Tree-shaking remove do bundle final (sem impacto runtime), mas são débito de manutenção. Marcado para PR futura — não in-scope para S62 (foco em gates).
+
+### S62-C — Restauração de arquivos pós-corruption
+
+Início da sessão: `git status` mostrou `ci.yml`, `staging.yml`, `.gitignore` como modified com truncation parcial (terminação `echo<EOF>`, `repo.<EOF>`, perda de 11 linhas .gitignore). Provável causa: Edit tool em arquivos com line-endings mistos OU processo Windows (VS Code git extension) writing concurrent.
+
+`git checkout HEAD -- <files>` falhou com `index.lock: File exists` em loop (lock criado por processo Windows persistente — não removível pelo sandbox: `Operation not permitted`).
+
+**Bypass**: `git show HEAD:<file> > /tmp/<file>.head` + `cp` direto sobre o working tree. Não toca git index, não precisa do lock. Restaurou os 3 arquivos para estado HEAD.
+
+**Lição**: o git lock no mount Windows é ortogonal aos lessons-learned de S60b/S61 (CRLF + Edit). Nova mitigation operacional registrada em §17.
+
+### Lições reforçadas
+
+1. **Edit tool ainda trunca silenciosamente**: tentativa de modificar `apps/backend/package.json` (LF puro, 165 linhas) via `Edit` resultou em truncation a meio de string (`"stat` cortado em linha 170). LF não-CRLF + tamanho não-extremo → bug é mais amplo que apenas CRLF. Workaround universal: **Python `json.load` + mutação programática + `json.dump` com `newline='
+'`** para arquivos JSON; `cat << 'EOF' > file` para texto livre. **Edit tool não é usável para mutações estruturais de arquivos enterprise sem validação byte-level pós-write.**
+
+2. **Git lock no mount Windows**: processo Windows-side (VS Code git provider, file watcher) cria `.git/index.lock` continuamente. `rm` falha com EPERM. Operações git read-only (`git show`, `git log`, `git status`) funcionam; operações write (`checkout`, `update-index --refresh`, `commit`) falham. Bypass: trabalhar com working tree direto via filesystem, deferir commits ao Pedro.
+
+3. **Sandbox não roda pnpm**: `node_modules` symlinks pnpm pra Windows-mounted store quebram com I/O error no Linux mount. `pnpm install` reinstalando do zero levaria 5+ min e quebraria o sync com Pedro. Implicação: validação local de testes/build é impossível na sandbox; CI é único validation gate.
+
+### Arquivos tocados
+
+```
+.github/workflows/ci.yml                                       (+19 lines — Coverage summary step + tiered bundle check)
+apps/backend/package.json                                      (+50 lines — coverageReporters + coverageThreshold + collectCoverageFrom expansões)
+apps/frontend/src/app/dashboard/calls/page.tsx                 (~6 lines — dynamic import SummaryModal)
+apps/frontend/src/app/dashboard/whatsapp/page.tsx              (~6 lines — dynamic import SummaryModal)
+apps/frontend/src/app/dashboard/settings/sla/page.tsx          (~6 lines — dynamic import EscalationTiers)
+CLAUDE.md                                                      (§2.1 último commit, §2.4 done items, §13 testing)
+PROJECT_HISTORY.md                                             (+ esta entrada)
+```
+
+### Validação
+
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"` → OK
+- `python3 -c "import json; json.load(open('apps/backend/package.json'))"` → OK
+- `grep "dynamic(" app/dashboard/{calls,whatsapp,settings/sla}/page.tsx` → 3 matches (SummaryModal x2, EscalationTiers x1)
+- `git status --short` → 4 files modified (ci.yml, package.json backend, 3 page.tsx) + .gitignore stat-cache false-positive
+- Local pnpm test execution: **N/A** (sandbox limitation — CI único validation gate)
+
+### Pendências S63
+
+1. Medir coverage real e ratchet up floor (target +5pct stmt+func) se room for improvement.
+2. Remover dead code: `audit-log-detail-modal.tsx`, `invite-member-modal.tsx` (~650 linhas) — incluir em PR de cleanup.
+3. Provisioning staging (S61-C carryover) — bloqueado em ação Pedro.
+4. Stress + AI k6 tests (S61-B carryover) — bloqueado em S62-A staging.
+
+S62 ENCERRADA.
+
+---

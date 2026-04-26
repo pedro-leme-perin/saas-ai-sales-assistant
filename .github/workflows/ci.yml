@@ -104,23 +104,42 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-      - name: Check bundle size
+      - name: Check bundle size (tiered)
         run: |
           # Measure client-side bundle only (.next/static) — server bundles are irrelevant for UX
           CLIENT_SIZE=$(find .next/static -name "*.js" -type f -exec du -cb {} + 2>/dev/null | tail -1 | cut -f1)
           TOTAL_SIZE=$(find .next -name "*.js" -type f -exec du -cb {} + 2>/dev/null | tail -1 | cut -f1)
           if [ -z "$CLIENT_SIZE" ] || [ "$CLIENT_SIZE" = "0" ]; then
-            echo "Warning: Could not calculate bundle size"
+            echo "::warning::Could not calculate bundle size — find returned no JS files"
+            echo "Bundle size: unknown" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          MAX_CLIENT=2097152  # 2MB client-side threshold
+          # Tiered thresholds:
+          #   ≤ 2MB → green (notice)
+          #   2-3MB → yellow (warning, track)
+          #   > 3MB → red (error, hard fail — regression guard)
+          SOFT_LIMIT=2097152  # 2MB
+          HARD_LIMIT=3145728  # 3MB
           CLIENT_MB=$(echo "scale=2; $CLIENT_SIZE/1048576" | bc)
           TOTAL_MB=$(echo "scale=2; $TOTAL_SIZE/1048576" | bc)
+          {
+            echo "## Frontend Bundle Size"
+            echo ""
+            echo "| Scope | Size |"
+            echo "|---|---:|"
+            echo "| Client JS (.next/static) | ${CLIENT_MB}MB |"
+            echo "| Total JS (incl. server) | ${TOTAL_MB}MB |"
+            echo ""
+            echo "_Soft limit: 2MB (warn) · Hard limit: 3MB (fail)._"
+          } >> "$GITHUB_STEP_SUMMARY"
           echo "Client JS bundle: ${CLIENT_MB}MB | Total (incl. server): ${TOTAL_MB}MB"
-          if [ "$CLIENT_SIZE" -gt "$MAX_CLIENT" ]; then
-            echo "::warning::Client bundle (${CLIENT_MB}MB) exceeds 2MB threshold (total: ${TOTAL_MB}MB)"
+          if [ "$CLIENT_SIZE" -gt "$HARD_LIMIT" ]; then
+            echo "::error::Client bundle (${CLIENT_MB}MB) exceeds 3MB HARD limit — regression must be addressed"
+            exit 1
+          elif [ "$CLIENT_SIZE" -gt "$SOFT_LIMIT" ]; then
+            echo "::warning::Client bundle (${CLIENT_MB}MB) exceeds 2MB soft limit (hard limit 3MB)"
           else
-            echo "::notice::Bundle size check passed — client: ${CLIENT_MB}MB < 2MB (total: ${TOTAL_MB}MB)"
+            echo "::notice::Bundle size check passed — client: ${CLIENT_MB}MB ≤ 2MB (total: ${TOTAL_MB}MB)"
           fi
 
       - name: Install Playwright browsers
@@ -206,11 +225,20 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Unit tests with coverage
+      - name: Unit tests with coverage (threshold-enforced)
         run: pnpm test -- --coverage --testPathPattern=test/unit --forceExit --passWithNoTests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/saas_test
           NODE_ENV: test
+
+      - name: Coverage summary to PR
+        if: always()
+        run: |
+          if [[ -f coverage/coverage-summary.json ]]; then
+            node -e "const s=require('./coverage/coverage-summary.json').total; const fs=require('fs'); const md=['## Backend Coverage (unit tests)','','| Metric | Pct | Covered | Total |','|---|---:|---:|---:|',\`| Statements | \${s.statements.pct}% | \${s.statements.covered} | \${s.statements.total} |\`,\`| Branches   | \${s.branches.pct}%   | \${s.branches.covered}   | \${s.branches.total}   |\`,\`| Functions  | \${s.functions.pct}%  | \${s.functions.covered}  | \${s.functions.total}  |\`,\`| Lines      | \${s.lines.pct}%      | \${s.lines.covered}      | \${s.lines.total}      |\`,'','_Threshold floor: statements 40%, branches 30%, functions 40%, lines 40% (security paths under src/common/: 60%)._'].join('\n'); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md+'\n'); console.log(md);"
+          else
+            echo 'WARN: coverage-summary.json not found' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Apply migrations for integration tests
         run: pnpm exec prisma migrate deploy
