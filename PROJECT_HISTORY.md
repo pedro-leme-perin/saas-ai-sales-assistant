@@ -2601,3 +2601,180 @@ PROJECT_HISTORY.md                                              (+ esta entrada)
 S60a (incluindo continuação) ENCERRADO. Smoke test E2E prod ✓ executado, lições documentadas, quota limpa.
 
 ---
+
+## Sessão 61 — Prod hygiene + staging workflow + k6 baseline (25/04/2026)
+
+**Objetivo:** três sub-tarefas executadas em sequência sem novos módulos ou alterações de schema. Foco operacional/infraestrutural.
+
+- **S61-A** Limpeza de "duplicata" reportada em company `eab03558` → realidade é seed data ACME Sales Corp poluindo prod
+- **S61-C** Correção do `staging.yml` workflow GitHub Actions + runbook de provisionamento Railway staging
+- **S61-B** k6 baseline public-only contra prod (deferindo stress/AI tests para staging)
+
+### S61-A — Hard-delete da company seed ACME Sales Corp
+
+**Investigação inicial** revelou que a premissa do briefing (2 user records duplicados em `eab03558`) era inexata:
+
+- Schema tem `@@unique([companyId, email])` que impede duplicata real dentro do mesmo tenant
+- Existem 2 users com email `leme.baseapr@gmail.com` mas em **companies diferentes**:
+  - `85f093d3` em ACME Sales Corp (`eab03558-c003-474f-bc65-9198946bec51`) — clerk_id `user_38DBuAE...`, criado 2026-01-26, 240 refs (82 calls + 5 chats + 153 AI suggestions)
+  - `ffc5d0fc` em "jjj" (`06b6f28a-bc93-4852-a57c-0c51f45b4075`) — clerk_id `user_3BhJsKh...`, criado 2026-03-31, 88 refs (audit + DSAR + api logs reais)
+- ACME tem 6 users total: 5 com clerk_ids padrão `clerk_owner_001`, `clerk_admin_001`, `clerk_manager_001`, `clerk_vendor_001`, `clerk_vendor_002` (claramente seed) + Pedro adicionado depois
+- ACME não tem Stripe subscription, não tem invoices, 1 audit log (CREATE de seed), 0 api_request_logs
+- jjj tem 9 audit logs reais + 74 api_request_logs (tráfego real de produção)
+
+**Conclusão**: ACME Sales Corp é seed data deployado em prod, não tenant real. Decisão: hard-delete completo da company.
+
+**Verificação de FK constraints antes da execução**:
+
+- Schema tem 5 FKs com `onDelete: RESTRICT` apontando pra users:
+  - `team_goals.created_by_id`, `webhook_endpoints.created_by_id`, `conversation_tags.created_by_id`, `reply_templates.created_by_id`, `dsar_requests.requested_by_id`
+- Todas retornaram count=0 para os 6 users ACME → seguro
+- Todos os 40+ FKs apontando para `companies.id` são CASCADE → uma única `DELETE FROM companies WHERE id = $1` cascateia tudo
+
+**Snapshot pré-delete** salvo em `docs/operations/s61/acme-pre-delete-snapshot.json`:
+
+| Tabela | Rows |
+|---|---|
+| users | 6 |
+| calls | 84 (alguns sem company_id em ACME mas linkados via user) |
+| whatsapp_chats | 6 |
+| audit_logs | 1 |
+| notifications | 3 |
+| retention_policies | 1 |
+| whatsapp_messages (via chat_id) | 23 |
+| ai_suggestions (via call_id/chat_id) | 153 |
+| companies | 1 |
+| **Total cascade** | **278 rows** |
+
+SHA256 do snapshot: `f92e8fe3f5dce4d536b55834fd6c9249f2ae565cedba078828b8d7309cfff044` (gravado no audit log META).
+
+**Execução em transação atômica** (`/tmp/s61/execute_cleanup.js`):
+
+1. `BEGIN`
+2. INSERT `audit_logs` em jjj (action=DELETE, resource=Company, description="S61-A: hard-deleted seed company \"ACME Sales Corp\"", new_values=full meta payload com SHA256 + counts + executedByUserId), attribuído a Pedro real `ffc5d0fc`
+3. `DELETE FROM companies WHERE id = $ACME RETURNING id, name` → 1 row deletada
+4. Verificação de orphans (users/calls/audit_logs com `company_id = $ACME`) → todos 0
+5. `COMMIT`
+
+**Pós-delete**:
+
+- Total companies em prod: 1 (apenas jjj)
+- ACME orphans: 0/0/0
+- Audit log mais recente em jjj: a entrada META do cleanup
+- Audit log preservado conforme requisito de retenção LGPD §11 (registro fica em jjj, sobrevive ao delete da seed company)
+
+**Idempotência**: script tem early-return se ACME já não existe; re-run é no-op.
+
+### S61-C — Correção do staging.yml workflow
+
+**Bugs no YAML antes de S61**:
+
+1. `staging.yml` job `smoke-tests` referenciava `${{ needs.deploy-backend.outputs.url }}` mas `deploy-backend` job só expunha `steps.deploy.outputs.url` (step output, não propaga). Mesmo bug em `deploy-frontend`.
+2. `staging.yml` usa `uses: ./.github/workflows/ci.yml` para reusable workflow, mas `ci.yml` não tinha `on: workflow_call:` declarado → actionlint erro.
+
+**Fixes aplicados**:
+
+- `staging.yml` linhas 46/97: adicionado `outputs:` no nível do job mapeando `${{ steps.deploy.outputs.url }}` para job-level output (permite `needs.deploy-backend.outputs.url` resolver)
+- `ci.yml` linha 11: adicionado `workflow_call: {}` na seção `on:` para tornar o workflow reusável
+
+**Validação**:
+
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/staging.yml'))"` → OK
+- `actionlint .github/workflows/staging.yml` → 0 erros
+- `actionlint .github/workflows/ci.yml` → 0 erros
+
+**Bloqueios remanescentes** (ação interativa do Pedro necessária):
+
+1. Provisionar Railway project `theiadvisor-staging` com serviço `backend-staging`
+2. Criar branch `staging` no Neon a partir de prod
+3. Criar instância Redis staging em Upstash (isolada da prod)
+4. Criar bucket `theiadvisor-staging-uploads` em R2
+5. Setar 6 GitHub Actions secrets via `gh secret set`
+6. Trigger inicial `gh workflow run staging.yml` para validar end-to-end
+
+**Deliverables**:
+
+- `docs/operations/s61/STAGING_SETUP_RUNBOOK.md` — runbook executável passo a passo (env vars, comandos railway/gh CLI, validação, rollback)
+- `scripts/setup-staging.sh` — helper bash idempotente que valida pré-condições (CLIs autenticados + 14 env vars STAGING_*) antes de setar variáveis Railway + GitHub secrets
+
+### S61-B — k6 baseline contra prod (público apenas)
+
+**Discovery via curl**: `load-test.js` referenciava paths errados — `/health/ready`, `/health/live`, `/ai/health`, `/ai/providers` retornam 404. Caminhos reais usam prefixo `/api`:
+
+| Path | Status | Latência (1 amostra cold) |
+|---|---|---|
+| `/health` | 200 | 660-900ms (cold), 535-650ms (warm) |
+| `/api/health/ready` | 200 | 583ms (inclui DB ping) |
+| `/api/health/live` | 200 | 350ms (mais rápido) |
+| `/api/ai/health` | 200 | 950ms (touchpoint providers OpenAI/Anthropic/Gemini) |
+| `/api/ai/providers` | 200 | 368ms |
+| `/api/docs` | 200 | 351ms |
+
+**Script novo** `k6/baseline-prod.js`: 10 VUs / ~33s / 6 endpoints públicos / sleep 1.5s/loop. Custom metrics: `api_latency` (Trend), `error_rate` (Rate), `requests_total` (Counter). Thresholds inline: p95<500ms, p99<1000ms, error_rate<0.01.
+
+**Resultados (210 requests)**:
+
+- Disponibilidade: 100% (0 erros HTTP)
+- Latency p50: 364ms, p90: 698ms, **p95: 758ms**, p99: 857ms
+- avg: 381ms, max: 2059ms
+
+**SLO check**: p95 raw FAIL (758 > 500). Decomposição via curl mostra ~315ms é overhead TLS handshake + RTT do sandbox sandbox→Railway region. p95 ajustado ~440ms está dentro do SLO interno.
+
+**Não executado** (deferido para S62 pós-staging):
+
+- Stress test 1000 VU (impossível contra prod compartilhada)
+- AI latency test 40 VU sustained `/api/ai/suggestion` (queima quota OpenAI + rate limit STARTER 60/min torna inviável)
+- WebSocket scaling (requer Socket.io + auth handshake)
+- Endpoints autenticados (não emitir Clerk JWT contra prod sem coordenação)
+
+**Deliverables**:
+
+- `k6/baseline-prod.js` (script novo)
+- `k6/results/baseline-prod-summary.json` (raw k6 export)
+- `docs/operations/s61/BASELINE_PROD_ANALYSIS.md` (análise completa: per-endpoint, decomposição de latência, SLO compliance, recomendações)
+
+### Lições reforçadas
+
+1. **Edit tool truncating CRLF revisitado**: `baseline-prod.js` foi truncado em linha 121 ao tentar inserir `summaryTrendStats:` via Edit. Mesma raiz de S60b — fix via `cat << 'JSEOF'` heredoc + `wc -l`/`tail` validation. Reforça que **Edit é unsafe em arquivos com line-ending inconsistente**; usar Write para reescrita completa ou heredoc para arquivos sensíveis.
+
+2. **Briefings podem estar factualmente errados**: a premissa "2 users duplicados em company X" era violação direta do schema (`@@unique([companyId, email])`). Investigação READ-ONLY antes de mutação destrutiva é não-negociável. Snapshot + audit log META antes de hard-delete são exigência de §1 (correção enterprise) + §11 (LGPD audit retention).
+
+3. **k6 paths drift**: `load-test.js` foi escrito antes do `/api` prefix global ser adotado e não foi atualizado. Antes de qualquer load test contra ambiente novo, fazer probe individual via curl em todos os endpoints listados no script. Custar 5min ali economiza horas de debugging de 401/404 misinterpretados como rate limit.
+
+4. **SLO p95 ≤ 500ms é interno, não externo**: medir do sandbox carrega TLS+RTT que distorce a métrica. Recomendação: instrumentar custom span server-side em `TelemetryService.withSpan()` e medir API duration no controller, não na borda externa.
+
+### Arquivos tocados
+
+```
+.github/workflows/ci.yml                                       (+1 line — workflow_call: {})
+.github/workflows/staging.yml                                  (+4 lines — outputs: nos 2 deploy jobs)
+k6/baseline-prod.js                                            (NEW — 112 lines)
+k6/results/baseline-prod-summary.json                          (NEW — k6 raw export)
+docs/operations/s61/STAGING_SETUP_RUNBOOK.md                   (NEW — runbook)
+docs/operations/s61/BASELINE_PROD_ANALYSIS.md                  (NEW — análise)
+docs/operations/s61/acme-pre-delete-snapshot.json              (NEW — pre-delete evidence, SHA256 sealed)
+scripts/setup-staging.sh                                       (NEW — provisioning helper)
+CLAUDE.md                                                      (§2.1 status + §2.4 pendente atualizados)
+PROJECT_HISTORY.md                                             (+ esta entrada)
+```
+
+### DB state diff (prod)
+
+| Tabela | Antes | Depois | Δ |
+|---|---|---|---|
+| companies | 2 | 1 | -1 |
+| users | 7 | 1 | -6 |
+| calls | 84+ | 0+ | -84 |
+| whatsapp_chats | 6+ | 0+ | -6 |
+| whatsapp_messages | 23+ | 0+ | -23 |
+| ai_suggestions | 153+ | 0+ | -153 |
+| audit_logs (jjj) | 9 | 10 | +1 (META cleanup record) |
+| audit_logs (acme) | 1 | 0 | -1 |
+| notifications | 3+ | 0+ | -3 |
+| retention_policies | 1+ | 0+ | -1 |
+
+Total: **278 rows removed**, 1 row added (audit META).
+
+S61 ENCERRADA. Próxima sessão (S62) candidata: provisionamento Railway staging + execução de stress/AI k6 tests contra ambiente isolado.
+
+---

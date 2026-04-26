@@ -14,3 +14,14 @@ test-results/
 S58.patch
 desktop.ini
 erspedro*
+
+# S61: pre-delete snapshots (contêm seed Twilio SIDs detectados pelo push protection)
+docs/operations/**/*-pre-delete-snapshot.json
+_tmp_14_453fd1974647895e768b156fcd17f0a6
+_tmp_14_a0212df790562ae299a5a419a838c38e
+desktop.ini.tmp
+apps\backend\out1.txt
+apps\backend\test-output.txt
+Backend e Frontend Completos.txt
+HANDOFF_CONTEXTO_SESSAO.md
+HANDOFF_SESSAO_15MAR2026.docx

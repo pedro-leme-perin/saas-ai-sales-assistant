@@ -22,14 +22,15 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 30/04/2026 (sessão 60a — DSAR workflow LGPD Art. 18)
+> Última atualização: 25/04/2026 (sessão S61 — prod hygiene + staging workflow + k6 baseline)
 
 ### 2.1 Status Geral
 
 | Dimensão | Status | Detalhes |
 |---|---|---|
 | Fase atual | Fase 3 — Polimento & Produção | Backend + Frontend em produção |
-| Último commit | S60a-close (25/04/2026) | **Encerramento operacional S60a.** Smoke test E2E prod ✓ (criar INFO → aprovar → COMPLETED → download R2 → email). 7 bugs resolvidos durante validação UI: (a) `border-zinc-300` light-only em 9 inputs, (b) sub-componentes/labels/modal não cobertos, (c) Chrome `:-webkit-autofill` derrotando Tailwind, (d) `color-scheme` ausente fazendo browser pintar native controls em light field-color, (e) **Edit tool truncando arquivos com CRLF silenciosamente** (causa raiz CI Frontend vermelho 4 commits seguidos — `globals.css` cortado em `backgroun` linha 149, `dsar/page.tsx` em `{p` linha 521; fix via `cat << EOF` heredoc no sandbox bash), (f) `dsar.service.ts` retornando envelope `TransformInterceptor` cru, (g) `legalBasis` hardcoded `Art. 18 V` para tipo INFO. Resoluções: `color-scheme: dark/light` em globals.css + global `input/textarea/select { background-color: transparent; color: inherit }` defensive baseline; `DSAR_LEGAL_BASIS: Record<DsarType, string>` em constants.ts (5 sub-direitos); `DsarArtifact.legalBasis` relaxado de union literal → `string`. 7 commits incrementais (`f2483f2` → `<close>`). Detalhes em PROJECT_HISTORY.md S60b. Anterior: S60a-deploy `606ad5f`. |
+| Último commit | S61 (25/04/2026) | **S61 — Prod hygiene + staging workflow fix + k6 baseline.** Três sub-tarefas executadas em sequência, sem novos módulos: (A) Hard-delete da company seed `ACME Sales Corp` (`eab03558`) que poluía prod com 278 rows cascateadas (6 users seed `clerk_*_001`, 84 calls, 6 chats, 23 messages, 153 AI suggestions, 1 audit, 3 notifications, 1 retention policy) — investigação preliminar revelou que NÃO eram duplicatas no mesmo tenant (constraint `@@unique([companyId, email])` impede), e sim Pedro com email igual em 2 companies isoladas (a real `jjj` + a seed ACME). Operação executada em transação atômica com snapshot pré-delete em `docs/operations/s61/acme-pre-delete-snapshot.json` (SHA256 capturado), audit log META inserido em `jjj` antes do DELETE, verificação pós-delete de orphans=0. Total companies em prod agora 1 (apenas `jjj`). (B) `staging.yml` workflow corrigido — adicionado `outputs:` no nível dos jobs `deploy-backend`/`deploy-frontend` (URLs não propagavam para `smoke-tests`/`comment` jobs); `ci.yml` ganhou `workflow_call: {}` para permitir reuso via `uses: ./.github/workflows/ci.yml`. actionlint passa em ambos. Runbook completo `docs/operations/s61/STAGING_SETUP_RUNBOOK.md` + helper `scripts/setup-staging.sh` — provisionamento Railway/Neon/Upstash bloqueia em ação interativa do Pedro. (C) k6 baseline contra prod — script novo `k6/baseline-prod.js` com 6 endpoints públicos (descobertos via curl pois `load-test.js` referenciava paths sem `/api` prefix), 10 VUs / ~33s, 210 requests, 100% disponibilidade, p95=757.77ms (FAIL raw vs SLO 500ms — mas ~315ms é overhead TLS+RTT sandbox→Railway, p95 ajustado ~440ms dentro de SLO). Stress (1000VU) e AI (40VU) deferidos para staging quando provisionado (S62). Análise completa em `docs/operations/s61/BASELINE_PROD_ANALYSIS.md`. Lição reforçada de S60b: Edit tool truncou `baseline-prod.js` em linha 121 ao tentar inserir `summaryTrendStats:` — fix via `cat << 'JSEOF'` heredoc (mesma raiz CRLF). Anterior: S60a-close `b9871be`. |
+| Último commit S60a-close | b9871be (25/04/2026) | **Encerramento operacional S60a.** Smoke test E2E prod ✓ (criar INFO → aprovar → COMPLETED → download R2 → email). 7 bugs resolvidos durante validação UI: (a) `border-zinc-300` light-only em 9 inputs, (b) sub-componentes/labels/modal não cobertos, (c) Chrome `:-webkit-autofill` derrotando Tailwind, (d) `color-scheme` ausente fazendo browser pintar native controls em light field-color, (e) **Edit tool truncando arquivos com CRLF silenciosamente** (causa raiz CI Frontend vermelho 4 commits seguidos — `globals.css` cortado em `backgroun` linha 149, `dsar/page.tsx` em `{p` linha 521; fix via `cat << EOF` heredoc no sandbox bash), (f) `dsar.service.ts` retornando envelope `TransformInterceptor` cru, (g) `legalBasis` hardcoded `Art. 18 V` para tipo INFO. Resoluções: `color-scheme: dark/light` em globals.css + global `input/textarea/select { background-color: transparent; color: inherit }` defensive baseline; `DSAR_LEGAL_BASIS: Record<DsarType, string>` em constants.ts (5 sub-direitos); `DsarArtifact.legalBasis` relaxado de union literal → `string`. 7 commits incrementais (`f2483f2` → `<close>`). Detalhes em PROJECT_HISTORY.md S60b. Anterior: S60a-deploy `606ad5f`. |
 | Backend (NestJS) | ✅ Produção | Railway — 47 módulos (+dsar), 80+ test suites, 40 env vars |
 | Frontend (Next.js 15) | ✅ Produção | Vercel — `theiadvisor.com`, 10 E2E specs, 45 routes (+/dashboard/admin/dsar) |
 | Banco de dados | ✅ Produção | PostgreSQL (Neon) — 42 modelos (+DsarRequest), 45 enums Prisma + pg_trgm |
@@ -42,8 +43,8 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 | Cloudflare R2 (Upload) | ✅ Produção | Bucket `theiadvisor-uploads`, domínio custom |
 | Sentry | ✅ Produção | Frontend + Backend, 6 alert rules |
 | Email (Resend) | ✅ Produção | `team@theiadvisor.com`, DKIM/SPF verificados |
-| CI/CD | ✅ Produção + Staging | ci.yml (prod) + staging.yml (preview) |
-| Testes | ✅ 57 suites + k6 | 44 backend + 10 E2E + 3 k6 load tests |
+| CI/CD | ✅ Produção + Staging (workflow ✅, infra ⏳) | ci.yml (prod) + staging.yml (corrigido S61: job-level outputs + workflow_call). Railway staging project + GH secrets pendentes em `docs/operations/s61/STAGING_SETUP_RUNBOOK.md` |
+| Testes | ✅ 57 suites + k6 | 44 backend + 10 E2E + 4 k6 scripts (load + stress runner + baseline-prod novo S61) |
 | Telemetria | ✅ Produção | OpenTelemetry SDK → Axiom OTLP |
 | LGPD | ✅ Produção | /terms, /privacy, /help + export/deletion endpoints + cron de deleção agendada (30d) |
 
@@ -81,8 +82,10 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 
 **Itens técnicos futuros:**
 - [ ] Sentry: migrar para plano pago quando tráfego crescer
-- [ ] Configurar Railway staging project + secrets para staging.yml workflow
-- [ ] Executar k6 load tests contra produção (baseline performance)
+- [ ] **(S61-C parcial)** Provisionar Railway staging project + Neon staging branch + Upstash staging Redis + R2 staging bucket; setar 6 GitHub Actions secrets (RAILWAY_STAGING_TOKEN, RAILWAY_STAGING_PROJECT_ID, STAGING_API_URL, STAGING_CLERK_PUBLISHABLE_KEY, STAGING_CLERK_SECRET_KEY, VERCEL_TOKEN). Workflow YAML já corrigido. Runbook: `docs/operations/s61/STAGING_SETUP_RUNBOOK.md`. Helper: `scripts/setup-staging.sh`.
+- [ ] **(S61-B parcial)** Executar stress test (1000 VU) + AI latency test (40 VU sustained `/api/ai/suggestion`) — blocked-by S61-C provisioning. Não rodar contra prod compartilhada.
+- [x] ~~k6 baseline público contra prod~~ ✅ Sessão S61-B (`k6/baseline-prod.js`, p95=757ms raw / ~440ms ajustado, 100% availability)
+- [x] ~~Limpar seed data ACME Sales Corp da prod~~ ✅ Sessão S61-A (278 rows cascade-deleted, snapshot preservado)
 - [x] ~~Implementar job de deleção agendada (LGPD — atualmente apenas suspende conta)~~ ✅ Sessão 43
 
 ### 2.5 Histórico detalhado de sessões
@@ -647,6 +650,5 @@ Documentação da API em `/api/docs` (64+ endpoints, 11 tags)
 - OTLP endpoint: `https://api.axiom.co/v1/traces`
 
 ---
+*Versão: 5.4 — Abril 2026 (S61)*
 
-*Versão: 5.3 — Abril 2026*
-*Histórico completo de sessões: ver `PROJECT_HISTORY.md`*

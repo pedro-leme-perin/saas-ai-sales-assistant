@@ -43,6 +43,8 @@ jobs:
     environment:
       name: staging
       url: ${{ steps.deploy.outputs.url }}
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v6
 
@@ -91,6 +93,8 @@ jobs:
     needs: ci
     environment:
       name: preview
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v6
