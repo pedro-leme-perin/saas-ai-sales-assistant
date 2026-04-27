@@ -4758,3 +4758,157 @@ scripts/s67b-frontend-strict.ps1              (NEW — wrapper Pedro-side)
 6. **WhatsApp Business API live**: bloqueado MEI.
 
 S67-B ENCERRADA. Sequência S65 → S67-B 100% completa.
+
+---
+
+## S68 — Gap closure session (audit honesto + remediation parcial)
+
+**Data:** 27/04/2026
+**Trigger:** Pergunta do Pedro: "tudo está feito de forma completa e total? algo ficou vago ou vazio ou incompleto?"
+**Tipo:** Tech debt cleanup + audit honesto.
+
+### Auditoria honesta — 11 lacunas em 5 categorias
+
+| #   | Categoria   | Lacuna                                                                                  | Severidade |
+| --- | ----------- | --------------------------------------------------------------------------------------- | ---------- |
+| 1   | Técnica     | Coverage 80% target (§9) — atual functions 71.45% / branches 62.31%                     | Média      |
+| 2   | Técnica     | Specs §2 strict (happy path + ≥2 failure modes) — só ~30% dos métodos têm failure mode  | Média      |
+| 3   | Técnica     | ADRs §16 obrigatórios — 2 decisões arquiteturais (S65 hooks + S66-D commitlint) sem doc | Alta       |
+| 4   | Operacional | Working tree corruption (5 ocorrências) — causa raiz não identificada                   | Alta       |
+| 5   | Operacional | `.git/config` NUL bytes corruption — auto-sanitize reativa, prevenção ausente           | Média      |
+| 6   | Operacional | 22 PS1 scripts orphan em `scripts/` (s63 → s67b)                                        | Baixa      |
+| 7   | Operacional | `docs/operations/s67/` ausente (S65 e S66 têm folders, S67 só PROJECT_HISTORY)          | Média      |
+| 8   | Segurança   | GitHub fine-grained token rotation não confirmada                                       | Alta       |
+| 9   | Processo    | CLAUDE.md header version stale por 5 sessões (S66-A→S66-E)                              | Baixa      |
+| 10  | Processo    | Coverage per-file não-enforced — novos arquivos 0% passam por average global            | Média      |
+| 11  | Validação   | Sandbox não rodou eslint frontend full sweep — confiança baseada em grep + CI           | Baixa      |
+
+### S68 trata 4 lacunas concretas (autônomas)
+
+#### (A) Scripts/archive/ + cleanup orphan PS1s — lacuna #6
+
+`scripts/archive/.gitkeep` + `scripts/archive/README.md` (3.1KB). README documenta 22 scripts archived com:
+
+- Outcome commit hash referenciado
+- Notes (helper, recovery, replaced)
+- Cross-reference a `docs/operations/sXX/` e `PROJECT_HISTORY.md`
+
+PS1 wrapper Pedro-side (`scripts/s68-gap-closure.ps1`) move 22 scripts via `Move-Item scripts\s*-*.ps1 scripts\archive\` antes do commit.
+
+Files archived (chronological):
+
+```
+s63-cleanup-and-commit.ps1, s63-fetch-fail.ps1, s63-verify-ci.ps1, s63d-recommit.ps1,
+s64a-add-apikey-spec.ps1, s64a-amend-fix.ps1, s64a-amend-fix2.ps1, s64a-prettier-fix.ps1,
+s64b-check-guards-coverage.ps1, s64b-ratchet.ps1, s64c-functions-relax.ps1,
+s65-pre-commit-setup.ps1, s65-resume-commit.ps1,
+s66a-coverage-ratchet.ps1, s66b-controllers-batch.ps1, s66c-ratchet.ps1,
+s66d-commitlint.ps1, s66d-resume.ps1, s66e-eslint-hook.ps1,
+s67-eslint-strict.ps1, s67-resume.ps1, s67b-frontend-strict.ps1
+```
+
+#### (B) docs/operations/s67/ESLINT_STRICT.md — lacuna #7
+
+Doc operacional consolidado (8.7KB) cobrindo S67 + S67-B. Sections:
+
+1. Objetivo (dual strict mode rationale)
+2. Backend strict (audit + config diff + lint-staged change + bug encontrado)
+3. Frontend strict (audit baseline limpo + lint-staged change + comparação backend×frontend)
+4. Hook chain final pós-S67-B
+5. Glob narrowing — efeitos colaterais (cobertos × não cobertos)
+6. Bypass de emergência
+7. Performance impact (~3-6s typical commit)
+8. Onboarding devs novos
+9. Troubleshooting (5 cenários comuns)
+10. Roadmap futuro
+11. Métricas
+
+#### (C) ADR-012 + ADR-013 — lacuna #3
+
+**ADR-012** (`docs/adr/012-pre-commit-hooks.md`, 6.2KB): formaliza decisão de adotar husky 9 + lint-staged 15 + 2 custom Node guards. Sections: Contexto (8 round-trips quantificados S60a→S64), Decisão, Consequências, Compliance, Notas (5 alternativas descartadas + roadmap).
+
+**ADR-013** (`docs/adr/013-conventional-commits.md`, 5.9KB): formaliza decisão de Conventional Commits via commitlint. Sections: Contexto (drift de format observado), Decisão (11 types + 11 custom rules), Consequências (auto-changelog viable + semver derivable), Compliance, Notas.
+
+`docs/adr/README.md` index atualizado: rows 012 + 013 added.
+
+Numeração escolhida 012/013 porque 008-011 já existem (sql-aggregation, multi-tenancy, observability, ai-provider).
+
+#### (D) Per-path coverage thresholds — lacuna #10
+
+`apps/backend/package.json` `jest.coverageThreshold` ganha 7 paths novos com floor 60/50/60/60 (stmt/br/fn/lines):
+
+```json
+"./src/modules/auth/":               { 60/50/60/60 },
+"./src/modules/billing/":            { 60/50/60/60 },
+"./src/modules/dsar/":               { 60/50/60/60 },
+"./src/modules/impersonation/":      { 60/50/60/60 },
+"./src/modules/api-keys/":           { 60/50/60/60 },
+"./src/modules/webhooks/":           { 60/50/60/60 },
+"./src/infrastructure/database/":    { 60/50/60/60 }
+```
+
+Floor 60/50/60/60 escolhido por:
+
+1. Idêntico ao global pre-S66-A (testado em 6 PRs sem flake CI)
+2. Defensable — todos esses módulos atualmente excedem 70%+ measured (post-S66-B)
+3. Catches NEW uncovered files: arquivo novo 0% < 60% threshold → blocks CI
+
+Total floors agora: global + 4 common security paths + 7 critical modules = 12 thresholds enforcados.
+
+### Lacunas deferidas (escopo grande)
+
+| #   | Lacuna                             | Razão de deferimento                                                                            |
+| --- | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1   | Coverage 80% target                | Requer amplify ~10 specs com failure-mode tests (~3-4h) — PR dedicado S69+                      |
+| 2   | Specs §2 strict                    | Mesma razão (1)                                                                                 |
+| 4   | Working tree corruption root cause | Requer Pedro rodar Sysinternals process monitor durante commit (Pedro-interactive)              |
+| 5   | `.git/config` NUL bytes prevention | Mesma razão (4) — investigação process-level                                                    |
+| 8   | GitHub fine-grained token audit    | Requer Pedro screenshot pages settings/tokens (Pedro-interactive)                               |
+| 11  | Eslint frontend full sweep         | Requer Pedro `pnpm --filter @saas/frontend exec eslint src --max-warnings 0` (sandbox sem pnpm) |
+
+Lacunas #9 (header version stale) JÁ foi corrigida em S67. Não precisa S68 action.
+
+### Lições reforçadas
+
+1. **Audit honesto regularmente**: pergunta do Pedro "tudo completo?" expôs 11 lacunas. Sem audit, débito acumula silenciosamente. Padrão: a cada 5-10 sessões, fazer audit explícito.
+
+2. **`docs/operations/sXX/` é convenção viva**: S65 e S66 criaram folders, S67 esqueceu. Convenção precisa ser checklist, não memória.
+
+3. **ADR §16 é obrigatório**: prompt enterprise é claro, e em 2 decisões arquiteturais (S65 hooks + S66-D commitlint) ADR foi pulado. Mitigation: pre-commit hook futuro pode bloquear commit que adicione `.husky/` files sem ADR matching em `docs/adr/`.
+
+4. **Per-file coverage threshold**: arquivo novo 0% passa por média global. Solução: per-path thresholds baseados em LoC + criticidade. Floor 60 conservativo evita CI flake.
+
+### Mutações em arquivos
+
+```
+scripts/archive/.gitkeep                         (NEW — folder placeholder)
+scripts/archive/README.md                        (NEW — 3.1KB)
+docs/operations/s67/ESLINT_STRICT.md             (NEW — 8.7KB)
+docs/adr/012-pre-commit-hooks.md                 (NEW — 6.2KB)
+docs/adr/013-conventional-commits.md             (NEW — 5.9KB)
+docs/adr/README.md                               (M  — index +ADR-012, ADR-013)
+apps/backend/package.json                        (M  — +7 critical-path coverage thresholds)
+CLAUDE.md                                        (M  — header v6.4, S68 row, footer)
+PROJECT_HISTORY.md                               (+ esta entrada)
+scripts/s68-gap-closure.ps1                      (NEW — wrapper Pedro-side, also moves orphan PS1s)
+```
+
+### Esperado em CI #261
+
+- Backend tests: PASS (per-path thresholds 60 são bem abaixo de real measured)
+- Coverage: idêntico (zero specs novos)
+- Annotations: zero esperado (apenas Node deprecation + bundle warning conhecidos)
+
+### Pendências pós-S68
+
+| #              | Lacuna deferida                      | Próxima sessão sugerida          |
+| -------------- | ------------------------------------ | -------------------------------- |
+| 1 + 2          | Coverage 80% + specs failure modes   | S69 dedicado (~3-4h)             |
+| 4 + 5          | Working tree + git config corruption | Pedro-interactive (Sysinternals) |
+| 8              | GitHub fine-grained token audit      | Pedro-interactive                |
+| 11             | Eslint frontend full sweep           | Pedro-interactive                |
+| Bundle deeper  | S62 carryover                        | Pedro `pnpm run analyze`         |
+| Pre-push hook  | S65 roadmap                          | Opcional, alto custo             |
+| Auto-changelog | S66-D roadmap                        | S70+                             |
+
+S68 ENCERRADA. Anterior: S67-B `d8e3b21`.

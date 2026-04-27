@@ -1,24 +1,26 @@
 # Architecture Decision Records (ADRs)
 
 This directory formalizes the architectural decisions documented inline in `CLAUDE.md § 13`.
-Each ADR follows the format from *Fundamentals of Software Architecture* Cap. 19:
+Each ADR follows the format from _Fundamentals of Software Architecture_ Cap. 19:
 Title → Status → Context → Decision → Consequences → Compliance → Notes.
 
 ## Index
 
-| #   | Title                                             | Status  | Inline ref |
-| --- | ------------------------------------------------- | ------- | ---------- |
-| 001 | Monolith Modular + Event-Driven Architecture      | Aceito  | CLAUDE.md  |
-| 002 | PostgreSQL como banco principal                    | Aceito  | CLAUDE.md  |
-| 003 | Multi-tenancy por shared DB + companyId           | Aceito  | CLAUDE.md  |
-| 004 | Redis adapter para WebSocket horizontal scaling   | Aceito  | CLAUDE.md  |
-| 005 | Clerk para auth (não construir próprio)           | Aceito  | CLAUDE.md  |
-| 006 | Deepgram para STT                                 | Aceito  | CLAUDE.md  |
-| 007 | Circuit breaker em integrações externas           | Aceito  | CLAUDE.md  |
-| 008 | [SQL-level aggregation over app-level](./008-sql-level-aggregation.md) | Aceito  | this dir |
-| 009 | [Multi-tenancy via shared DB + companyId](./009-multi-tenancy-shared-db.md) | Aceito  | this dir (formaliza #003) |
-| 010 | [Observability stack — Sentry + OTel + Axiom](./010-observability-stack.md) | Aceito  | this dir |
-| 011 | [AI provider abstraction with automatic fallback](./011-ai-provider-abstraction.md) | Aceito  | this dir |
+| #   | Title                                                                               | Status | Inline ref                |
+| --- | ----------------------------------------------------------------------------------- | ------ | ------------------------- |
+| 001 | Monolith Modular + Event-Driven Architecture                                        | Aceito | CLAUDE.md                 |
+| 002 | PostgreSQL como banco principal                                                     | Aceito | CLAUDE.md                 |
+| 003 | Multi-tenancy por shared DB + companyId                                             | Aceito | CLAUDE.md                 |
+| 004 | Redis adapter para WebSocket horizontal scaling                                     | Aceito | CLAUDE.md                 |
+| 005 | Clerk para auth (não construir próprio)                                             | Aceito | CLAUDE.md                 |
+| 006 | Deepgram para STT                                                                   | Aceito | CLAUDE.md                 |
+| 007 | Circuit breaker em integrações externas                                             | Aceito | CLAUDE.md                 |
+| 008 | [SQL-level aggregation over app-level](./008-sql-level-aggregation.md)              | Aceito | this dir                  |
+| 009 | [Multi-tenancy via shared DB + companyId](./009-multi-tenancy-shared-db.md)         | Aceito | this dir (formaliza #003) |
+| 010 | [Observability stack — Sentry + OTel + Axiom](./010-observability-stack.md)         | Aceito | this dir                  |
+| 011 | [AI provider abstraction with automatic fallback](./011-ai-provider-abstraction.md) | Aceito | this dir                  |
+| 012 | [Pre-commit hooks (husky + lint-staged + guards)](./012-pre-commit-hooks.md)        | Aceito | this dir                  |
+| 013 | [Conventional Commits enforcement (commitlint)](./013-conventional-commits.md)      | Aceito | this dir                  |
 
 ## When to create an ADR
 

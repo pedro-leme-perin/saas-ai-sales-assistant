@@ -194,6 +194,48 @@
         "branches": 65,
         "functions": 75,
         "lines": 75
+      },
+      "./src/modules/auth/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/modules/billing/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/modules/dsar/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/modules/impersonation/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/modules/api-keys/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/modules/webhooks/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
+      },
+      "./src/infrastructure/database/": {
+        "statements": 60,
+        "branches": 50,
+        "functions": 60,
+        "lines": 60
       }
     },
     "testEnvironment": "node",
