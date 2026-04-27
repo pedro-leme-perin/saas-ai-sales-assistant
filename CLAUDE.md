@@ -576,15 +576,15 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
 
 | Escopo | Statements | Branches | Functions | Lines |
 |---|---:|---:|---:|---:|
-| Global (floor) | 60 | 50 | 60 | 60 |
-| `src/common/guards/` | 60 | 50 | 55 | 55 |
+| Global (floor) | 65 | 55 | 65 | 65 |
+| `src/common/guards/` | 75 | 65 | 75 | 75 |
 | `src/common/filters/` | 75 | 65 | 75 | 75 |
 | `src/common/interceptors/` | 75 | 65 | 75 | 75 |
 | `src/common/resilience/` | 75 | 65 | 75 | 75 |
 
-**S63 ratchet** (de 40/30/40/40 → 60/50/60/60 global). Calibração via CI #244 (S62) measured: real `stmt 68.82% / br 60.96% / fn 65.34% / lines 69.26%` — floor lock current state com 5-11pct headroom defensivo.
+**Histórico de ratchet**: 40/30/40/40 (S62 floor inicial) → 60/50/60/60 (S63-A locked CI #244 measured 68.82/60.96/65.34/69.26) → 65/55/65/65 (S64-B locked CI #248 measured 69.48/61.42/65.69/69.94).
 
-**S63-D fix-up** (CI #245 fail diagnostic): security paths split — `filters/`, `interceptors/`, `resilience/` mantidos em 75/65/75/75 (passaram), `guards/` rebaixado pra 60/50/55/55. Causa: `api-key.guard.ts` sem spec dedicado arrasta coverage do diretório (real measured `stmt 62.17% / br 53.84% / fn 60% / lines 61.11%`). Floor guards/ lock current measured com headroom 2-6pct. Pendência S64: criar `api-key.guard.spec.ts` para subir guards/ acima de 75% e re-unificar bloco.
+**S63-D fix-up + S64-A revert** (sequencial): S63-A subiu security paths para 75/65/75/75 mas guards/ falhou (`api-key.guard.ts` sem spec dedicado, real 62.17/53.84/60/61.11). S63-D split: guards/ rebaixado para 60/50/55/55. **S64-A** adicionou `api-key.guard.spec.ts` (486 linhas, 25 testes, 9 describes). Coverage real per-path mensurada via `gh run download` + parse coverage-summary.json: guards/ subiu para **97.44/84.62/93.33/97.22** (api-key.guard.ts isoladamente 96.49/84.21/83.33/96.29). **S64-B** revert split: guards/ unificado em 75/65/75/75 com massive headroom (17-22pct).
 
 **Ratchet plan**: cada PR pode RAISE floor (nunca lower). Target 80% conforme §9, alcançável em 2-3 PRs incrementais a partir de S63. Coverage summary postada em `$GITHUB_STEP_SUMMARY` em todo PR via `coverage-summary.json` parseado por inline `node -e`.
 

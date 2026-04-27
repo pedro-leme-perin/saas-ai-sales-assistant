@@ -3251,3 +3251,113 @@ ct["./src/common/guards/"] = {"statements": 75, "branches": 65, "functions": 75,
 Reverte split S63-D, unifica security paths em ratchet uniforme, fecha ciclo.
 
 S64-A SEMI-ENCERRADA — código pronto, push em standby por CI #246.
+
+## S64-B — Coverage threshold ratchet round 2 (data-driven post-S64-A)
+
+**Data**: 27/04/2026 (mesma janela operacional pós-CI #248 verde)
+**Branch**: main (HEAD pre-S64-B: `b4f5fd1`)
+**Objetivo**: Ratchet defensável usando coverage real per-path medido empiricamente via `gh run download` + parse `coverage-summary.json`.
+
+### Medição empírica per-path (CI #248)
+
+Script `scripts/s64b-check-guards-coverage.ps1` baixou coverage artifact, parseou JSON, agregou por security path:
+
+| Path | Files | Stmt | Br | Fn | Lines |
+|---|---:|---:|---:|---:|---:|
+| guards/ | 4 | 97.44% | 84.62% | 93.33% | 97.22% |
+| filters/ | 1 | 97.73% | 94.12% | 100% | 97.62% |
+| interceptors/ | 2 | 100% | 94.12% | 100% | 100% |
+| resilience/ | 3 | 98.86% | 88.89% | 95% | 100% |
+
+Per-file detalhado (todos com >80% statements):
+
+| File | Stmt | Br | Fn | Lines |
+|---|---:|---:|---:|---:|
+| `filters/global-exception.filter.ts` | 97.72% | 94.11% | 100% | 97.61% |
+| `guards/api-key.guard.ts` | **96.49%** | 84.21% | 83.33% | **96.29%** |
+| `guards/company-throttler.guard.ts` | 95.91% | 93.75% | 100% | 95.45% |
+| `guards/roles.guard.ts` | 100% | 100% | 100% | 100% |
+| `guards/twilio-signature.guard.ts` | 100% | 66.66% | 100% | 100% |
+| `interceptors/logging.interceptor.ts` | 100% | 87.5% | 100% | 100% |
+| `interceptors/transform.interceptor.ts` | 100% | 100% | 100% | 100% |
+| `resilience/circuit-breaker.ts` | 100% | 100% | 100% | 100% |
+| `resilience/promise-timeout.ts` | 80% | 0% | 66.66% | 100% |
+| `resilience/webhook-idempotency.service.ts` | 100% | 80% | 100% | 100% |
+
+### Aplicado (S64-B)
+
+| Escopo | Pre (S63-D) | Post (S64-B) | Real measured | Headroom |
+|---|---|---|---|---|
+| Global | 60/50/60/60 | **65/55/65/65** | 69.48/61.42/65.69/69.94 | +4.48/+6.42/+0.69/+4.94 |
+| `src/common/guards/` | 60/50/55/55 | **75/65/75/75** | 97.44/84.62/93.33/97.22 | +22.44/+19.62/+18.33/+22.22 |
+| `src/common/filters/` | 75/65/75/75 | 75/65/75/75 (no change) | 97.73/94.12/100/97.62 | +22.73/+29.12/+25/+22.62 |
+| `src/common/interceptors/` | 75/65/75/75 | 75/65/75/75 (no change) | 100/94.12/100/100 | +25/+29.12/+25/+25 |
+| `src/common/resilience/` | 75/65/75/75 | 75/65/75/75 (no change) | 98.86/88.89/95/100 | +23.86/+23.89/+20/+25 |
+
+**S63-D split revert**: bloco `guards/` re-unificado em 75/65/75/75 alinhando com outros 3 paths. Pendência S64 fechada.
+
+**Global ratchet**: +5pct stmt/fn/lines (60→65) + +5pct branches (50→55). Headroom mínimo 0.69pct (functions 65 vs real 65.69) — apertado mas defensável (CI variance histórica <1pct).
+
+### Calibração de headroom
+
+Decisão entre 75/65/75/75 (revert split) vs 80/70/80/80 (mais agressivo):
+
+- 75/65/75/75 escolhido por §1 enterprise (correção > velocidade) + alinha com outros 3 paths já em 75/65/75/75
+- Margens reais de 17-29pct em todos os 4 paths
+- 80/70/80/80 deferido para S65 quando mais data points históricos validem estabilidade (CI variance natural)
+
+**Global 65/55/65/65 escolhido** por:
+- functions 65 vs real 65.69 = 0.69pct margin (alerta — próximo PR pode flake se fn coverage cair)
+- Outros 3 metrics têm 4-5pct margin (safe)
+- Rationale: lock current state com ratchet visível (+5pct), aceita risco fino em fn pra documentar progresso
+
+### Mutação safe
+
+`python3 json.load+dump` em package.json + assert pre-state (S63-D values). ci.yml display string atualizado via `git show HEAD:` + `.replace()` programático (Edit tool corrompeu arquivo com NUL bytes ao tentar editar — lição S62 #1 reforçada AGAIN).
+
+### Encadeamento de fixes S64-A → CI green path
+
+Histórico das 4 iterações S64-A (registrado para troubleshooting futuro):
+
+| HEAD | Tag | Issue | Fix |
+|---|---|---|---|
+| `de72505` | v1 | `git commit -m heredoc` quebrou no `"` embedded | `git commit -F file` |
+| `6585634` | v2 | spec linha 34 fixture `'sk_live_...'` | Replace por `'test-fixture-...'` |
+| `1e4ff4c` | v3 | script s64a-amend-fix.ps1 linha 5 ainda tinha literal | Remove literal de comment |
+| `b4f5fd1` | v4 | 12 prettier formatting violations | `pnpm exec prettier --write` local |
+
+Coverage delta global S62 (CI #244) → S64-A (CI #248): +0.66/+0.46/+0.35/+0.68 pct (relativo small, mas por path guards/ tomou jump enorme).
+
+### Lições novas registradas
+
+1. **Edit tool corrompeu ci.yml com 60+ NUL bytes** ao final ao fazer substring replace de single line longa. Mitigation revisitada: para qualquer YAML/JSON, **sempre** usar `python3` programático (load → mutate → dump). Edit tool só é safe para Markdown estável.
+
+2. **PowerShell `git commit -m heredoc`** quebra com `"` embedded → use `git commit -F <file>` (lição S64-A v1 → v2).
+
+3. **Test fixtures que mimetizam secrets** (Stripe, AWS, GitHub PAT) → use prefixos sintéticos `test-fixture-`, `mock-`, `fake-`. Push protection é regex agressivo (lição S64-A v2 → v3).
+
+4. **Auto-recursive secret leaks**: scripts que documentam violations do scanner copiando literals re-trigger o scanner. Mitigation: placeholders como `<32-char-hex>` (lição S64-A v3 → v4 step 1).
+
+5. **Prettier não-inferível sem rodar**: sandbox-only specs longos podem ter violations invisíveis. Solução: pre-commit hook husky+lint-staged (S65 candidato).
+
+6. **Coverage per-path requer download artifact**: `coverage/coverage-summary.json` tem per-file granularity, agrega bem por path via PowerShell `ConvertFrom-Json`. Threshold defensável é função do **min(per-file)**, não do **avg per path**.
+
+### Arquivos tocados
+
+```
+apps/backend/package.json                                  (~9 lines - global + guards/ thresholds)
+.github/workflows/ci.yml                                   (1 line - threshold display string)
+CLAUDE.md                                                  (S13 Coverage gates table + history paragraph)
+PROJECT_HISTORY.md                                         (+ esta entrada)
+scripts/s64b-check-guards-coverage.ps1                     (NEW - 138 lines, gh artifact + JSON parser + decision matrix)
+```
+
+### Pendências S65
+
+1. **Pre-commit hook**: husky + lint-staged + prettier --check + eslint --max-warnings 0 — bloqueia commits com formatting/lint violations localmente, evita ciclo Write→Push→CI fail→Fix→Re-push.
+2. **Coverage ratchet round 3**: subir global para 70/65/70/70 quando próxima rodada confirma estabilidade. functions current real 65.69 está apertado vs floor 65 — alerta.
+3. **WhatsApp Business API live** (S58 carryover): bloqueado em MEI + Meta Business Manager.
+4. **Bundle deeper** (S62 carryover): cortar 2.90MB → ≤2MB via `pnpm run analyze`.
+5. **CI lint para Windows garbage files** (S63 carryover): `find . -name "Novo*" -o -name "Untitled*"` em pre-commit hook.
+
+S64-B SEMI-ENCERRADA — código pronto, push em standby.
