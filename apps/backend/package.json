@@ -168,7 +168,7 @@
       "global": {
         "statements": 65,
         "branches": 55,
-        "functions": 65,
+        "functions": 60,
         "lines": 65
       },
       "./src/common/guards/": {

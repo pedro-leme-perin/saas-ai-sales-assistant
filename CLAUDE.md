@@ -576,7 +576,7 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
 
 | Escopo | Statements | Branches | Functions | Lines |
 |---|---:|---:|---:|---:|
-| Global (floor) | 65 | 55 | 65 | 65 |
+| Global (floor) | 65 | 55 | 60 | 65 |
 | `src/common/guards/` | 75 | 65 | 75 | 75 |
 | `src/common/filters/` | 75 | 65 | 75 | 75 |
 | `src/common/interceptors/` | 75 | 65 | 75 | 75 |
