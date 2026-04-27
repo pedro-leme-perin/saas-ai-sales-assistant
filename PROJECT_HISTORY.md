@@ -3792,3 +3792,166 @@ Demonstra ROI imediato do hook: zero round-trips CI no deploy do próprio S65
 custando 1 round-trip a mais).
 
 S65 ENCERRADA.
+
+---
+
+## S66-A — Coverage ratchet round 3 (3 controller specs + functions floor 60 → 62)
+
+**Data:** 27/04/2026
+**Trigger:** S64-C deixou functions floor em 60 (relaxado de 65 por flake CI -0.96pct). S66-A objetivo: subir floor de volta com headroom defensivo, fechando débito S64.
+**Tipo:** Tech debt autônoma (zero blockers externos).
+
+### Gap analysis
+
+Cross-reference automatizada: 118 prod files (services/controllers/gateways/guards/filters/interceptors/use-cases/repositories) vs 81 spec files no backend.
+
+```
+Total prod files (8 categorias): 118
+Total spec files:                 81
+Files SEM spec dedicado:          40
+```
+
+Refinamento adicional: para cada arquivo da lista 40, busca cross-spec por classname (PascalCase) E filepath stem. Resultado: alguns arquivos SEM spec dedicado já são cobertos por specs do mesmo módulo (e.g., `global-exception.filter.ts` é coberto por `global-exception-filter.spec.ts`; `tenant.guard.ts` por 4 specs distintos). Filtragem reduz a 10 controllers thin completamente sem cobertura.
+
+### Picks (por LoC desc + densidade de domínio)
+
+| Arquivo                      | LoC | Domínio relevante                                                     |
+| ---------------------------- | --: | --------------------------------------------------------------------- |
+| `tags.controller.ts`         | 154 | Cross-channel CallTag/ChatTag joins, search com pg_trgm, 12 endpoints |
+| `csat.controller.ts`         | 128 | Public token (no auth) + 4 admin endpoints + analytics window parsing |
+| `agent-skills.controller.ts` | 126 | ALL-semantics skill filter, ParseBoolPipe optional, bulk replace tx   |
+
+Total: ~408 linhas de production code antes sem qualquer spec → cobertas após S66-A.
+
+Outros candidatos (não picked nesta rodada): `contacts.controller.ts` (118L), `announcements.controller.ts` (115L), `webhooks.controller.ts` (114L), `dsar.controller.ts` (105L), `reply-templates.controller.ts` (105L), `goals.controller.ts` (104L), `impersonation.controller.ts` (97L). Reservados para S66-B/C.
+
+### Specs gerados
+
+| Spec                                                     | LoC | Tests | Describes | Coverage target                                           |
+| -------------------------------------------------------- | --: | ----: | --------: | --------------------------------------------------------- |
+| `apps/backend/test/unit/tags.controller.spec.ts`         | 182 |   ~16 |        12 | 12 endpoints × happy path + edge cases                    |
+| `apps/backend/test/unit/csat.controller.spec.ts`         | 190 |   ~13 |         7 | 5 admin endpoints + 2 public + invalid date assertions    |
+| `apps/backend/test/unit/agent-skills.controller.spec.ts` | 181 |   ~13 |         7 | 7 endpoints + bulkReplace mismatch case + empty skill set |
+
+Total novo: ~553 linhas spec, ~42 testes.
+
+### Padrão de spec aplicado
+
+```ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { Controller } from '<src>/...';
+import { Service } from '<src>/...';
+import type { AuthenticatedUser } from '<src>/common/decorators';
+
+describe('Controller', () => {
+  let controller: Controller;
+  let service: jest.Mocked<Partial<Service>>;
+
+  const COMPANY_ID = 'uuid-v4-format';
+  const mockUser: AuthenticatedUser = {
+    id, clerkId, email, name, role: UserRole.ADMIN, companyId, permissions: [],
+  };
+
+  beforeEach(async () => {
+    service = { method1: jest.fn().mockResolvedValue(...), ... };
+    const module = await Test.createTestingModule({
+      controllers: [Controller],
+      providers: [{ provide: Service, useValue: service }],
+    }).compile();
+    controller = module.get(Controller);
+  });
+
+  describe('methodN', () => {
+    it('happy path: forwards args, returns wrapped data', async () => { ... });
+    it('edge case: empty/invalid input', async () => { ... });
+  });
+});
+```
+
+Idêntico ao padrão consolidado em `analytics.controller.spec.ts` (já passa CI desde S40+).
+
+### Edge cases cobertos
+
+1. **TagsController**: lista com tagIds vazia (`attachCall`), busca com query mínima vs full filtro, tenant isolation cross-call (`'other-tenant'` propagation).
+2. **CsatController**:
+   - `listResponses`: `limit` undefined / numeric / NaN (Number.isFinite fallback)
+   - `analytics`: `since/until` válidos / undefined / inválidos (BadRequestException × 2)
+   - `publicLookup` / `publicSubmit`: bypass auth via `@Public()`
+3. **AgentSkillsController**:
+   - `list`: `isActive` true / false / undefined (ParseBoolPipe optional behavior)
+   - `bulkReplace`: path/body userId match / mismatch (defence in depth) / empty skill set (full clear)
+   - `remove`: returns void (HTTP 204 NO_CONTENT)
+
+### Bug evitado pré-CI
+
+Initial draft dos 3 specs usou shape errada do `AuthenticatedUser`:
+
+```ts
+// WRONG (initial)
+{
+  (id, clerkUserId, companyId, email, role, status);
+}
+
+// CORRECT (after grep src/common/decorators/index.ts)
+{
+  (id, clerkId, email, name, role, companyId, permissions);
+}
+```
+
+Detectado via `grep -n "AuthenticatedUser" apps/backend/src/common/decorators/`, corrigido com `python3 re.sub` em batch nos 3 files. Também removido import de `UserStatus` que não existia no shape.
+
+**Lição**: confiar em interface real, não memória. Para shape compartilhada de domínio (DTOs, types, decorators), sempre `grep` a definição antes de mockar.
+
+### Floor ratchet decisão
+
+Real measured pré-S66 (CI #248 / #249): global functions = 65.69% (artifact-parsed) ou 64.73% (jest threshold check, flaky -0.96pct).
+
+Estimativa pós-S66:
+
+- 3 controllers × ~9 métodos médios = ~27 functions adicionais cobertas
+- Backend: ~118 prod files × ~10 functions médias = ~1180 functions totais
+- Bump estimado: +27/1180 = +2.3pct → real 65.69 → ~67-68%
+
+Floor decisão (conservadora):
+
+- functions: 60 → **62** (3pct headroom mínimo vs estimativa, 5pct vs flake CI)
+- statements/branches/lines: mantidos (já com headroom 4.48-9.26pct)
+
+Próximo ratchet (S66-B candidato): 62 → 65 quando functions real ≥67 confirmado em 2 PRs consecutivos sem flake.
+
+### Mutações em arquivos
+
+```
+apps/backend/test/unit/tags.controller.spec.ts          (NEW — 182 lines, 6.9KB)
+apps/backend/test/unit/csat.controller.spec.ts          (NEW — 190 lines, 6.5KB)
+apps/backend/test/unit/agent-skills.controller.spec.ts  (NEW — 181 lines, 6.3KB)
+apps/backend/package.json                               (M  — global.functions 60 -> 62)
+CLAUDE.md                                               (M  — §2.1 row + §13 table + §13 history + footer 5.6→5.7)
+PROJECT_HISTORY.md                                      (+ esta entrada)
+scripts/s66a-coverage-ratchet.ps1                       (NEW — wrapper Pedro-side)
+```
+
+### Working tree corruption pós-S65 (recovery)
+
+CLAUDE.md (49L vs 719L HEAD), PROJECT_HISTORY.md (3592L vs 3794L), pnpm-lock.yaml (13872L vs 14281L) chegaram corrompidos no working tree pós-S65 push. Causa provável: lint-staged + Windows file watcher race após `git stash` apply.
+
+Bypass: `git show HEAD:<file> > /tmp/<file>.head` + python3 patch + write back. Working tree restaurado completamente sem tocar git index (lição S62 #3 reaplicada).
+
+Os 3 controllers picked (`tags`, `csat`, `agent-skills`) confirmados íntegros via `wc -l` cross-reference (HEAD vs working tree).
+
+### Lições novas registradas
+
+1. **Working tree corruption pós-push frequência**: 3a vez (S60a, S62, S66-A). Hipótese: lint-staged stash apply + Windows file watcher (VS Code, OneDrive sync) corrompe arquivos > 10KB durante a janela de operações git. Mitigation já consolidada: nunca confiar em working tree state após push complexo; sempre `git show HEAD:<file>` + redo. Próximo ratchet de mitigation (S66-B candidato): adicionar `core.autocrlf=false` + `core.fileMode=false` no `.git/config` Pedro-side.
+
+2. **Specs de controller atingem high coverage rapidamente**: cada método é 1 function no coverage report. 12 endpoints × 1 spec = +12 functions. ROI muito superior a specs de service (que requerem mocks complexos de Prisma/circuit breakers/repos).
+
+3. **Conservative ratchet step size**: prefer +2pct steps when adding specs, not +5pct. Real measured tem variance ~1pct intra-CI. Floor-real headroom ≥3pct é mínimo defensável.
+
+### Pendências S66-B candidatos
+
+1. **Coverage round 4**: 7 controllers restantes (contacts, announcements, webhooks, dsar, reply-templates, goals, impersonation) × ~10 endpoints = +70 functions cobertas. Floor 62 → 67-70.
+2. **Service specs gap**: ~30 services sem spec dedicado (próximo após controllers).
+3. **Bundle deeper** (S62 carryover).
+4. **Staging provisioning** (S61-C carryover).
+
+S66-A pronto para push.
