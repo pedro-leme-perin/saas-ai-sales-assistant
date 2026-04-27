@@ -4329,3 +4329,164 @@ scripts/s66d-commitlint.ps1                   (NEW — wrapper Pedro-side)
 3. **Bundle deeper** (S62 carryover): 2.90MB → ≤2MB. Pedro precisa rodar `pnpm run analyze`.
 
 S66-D ENCERRADA. Anterior: S66-C `1820f19`.
+
+---
+
+## S66-E — ESLint --fix em pre-commit (lint-staged extension)
+
+**Data:** 27/04/2026
+**Trigger:** S65 carryover. Estender pre-commit com ESLint para capturar issues fixáveis localmente (zero round-trip CI).
+**Tipo:** Tech debt autônoma (zero blockers externos).
+
+### Stack
+
+Zero novos deps. ESLint já em `apps/backend/node_modules` (instalado em S62/S65).
+
+### Mudança em `package.json` lint-staged
+
+```diff
+ "apps/backend/**/*.{ts,js}": [
+-  "prettier --write --ignore-unknown"
++  "prettier --write --ignore-unknown",
++  "npx --no-install eslint --fix --no-error-on-unmatched-pattern"
+ ]
+```
+
+Sequência por staged file:
+
+1. `prettier --write --ignore-unknown` (S65)
+2. `npx --no-install eslint --fix --no-error-on-unmatched-pattern` (NEW S66-E)
+3. lint-staged re-staga automático
+
+### Decisão: pragmatic mode (sem --max-warnings 0)
+
+#### Baseline analysis pré-S66-E
+
+```bash
+$ grep -rn "as any" apps/backend/src apps/backend/test | wc -l
+18
+
+Files affected:
+- apps/backend/src/infrastructure/database/prisma.service.ts
+- apps/backend/src/modules/auth/guards/roles.guard.ts
+- apps/backend/test/unit/billing.controller.spec.ts
+- apps/backend/test/unit/companies.controller.spec.ts
+- apps/backend/test/unit/company-plan.middleware.spec.ts
+- ...
+```
+
+Backend `.eslintrc.js` tem `'@typescript-eslint/no-explicit-any': 'warn'`. Com `--max-warnings 0`: qualquer commit tocando esses 5+ arquivos seria bloqueado. UX problem.
+
+#### Modo escolhido: pragmatic
+
+- `--fix`: aplica auto-correções (import order, prefer-const, etc.)
+- **NÃO** `--max-warnings 0`
+- Hook AVISA mas NÃO bloqueia em warnings existentes
+
+#### Roadmap strict mode (S67 candidato)
+
+1. Converter `no-explicit-any: 'warn'` → `'error'` em `.eslintrc.js`
+2. Manualmente substituir 18 `as any` → `as unknown as Type` (padrão S66-A1)
+3. Enable `--max-warnings 0` no lint-staged
+4. CI green → merge S67
+
+Estimativa: 1-2h para fix dos 18 + validação.
+
+### Frontend deferido
+
+Frontend usa `eslint-config-next` com comando canonical `next lint --file <path>` (Next.js 15+).
+
+**Razões para deferir**:
+
+1. `next lint` semantics diferentes de `eslint --fix`
+2. Frontend baseline não auditado (~50 routes/components)
+3. Risco de auto-fix indesejado em larga escala
+
+S67+ candidato.
+
+### ROI esperado
+
+#### Capturado por `--fix` automático
+
+| Categoria           | Comportamento                         |
+| ------------------- | ------------------------------------- |
+| Import order        | Reorganiza                            |
+| `prefer-const`      | `let` → `const` quando valor não muda |
+| Semicolons          | Já tratado por prettier               |
+| Trailing whitespace | Já tratado por prettier               |
+| Multi-spaces        | Auto-formatado                        |
+
+#### NÃO capturado (S67 strict)
+
+- `no-explicit-any` warnings (não fixáveis)
+- `no-unused-vars` warnings
+- Custom domain rules
+
+### Performance
+
+ESLint boot: ~1-3s primeira vez (sem cache). Com `--cache` (default v8.50+): ~200-500ms subsequente.
+
+Lint-staged passa apenas staged files → typical commit (1-10 files): ~2-5s ESLint.
+
+Trade-off vs CI round-trip ~3min: aceitável.
+
+### Hook chain pós-S66-E
+
+```
+git commit
+  ├── pre-commit (S65 + S66-E)
+  │     ├── check-windows-garbage.js (HARD FAIL)
+  │     ├── check-secrets.js (HARD FAIL)
+  │     └── lint-staged
+  │           ├── prettier --write (todos os globs)
+  │           └── eslint --fix (apps/backend/**/*.{ts,js} only)
+  ├── commit-msg (S66-D) → commitlint
+  └── commit accepted
+```
+
+### Mutações em arquivos
+
+```
+package.json                                   (M  — lint-staged backend glob estendido)
+docs/operations/s66/ESLINT_HOOK.md             (NEW — 4.3KB doc)
+CLAUDE.md                                      (M  — S66-E row + v6.1)
+PROJECT_HISTORY.md                             (+ esta entrada)
+scripts/s66e-eslint-hook.ps1                   (NEW — wrapper Pedro-side)
+```
+
+### Validação esperada
+
+CI #258 deve continuar PASS (ESLint não muda lógica de teste). Hook impact:
+
+- Se Pedro futuro fizer `git commit` em arquivo com import order errado → eslint --fix corrige → commit prossegue limpo
+- Se arquivo tiver `as any` novo: gera warning mas NÃO bloqueia (até S67 strict)
+
+### Lições novas registradas
+
+1. **Strict mode requer baseline limpo**. Enforce `--max-warnings 0` antes de auditar warnings existentes = bloqueio frequente. Mitigation: pragmatic mode primeiro + roadmap explícito para strict.
+
+2. **`npx --no-install eslint`**: usa eslint da pasta atual (root `node_modules` ou subdir). Funciona em monorepo pnpm porque hoist mantém eslint acessível.
+
+### Pendências pós-S66-E
+
+S65 carryover roadmap (5 tasks): **TODAS COMPLETAS** após S66-E.
+
+| Sessão                   | Status         |
+| ------------------------ | -------------- |
+| S65 — Pre-commit base    | ✓ S65          |
+| S66-A — Coverage round 3 | ✓ S66-A        |
+| S66-A1 — Lint hardening  | ✓ S66-A1       |
+| S66-B — Coverage round 4 | ✓ S66-B        |
+| S66-C — Ratchet floor    | ✓ S66-C        |
+| S66-D — commitlint hook  | ✓ S66-D        |
+| S66-E — ESLint hook      | ✓ S66-E (este) |
+
+Próximas sessões (sem ordem fixa):
+
+1. **S67 — Strict ESLint**: fix 18 `as any` + enable `--max-warnings 0` + frontend integration.
+2. **Bundle deeper** (S62 carryover): 2.90MB → ≤2MB. Pedro precisa rodar `pnpm run analyze`.
+3. **Service specs gap**: ~30 services sem spec dedicado — ROI focado em branches metric (+10-15pct).
+4. **Staging provisioning** (S61-C carryover): Pedro-interactive 1h.
+5. **WhatsApp Business API live** (S58 carryover): bloqueado MEI.
+
+S66-E ENCERRADA. Anterior: S66-D `9c7e858`.

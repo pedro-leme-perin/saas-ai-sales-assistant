@@ -38,7 +38,8 @@
   },
   "lint-staged": {
     "apps/backend/**/*.{ts,js}": [
-      "prettier --write --ignore-unknown"
+      "prettier --write --ignore-unknown",
+      "npx --no-install eslint --fix --no-error-on-unmatched-pattern"
     ],
     "apps/frontend/**/*.{ts,tsx,js,jsx}": [
       "prettier --write --ignore-unknown"
