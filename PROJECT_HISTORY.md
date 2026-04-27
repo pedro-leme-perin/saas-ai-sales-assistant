@@ -4128,3 +4128,84 @@ scripts/s66b-controllers-batch.ps1                          (NEW — wrapper Ped
 4. **Bundle deeper** (S62 carryover): semi-autonomous (Pedro precisa rodar `pnpm run analyze`).
 
 S66-B ENCERRADA. Anterior: S66-A1 `4efbc2e`.
+
+---
+
+## S66-C — Coverage ratchet defensivo (CI #255 data-driven)
+
+**Data:** 27/04/2026
+**Trigger:** CI #255 (S66-B `ae64924`) confirmou functions 71.45% — segunda PR consecutiva com ≥67%. Regra de ratchet "62 → 65 quando 67% confirmado por 2 PRs" satisfeita.
+**Tipo:** Tech debt autônoma (zero blockers externos).
+
+### Coverage real CI #255 (S66-B)
+
+| Métrica       |        Pct | Covered/Total | Δ vs CI #253 | Floor pré-ratchet | Headroom medido |
+| ------------- | ---------: | ------------: | -----------: | ----------------: | --------------: |
+| Statements    | **73.09%** |     6112/8362 |     +2.41pct |                65 |        +8.09pct |
+| Branches      | **62.31%** |     2155/3458 |     +0.46pct |                55 |        +7.31pct |
+| **Functions** | **71.45%** |     1029/1440 |     +3.75pct |                62 |        +9.45pct |
+| Lines         | **73.60%** |     5608/7619 |     +2.41pct |                65 |        +8.60pct |
+
+S66-A → S66-B Δ functions: +3.75pct (estimado +3.1pct → hit dentro de 0.65pct).
+
+### Decisão de ratchet (data-driven)
+
+**Princípio aplicado**: subir floor para **real_measured menos ≥4pct headroom** (defensável vs flake CI ~1-2pct, lição S64-C).
+
+| Métrica    |   Real | Floor pré | Floor pós | Headroom pós |
+| ---------- | -----: | --------: | --------: | -----------: |
+| Statements | 73.09% |        65 |    **68** |     +5.09pct |
+| Branches   | 62.31% |        55 |    **58** |     +4.31pct |
+| Functions  | 71.45% |        62 |    **65** |     +6.45pct |
+| Lines      | 73.60% |        65 |    **68** |     +5.60pct |
+
+Mín headroom pós-ratchet: 4.31pct (branches). Defensável conforme regra heurística §13 CLAUDE.md.
+
+### Security paths inalterados
+
+`src/common/{guards,filters,interceptors,resilience}/` mantidos em 75/65/75/75:
+
+| Path          |            Real CI #248 |       Floor |                    Headroom |
+| ------------- | ----------------------: | ----------: | --------------------------: |
+| guards/       | 97.44/84.62/93.33/97.22 | 75/65/75/75 | +22.44/+19.62/+18.33/+22.22 |
+| filters/      |         98+/94+/100/98+ | 75/65/75/75 |          +23+/+29+/+25/+23+ |
+| interceptors/ |         98+/94+/100/98+ | 75/65/75/75 |          +23+/+29+/+25/+23+ |
+| resilience/   |         98+/94+/100/98+ | 75/65/75/75 |          +23+/+29+/+25/+23+ |
+
+Headroom security paths mín ~17pct → não há urgência de ratchet. Próximo ratchet quando 1 path despontar (e.g. resilience/ adiciona arquivo novo).
+
+### Mutações em arquivos
+
+```
+apps/backend/package.json    (M  — coverageThreshold.global stmt/br/fn/lines)
+CLAUDE.md                    (M  — §2.1 row + §13 floor table + §13 history + v5.9)
+PROJECT_HISTORY.md           (+ esta entrada)
+scripts/s66c-ratchet.ps1     (NEW — wrapper Pedro-side)
+```
+
+### Esperado em CI #256
+
+| Step                        | Outcome esperado                                              |
+| --------------------------- | ------------------------------------------------------------- |
+| `pnpm test:unit --coverage` | PASS (real ≥ floor em todas métricas com ≥4pct margin)        |
+| Coverage summary step       | Tabela markdown em $GITHUB_STEP_SUMMARY com floor 68/58/65/68 |
+| Annotations                 | Apenas Node 20 deprecation + bundle 2.9MB (infra/known)       |
+
+Caso CI #256 falhe (e.g. branches sobe -0.5pct para 57.81%): rollback step a 56% e investigar branch-specific dropoff.
+
+### Lições reforçadas
+
+1. **Estimativa precoce hit dentro de 0.65pct**: S66-A previu +2.3pct → real +2.0pct (CI #253). S66-B previu +3.1pct → real +3.75pct (CI #255). Modelo simples (`new_methods / total_functions`) está calibrado.
+
+2. **Ratchet defensivo ≥4pct headroom**: regra empírica defensável-by-design. Headroom <3pct (branches S64-B 0.69pct) provou flake-prone.
+
+3. **Branches metric é o gargalo**: cresce mais lento que funcs/stmts (apenas +0.46pct entre S66-A e S66-B). Próximo ratchet de branches deve esperar especificamente specs com error-handling rich (e.g. service specs com try/catch, validators de DTO).
+
+### Pendências S66-D+ candidatos
+
+1. **S66-D — commitlint hook**: Conventional Commits validation no `commit-msg` hook. ~30min.
+2. **S66-E — ESLint no pre-commit**: extend `lint-staged` com `eslint --fix --max-warnings 0`. ~1-2h.
+3. **S67 candidato — Service specs**: ~30 services sem spec dedicado. ROI focado em branches (try/catch + validators). Estimado +10-15pct branches.
+4. **Bundle deeper** (S62 carryover): 2.90MB → ≤2MB. Pedro precisa rodar `pnpm run analyze`.
+
+S66-C ENCERRADA. Anterior: S66-B `ae64924`.

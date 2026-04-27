@@ -166,10 +166,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "statements": 65,
-        "branches": 55,
-        "functions": 62,
-        "lines": 65
+        "statements": 68,
+        "branches": 58,
+        "functions": 65,
+        "lines": 68
       },
       "./src/common/guards/": {
         "statements": 75,
