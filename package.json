@@ -27,6 +27,28 @@
     "prisma:migrate": "pnpm --filter @saas/backend run prisma:migrate",
     "prisma:studio": "pnpm --filter @saas/backend run prisma:studio",
     "prisma:seed": "pnpm --filter @saas/backend run prisma:seed",
-    "clean": "pnpm -r exec rm -rf node_modules dist .next coverage .turbo"
+    "clean": "pnpm -r exec rm -rf node_modules dist .next coverage .turbo",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10"
+  },
+  "lint-staged": {
+    "apps/backend/**/*.{ts,js}": [
+      "prettier --write --ignore-unknown"
+    ],
+    "apps/frontend/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write --ignore-unknown"
+    ],
+    "packages/shared/**/*.{ts,js}": [
+      "prettier --write --ignore-unknown"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write --ignore-unknown"
+    ],
+    "**/*.{json,md,yml,yaml,css,scss}": [
+      "prettier --write --ignore-unknown"
+    ]
   }
 }

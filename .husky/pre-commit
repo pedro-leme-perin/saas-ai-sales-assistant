@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# TheIAdvisor pre-commit hook (S65)
+# Sequence: hard guards (garbage + secrets) -> auto-format (prettier via lint-staged)
+# Bypass: HUSKY=0 git commit ...   (use sparingly, only for emergencies)
+
+set -e
+
+echo "[husky] pre-commit: running guards + lint-staged..."
+
+# Guard 1: Windows garbage filenames (Novo*.txt, Untitled*, New File*, .DS_Store, Thumbs.db)
+# Lesson S62/S63: garbage tracked silently for weeks (Novo(a) Documento de Texto.txt 0-byte)
+node scripts/git-hooks/check-windows-garbage.js
+
+# Guard 2: secret patterns (Stripe sk_live/test, generic API keys, AWS, Clerk)
+# Lesson S64: test fixtures mimicking real secrets triggered GitHub push protection mid-CI
+node scripts/git-hooks/check-secrets.js
+
+# Auto-format staged files (prettier --write, re-stages on change)
+# Lesson S60a/S61/S62: Edit tool truncated files silently. Prettier --write parses files;
+# malformed/truncated content -> prettier crashes -> commit blocked early (vs CI round-trip).
+npx --no-install lint-staged
+
+echo "[husky] pre-commit: OK"

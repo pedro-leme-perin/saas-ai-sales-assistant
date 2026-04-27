@@ -1,0 +1,40 @@
+# Build artifacts
+**/node_modules
+**/dist
+**/build
+**/.next
+**/out
+**/coverage
+**/.turbo
+**/.cache
+
+# Lockfiles (managed by package manager)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Generated code
+**/prisma/migrations
+apps/backend/prisma/migrations/**
+apps/backend/src/generated/**
+apps/frontend/.next/**
+apps/frontend/public/sw*.js
+apps/frontend/public/workbox-*.js
+apps/frontend/public/*.js.map
+
+# Min/bundled assets
+**/*.min.js
+**/*.min.css
+
+# CI/operational artifacts
+coverage-artifact-*/
+coverage-per-path-*.json
+docs/operations/**/*-snapshot.json
+
+# Vendored / third-party
+**/vendor/
+**/.venv/
+**/__pycache__/
+
+# Husky internals (written by husky CLI)
+.husky/_/
