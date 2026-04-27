@@ -3180,3 +3180,74 @@ scripts/s63d-recommit.ps1                 (NEW — re-commit script ASCII puro)
 - CI #246 (post-fix) gate de validação final.
 
 S63-D ENCERRADA — aguardando CI #246 verde para promover S63 a estado estável.
+
+## S64-A pre-staging — api-key.guard.spec.ts written
+
+**Data**: 26/04/2026 (mesma janela operacional de S63-D, antes de CI #246 retornar)
+**Status**: Spec escrito mas **NÃO commitado** — aguardando CI #246 (S63-D) verde.
+
+### Motivação
+
+S63-D documentou pendência S64-A: spec dedicado `api-key.guard.spec.ts` para subir guards/ coverage de 62.17/53.84/60/61.11 → >75% e permitir re-unificação do bloco threshold. Aproveitando janela ociosa enquanto Pedro aguarda CI #246, spec pré-escrito para minimizar round-trip post-verde.
+
+### Spec entregue
+
+`apps/backend/test/unit/api-key.guard.spec.ts` (486 linhas, ASCII puro):
+
+- **9 describe blocks** seguindo padrão dos guards existentes (`roles.guard.spec.ts`, `company-throttler.guard.spec.ts`, `twilio-signature.guard.spec.ts`)
+- **25 test cases** distribuídos:
+
+| Bloco | Testes | Cobertura |
+|---|---:|---|
+| header validation | 2 | Missing X-API-Key 401 + fail-fast no DB call |
+| DB lookup | 3 | SHA-256 hashing, unknown 401, company select N+1 prevention |
+| active status | 2 | Inactive 401, no usage increment on inactive |
+| expiration | 3 | Past expiresAt 401, future OK, null OK |
+| scope validation | 5 | Empty scopes OK, all-of match, missing one fails, empty vs required, error lists missing |
+| per-key rate limit | 6 | Null skip, zero skip, key prefix, 429 on exceed, X-RateLimit headers, clamp negative |
+| usage counter | 2 | Increment+lastUsedAt, fire-and-forget on update fail |
+| request context | 1 | Attaches apiKeyCompanyId/Scopes/Name |
+| happy path | 1 | Full pipeline integration |
+
+- **Mocks** apenas em Infrastructure layer (`PrismaService.apiKey.findUnique/update`, `CacheService.checkRateLimit`) per CLAUDE.md §9
+- **Reflector** mock returna scopes via `getAllAndOverride(API_KEY_SCOPES_KEY, ...)` matching guard contract
+- **TEST_KEY_HASH** computed via `createHash('sha256')` matching guard's hash flow para validar lookup
+
+### Validação estrutural
+
+- ASCII puro: ✓
+- 9 describes / 25 its parsed via regex
+- Bracket structure validated via Python AST-light walker (ignora strings/comments/regex): **OK**
+- Tsc/jest local execution: N/A (sandbox pnpm-symlink fail S62 — CI único validation gate)
+
+### Script entregue
+
+`scripts/s64a-add-apikey-spec.ps1` (118 linhas, ASCII puro, lição S63 #1):
+
+- Sanity checks: HEAD pre-condition `b8b9861*` (S63-D), spec file exists, ≥400 linhas
+- Free index.lock (lição S62 #2)
+- `git add` spec + script
+- Commit message detalhado (referência S63-D root cause + livro refs)
+- `git push origin main`
+- Mensagem final orienta rodar `s63-verify-ci.ps1` e ratchet S64-B
+
+### Ordem de execução obrigatória
+
+1. ✓ S63 push (commit `7d87ab3`) — DONE
+2. ✓ S63-D push (commit `b8b9861`) — DONE
+3. ⏳ CI #246 verify — em curso
+4. ⏳ S64-A push (após #3 verde) — `s64a-add-apikey-spec.ps1`
+5. ⏳ CI #247 verify — checa guards/ nova coverage
+6. ⏳ (opcional) S64-B ratchet — re-unify guards/ em 75/65/75/75 se #5 confirma >=75pct
+
+### Pendência ativa S64-B
+
+Se pós-S64-A guards/ coverage real >= 75/65/75/75, gerar `s64b-ratchet-guards.ps1` que aplica via `python3 json.load+dump`:
+
+```python
+ct["./src/common/guards/"] = {"statements": 75, "branches": 65, "functions": 75, "lines": 75}
+```
+
+Reverte split S63-D, unifica security paths em ratchet uniforme, fecha ciclo.
+
+S64-A SEMI-ENCERRADA — código pronto, push em standby por CI #246.
