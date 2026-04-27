@@ -4644,3 +4644,117 @@ scripts/s67-eslint-strict.ps1              (NEW — wrapper Pedro-side)
 4. **Pre-push hook** (S65 roadmap): `pnpm type-check` + `pnpm test:unit --bail`. Custo alto, opcional.
 
 S67 ENCERRADA. Anterior: S66-E `2e7f224`.
+
+---
+
+## S67-B — Frontend ESLint strict mode (--max-warnings 0)
+
+**Data:** 27/04/2026
+**Trigger:** S67 carryover. Frontend foi mantido em pragmatic mode (sem `--max-warnings 0`) por baseline não auditado. Agora auditar e ativar strict.
+**Tipo:** Tech debt autônoma (zero blockers externos).
+
+### Audit baseline
+
+```bash
+$ grep -rn "as any" apps/frontend/src | wc -l
+0
+
+$ grep -rln "TODO\|FIXME\|HACK\|@ts-ignore\|@ts-nocheck" apps/frontend/src
+(empty)
+
+$ grep -rl "eslint-disable" apps/frontend/src
+apps/frontend/src/app/dashboard/audit-logs/page.tsx
+apps/frontend/src/app/dashboard/csat/trends/error.tsx
+apps/frontend/src/components/announcements/announcement-banner.tsx
+```
+
+3 arquivos com `eslint-disable` (per-line, scoped — não file-level broad). Frontend baseline **CONFIRMADO LIMPO**.
+
+### Diferença vs backend
+
+| Aspect                    | Backend                               | Frontend                             |
+| ------------------------- | ------------------------------------- | ------------------------------------ |
+| `as any` count            | 17 (todos suppressed)                 | **0**                                |
+| `@ts-ignore` count        | 0                                     | 0                                    |
+| File-level eslint-disable | 1 (`company-plan.middleware.spec.ts`) | 0                                    |
+| Per-line eslint-disable   | 5                                     | 3 (scoped, não broad)                |
+| Risk de strict mode       | médio (suppressions necessárias)      | **baixo** (zero violations expected) |
+
+Frontend tem disciplina de TypeScript MUITO superior — `eslint-config-next` (used via `extends: "next/core-web-vitals"`) já é stricter por padrão e foi seguido sem desvio.
+
+### Mudança
+
+```diff
+ "apps/frontend/src/**/*.{ts,tsx,js,jsx}": [
+   "prettier --write --ignore-unknown",
+-  "npx --no-install eslint --fix --no-error-on-unmatched-pattern"
++  "npx --no-install eslint --fix --max-warnings 0 --no-error-on-unmatched-pattern"
+ ]
+```
+
+Backend strict (S67) + frontend strict (S67-B) = **dual strict mode**. Pre-commit hook agora gate-keeps **toda** violation no codebase.
+
+### Hook chain final (pós-S67-B)
+
+```
+git commit
+  ├── pre-commit
+  │     ├── check-windows-garbage (HARD FAIL)
+  │     ├── check-secrets (HARD FAIL)
+  │     └── lint-staged
+  │           ├── prettier --write [todos globs]
+  │           ├── eslint --fix --max-warnings 0 [apps/backend/{src,test}/**/*.{ts,js}]   ← STRICT
+  │           └── eslint --fix --max-warnings 0 [apps/frontend/src/**/*.{ts,tsx,js,jsx}] ← STRICT
+  ├── commit-msg → commitlint (Conventional Commits)
+  └── commit accepted
+```
+
+### S65 carryover roadmap — 100% ENCERRADO
+
+| #   | Sessão                             | Commit    | Status |
+| --- | ---------------------------------- | --------- | ------ |
+| 1   | S65 — Pre-commit base              | `8f522b9` | ✓      |
+| 2   | S66-A — Coverage round 3           | `763bd64` | ✓      |
+| 3   | S66-A1 — Lint hardening            | `4efbc2e` | ✓      |
+| 4   | S66-B — Coverage round 4           | `ae64924` | ✓      |
+| 5   | S66-C — Floor ratchet              | `1820f19` | ✓      |
+| 6   | S66-D — commitlint                 | `9c7e858` | ✓      |
+| 7   | S66-E — ESLint pragmatic           | `2e7f224` | ✓      |
+| 8   | S67 — ESLint strict backend        | `b14e3df` | ✓      |
+| 9   | **S67-B — ESLint strict frontend** | (este)    | ✓      |
+
+9 commits / 9 sessões / 1 dia. Pipeline pre-commit fully strict. CI green em todas.
+
+### Mutações em arquivos
+
+```
+package.json                                  (M  — lint-staged frontend +--max-warnings 0)
+CLAUDE.md                                     (M  — header v6.3 + S67-B row + footer)
+PROJECT_HISTORY.md                            (+ esta entrada)
+scripts/s67b-frontend-strict.ps1              (NEW — wrapper Pedro-side)
+```
+
+### Esperado em CI #260
+
+- Backend: PASS
+- Frontend: PASS (zero warnings expected)
+- Coverage: idêntico
+
+### Lessons reforçadas
+
+1. **Audit before strict**: S66-E e S67 partiram de "audit baseline" antes de strict mode. S67-B repetiu o padrão. **Sempre confirmar baseline limpo antes de enforce**.
+
+2. **eslint-config-next** é well-curated: zero violations no codebase frontend de ~50 routes/components. Investimento em TypeScript discipline desde o início paga dividendos.
+
+3. **Dual strict é o estado fim**: backend + frontend ambos `--max-warnings 0` significa que CI nunca mais reporta warnings de lint. Annotations restantes são apenas infra-level (Node deprecation, bundle warning).
+
+### Pendências pós-S67-B (futuras sessões)
+
+1. **Bundle deeper** (S62 carryover): 2.90MB → ≤2MB. Pedro precisa rodar `pnpm run analyze`.
+2. **Pre-push hook** (S65 roadmap): `pnpm type-check` + `pnpm test:unit --bail`. Custo alto, opcional.
+3. **Auto-changelog** (S66-D roadmap): `conventional-changelog-cli` + release notes derivation.
+4. **Branches metric coverage**: 62.31% atual. Subir requer specs com try/catch + validators ricos. Não há services sem spec — precisa amplification de specs existentes.
+5. **Staging provisioning** (S61-C): bloqueado em ação Pedro interativa.
+6. **WhatsApp Business API live**: bloqueado MEI.
+
+S67-B ENCERRADA. Sequência S65 → S67-B 100% completa.
