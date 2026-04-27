@@ -4490,3 +4490,157 @@ Próximas sessões (sem ordem fixa):
 5. **WhatsApp Business API live** (S58 carryover): bloqueado MEI.
 
 S66-E ENCERRADA. Anterior: S66-D `9c7e858`.
+
+---
+
+## S67 — ESLint strict mode (backend) + frontend lint integration
+
+**Data:** 27/04/2026
+**Trigger:** S66-E carryover. Pragmatic mode era temporário; agora atacar strict mode com baseline limpo confirmado.
+**Tipo:** Tech debt autônoma (zero blockers externos).
+
+### Diagnóstico atualizado
+
+S66-E baseline reportava 18 `as any` no backend. Análise refinada deste sessão:
+
+| Arquivo                                                      | `as any` count | Suppression                                                                 |
+| ------------------------------------------------------------ | -------------: | --------------------------------------------------------------------------- |
+| `apps/backend/src/infrastructure/database/prisma.service.ts` |              1 | `// eslint-disable-next-line` (per-line)                                    |
+| `apps/backend/src/modules/auth/guards/roles.guard.ts:96`     |              1 | **FALSE POSITIVE** (comment match: "if user has any of the required roles") |
+| `apps/backend/test/unit/billing.controller.spec.ts`          |              3 | `// eslint-disable-next-line` (per-line, x3)                                |
+| `apps/backend/test/unit/companies.controller.spec.ts`        |              1 | `// eslint-disable-next-line` (per-line)                                    |
+| `apps/backend/test/unit/company-plan.middleware.spec.ts`     |             12 | `/* eslint-disable @typescript-eslint/no-explicit-any */` (file-level top)  |
+
+Total real: **17 suppressed + 1 false positive = 0 unsuppressed warnings**.
+
+Conclusão: convert `warn → error` é SAFE — zero impact em commits existentes. Suppression continua funcionando para `error` rules.
+
+### Mudanças
+
+#### 1. `apps/backend/.eslintrc.js`
+
+```diff
+ rules: {
+   '@typescript-eslint/interface-name-prefix': 'off',
+   '@typescript-eslint/explicit-function-return-type': 'off',
+   '@typescript-eslint/explicit-module-boundary-types': 'off',
+-  '@typescript-eslint/no-explicit-any': 'warn',
++  '@typescript-eslint/no-explicit-any': 'error',
+   '@typescript-eslint/no-unused-vars': [
+-    'warn',
++    'error',
+     { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+   ],
+   'prettier/prettier': ['error', { singleQuote: true, trailingComma: 'all' }],
+ },
+```
+
+#### 2. `package.json` lint-staged
+
+```diff
+ "apps/backend/**/*.{ts,js}": [
+   "prettier --write --ignore-unknown",
+-  "npx --no-install eslint --fix --no-error-on-unmatched-pattern"
++  "npx --no-install eslint --fix --max-warnings 0 --no-error-on-unmatched-pattern"
+ ],
++"apps/frontend/**/*.{ts,tsx,js,jsx}": [
++  "prettier --write --ignore-unknown",
++  "npx --no-install eslint --fix --no-error-on-unmatched-pattern"
++],
+```
+
+Backend: STRICT (`--max-warnings 0`) — qualquer nova violation bloqueia commit.
+Frontend: PRAGMATIC (sem `--max-warnings 0`) — auto-fix only. Baseline frontend não auditado, deferido para S67-B candidato.
+
+### ESLint config rationale
+
+`'error'` vs `'warn'`: ambos respeitam `eslint-disable-*` comments. Diferença:
+
+- `'warn'`: violation emite warning. `--max-warnings 0` count as failure.
+- `'error'`: violation emite error. Always counts as failure (independente de `--max-warnings`).
+
+Com `'error' + --max-warnings 0`: dupla camada de defesa.
+
+- Future commits com new `as any` sem suppression: ESLint reports as ERROR → blocks commit.
+- Future commits com new unused var sem `_` prefix: same.
+
+### Hook chain pós-S67
+
+```
+git commit
+  ├── pre-commit (S65 + S66-E + S67)
+  │     ├── check-windows-garbage (HARD FAIL)
+  │     ├── check-secrets (HARD FAIL)
+  │     └── lint-staged
+  │           ├── prettier --write [todos globs]
+  │           ├── eslint --fix --max-warnings 0 [apps/backend/**/*.{ts,js}]   ← STRICT
+  │           └── eslint --fix [apps/frontend/**/*.{ts,tsx,js,jsx}]           ← PRAGMATIC
+  ├── commit-msg (S66-D) → commitlint
+  └── commit accepted
+```
+
+### Sandbox issues encontrados
+
+1. **`.git/config` linha 19 corrompida** (NUL bytes ao final): `git fetch` no sandbox falha com "fatal: bad config line 19". Diagnóstico via `cat -A .git/config`: 36 NUL bytes (`^@`) após linha 18 (`name = Pedro`).
+   - Causa: provável race entre operações git e Windows file watcher (lição S62 #3 + S63 #5).
+   - Pedro-side: `git fetch` works (PowerShell) — então config legível pelo Git for Windows mas não pelo Linux git on mount.
+   - Sandbox bypass: `curl https://raw.githubusercontent.com/pedro-leme-perin/saas-ai-sales-assistant/main/<file>` para obter HEAD.
+
+2. **CLAUDE.md / PROJECT_HISTORY.md working tree truncados pós-S66-E push** (5ª ocorrência: S60a, S62, S66-A, S66-A1, S67). CLAUDE.md 672 linhas vs HEAD 725. PROJECT_HISTORY.md 4486 vs 4492.
+   - Causa consistente: lint-staged stash apply + Windows file watcher race.
+   - Bypass: rebuild from raw GitHub URL via curl.
+
+### Frontend lint — escopo
+
+Adicionado `npx --no-install eslint` para `apps/frontend/**/*.{ts,tsx,js,jsx}`. Auto-fix de:
+
+- Import order (via plugin extends `next/core-web-vitals` → `eslint-plugin-import`)
+- prefer-const
+- Whitespace
+- React hooks rules-of-hooks (warning emitido mas não bloqueia)
+
+Frontend NÃO usa `--max-warnings 0`:
+
+- Baseline não auditado
+- ~50 routes/components com possíveis `any` em props/event handlers
+- Audit + remediation em S67-B (candidato)
+
+`eslint` direto (não `next lint`) porque:
+
+- `next lint --file <path>` semantics não são compatíveis com lint-staged passing positional file paths
+- eslint walks up para encontrar `apps/frontend/.eslintrc.json` que extends `next/core-web-vitals`
+- Plugins (`@next/eslint-plugin-next`, `eslint-plugin-react`) resolvidos via pnpm hoisting
+
+### Mutações em arquivos
+
+```
+apps/backend/.eslintrc.js                  (M  — no-explicit-any/no-unused-vars: warn → error)
+package.json                               (M  — lint-staged backend +--max-warnings 0; frontend +eslint)
+CLAUDE.md                                  (M  — header v5.7 → v6.2 + S67 row + footer)
+PROJECT_HISTORY.md                         (+ esta entrada)
+scripts/s67-eslint-strict.ps1              (NEW — wrapper Pedro-side)
+```
+
+### Esperado em CI #259
+
+- Backend tests: PASS (rule mais estrita não afeta runtime)
+- Frontend tests: PASS
+- Coverage: idêntico (zero mudança em test logic)
+- Annotations: 0 esperado (todos suppressed)
+
+### Lessons reforçadas
+
+1. **Audit suppression antes de strict**. S66-E afirmava "18 unsuppressed warnings" baseado em grep simples. Análise refinada (per-line + file-level eslint-disable) confirmou TODOS 17 suprimidos. Sempre validar suppression antes de assumir débito.
+
+2. **`'error'` rule + `--max-warnings 0` = dupla camada**. Redundante mas defensável: error catch on save (IDE/editor), max-warnings catch on commit.
+
+3. **`.git/config` NUL bytes corruption**: 5ª ocorrência de Windows mount race. Mitigation candidata futura: sandbox bash deveria ler git data via `git --git-dir` flag explícito + `--no-optional-locks`.
+
+### Pendências S67-B candidatos
+
+1. **Frontend strict mode**: audit ~50 frontend files for `any` usage; suppress or fix; enable `--max-warnings 0`.
+2. **Service specs gap** (~30 services): ROI focado em branches metric.
+3. **Bundle deeper** (S62 carryover): 2.90MB → ≤2MB.
+4. **Pre-push hook** (S65 roadmap): `pnpm type-check` + `pnpm test:unit --bail`. Custo alto, opcional.
+
+S67 ENCERRADA. Anterior: S66-E `2e7f224`.

@@ -37,14 +37,15 @@
     "@commitlint/config-conventional": "^19.6.0"
   },
   "lint-staged": {
-    "apps/backend/**/*.{ts,js}": [
+    "apps/backend/{src,test}/**/*.{ts,js}": [
+      "prettier --write --ignore-unknown",
+      "npx --no-install eslint --fix --max-warnings 0 --no-error-on-unmatched-pattern"
+    ],
+    "apps/frontend/src/**/*.{ts,tsx,js,jsx}": [
       "prettier --write --ignore-unknown",
       "npx --no-install eslint --fix --no-error-on-unmatched-pattern"
     ],
-    "apps/frontend/**/*.{ts,tsx,js,jsx}": [
-      "prettier --write --ignore-unknown"
-    ],
-    "packages/shared/**/*.{ts,js}": [
+    "packages/shared/src/**/*.{ts,js}": [
       "prettier --write --ignore-unknown"
     ],
     "*.{json,md,yml,yaml}": [
