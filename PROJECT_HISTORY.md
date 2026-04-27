@@ -4209,3 +4209,123 @@ Caso CI #256 falhe (e.g. branches sobe -0.5pct para 57.81%): rollback step a 56%
 4. **Bundle deeper** (S62 carryover): 2.90MB → ≤2MB. Pedro precisa rodar `pnpm run analyze`.
 
 S66-C ENCERRADA. Anterior: S66-B `ae64924`.
+
+---
+
+## S66-D — Conventional Commits enforcement (commitlint hook)
+
+**Data:** 27/04/2026
+**Trigger:** Carryover S65 roadmap. Padronizar mensagens de commit para permitir auto-changelog/release notes futuros (conventional-changelog-cli).
+**Tipo:** Tech debt autônoma (zero blockers externos).
+
+### Stack
+
+- `@commitlint/cli@^19.6.1` — validador
+- `@commitlint/config-conventional@^19.6.0` — preset oficial Conventional Commits 1.0.0
+- `.husky/commit-msg` — hook novo (paralelo ao `pre-commit` S65, sem conflito)
+
+Zero-impact em pipeline existente. Total novo: 2 dev deps + 1 hook + 1 config + 1 doc.
+
+### `.husky/commit-msg`
+
+```sh
+#!/usr/bin/env sh
+# TheIAdvisor commit-msg hook (S66-D)
+npx --no-install commitlint --edit "$1"
+```
+
+`--edit "$1"` lê o commit message do arquivo temporário fornecido pelo git. `--no-install` força uso da instalação local (não baixa via network mid-commit).
+
+### `commitlint.config.js`
+
+11 regras customizadas sobre `@commitlint/config-conventional`:
+
+| Rule                   | Valor                                         | Severidade | Razão                                                        |
+| ---------------------- | --------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| `header-max-length`    | 100                                           | error      | Default 72 muito restritivo para subjects descritivos        |
+| `subject-case`         | never `start-case`/`pascal-case`/`upper-case` | error      | Pega `Adding Feature`                                        |
+| `subject-empty`        | never                                         | error      |                                                              |
+| `subject-full-stop`    | never `.`                                     | error      | Convention                                                   |
+| `type-empty`           | never                                         | error      |                                                              |
+| `type-case`            | always `lower-case`                           | error      | Pega `FEAT:`                                                 |
+| `type-enum`            | 11 types                                      | error      | feat/fix/chore/docs/refactor/test/style/perf/build/ci/revert |
+| `scope-case`           | always `lower-case`                           | error      | Pega `(S66-D)` (correto: `(s66-d)`)                          |
+| `body-leading-blank`   | always                                        | warn       |                                                              |
+| `footer-leading-blank` | always                                        | warn       |                                                              |
+| `body-max-line-length` | 200                                           | warn       | Default 100 muito restritivo para tabelas markdown           |
+
+### Validação adhoc
+
+```js
+const cfg = require('./commitlint.config.js');
+console.log(cfg.extends); // ['@commitlint/config-conventional']
+console.log(cfg.rules['header-max-length']); // [2, 'always', 100]
+console.log(cfg.rules['type-enum'][2]);
+// ['feat', 'fix', 'chore', 'docs', 'refactor', 'test', 'style', 'perf',
+//  'build', 'ci', 'revert']
+```
+
+`node --check commitlint.config.js` → JS syntax OK.
+
+### Documentação
+
+`docs/operations/s66/COMMITLINT.md` (~4KB): formato, types, rules, exemplos aceitos/rejeitados, bypass, onboarding, roadmap (auto-changelog + semantic versioning derivation).
+
+### Mutação `package.json` (root)
+
+```json
+"devDependencies": {
+  "husky": "^9.1.7",
+  "lint-staged": "^15.2.10",
+  "@commitlint/cli": "^19.6.1",
+  "@commitlint/config-conventional": "^19.6.0"
+}
+```
+
+Mutação via `python3 json.load+dump` (lição S62 #1).
+
+### Onboarding
+
+Zero-friction: hook ativa automaticamente após `pnpm install` (husky `prepare` script já configurado em S65). Verificar:
+
+```bash
+ls -la .husky/_/commit-msg     # deve existir
+echo "test" | npx --no-install commitlint   # falha com regras violadas
+```
+
+### Bypass
+
+```bash
+HUSKY=0 git commit -m "..."
+```
+
+Recomendado **apenas** se commitlint tiver bug. Recorrência indica regras a refinar.
+
+### Estado dos hooks pós-S66-D
+
+| Hook                | Trigger                        | Validação                                                              |
+| ------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `.husky/pre-commit` | `git commit`                   | check-windows-garbage + check-secrets + lint-staged (prettier --write) |
+| `.husky/commit-msg` | `git commit` (após pre-commit) | commitlint                                                             |
+
+Ordem: pre-commit → commit-msg → commit aceito.
+
+### Mutações em arquivos
+
+```
+package.json                                  (M  — devDeps + commitlint deps)
+.husky/commit-msg                             (NEW — 329 bytes hook)
+commitlint.config.js                          (NEW — 2.4KB config)
+docs/operations/s66/COMMITLINT.md             (NEW — 4.2KB doc)
+CLAUDE.md                                     (M  — S66-D row + v6.0)
+PROJECT_HISTORY.md                            (+ esta entrada)
+scripts/s66d-commitlint.ps1                   (NEW — wrapper Pedro-side)
+```
+
+### Pendências S66-E candidatos
+
+1. **S66-E — ESLint no pre-commit**: extend `lint-staged` com `eslint --fix --max-warnings 0` em `apps/backend/**/*.ts`. ~1-2h.
+2. **S67 — Service specs**: ~30 services sem spec dedicado. ROI focado em branches metric.
+3. **Bundle deeper** (S62 carryover): 2.90MB → ≤2MB. Pedro precisa rodar `pnpm run analyze`.
+
+S66-D ENCERRADA. Anterior: S66-C `1820f19`.

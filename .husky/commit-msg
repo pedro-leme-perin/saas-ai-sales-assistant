@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# TheIAdvisor commit-msg hook (S66-D)
+# Validates Conventional Commits format via commitlint.
+# Bypass: HUSKY=0 git commit ...
+
+# `--edit "$1"` reads the commit message from $1 (the temp file path)
+# `--no-install` ensures we use the local installation only, not network
+npx --no-install commitlint --edit "$1"
