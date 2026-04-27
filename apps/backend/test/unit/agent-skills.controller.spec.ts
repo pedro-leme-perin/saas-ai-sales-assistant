@@ -2,6 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserRole } from '@prisma/client';
 import { AgentSkillsController } from '../../src/modules/agent-skills/agent-skills.controller';
 import { AgentSkillsService } from '../../src/modules/agent-skills/agent-skills.service';
+import type {
+  AssignSkillToUserDto,
+  BulkSetUserSkillsDto,
+  UpsertAgentSkillDto,
+} from '../../src/modules/agent-skills/dto/upsert-agent-skill.dto';
 import type { AuthenticatedUser } from '../../src/common/decorators';
 
 jest.setTimeout(15000);
@@ -109,7 +114,11 @@ describe('AgentSkillsController', () => {
         notes: 'Q3 top performer',
         isActive: true,
       };
-      const result = await controller.assign(COMPANY_ID, mockUser, dto as any);
+      const result = await controller.assign(
+        COMPANY_ID,
+        mockUser,
+        dto as unknown as AssignSkillToUserDto,
+      );
       expect(result).toEqual(mockSkill);
       expect(service.assignToUser).toHaveBeenCalledWith(COMPANY_ID, USER_ID, dto);
     });
@@ -118,7 +127,12 @@ describe('AgentSkillsController', () => {
   describe('update', () => {
     it('forwards tenant, actor, id, dto', async () => {
       const dto = { level: 5, notes: 'promoted' };
-      const result = await controller.update(COMPANY_ID, mockUser, SKILL_ID, dto as any);
+      const result = await controller.update(
+        COMPANY_ID,
+        mockUser,
+        SKILL_ID,
+        dto as unknown as UpsertAgentSkillDto,
+      );
       expect(result.level).toBe(5);
       expect(service.update).toHaveBeenCalledWith(COMPANY_ID, USER_ID, SKILL_ID, dto);
     });
@@ -141,7 +155,12 @@ describe('AgentSkillsController', () => {
           { skill: 'objection-handling', level: 3 },
         ],
       };
-      const result = await controller.bulkReplace(COMPANY_ID, mockUser, TARGET_USER_ID, dto as any);
+      const result = await controller.bulkReplace(
+        COMPANY_ID,
+        mockUser,
+        TARGET_USER_ID,
+        dto as unknown as BulkSetUserSkillsDto,
+      );
       expect(result).toEqual({ data: [mockSkill] });
       expect(service.bulkSetForUser).toHaveBeenCalledWith(COMPANY_ID, USER_ID, dto);
     });
@@ -151,7 +170,12 @@ describe('AgentSkillsController', () => {
         userId: 'different-id',
         skills: [{ skill: 'foo', level: 1 }],
       };
-      const result = await controller.bulkReplace(COMPANY_ID, mockUser, TARGET_USER_ID, dto as any);
+      const result = await controller.bulkReplace(
+        COMPANY_ID,
+        mockUser,
+        TARGET_USER_ID,
+        dto as unknown as BulkSetUserSkillsDto,
+      );
       expect(result).toEqual({ error: 'userId mismatch between path and body' });
       expect(service.bulkSetForUser).not.toHaveBeenCalled();
     });
@@ -159,7 +183,12 @@ describe('AgentSkillsController', () => {
     it('handles empty skill set (full clear)', async () => {
       const dto = { userId: TARGET_USER_ID, skills: [] };
       service.bulkSetForUser = jest.fn().mockResolvedValue([]);
-      const result = await controller.bulkReplace(COMPANY_ID, mockUser, TARGET_USER_ID, dto as any);
+      const result = await controller.bulkReplace(
+        COMPANY_ID,
+        mockUser,
+        TARGET_USER_ID,
+        dto as unknown as BulkSetUserSkillsDto,
+      );
       expect(result).toEqual({ data: [] });
       expect(service.bulkSetForUser).toHaveBeenCalledWith(COMPANY_ID, USER_ID, dto);
     });

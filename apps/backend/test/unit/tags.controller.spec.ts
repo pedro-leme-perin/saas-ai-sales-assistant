@@ -2,6 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserRole } from '@prisma/client';
 import { TagsController } from '../../src/modules/tags/tags.controller';
 import { TagsService } from '../../src/modules/tags/tags.service';
+import type { CreateTagDto } from '../../src/modules/tags/dto/create-tag.dto';
+import type { UpdateTagDto } from '../../src/modules/tags/dto/update-tag.dto';
+import type { AttachTagsDto } from '../../src/modules/tags/dto/attach-tags.dto';
+import type { SearchConversationsDto } from '../../src/modules/tags/dto/search-conversations.dto';
 import type { AuthenticatedUser } from '../../src/common/decorators';
 
 jest.setTimeout(15000);
@@ -82,7 +86,7 @@ describe('TagsController', () => {
   describe('create', () => {
     it('passes tenant, user, dto to service', async () => {
       const dto = { name: 'urgent', color: '#FF0000', description: 'top' };
-      const result = await controller.create(COMPANY_ID, mockUser, dto as any);
+      const result = await controller.create(COMPANY_ID, mockUser, dto as unknown as CreateTagDto);
       expect(result).toEqual(mockTag);
       expect(service.create).toHaveBeenCalledWith(COMPANY_ID, USER_ID, dto);
     });
@@ -91,7 +95,12 @@ describe('TagsController', () => {
   describe('update', () => {
     it('forwards id, tenant, user, dto', async () => {
       const dto = { name: 'critical' };
-      const result = await controller.update(TAG_ID, COMPANY_ID, mockUser, dto as any);
+      const result = await controller.update(
+        TAG_ID,
+        COMPANY_ID,
+        mockUser,
+        dto as unknown as UpdateTagDto,
+      );
       expect(result.name).toBe('critical');
       expect(service.update).toHaveBeenCalledWith(COMPANY_ID, TAG_ID, USER_ID, dto);
     });
@@ -116,7 +125,12 @@ describe('TagsController', () => {
   describe('attachCall', () => {
     it('attaches multiple tag ids to call', async () => {
       const dto = { tagIds: [TAG_ID, 'other-tag'] };
-      const result = await controller.attachCall(CALL_ID, COMPANY_ID, mockUser, dto as any);
+      const result = await controller.attachCall(
+        CALL_ID,
+        COMPANY_ID,
+        mockUser,
+        dto as unknown as AttachTagsDto,
+      );
       expect(result).toEqual({ attached: 1 });
       expect(service.attachToCall).toHaveBeenCalledWith(
         COMPANY_ID,
@@ -128,7 +142,7 @@ describe('TagsController', () => {
 
     it('handles empty tag list', async () => {
       const dto = { tagIds: [] };
-      await controller.attachCall(CALL_ID, COMPANY_ID, mockUser, dto as any);
+      await controller.attachCall(CALL_ID, COMPANY_ID, mockUser, dto as unknown as AttachTagsDto);
       expect(service.attachToCall).toHaveBeenCalledWith(COMPANY_ID, CALL_ID, [], USER_ID);
     });
   });
@@ -152,7 +166,12 @@ describe('TagsController', () => {
   describe('attachChat', () => {
     it('attaches tag ids to chat', async () => {
       const dto = { tagIds: [TAG_ID] };
-      const result = await controller.attachChat(CHAT_ID, COMPANY_ID, mockUser, dto as any);
+      const result = await controller.attachChat(
+        CHAT_ID,
+        COMPANY_ID,
+        mockUser,
+        dto as unknown as AttachTagsDto,
+      );
       expect(result).toEqual({ attached: 1 });
       expect(service.attachToChat).toHaveBeenCalledWith(COMPANY_ID, CHAT_ID, [TAG_ID], USER_ID);
     });
@@ -169,14 +188,14 @@ describe('TagsController', () => {
   describe('search', () => {
     it('runs full-text search with query dto', async () => {
       const dto = { q: 'refund', limit: 20, tagIds: [TAG_ID] };
-      const result = await controller.search(COMPANY_ID, dto as any);
+      const result = await controller.search(COMPANY_ID, dto as unknown as SearchConversationsDto);
       expect(result).toEqual({ results: [], total: 0 });
       expect(service.search).toHaveBeenCalledWith(COMPANY_ID, dto);
     });
 
     it('passes minimal query', async () => {
       const dto = { q: 'hi' };
-      await controller.search(COMPANY_ID, dto as any);
+      await controller.search(COMPANY_ID, dto as unknown as SearchConversationsDto);
       expect(service.search).toHaveBeenCalledWith(COMPANY_ID, dto);
     });
   });

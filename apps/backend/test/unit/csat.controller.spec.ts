@@ -3,6 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CsatChannel, CsatResponseStatus, CsatTrigger, UserRole } from '@prisma/client';
 import { CsatController } from '../../src/modules/csat/csat.controller';
 import { CsatService } from '../../src/modules/csat/csat.service';
+import type { UpsertCsatConfigDto } from '../../src/modules/csat/dto/upsert-csat-config.dto';
+import type { SubmitCsatDto } from '../../src/modules/csat/dto/submit-csat.dto';
 import type { AuthenticatedUser } from '../../src/common/decorators';
 
 jest.setTimeout(15000);
@@ -81,7 +83,11 @@ describe('CsatController', () => {
         messageTpl: 'Rate us: {{link}}',
         isActive: true,
       };
-      const result = await controller.upsertConfig(COMPANY_ID, mockUser, dto as any);
+      const result = await controller.upsertConfig(
+        COMPANY_ID,
+        mockUser,
+        dto as unknown as UpsertCsatConfigDto,
+      );
       expect(result).toEqual(mockConfig);
       expect(service.upsertConfig).toHaveBeenCalledWith(COMPANY_ID, USER_ID, dto);
     });
@@ -171,14 +177,14 @@ describe('CsatController', () => {
   describe('publicSubmit', () => {
     it('submits score with optional comment', async () => {
       const dto = { score: 5, comment: 'Excellent service' };
-      const result = await controller.publicSubmit(TOKEN, dto as any);
+      const result = await controller.publicSubmit(TOKEN, dto as unknown as SubmitCsatDto);
       expect(result.status).toBe(CsatResponseStatus.RESPONDED);
       expect(service.submitPublic).toHaveBeenCalledWith(TOKEN, dto);
     });
 
     it('submits score without comment', async () => {
       const dto = { score: 3 };
-      await controller.publicSubmit(TOKEN, dto as any);
+      await controller.publicSubmit(TOKEN, dto as unknown as SubmitCsatDto);
       expect(service.submitPublic).toHaveBeenCalledWith(TOKEN, dto);
     });
   });
