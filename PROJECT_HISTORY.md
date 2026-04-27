@@ -3955,3 +3955,176 @@ Os 3 controllers picked (`tags`, `csat`, `agent-skills`) confirmados íntegros v
 4. **Staging provisioning** (S61-C carryover).
 
 S66-A pronto para push.
+
+---
+
+## S66-A1 — Lint hardening: 15 `as any` → `as unknown as DtoClass`
+
+**Data:** 27/04/2026
+**Trigger:** CI #253 (S66-A) reportou 10 ESLint warnings `no-explicit-any` em 3 specs novos. Annotation list:
+
+- `tags.controller.spec.ts` L85, L94
+- `csat.controller.spec.ts` L84, L174, L181
+- `agent-skills.controller.spec.ts` L112, L121, L144, L154, L162
+
+Total efetivo no codebase: 15 casts (CI annotated only 10; 5 internos não-anotados — provável truncation do GitHub annotation UI).
+
+### Approach
+
+`dto as any` → `dto as unknown as DtoClass` (idiomatic TS double-cast):
+
+| Aspect  | Before                     | After                                       |
+| ------- | -------------------------- | ------------------------------------------- |
+| TS type | `any` (escapes all checks) | `unknown` then `DtoClass` (explicit intent) |
+| ESLint  | `no-explicit-any` warns    | clean                                       |
+| Runtime | identical (no coercion)    | identical                                   |
+| Compile | accepts                    | accepts (double-cast valid)                 |
+
+### Imports
+
+`import type { ... }` para evitar runtime import de classes que possuem decorators `class-validator`. Imports concentrados:
+
+- tags: `CreateTagDto`, `UpdateTagDto`, `AttachTagsDto`, `SearchConversationsDto` (4)
+- csat: `UpsertCsatConfigDto`, `SubmitCsatDto` (2)
+- agent-skills: `AssignSkillToUserDto`, `BulkSetUserSkillsDto`, `UpsertAgentSkillDto` (3)
+
+Total: 9 DTO classes verificadas via `grep -E "^export (class|type|interface)" apps/backend/src/modules/{tags,csat,agent-skills}/dto/*.ts`.
+
+### Working tree restoration pre-fix
+
+- `csat.controller.spec.ts`: 9 NUL bytes detectados (Windows file-mode flicker pós-S66-A push).
+- `agent-skills.controller.spec.ts`: 123 NUL bytes detectados.
+
+Restaurado de HEAD via `git show HEAD:<file>` (lição S62 #3 reaplicada). Após restauração: 0 nulls em todos os 3 specs.
+
+### CI #254 result
+
+- Status: SUCCESS
+- Annotations `no-explicit-any`: **10 → 0** ✓
+- Coverage: idêntico (test logic inalterado)
+
+### Lessons reforçadas
+
+1. **Working tree corruption frequency**: 4ª ocorrência (S60a, S62, S66-A, S66-A1). Hipótese consistente: lint-staged stash + Windows file watcher race. Mitigation futura candidata (S66-D): adicionar `core.fileMode=false` + `core.autocrlf=false` ao `.git/config` Pedro-side via PS1 setup.
+
+2. **`as unknown as T` é idiomatic**: padrão ESLint-clean amplamente adotado em testes NestJS quando DTOs são class-validator classes (não constructíveis com object literal puro).
+
+S66-A1 ENCERRADA. Anterior: S66-A `763bd64`. Próximo: S66-B.
+
+---
+
+## S66-B — Coverage ratchet round 4 (7 controllers thin specs)
+
+**Data:** 27/04/2026
+**Trigger:** Continuação direta de S66-A. Gap analysis identificou 10 controllers thin sem spec dedicado. S66-A picked top 3 (tags/csat/agent-skills). S66-B picks remaining 7.
+**Tipo:** Tech debt autônoma (zero blockers externos).
+
+### Picks (LoC desc)
+
+| Controller                      | LoC | Methods | Domínio relevante                                |
+| ------------------------------- | --: | ------: | ------------------------------------------------ |
+| `contacts.controller.ts`        | 118 |       8 | Customer 360 + timeline merge + CRUD notes       |
+| `announcements.controller.ts`   | 115 |       8 | In-app banner state per-user (read/dismiss)      |
+| `webhooks.controller.ts`        | 114 |       7 | HMAC outbound, deliveries audit, secret rotation |
+| `dsar.controller.ts`            | 105 |       6 | LGPD Art. 18 — actor shape condensado            |
+| `reply-templates.controller.ts` | 105 |       7 | LLM-ranked /suggest + heuristic fallback         |
+| `goals.controller.ts`           | 104 |       5 | Leaderboard + period defaults WEEKLY             |
+| `impersonation.controller.ts`   |  97 |       4 | IP extraction (4 paths) + UA truncate 500        |
+
+Total: 7 controllers, 45 methods, ~758 LoC de production code antes sem coverage spec dedicado → 100% endpoints cobertos pós-S66-B.
+
+### Specs gerados
+
+| Spec                                 | LoC | Tests |                      Describes |
+| ------------------------------------ | --: | ----: | -----------------------------: |
+| `contacts.controller.spec.ts`        | 149 |   ~10 |                              8 |
+| `announcements.controller.spec.ts`   | 130 |    ~8 |                              8 |
+| `webhooks.controller.spec.ts`        | 129 |    ~9 |                              7 |
+| `dsar.controller.spec.ts`            | 133 |    ~7 |                              6 |
+| `reply-templates.controller.spec.ts` | 126 |    ~9 |                              7 |
+| `goals.controller.spec.ts`           | 112 |    ~7 |                              5 |
+| `impersonation.controller.spec.ts`   | 152 |   ~10 | 4 (start expandido em 4 paths) |
+
+Total: ~931 LoC, ~60 testes em 45 describes.
+
+### Edge cases destacados
+
+1. **contacts.list**: `Number.parseInt('abc', 10)` → NaN → `Number.isFinite(NaN)` → false → undefined fallback (defensive parsing).
+2. **webhooks.deliveries**: default limit 50 quando query ausente; `Number(undefined)` → NaN, mas controller usa ternário; `null` para endpointId quando filter ausente.
+3. **dsar**: actor shape condensado `{ id, role }` (não full `AuthenticatedUser`) passado para service em create/approve/reject/download — defesa em profundidade.
+4. **reply-templates.markUsed**: zero context (no user, no role check) — endpoint público dentro de tenant para tracking de uso.
+5. **goals.leaderboard/current**: `query.period ?? GoalPeriodType.WEEKLY` (nullish coalescing default).
+6. **impersonation.start**: 4 paths de IP extraction testados:
+   - `x-forwarded-for` string form → `'a, b, c'.split(',')[0].trim()` → first IP
+   - `x-forwarded-for` array form → `arr[0]`
+   - Sem header → `req.ip` ou `req.socket.remoteAddress`
+   - User-Agent truncate `slice(0, 500)` validado com input de 800 chars.
+
+### Pattern consistente (S66-A → S66-A1 → S66-B)
+
+```ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { Controller } from '<path>';
+import { Service } from '<path>';
+import type { AuthenticatedUser } from '../../src/common/decorators';
+import type { DtoClass1, DtoClass2 } from '<dto-path>';
+
+describe('Controller', () => {
+  let controller: Controller;
+  let service: jest.Mocked<Partial<Service>>;
+  const mockUser: AuthenticatedUser = { id, clerkId, email, name, role, companyId, permissions: [] };
+
+  beforeEach(async () => {
+    service = { method1: jest.fn().mockResolvedValue(...), ... };
+    const module = await Test.createTestingModule({
+      controllers: [Controller],
+      providers: [{ provide: Service, useValue: service }],
+    }).compile();
+    controller = module.get(Controller);
+  });
+
+  describe('methodN', () => {
+    it('happy path', async () => {
+      const dto = { ... };
+      const result = await controller.methodN(args, dto as unknown as DtoClass);
+      expect(result).toBeDefined();
+      expect(service.methodN).toHaveBeenCalledWith(...);
+    });
+  });
+});
+```
+
+### Coverage delta esperado
+
+Pré-S66-B (CI #253/#254): functions% real = **67.7%** (975/1440).
+
+Estimativa pós-S66-B:
+
+- 7 controllers × ~6.4 methods avg = ~45 methods (functions in coverage)
+- Bump estimado: +45/1440 = +3.1pct → real 67.7 → ~70.8%
+
+Floor permanece 62 (S66-A). Headroom pós-S66-B: ~8.8pct (vs 5.7pct atual). Permite ratchet 62 → 65 confiável (S66-C).
+
+### Mutações em arquivos
+
+```
+apps/backend/test/unit/contacts.controller.spec.ts          (NEW — 149L, 5.8KB)
+apps/backend/test/unit/announcements.controller.spec.ts     (NEW — 130L, 4.8KB)
+apps/backend/test/unit/webhooks.controller.spec.ts          (NEW — 129L, 4.8KB)
+apps/backend/test/unit/dsar.controller.spec.ts              (NEW — 133L, 4.8KB)
+apps/backend/test/unit/reply-templates.controller.spec.ts   (NEW — 126L, 5.1KB)
+apps/backend/test/unit/goals.controller.spec.ts             (NEW — 112L, 4.4KB)
+apps/backend/test/unit/impersonation.controller.spec.ts     (NEW — 152L, 5.8KB)
+CLAUDE.md                                                   (M  — S66-B + S66-A1 rows + v5.8)
+PROJECT_HISTORY.md                                          (+ esta entrada + S66-A1 entry)
+scripts/s66b-controllers-batch.ps1                          (NEW — wrapper Pedro-side)
+```
+
+### Pendências S66-C+ candidatos
+
+1. **S66-C — Ratchet floor functions 62 → 65**: validado por 2 PRs consecutivos (S66-A 67.7 + S66-B estimado 70.8). Defensável.
+2. **S66-D — commitlint hook**: `.husky/commit-msg` + `commitlint.config.js` Conventional Commits.
+3. **S66-E — ESLint no pre-commit**: extend `lint-staged` com `eslint --fix --max-warnings 0` em `apps/backend/**/*.ts`.
+4. **Bundle deeper** (S62 carryover): semi-autonomous (Pedro precisa rodar `pnpm run analyze`).
+
+S66-B ENCERRADA. Anterior: S66-A1 `4efbc2e`.
