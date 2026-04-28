@@ -5057,3 +5057,160 @@ scripts/s69-final.ps1                                             NEW (monolithi
 | Lacuna #35 (frontend full sweep) | ✓ RESOLVED                                           |
 
 S69 ENCERRADA. Anterior: S68 `4a8b647`.
+
+---
+
+## S69-A — Doc followup: partial commit 44bce12 + lint-staged lesson #7
+
+**Data:** 28/04/2026
+**Trigger:** Pedro auditou git log e perguntou origem dos dois commits "fix(s69): frontend eslint v9 flat config + per-app eslint binary" (`44bce12` + `b36143c`).
+**Tipo:** Doc-only follow-up. Zero código. Forense + lição.
+
+### Investigação
+
+```bash
+$ git show 44bce12 --stat
+commit 44bce12726a6dbb67111a6b727b347dee73d24fd
+Author: Pedro
+Date:   Tue Apr 28 00:07:00 2026 -0300
+    fix(s69): frontend eslint v9 flat config + per-app eslint binary
+    [...full S69 commit message...]
+
+ PROJECT_HISTORY.md | 146 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ package.json       |   4 +-
+ 2 files changed, 148 insertions(+), 2 deletions(-)
+```
+
+**Apenas 2 arquivos commitados** em `44bce12`:
+
+- `PROJECT_HISTORY.md` (+146 linhas — S69 entry)
+- `package.json` (+/-2 linhas — lint-staged config update)
+
+**Faltando** (presentes em `b36143c`):
+
+- `apps/frontend/eslint.config.mjs` (NEW)
+- `apps/frontend/.eslintrc.json` (DELETED)
+- `apps/frontend/package.json` (M, +`@eslint/eslintrc`)
+- 3 src fixes (audit-logs, csat error, company-tab)
+- `pnpm-lock.yaml` (M)
+- `CLAUDE.md` (M)
+
+### Causa raiz
+
+Durante um dos attempts S69 falhados:
+
+1. `git add` staged TODOS os files (incluindo 3 src + eslint.config.mjs etc.)
+2. `git commit -F` invocou pre-commit hook
+3. Hook iniciou lint-staged → backup `git stash` → tasks per-glob:
+   - `prettier --write` rodou em SOME files (passed)
+   - `eslint --fix --max-warnings 0` rodou em frontend src files (FAILED)
+4. lint-staged tentou revert (stash apply) — **falhou parcialmente**
+5. Files que passaram pelo prettier **mantiveram** suas modificações no working tree
+6. Files que falharam ESLint **foram revertidos** ao estado original
+7. `git commit -F` **finalizou** com os files que sobraram staged (nem todos)
+8. Resultado: commit parcial `44bce12` com PROJECT_HISTORY.md + package.json apenas
+
+A mensagem do commit `git commit -F $msgFile` foi a mesma porque `$msgFile` é reutilizado entre attempts.
+
+### Por que push aconteceu então
+
+Pedro reportou em log anterior: `git push origin main → "Everything up-to-date"`. Mas `44bce12` está em main lineage. Hipótese: o push aconteceu DEPOIS desse commit em outra invocação que não logamos completamente. Sandbox forense impossível — Pedro-side terminal histórico requer.
+
+### Estado final correto
+
+`b36143c` (HEAD = origin/main) contém TODOS os fixes:
+
+- 10 files changed
+- 438 insertions, 251 deletions
+- delete mode `apps/frontend/.eslintrc.json`
+- create mode `apps/frontend/eslint.config.mjs`
+- create mode `scripts/s69-final.ps1`
+
+**`b36143c` SUPERSEDES `44bce12`** — quem clona o repo agora pega estado correto. CI #262 verde em `b36143c` confirma.
+
+### Decisão: NÃO force-push
+
+Considered:
+
+| Opção                                      | Risco                          | Benefício                 | Decisão    |
+| ------------------------------------------ | ------------------------------ | ------------------------- | ---------- |
+| Deixar como está                           | Zero                           | Histórico forense + lição | ✅ ADOTADA |
+| Squash via interactive rebase + force-push | Alto (anti-pattern enterprise) | Estética histórico        | ❌         |
+| Revert `44bce12` + commit normal           | Médio (mais commits)           | Pouco                     | ❌         |
+| Git notes                                  | Baixo                          | Pouca visibilidade        | ❌         |
+
+**Razão A escolhida**: princípio "never force-push main" é regra de ouro em CI/CD enterprise. ADRs 012/013 implicitamente afirmam que rastreabilidade é valor. Estética cede para integridade.
+
+### Lição #7 nova (S69 reforçada)
+
+> **lint-staged com task fail parcial PODE deixar commit parcial mesmo após hook reportar "failed".**
+>
+> Mecanismo: lint-staged executa tasks per-glob em paralelo. Se task1 (prettier) passa em files A,B e task2 (eslint) falha em files C,D, lint-staged tenta revert via `git stash apply`. Revert pode ter conflito com working tree changes recentes (e.g. PROJECT_HISTORY.md modificado), deixando files que passaram com modifications staged. `git commit -F` então finaliza com APENAS os files que sobraram — commit parcial.
+>
+> **Mitigation**:
+>
+> 1. Após cada `git commit` que reporte falha, verificar `git log -1` E `git status --short` antes de re-tentar.
+> 2. Se commit parcial detectado mas push pendente: `git reset HEAD~1 --soft` para desfazer (ANTES do push).
+> 3. Após push: aceitar commit como histórico forense, criar commit posterior corrigindo (cumulative supersedence pattern).
+>
+> **Detecção**: `git diff <parent>..<head> --stat` mostra files no commit; comparar com expected list.
+
+### Histórico do incidente
+
+7 attempts S69 antes do `b36143c` final (lições agora consolidadas):
+
+| Attempt                | Bug                                                 | Outcome                                   |
+| ---------------------- | --------------------------------------------------- | ----------------------------------------- |
+| s69-flat-config.ps1 #1 | ESLint v9 sweep failed (couldn't find config)       | Hook abort, no commit                     |
+| s69-resume.ps1 #1      | ESLint v9 needed flat config Setup                  | Hook abort, no commit                     |
+| s69-resume.ps1 #2      | Frontend `<img>` warning                            | Hook abort, no commit                     |
+| Cola-direct PowerShell | Backend hoisted v8 read v9 config                   | Hook abort + **PARTIAL COMMIT `44bce12`** |
+| s69-final.ps1 #1       | `stash@{0}` PowerShell format-string interpretation | Script abort step 1                       |
+| s69-final.ps1 #2       | npm warn stderr → RemoteException                   | Script abort step 3                       |
+| s69-final.ps1 #3       | All fixes applied                                   | ✅ `b36143c` final, all green             |
+
+### Mutações em arquivos (S69-A)
+
+```
+CLAUDE.md                    (M — header v6.6 + S69-A row + footer)
+PROJECT_HISTORY.md           (M — esta entrada + lição #7)
+scripts/s69a-doc-followup.ps1 (NEW — wrapper Pedro-side, simple stage+commit+push)
+```
+
+Zero código de produção tocado. Doc-only.
+
+### Esperado em CI #263
+
+- Backend: PASS
+- Frontend: PASS
+- Coverage: idêntico
+- Annotations: zero (apenas Node deprecation + bundle warning conhecidos)
+
+### Status pós-S69-A
+
+| Aspect                         | Status                                       |
+| ------------------------------ | -------------------------------------------- |
+| Pre-commit hook (S65)          | ✓ active                                     |
+| Commit-msg hook (S66-D)        | ✓ active                                     |
+| Backend ESLint strict          | ✓ working (v8)                               |
+| Frontend ESLint strict         | ✓ working (v9 + flat config + --config flag) |
+| Coverage thresholds 12-tier    | ✓ enforced                                   |
+| ADRs §16                       | ✓ 012/013 documented                         |
+| Histórico forense `44bce12`    | ✓ explicado                                  |
+| Lição #7 (lint-staged partial) | ✓ registrada                                 |
+
+S69-A ENCERRADA. Anterior: S69 `b36143c`.
+
+### Pendências futuras (inalteradas pós-S69-A)
+
+| #                          | Item                               | Owner                    | Esforço                |
+| -------------------------- | ---------------------------------- | ------------------------ | ---------------------- |
+| #33 S68-E                  | Amplify specs failure-mode         | Sandbox                  | 3-4h                   |
+| #34 S68-F                  | Working tree corruption root cause | Pedro Sysinternals       | 30min                  |
+| #36 S68-H                  | GitHub fine-grained token confirm  | Pedro screenshot         | 1min                   |
+| Bundle deeper              | 2.90MB → ≤2MB                      | Pedro `pnpm run analyze` | 1-2h                   |
+| Pre-push hook              | type-check + test                  | Sandbox                  | opcional alto custo    |
+| Auto-changelog             | conventional-changelog-cli         | Sandbox                  | ~1h                    |
+| Backend ESLint v8→v9 align | flat config migration              | Sandbox                  | ~2h                    |
+| Staging provisioning       | Railway+Neon+Upstash+R2            | Pedro 1h interativo      | bloqueia k6            |
+| WhatsApp Business live     | Meta Business Manager              | Pedro+MEI                | bloqueado externamente |
