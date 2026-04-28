@@ -1,0 +1,70 @@
+chore(s70): operacional + compliance fase 1 (6 deliverables enterprise)
+
+Sessao S70 - opcao A do TODO post-prod-ready (Cowork autonomo, ~6h).
+Zero codigo aplicacao; produz docs operacionais + CI security gate.
+
+Deliverables:
+
+(B6) docs/operations/runbooks/disaster-recovery.md
+- RPO/RTO matrix 10 camadas + 10 cenarios cobertos
+- Procedures Postgres PITR, Postgres total loss + pg_restore, Redis,
+  R2 versioning, Railway crash, Vercel regression, Stripe webhook,
+  Clerk degradation, Twilio circuit breaker, region-wide multi-vendor
+- Vendor SLA matrix 13 vendors
+- Game day cadencia semestral
+
+(B7) docs/operations/runbooks/incident-response.md
+- Severity matrix SEV1-4 + RTO + comms + postmortem obrigatoriedade
+- Triage 7 passos fixos (ack -> classify -> channel -> status page ->
+  snapshot logs -> blast radius -> stabilize)
+- Comms templates 6 (4 status page states + email + in-app banner)
+- Postmortem template blameless completo
+- Single-engineer caveats + S80+ roadmap
+
+(E5) docs/operations/security/headers-audit.md
+- Mozilla Observatory grade A+ target
+- Frontend Helmet + next.config.js audit detalhado
+- 6 CSP weaknesses documented (severity + remediation roadmap)
+- Backend CSP path-aware roadmap S71 (Swagger UI exception)
+- HSTS preload submission guide
+- 8 action items priorizados
+
+(E2) .github/workflows/ci.yml + .github/dependabot.yml
+- ci.yml: novo job security (pnpm audit --prod --audit-level=high blocks
+  HIGH/CRITICAL em prod deps + audit moderate informational)
+- ci-gate needs atualizado para [frontend, backend, security]
+- dependabot.yml: 5 ecosystems (npm x4 + github-actions),
+  weekly Mon 06:00 BRT, grouped minor+patch, security PRs dedicated,
+  ignore majors NestJS/Prisma/Next/React/Clerk/eslint v8
+
+(E8) docs/operations/security/secrets-rotation.md
+- Inventory 40 backend Railway + 8 frontend Vercel + 9 GH Actions
+- 9 procedure categorias (cadencia + overlap + rollback + validation)
+- Emergency rotation 1h SLA com 8 passos
+- Audit trail format AuditLog action=SECRET_ROTATED
+
+(F1+F2) CONTRIBUTING.md + docs/process/branching-strategy.md
+- CONTRIBUTING: 13 secoes (setup, workflow, Conventional Commits,
+  pre-commit hooks S65, padroes codigo, schema changes, seguranca,
+  observabilidade, i18n, docs)
+- Branching: Trunk-Based Development adopted, main protection rules,
+  feature/hotfix branches, NO release branches, squash-merge,
+  SemVer 2.0 tags, single-engineer caveats S80+ roadmap
+
+Mutacoes:
+.github/dependabot.yml                            (NEW 6.0KB)
+.github/workflows/ci.yml                          (M +85 linhas)
+CLAUDE.md                                         (M header + S70 row + footer 6.7)
+CONTRIBUTING.md                                   (NEW 9.6KB)
+PROJECT_HISTORY.md                                (M +132 linhas S70 secao)
+docs/operations/runbooks/disaster-recovery.md     (NEW 14.9KB)
+docs/operations/runbooks/incident-response.md     (NEW 9.9KB)
+docs/operations/security/headers-audit.md         (NEW 10.0KB)
+docs/operations/security/secrets-rotation.md      (NEW 14.1KB)
+docs/process/branching-strategy.md                (NEW 9.0KB)
+scripts/s70-restore.ps1                           (NEW utility)
+
+Working tree corruption 7th occurrence (lesson #5) restaurado via
+sandbox git show HEAD: + cp para Windows mount.
+
+Anterior: S69-A 27b12bf

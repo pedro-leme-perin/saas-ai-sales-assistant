@@ -260,17 +260,102 @@ jobs:
           retention-days: 14
 
   # ──────────────────────────────────────────────
+  # Security: dependency vulnerability scan (pnpm audit)
+  # Blocks merge on HIGH or CRITICAL in production dependencies
+  # ──────────────────────────────────────────────
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Restore cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.local/share/pnpm/store
+            node_modules
+            apps/backend/node_modules
+            apps/frontend/node_modules
+            packages/shared/node_modules
+            packages/shared/dist
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Audit production dependencies (high+ blocks)
+        id: audit_prod
+        run: |
+          set +e
+          pnpm audit --prod --audit-level=high --json > /tmp/audit-prod.json
+          AUDIT_EXIT=$?
+          set -e
+          # exit code 0 = clean, 1 = vulnerabilities at or above level
+          if [[ "$AUDIT_EXIT" -eq 0 ]]; then
+            echo "::notice::pnpm audit clean (no HIGH or CRITICAL in production deps)"
+            {
+              echo "## Security Audit"
+              echo ""
+              echo "Production deps: clean (no HIGH or CRITICAL)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Parse vulnerability summary; tolerate empty/invalid JSON
+          if [[ ! -s /tmp/audit-prod.json ]]; then
+            echo "::error::pnpm audit failed to produce output"
+            exit 1
+          fi
+          {
+            echo "## Security Audit — Production Dependencies"
+            echo ""
+            echo '<details><summary>Vulnerabilities found</summary>'
+            echo ''
+            echo '```json'
+            cat /tmp/audit-prod.json | head -200
+            echo '```'
+            echo ''
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::pnpm audit found HIGH or CRITICAL vulnerabilities in production dependencies — see job summary"
+          exit 1
+
+      - name: Audit all dependencies (moderate+ informational)
+        if: always()
+        run: |
+          set +e
+          pnpm audit --audit-level=moderate --json > /tmp/audit-all.json 2>/dev/null
+          set -e
+          # informational only — never fails build, just reports
+          if [[ -s /tmp/audit-all.json ]]; then
+            VULN_COUNT=$(node -e "try { const a = require('/tmp/audit-all.json'); const meta = a.metadata && a.metadata.vulnerabilities ? a.metadata.vulnerabilities : {}; const total = Object.values(meta).reduce((s,n) => s + (n||0), 0); console.log(total); } catch(e) { console.log('0'); }")
+            {
+              echo ""
+              echo "### All deps (moderate+ informational)"
+              echo ""
+              echo "Total vulnerabilities (moderate or higher): $VULN_COUNT"
+              echo ""
+              echo "_Run \`pnpm audit\` locally to inspect and remediate._"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ──────────────────────────────────────────────
   # Status check gate (required for branch protection)
   # ──────────────────────────────────────────────
   ci-gate:
     name: CI Gate
     runs-on: ubuntu-latest
-    needs: [frontend, backend]
+    needs: [frontend, backend, security]
     if: always()
     steps:
       - name: Check results
         run: |
-          if [[ "${{ needs.frontend.result }}" == "failure" || "${{ needs.backend.result }}" == "failure" ]]; then
+          if [[ "${{ needs.frontend.result }}" == "failure" || "${{ needs.backend.result }}" == "failure" || "${{ needs.security.result }}" == "failure" ]]; then
             echo "CI failed"
             exit 1
           fi

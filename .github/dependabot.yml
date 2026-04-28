@@ -1,0 +1,176 @@
+# Dependabot configuration — automated dependency updates
+# Reference: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Created: S70 Fase 1 (E2 — dependency vulnerability scan)
+
+version: 2
+
+updates:
+  # ──────────────────────────────────────────────
+  # Backend (apps/backend) — pnpm
+  # ──────────────────────────────────────────────
+  - package-ecosystem: 'npm'
+    directory: '/apps/backend'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Sao_Paulo'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'backend'
+    commit-message:
+      prefix: 'chore(deps,backend)'
+      include: 'scope'
+    groups:
+      # Group all minor/patch upgrades into a single PR per ecosystem to reduce noise
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Security updates always get their own PR for fastest triage
+      security:
+        applies-to: security-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+          - 'major'
+    ignore:
+      # Major NestJS bumps require migration audit — bump manually only
+      - dependency-name: '@nestjs/*'
+        update-types: ['version-update:semver-major']
+      # Major Prisma bumps require schema review
+      - dependency-name: 'prisma'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@prisma/client'
+        update-types: ['version-update:semver-major']
+      # ESLint v8 stays pinned (S67 monorepo dual-version constraint — see ADR-012)
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+
+  # ──────────────────────────────────────────────
+  # Frontend (apps/frontend) — pnpm
+  # ──────────────────────────────────────────────
+  - package-ecosystem: 'npm'
+    directory: '/apps/frontend'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Sao_Paulo'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'frontend'
+    commit-message:
+      prefix: 'chore(deps,frontend)'
+      include: 'scope'
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+      security:
+        applies-to: security-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+          - 'major'
+    ignore:
+      # Next.js major bumps require app-router compatibility audit
+      - dependency-name: 'next'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
+      # Clerk SDK is auth-critical — major bumps reviewed manually
+      - dependency-name: '@clerk/*'
+        update-types: ['version-update:semver-major']
+
+  # ──────────────────────────────────────────────
+  # Shared package (packages/shared)
+  # ──────────────────────────────────────────────
+  - package-ecosystem: 'npm'
+    directory: '/packages/shared'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Sao_Paulo'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'shared'
+    commit-message:
+      prefix: 'chore(deps,shared)'
+      include: 'scope'
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+      security:
+        applies-to: security-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+          - 'major'
+
+  # ──────────────────────────────────────────────
+  # Root (devDependencies — husky, lint-staged, commitlint, prettier)
+  # ──────────────────────────────────────────────
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Sao_Paulo'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'tooling'
+    commit-message:
+      prefix: 'chore(deps,root)'
+      include: 'scope'
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+      security:
+        applies-to: security-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+          - 'major'
+
+  # ──────────────────────────────────────────────
+  # GitHub Actions (.github/workflows)
+  # ──────────────────────────────────────────────
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Sao_Paulo'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'ci'
+    commit-message:
+      prefix: 'chore(deps,actions)'
+      include: 'scope'
+    groups:
+      actions:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'

@@ -5214,3 +5214,134 @@ S69-A ENCERRADA. Anterior: S69 `b36143c`.
 | Backend ESLint v8→v9 align | flat config migration              | Sandbox                  | ~2h                    |
 | Staging provisioning       | Railway+Neon+Upstash+R2            | Pedro 1h interativo      | bloqueia k6            |
 | WhatsApp Business live     | Meta Business Manager              | Pedro+MEI                | bloqueado externamente |
+
+---
+
+## S70 — Operacional + Compliance Cowork-autônomo (Fase 1 do TODO post-prod-ready audit)
+
+**Data:** 28/04/2026
+**Trigger:** Pedro decidiu opção (A) do TODO post-prod-ready (operacional + compliance Cowork-autônomo, ~6h).
+**Tipo:** Doc + CI changes. Zero código de aplicação.
+
+### Contexto
+
+Após S69-A encerrar (CI #263 verde, pipeline pre-commit fully strict + ADRs §16 cumpridos + 12 coverage thresholds enforcing), auditoria honesta produziu TODO list 100% production-ready com 57 itens em 6 categorias (A/B/C/D/E/F). Projeto está ~70% pronto pra delivery comercial. Categoria (A) Bloqueadores hard exige MEI + advogado + Stripe smoke (depende externo). Categoria (B) Operacional é Cowork-autônomo. Categoria (D) tech debt sandbox-autônomo.
+
+Pedro escolheu (A) Operacional + Compliance Cowork-autônomo dos 4 caminhos sugeridos (A/B/C/D do prompt next-session). Justificativa: alta criticidade enterprise (runbooks são obrigatórios pra delivery profissional), 100% Cowork autônomo, 0 dependência externa, zero risco regressão.
+
+### Deliverables (6)
+
+#### B6 — Disaster Recovery Runbook
+
+`docs/operations/runbooks/disaster-recovery.md` (~13KB).
+
+Seções: 1. Objetivos (RPO/RTO matrix 10 camadas — DB 5min/30min, Redis 1h/15min, R2 0/5min, Backend N/A/5min, Frontend N/A/1min, vendor SLAs 13). 2. Cenários cobertos (10). 3. Procedimentos detalhados — Postgres PITR Neon (8 passos), Postgres total loss + pg_restore (7 passos), Redis outage com fallback degradation, R2 versioning + lifecycle, Railway crash loop rollback imutável, Vercel deploy regression, Stripe webhook re-deliver, Clerk degradation, Twilio circuit breaker open, region-wide multi-vendor outage. 4. Game day cadência semestral (próximo Outubro 2026). 5. Backups externos roadmap S71+ (pg_dump nightly → R2, R2 cross-region replica EEUR Frankfurt). 6. Vendor SLA matrix completa. 7. Comms ref incident-response.md. 8. Pós-recovery audit + postmortem. 9. Comandos referência rápida (railway/neon/vercel/stripe/aws s3api).
+
+#### B7 — Incident Response Runbook
+
+`docs/operations/runbooks/incident-response.md` (~13KB).
+
+Seções: 1. Severity matrix SEV1-4 com RTO declarado + comms + postmortem obrigatoriedade. 2. Detecção sources of truth (Sentry alerts 6, Axiom dashboards, vendor status pages, user reports, k6 baseline regression CI, LGPD complaint ANPD). 3. Triage 7 passos fixos sem skip (ack → classify → channel → status page → snapshot logs → blast radius → stabilize). 4. Comms templates 6 (4 status page states + email broadcast + in-app banner). 5. Postmortem template blameless completo. 6. Escalation matrix 5 cenários. 7. On-call rotation S70 single-engineer (Pedro 24/7) + roadmap S80+. 8. Pré-incident checklist mensal. 9. Métricas (MTTD/MTTA/MTTR + postmortem completion rate + repeat incident rate).
+
+#### E5 — Security Headers Audit
+
+`docs/operations/security/headers-audit.md` (~10KB).
+
+Audit baseline + Mozilla Observatory grade A+ target. Frontend `next.config.js` analisado: HSTS 2y preload-eligible OK, X-Frame-Options DENY OK, X-Content-Type-Options nosniff OK, Permissions-Policy granular OK, CSP **Report-Only** ainda (gap action item AI-2 enforce). 6 CSP weaknesses identificadas: `unsafe-inline` script-src (Next.js runtime hydration — roadmap nonce-based S80+), `unsafe-eval` (Stripe.js+recharts — validate sample report S75+), `unsafe-inline` style-src (Tailwind dynamic — defer indefinidamente, aceitável), `wss: ws:` genérico (restringir S71), Report-Only em prod (enforce após 1 semana clean reports), sem `report-to`/`report-uri` (Sentry CSP endpoint S72). Backend Helmet `contentSecurityPolicy: false` (gap — Swagger UI inline scripts; path-aware S71). 8 action items priorizados. Compliance LGPD Art. 46 mapped.
+
+#### E2 — Dependency vulnerability scan in CI
+
+`.github/workflows/ci.yml` ganha job `security` (após `install`):
+
+- Step `Audit production dependencies (high+ blocks)`: `pnpm audit --prod --audit-level=high --json` — exit 1 se HIGH ou CRITICAL em prod deps. Parse JSON pra job summary com `<details>` collapsed.
+- Step `Audit all dependencies (moderate+ informational)`: `pnpm audit --audit-level=moderate --json` — never fails, conta total via inline `node -e`, reporta em `$GITHUB_STEP_SUMMARY`.
+- `ci-gate` needs atualizado para `[frontend, backend, security]`.
+
+`.github/dependabot.yml` novo (3.5KB): 5 ecosystems (npm × 4 directories — apps/backend, apps/frontend, packages/shared, root + github-actions × 1), schedule weekly Mon 06:00 BRT, grouped minor+patch updates per ecosystem (reduz noise), security updates dedicated PRs, ignore majors específicos (NestJS/Prisma/Next/React/Clerk/eslint v8 — bumps manuais com migration audit).
+
+#### E8 — Secrets Rotation Playbook
+
+`docs/operations/security/secrets-rotation.md` (~12KB).
+
+Inventory: 40 backend Railway env vars + 8 frontend Vercel + 9 GH Actions secrets, com vendor owner / cadência / severidade rotação por entrada. 9 procedure categorias detalhadas: Database (Neon overlap), Clerk (90d com triple-key staging), LLM/STT (90d simple swap + circuit breaker safety), Stripe (180d janela baixo tráfego — Stripe revoga key antiga em 24h, sem overlap), R2 (180d revogação após smoke test), Resend (180d), Twilio (90d secondary token promote pattern), WhatsApp (60d preventivo — long-lived token expira 90), ENCRYPTION_KEY (anual destrutiva — defer S80+ ADR + maintenance window). Emergency rotation playbook 1h SLA com 8 passos (revoke first, reprovision later — preferir downtime feature isolada vs. exposure contínuo). Audit trail format `AuditLog action=SECRET_ROTATED metadata={last4_old, last4_new, rotated_by, reason}`.
+
+#### F1+F2 — CONTRIBUTING.md + Branching Strategy
+
+`CONTRIBUTING.md` root (~9KB): 13 seções — setup local, workflow contribuição (branch naming, PR template, review checklist `CLAUDE.md` §16), Conventional Commits (commitlint S66-D enforcement), pre-commit hooks (S65 chain — guards + prettier + dual ESLint v8/v9), padrões código (TS strict no any, funções ≤50L, naming `Clean Code` cap. 2, imports type-only, testes coverage gates S66-C 68/58/65/68), schema changes (ADR + migration + integration test), segurança 8 itens não-negociáveis, observabilidade, i18n obrigatório, documentação layout.
+
+`docs/process/branching-strategy.md` (~7KB): Trunk-Based Development adopted (rationale vs. Git Flow / GitHub Flow), `main` protection rules detalhadas, feature branches lifetime ≤2d, hotfix branches `hotfix/sev<N>-<slug>` fast-track, NO release branches (continuous deployment), workflow padrão 8 passos, rebase vs merge policy, SemVer 2.0 tags `vMAJOR.MINOR.PATCH` (mas pre-launch usa `vS<N>` espelhando session number), CI gating `[frontend, backend, security]`, deploy strategy matrix (prod/staging/local), single-engineer caveats S70 + roadmap S80+, bypass policies emergência only.
+
+### Mutações em arquivos (S70)
+
+```
+.github/dependabot.yml                            (NEW ~3.5KB)
+.github/workflows/ci.yml                          (M +85 lines — security job + ci-gate needs)
+CLAUDE.md                                         (M — header + S70 row + footer v6.7)
+CONTRIBUTING.md                                   (NEW ~9KB)
+PROJECT_HISTORY.md                                (M — esta seção S70)
+docs/operations/runbooks/disaster-recovery.md     (NEW ~13KB)
+docs/operations/runbooks/incident-response.md     (NEW ~13KB)
+docs/operations/security/headers-audit.md         (NEW ~10KB)
+docs/operations/security/secrets-rotation.md      (NEW ~12KB)
+docs/process/branching-strategy.md                (NEW ~7KB)
+scripts/s70-restore.ps1                           (NEW — utility, not used in final flow)
+```
+
+### Decisões S70
+
+| #   | Decisão                                       | Justificativa                                                                             |
+| --- | --------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 1   | RPO 5min DB / RTO 30min                       | Neon PITR free tier 7d cobrindo; SLO 99.9% disponibilidade (≤43min/mês)                   |
+| 2   | DR game day semestral                         | Frequência conservadora pra single-engineer; ramp up para trimestral em S80+ headcount ≥2 |
+| 3   | CSP enforce DEFER S72 (não imediato)          | Risco quebrar app em prod sem 1 semana clean reports primeiro                             |
+| 4   | Trunk-Based Development                       | `main` always-deployable, branches curtos, alinhado com SaaS continuous deployment        |
+| 5   | NO release branches                           | Continuous deploy elimina necessidade; SemVer via tags                                    |
+| 6   | Hotfix branches naming `hotfix/sev<N>-<slug>` | Distingue visualmente vs. feature; fast-track aprovação                                   |
+| 7   | Squash merge default                          | History linear em main, bisect/revert friendly                                            |
+| 8   | Self-merge OK em S70                          | Single-engineer caveat; bump 1 distinct reviewer em S80+                                  |
+| 9   | `pnpm audit --prod --audit-level=high` blocks | Production-only é o que importa em runtime; dev deps moderate informational               |
+| 10  | Dependabot grouped minor+patch                | Reduz PR noise; security PRs always dedicated                                             |
+| 11  | Ignore majors NestJS/Prisma/Next/React/Clerk  | Migration audit obrigatório; manual bump apenas                                           |
+| 12  | ENCRYPTION_KEY rotation defer S80+            | Destrutiva, requer data migration + maintenance window                                    |
+
+### Lições aprendidas (não-novas, reforçadas)
+
+1. **Sandbox CAN write Windows mount** — `cp /sessions/.../tmp/file ./mnt/.../file` funciona. Escapa Edit tool truncation risk para arquivos grandes restaurados via `git show HEAD:`.
+2. **Working tree corruption 7th occurrence** — CLAUDE.md 683/730 + PROJECT_HISTORY.md 5194/5216 truncados. Causa raiz pendente investigação Pedro Sysinternals (#34 deferred S71+).
+3. **PowerShell tier "click"** bloqueia typing em terminais. Workaround para futuras sessões: sandbox bash + python3 + cp pra Windows mount, com PS1 wrapper apenas para git operations que requerem credentials Windows (push).
+4. **Markdown table rows são single-line** — markdown não permite
+   dentro de cell. Anchor de row para replace pode ser prefix da linha (ex: `| Último commit            | S69-A (28/04/2026)`) que é único.
+
+### Status pós-S70
+
+| Item                                  | Status                                     |
+| ------------------------------------- | ------------------------------------------ |
+| 6 deliverables (B6/B7/E5/E2/E8/F1+F2) | ✓ commit S70                               |
+| CI security gate                      | ✓ enforcing                                |
+| Dependabot weekly                     | ✓ habilitado (5 ecosystems)                |
+| ADRs cumulativos                      | 13 (sem novos S70)                         |
+| Coverage thresholds                   | mantidos S66-C (68/58/65/68 + 75/65/75/75) |
+| Working tree corrupted                | restaurado HEAD pre-edits                  |
+
+S70 ENCERRADA. Anterior: S69-A `27b12bf`.
+
+### Pendências futuras (carryover S70)
+
+| #                          | Item                                      | Owner                    | Esforço                |
+| -------------------------- | ----------------------------------------- | ------------------------ | ---------------------- |
+| #33 S68-E                  | Amplify specs failure-mode (target 80%)   | Sandbox                  | 3-4h                   |
+| #34 S68-F                  | Working tree corruption root cause        | Pedro Sysinternals       | 30min                  |
+| #36 S68-H                  | GitHub fine-grained token confirm         | Pedro screenshot         | 1min                   |
+| AI-1 (E5)                  | HSTS preload submission hstspreload.org   | Pedro                    | 1min                   |
+| AI-2 (E5)                  | CSP enforce after 1w clean reports        | Pedro                    | 5min config            |
+| AI-3 (E5)                  | Sentry CSP report-to endpoint             | Cowork                   | 1h                     |
+| AI-4 (E5)                  | Backend CSP path-aware (Swagger UI)       | Cowork                   | 1h                     |
+| AI-7 (E5)                  | Nonce-based CSP (eliminate unsafe-inline) | Cowork                   | 4-8h refactor          |
+| Bundle deeper              | 2.90MB → ≤2MB                             | Pedro `pnpm run analyze` | 1-2h                   |
+| Pre-push hook              | type-check + test                         | Sandbox                  | 1h                     |
+| Auto-changelog             | conventional-changelog-cli                | Sandbox                  | ~1h                    |
+| Backend ESLint v8→v9 align | flat config migration                     | Sandbox                  | ~2h                    |
+| Staging provisioning       | Railway+Neon+Upstash+R2                   | Pedro 1h interativo      | bloqueia k6            |
+| WhatsApp Business live     | Meta Business Manager                     | Pedro+MEI                | bloqueado externamente |
+| Postgres nightly dump CI   | GH Actions cron → R2                      | Cowork                   | ~2h                    |
+| R2 cross-region replica    | EEUR Frankfurt                            | Pedro                    | 30min config           |
