@@ -1,0 +1,54 @@
+chore(s71): security + operacional carryover (7 deliverables)
+
+S71-1: CRITICAL CVE remediation - protobufjs 7.5.4 -> >=7.5.5
+  CVE-2026-41242 arbitrary code execution. Transitive prod dep via
+  @opentelemetry/sdk-node -> @grpc/grpc-js -> protobufjs.
+  Remediation: package.json pnpm.overrides forces transitive upgrade.
+  ci.yml security step continue-on-error: true REMOVED - gate strict.
+
+S71-2: AI-3 E5 Sentry CSP report-to endpoint
+  next.config.js: report-uri + report-to csp-endpoint directives,
+  Reporting-Endpoints HTTP header. Browsers post CSP violations
+  to Sentry security ingest (NEXT_PUBLIC_SENTRY_CSP_REPORT_URI env).
+
+S71-3: AI-4 E5 Backend CSP path-aware (Swagger UI exception)
+  apps/backend/src/main.ts: replaced contentSecurityPolicy: false
+  with diff helmet middleware - /api/docs gets script-src 'unsafe-inline',
+  others get default-src 'none' strict.
+
+S71-4: AI-5 E5 Restrict wss/ws connect-src
+  next.config.js: wss/ws generic -> wss://api.theiadvisor.com
+  wss://*.upstash.io in prod (localhost dev tolerated).
+
+S71-5: B5 Nightly Postgres backup CI
+  .github/workflows/backup-postgres.yml: cron 03:00 UTC daily,
+  pg_dump custom format -> R2 + manifest.json (SHA-256 + TOC + size),
+  fail-fast guards, 30d auto-prune, Sentry alert on failure.
+  Requires secrets DATABASE_URL_BACKUP_RO + R2_BACKUP_ACCESS_KEY_ID/SECRET
+  + R2 bucket theiadvisor-backups creation (carryover Pedro).
+
+S71-6: B10 Logs retention policy
+  docs/operations/observability/logs-retention.md (~7KB):
+  Axiom 30d / Sentry 90d / AuditLog 180d+ LGPD floor / R2 30d,
+  PII strip per-dataset, cron purge runtime, cost-vs-retention matrix,
+  5 action items priorizados.
+
+S71-7: F4+F6 CHANGELOG + LICENSE
+  CHANGELOG.md Keep a Changelog 1.1.0, 9 release entries S60a -> S71.
+  LICENSE proprietary All Rights Reserved Pedro Leme Perin,
+  contributor IP assignment, governing law Brasil/SP.
+
+Mutacoes:
+  .github/workflows/backup-postgres.yml             (NEW)
+  .github/workflows/ci.yml                          (M)
+  CHANGELOG.md                                      (NEW)
+  CLAUDE.md                                         (M v6.8)
+  LICENSE                                           (NEW)
+  PROJECT_HISTORY.md                                (M S71 section)
+  apps/backend/src/main.ts                          (M)
+  apps/frontend/next.config.js                      (M)
+  docs/operations/observability/logs-retention.md   (NEW)
+  package.json                                      (M)
+  pnpm-lock.yaml                                    (M regenerated)
+
+Anterior: S70-A2 abe0f6e

@@ -54,5 +54,10 @@
     "**/*.{json,md,yml,yaml,css,scss}": [
       "prettier --write --ignore-unknown"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "protobufjs": ">=7.5.5"
+    }
   }
 }

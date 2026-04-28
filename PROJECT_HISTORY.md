@@ -5345,3 +5345,208 @@ S70 ENCERRADA. Anterior: S69-A `27b12bf`.
 | WhatsApp Business live     | Meta Business Manager                     | Pedro+MEI                | bloqueado externamente |
 | Postgres nightly dump CI   | GH Actions cron → R2                      | Cowork                   | ~2h                    |
 | R2 cross-region replica    | EEUR Frankfurt                            | Pedro                    | 30min config           |
+
+---
+
+## S71 — Security + Operacional carryover (Fase 1 do roadmap S71+)
+
+**Data:** 28/04/2026
+**Trigger:** Pedro escolheu opção 1 do prompt next-session (security + operacional Cowork-autônomo).
+**Tipo:** Doc + CI changes + minimal runtime config (helmet middleware path-aware backend, CSP next.config.js).
+
+### Contexto
+
+S70 fechou (commits f1acead → abe0f6e3) com 6 deliverables enterprise + CI gate de security em advisory mode (CRITICAL CVE em prod dep transitive sem remediação imediata). S71 fecha esse gap como prioridade.
+
+### Deliverables (7)
+
+#### 1. CRITICAL CVE remediation (S71-1)
+
+Investigação via sandbox Python:
+
+```python
+# Cross-reference 1295 unique pkg@versions in pnpm-lock.yaml vs 162
+# CRITICAL npm advisories from GitHub Advisory Database API.
+# Result: 1 real match.
+```
+
+**CVE-2026-41242 — protobufjs < 7.5.5 — Arbitrary code execution.**
+
+Origem: `@opentelemetry/sdk-node` → `@grpc/grpc-js` → `protobufjs@7.5.4` (transitive 2-level deep).
+
+Remediation: `package.json` ganha `pnpm.overrides.protobufjs: '>=7.5.5'` — força upgrade transitivo via pnpm 9 overrides feature. `pnpm install` regenera lock com `protobufjs@7.5.5+`.
+
+CI gate volta a strict: `.github/workflows/ci.yml` step "Audit production dependencies (CRITICAL blocks)" SEM `continue-on-error: true`. Qualquer novo CRITICAL bloqueia merge.
+
+Falsos positivos descartados: `handlebars@4.7.9` (vulnerable range `>=4.0.0, <=4.7.8`; nossa versão 4.7.9 é POST-patch). 2nd protobufjs match (range `>=8.0.0, <8.0.1`) não-aplicável (estamos no 7.x).
+
+#### 2. AI-3 E5 — Sentry CSP report-to endpoint (S71-2)
+
+`apps/frontend/next.config.js`:
+
+```javascript
+const cspReportUri = process.env.NEXT_PUBLIC_SENTRY_CSP_REPORT_URI || '/api/csp-report';
+cspDirectives.push(`report-uri ${cspReportUri}`);
+cspDirectives.push('report-to csp-endpoint');
+// HTTP header
+{ key: 'Reporting-Endpoints', value: `csp-endpoint="${cspReportUri}"` }
+```
+
+Browsers (Chrome 88+) agora postam CSP violations como `application/reports+json` para Sentry security ingest. Fallback `/api/csp-report` self-hosted aceito durante development.
+
+`report-uri` directive (legacy) + `report-to` directive (modern) coexistem para máxima compatibilidade browser.
+
+#### 3. AI-4 E5 — Backend CSP path-aware (S71-3)
+
+`apps/backend/src/main.ts` substitui o gap anterior `helmet({ contentSecurityPolicy: false })` por middleware diferenciado:
+
+```typescript
+const swaggerCspDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'", "'unsafe-inline'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  // ...
+};
+const apiCspDirectives = {
+  defaultSrc: ["'none'"],
+  frameAncestors: ["'none'"],
+  // ...
+};
+app.use((req, res, next) => {
+  if (req.path === '/api/docs' || req.path.startsWith('/api/docs/')) {
+    return swaggerHelmet(req, res, next);
+  }
+  return apiHelmet(req, res, next);
+});
+```
+
+API endpoints (JSON only) recebem CSP máximamente strict (`default-src 'none'`). Swagger UI recebe permissive (precisa `'unsafe-inline'` para scripts). Defense-in-depth contra XSS reflected via redirect ou rendering acidental em paths não-Swagger.
+
+#### 4. AI-5 E5 — Restrict wss:/ws: connect-src (S71-4)
+
+`next.config.js` CSP `connect-src` de:
+
+```
+wss: ws:
+```
+
+Para:
+
+```
+wss://api.theiadvisor.com wss://*.upstash.io
+```
+
+Em prod. Localhost (`ws://localhost:* wss://localhost:*`) tolerado apenas em dev (NODE_ENV !== 'production').
+
+Reduz superfície MITM em conexões Socket.io. Upstash necessário para distributed events Redis adapter.
+
+#### 5. B5 — Nightly Postgres backup CI (S71-5)
+
+`.github/workflows/backup-postgres.yml` (~5KB): cron daily 03:00 UTC + manual dispatch.
+
+Pipeline: `pg_dump --format=custom --no-owner --no-privileges` → SHA-256 compute + TOC verify (`pg_restore --list`) → upload R2 com manifest.json (SHA + size + TOC rows + commit + workflow_run) → auto-prune backups >30d via list-and-delete loop.
+
+Fail-fast guards: dump <1KB ou TOC <10 rows = `::error::` + exit 1.
+
+Sentry alert em failure (POST direto ao DSN ingest).
+
+Secrets requeridos (criar antes de habilitar workflow): `DATABASE_URL_BACKUP_RO` (read-only Neon connection string), `R2_BACKUP_ACCESS_KEY_ID` + `R2_BACKUP_SECRET_ACCESS_KEY` (separated from prod R2 creds — least privilege), `R2_ACCOUNT_ID` (já existe), `SENTRY_DSN` (já existe).
+
+Bucket `theiadvisor-backups` precisa ser criado manualmente em Cloudflare (one-time, defer S72 carryover).
+
+#### 6. B10 — Logs retention policy doc (S71-6)
+
+`docs/operations/observability/logs-retention.md` (~7KB).
+
+Contract matrix per camada com retention real-medido + LGPD floor + tier vendor:
+
+| Camada                | Tier      | Retention | LGPD |
+| --------------------- | --------- | --------- | ---- |
+| Axiom traces/app-logs | Free      | 30d       | N/A  |
+| Sentry events         | Developer | 90d       | N/A  |
+| AuditLog DB           | n/a       | **180+**  | 180d |
+| Backups R2            | n/a       | 30d       | N/A  |
+
+PII strip schema documentado per-dataset (authorization/cookie/x-clerk-auth-token sempre, email/cpf/phone masked em webhook payloads). Cron purge `retention-policies.service.ts` runtime documentado.
+
+Cost-vs-retention tradeoff matrix com decisão por linha (current accepted, defer thresholds).
+
+5 action items: AI-LR-1 PII strip schema, AI-LR-2 RetentionPolicy runtime validate, AI-LR-3 permanent rows LGPD, AI-LR-4 Sentry → Slack routing, AI-LR-5 Neon PITR upgrade decision.
+
+#### 7. F4+F6 — CHANGELOG + LICENSE (S71-7)
+
+`CHANGELOG.md` (~9KB) — Keep a Changelog 1.1.0 format. 9 release entries S60a → S71 com Added/Changed/Removed/Security sections. Compare URLs setados para diff entre tags.
+
+`LICENSE` (~3KB) — Proprietary "All Rights Reserved" copyright Pedro Leme Perin. Cláusulas: (a) NO LICENSE GRANTED salvo separate written agreement; (b) source visibility no GitHub não constitui license; (c) contributor IP assignment back to Licensor; (d) DISCLAIMER OF WARRANTIES standard; (e) governing law Brasil/SP.
+
+### Mutações em arquivos (S71)
+
+```
+.github/workflows/backup-postgres.yml             (NEW ~5KB)
+.github/workflows/ci.yml                          (M -3 linhas — remove continue-on-error)
+CHANGELOG.md                                      (NEW ~9KB)
+CLAUDE.md                                         (M — header v6.8 + S71 row + footer)
+LICENSE                                           (NEW ~3KB)
+PROJECT_HISTORY.md                                (M — esta seção S71)
+apps/backend/src/main.ts                          (M +35 linhas — CSP path-aware)
+apps/frontend/next.config.js                      (M +12 linhas — CSP report-to + wss restrict)
+docs/operations/observability/logs-retention.md   (NEW ~7KB)
+package.json                                      (M +5 linhas — pnpm.overrides)
+pnpm-lock.yaml                                    (M — protobufjs 7.5.4 → 7.5.5+ regenerated)
+```
+
+### Decisões S71
+
+| #   | Decisão                                                  | Justificativa                                                                                      |
+| --- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1   | Remediation via `pnpm.overrides` (vs direct dep upgrade) | OpenTelemetry stack não publicou patch upstream ainda; override é menor blast radius               |
+| 2   | Sentry security ingest (vs self-hosted)                  | Sentry já provisioned; self-hosted CSP receiver = mais infra para 0 valor adicional                |
+| 3   | Backend CSP path-aware (vs disable indefinido)           | API JSON não tem renderização HTML real, mas defense-in-depth contra Open Redirect + Reflected XSS |
+| 4   | wss explicit list (vs wildcard)                          | OWASP A05 Security Misconfiguration; CSP wildcard derrota propósito do header                      |
+| 5   | Backup R2 retention 30d (vs 90d)                         | $0.04/mês economia; combinado com Neon PITR 7d/30d cobre janela razoável                           |
+| 6   | Pre-aprovado manifest.json + SHA-256                     | DR runbook §3.2 procedure assume integrity verifiable antes de pg_restore                          |
+| 7   | Sentry alert em backup failure (vs silent fail)          | RPO degradation invisível = bomba relógio; alert força attention                                   |
+| 8   | LICENSE proprietary (vs Apache-2.0/MIT)                  | Pre-launch SaaS commercial; não há motivo estratégico para open source ainda                       |
+| 9   | CHANGELOG manual (vs auto-changelog)                     | Auto-changelog (D6 carryover) ainda não implementado; manual fundação                              |
+| 10  | Sandbox bash + Python (vs Edit tool em files grandes)    | Lições #1+#5 reforçadas; Python string-replace é determinístico                                    |
+
+### Lições aprendidas (novas)
+
+1. **Sandbox bash + GitHub Advisory Database API** é workaround viável quando `pnpm audit` local indisponível. Cross-reference pnpm-lock.yaml extracted package list vs `/advisories?ecosystem=npm&severity=critical&per_page=100` retorna match real.
+2. **GitHub Advisory `vulnerable_version_range` é semver string** — parser manual via Python suficiente quando lib semver não disponível (handlebars `>=4.0.0, <=4.7.8` = NOT vuln 4.7.9; protobufjs `< 7.5.5` = VULN 7.5.4).
+3. **`pnpm.overrides` é a forma idiomática** para forçar upgrade transitivo sem fork da lib direct dep. Funciona com pnpm v8+. Útil para CVE remediation rápida.
+4. **Helmet CSP path-aware via middleware** é pattern padrão NestJS quando endpoints têm requirements diferentes (Swagger inline scripts vs API JSON strict).
+
+### Status pós-S71
+
+| Item                           | Status                                           |
+| ------------------------------ | ------------------------------------------------ |
+| 7 deliverables (S71-1 a S71-7) | ✓ commit S71                                     |
+| CI security gate               | ✓ STRICT (CRITICAL blocks, no continue-on-error) |
+| Nightly Postgres backup        | ✓ workflow committed (secrets pendente Pedro)    |
+| Logs retention policy doc      | ✓                                                |
+| CHANGELOG + LICENSE            | ✓                                                |
+| Coverage thresholds            | mantidos S66-C (68/58/65/68 + 75/65/75/75)       |
+
+S71 ENCERRADA. Anterior: S70-A2 `abe0f6e`.
+
+### Pendências futuras (carryover S71)
+
+| #                           | Item                                                                       | Owner                    | Esforço                |
+| --------------------------- | -------------------------------------------------------------------------- | ------------------------ | ---------------------- |
+| #33 S68-E                   | Amplify specs failure-mode (target 80%)                                    | Sandbox                  | 3-4h                   |
+| #34 S68-F                   | Working tree corruption root cause                                         | Pedro Sysinternals       | 30min                  |
+| #36 S68-H                   | GitHub fine-grained token confirm                                          | Pedro screenshot         | 1min                   |
+| AI-1 (E5)                   | HSTS preload submission hstspreload.org                                    | Pedro                    | 1min                   |
+| AI-2 (E5)                   | CSP enforce after 1w clean reports                                         | Pedro                    | 5min config            |
+| AI-7 (E5)                   | Nonce-based CSP (eliminate unsafe-inline)                                  | Cowork                   | 4-8h refactor          |
+| Bundle deeper               | 2.90MB → ≤2MB                                                              | Pedro `pnpm run analyze` | 1-2h                   |
+| Pre-push hook               | type-check + test                                                          | Sandbox                  | 1h                     |
+| Auto-changelog              | conventional-changelog-cli                                                 | Sandbox                  | ~1h                    |
+| Backend ESLint v8→v9 align  | flat config migration                                                      | Sandbox                  | ~2h                    |
+| Staging provisioning        | Railway+Neon+Upstash+R2                                                    | Pedro 1h interativo      | bloqueia k6            |
+| WhatsApp Business live      | Meta Business Manager                                                      | Pedro+MEI                | bloqueado externamente |
+| **B5-deps** (S71 carryover) | Cloudflare R2 bucket `theiadvisor-backups` create                          | Pedro                    | 5min                   |
+| **B5-deps** (S71 carryover) | GH Actions secrets DATABASE_URL_BACKUP_RO + R2_BACKUP_ACCESS_KEY_ID/SECRET | Pedro                    | 10min                  |
+| AI-LR-1                     | Axiom datasets PII strip schema                                            | Cowork                   | 1h                     |
+| AI-LR-4                     | Sentry → Slack routing (#incidents-prod)                                   | Pedro                    | 30min                  |

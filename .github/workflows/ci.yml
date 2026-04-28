@@ -289,12 +289,11 @@ jobs:
             packages/shared/dist
           key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Audit production dependencies (CRITICAL advisory)
+      - name: Audit production dependencies (CRITICAL blocks)
         id: audit_prod
-        # S70-A2: continue-on-error baseline has CRITICAL CVE in transitive
-        # prod dep; surface via annotation but do not block CI Gate. Roadmap
-        # S71: enumerate + remediate, then remove continue-on-error.
-        continue-on-error: true
+        # S71-1: CRITICAL CVE remediated via pnpm.overrides.protobufjs >=7.5.5
+        # (CVE-2026-41242 arbitrary code execution). Gate is now strict —
+        # any new CRITICAL in prod deps blocks CI.
         run: |
           set +e
           pnpm audit --prod --audit-level=critical --json > /tmp/audit-critical.json

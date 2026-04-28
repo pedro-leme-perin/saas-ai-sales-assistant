@@ -60,7 +60,10 @@ const nextConfig = {
       // Images: Clerk avatars, data URIs, remote HTTPS
       "img-src 'self' data: blob: https:",
       // XHR/fetch/WebSocket
-      `connect-src 'self' ${apiUrl} https://*.clerk.com https://*.clerk.theiadvisor.com https://*.sentry.io https://api.stripe.com wss: ws:`,
+      // S71-4: restrict WebSocket origins (was generic 'wss: ws:').
+      // Backend WS in prod (api.theiadvisor.com), Upstash for distributed events,
+      // localhost for dev only.
+      `connect-src 'self' ${apiUrl} https://*.clerk.com https://*.clerk.theiadvisor.com https://*.sentry.io https://api.stripe.com wss://api.theiadvisor.com wss://*.upstash.io ${isProd ? '' : 'ws://localhost:* wss://localhost:*'}`,
       // Frames: Stripe checkout, Clerk captcha
       "frame-src 'self' https://*.clerk.com https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com",
       // Workers (PWA service worker)
@@ -70,6 +73,12 @@ const nextConfig = {
       "form-action 'self'",
       "frame-ancestors 'none'",
     ];
+    // S71-2: CSP report endpoint via Sentry. Configure NEXT_PUBLIC_SENTRY_CSP_REPORT_URI
+    // (typically: https://<id>.ingest.sentry.io/api/<project>/security/?sentry_key=<key>)
+    // Falls back to /api/csp-report self-hosted if not set.
+    const cspReportUri = process.env.NEXT_PUBLIC_SENTRY_CSP_REPORT_URI || '/api/csp-report';
+    cspDirectives.push(`report-uri ${cspReportUri}`);
+    cspDirectives.push('report-to csp-endpoint');
     // Only upgrade HTTP→HTTPS in production (breaks localhost in CI/dev)
     if (isProd) {
       cspDirectives.push('upgrade-insecure-requests');
@@ -94,6 +103,13 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value:
               'camera=(), microphone=(self), geolocation=(), payment=(self "https://js.stripe.com"), usb=(), magnetometer=(), accelerometer=(), gyroscope=()',
+          },
+          {
+            // S71-2: Reporting-Endpoints group declaration (HTTP-level pairing
+            // with CSP report-to directive). Browser sends violation reports
+            // here as POST application/reports+json.
+            key: 'Reporting-Endpoints',
+            value: `csp-endpoint="${cspReportUri}"`,
           },
           {
             // Report-only by default; set CSP_ENFORCE=true in Vercel prod to block violations

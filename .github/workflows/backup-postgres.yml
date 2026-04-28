@@ -1,0 +1,175 @@
+name: Postgres Nightly Backup
+
+# S71-5 (B5): Cross-vendor safety net — nightly pg_dump → R2 backup bucket.
+# Complements Neon PITR (7d free / 30d paid) with offsite immutable archive.
+# RPO = 24h via this path (Neon PITR has RPO ~5min as primary; this is fallback).
+# RTO = 30min via DR runbook §3.2 procedure.
+
+env:
+  NODE_VERSION: '22'
+  RETENTION_DAYS: 30
+  BACKUP_BUCKET: theiadvisor-backups
+
+on:
+  schedule:
+    # 03:00 UTC daily (00:00 BRT — low-traffic window).
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual run reason (audit trail)'
+        required: false
+        default: 'manual-trigger'
+
+concurrency:
+  group: backup-postgres
+  cancel-in-progress: false # never cancel in-flight backup
+
+jobs:
+  dump:
+    name: pg_dump → R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install postgresql-client + awscli
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client awscli
+          pg_dump --version
+          aws --version
+
+      - name: Capture timestamp + git context
+        id: ctx
+        run: |
+          TS=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+          DATE=$(date -u +%Y-%m-%d)
+          {
+            echo "ts=$TS"
+            echo "date=$DATE"
+            echo "key=postgres/$DATE/theiadvisor-prod-$TS.dump"
+            echo "manifest_key=postgres/$DATE/manifest.json"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: pg_dump (custom format, compressed)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_BACKUP_RO }}
+        run: |
+          set -euo pipefail
+          # --format=custom: pg_restore-friendly, parallel-restorable, compressed
+          # --no-owner / --no-privileges: portable across environments
+          # --verbose: progress to stderr (captured by Actions)
+          pg_dump \
+            --format=custom \
+            --no-owner \
+            --no-privileges \
+            --verbose \
+            --file=/tmp/dump.bin \
+            "$DATABASE_URL" 2>&1 | tail -50
+          ls -la /tmp/dump.bin
+          DUMP_SIZE=$(stat -c%s /tmp/dump.bin)
+          echo "DUMP_SIZE=$DUMP_SIZE" >> "$GITHUB_ENV"
+          if [ "$DUMP_SIZE" -lt 1024 ]; then
+            echo "::error::Dump suspiciously small ($DUMP_SIZE bytes) — abort upload"
+            exit 1
+          fi
+
+      - name: Compute SHA-256 + verify dump integrity
+        run: |
+          set -euo pipefail
+          SHA=$(sha256sum /tmp/dump.bin | awk '{print $1}')
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+          # Verify dump is parseable (pg_restore --list works)
+          pg_restore --list /tmp/dump.bin > /tmp/dump-toc.txt
+          ROW_COUNT=$(wc -l < /tmp/dump-toc.txt)
+          echo "TOC_ROWS=$ROW_COUNT" >> "$GITHUB_ENV"
+          if [ "$ROW_COUNT" -lt 10 ]; then
+            echo "::error::Dump TOC has <10 rows ($ROW_COUNT) — likely incomplete schema"
+            exit 1
+          fi
+          echo "::notice::Dump integrity OK — sha256=${SHA:0:12}... toc_rows=$ROW_COUNT size=$DUMP_SIZE bytes"
+
+      - name: Upload to R2 (S3-compatible)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          KEY: ${{ steps.ctx.outputs.key }}
+          MANIFEST_KEY: ${{ steps.ctx.outputs.manifest_key }}
+          TS: ${{ steps.ctx.outputs.ts }}
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          # Upload dump
+          aws s3 cp /tmp/dump.bin "s3://${BACKUP_BUCKET}/${KEY}" \
+            --endpoint-url "$ENDPOINT" \
+            --metadata "sha256=${SHA},rows=${TOC_ROWS},size=${DUMP_SIZE},commit=${GITHUB_SHA}"
+          # Write manifest (manifest.json — facilita restore lookup)
+          cat > /tmp/manifest.json <<EOF
+          {
+            "timestamp": "${TS}",
+            "key": "${KEY}",
+            "sha256": "${SHA}",
+            "size_bytes": ${DUMP_SIZE},
+            "toc_rows": ${TOC_ROWS},
+            "commit": "${GITHUB_SHA}",
+            "workflow_run": "${GITHUB_RUN_ID}"
+          }
+          EOF
+          aws s3 cp /tmp/manifest.json "s3://${BACKUP_BUCKET}/${MANIFEST_KEY}" \
+            --endpoint-url "$ENDPOINT" \
+            --content-type application/json
+          echo "::notice::Uploaded ${KEY} ($(numfmt --to=iec --suffix=B $DUMP_SIZE))"
+
+      - name: Prune old backups (>30d)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          CUTOFF=$(date -u -d "${RETENTION_DAYS} days ago" +%Y-%m-%d)
+          echo "Pruning backups older than $CUTOFF..."
+          # List all dated prefixes; delete those before cutoff
+          aws s3 ls "s3://${BACKUP_BUCKET}/postgres/" \
+            --endpoint-url "$ENDPOINT" \
+            --recursive 2>/dev/null | awk '{print $4}' | while read -r KEY; do
+            # Extract date from key path (postgres/YYYY-MM-DD/...)
+            BACKUP_DATE=$(echo "$KEY" | grep -oP 'postgres/\K\d{4}-\d{2}-\d{2}' | head -1)
+            if [ -n "$BACKUP_DATE" ] && [ "$BACKUP_DATE" \< "$CUTOFF" ]; then
+              echo "Deleting: $KEY ($BACKUP_DATE < $CUTOFF)"
+              aws s3 rm "s3://${BACKUP_BUCKET}/${KEY}" --endpoint-url "$ENDPOINT" || true
+            fi
+          done
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Postgres Nightly Backup"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Timestamp (UTC) | ${{ steps.ctx.outputs.ts }} |"
+            echo "| Key | \`${{ steps.ctx.outputs.key }}\` |"
+            echo "| Size | ${DUMP_SIZE:-?} bytes |"
+            echo "| TOC rows | ${TOC_ROWS:-?} |"
+            echo "| SHA-256 | \`${SHA:-?}\` |"
+            echo "| Retention | ${RETENTION_DAYS}d |"
+            echo "| Trigger | ${{ github.event_name }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Sentry alert on failure
+        if: failure() && env.SENTRY_DSN != ''
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          curl -X POST "${SENTRY_DSN%%@*}@${SENTRY_DSN#*@}/store/" \
+            -H 'Content-Type: application/json' \
+            -d "{\"message\":\"Postgres nightly backup FAILED — workflow_run=${GITHUB_RUN_ID}\",\"level\":\"error\",\"tags\":{\"backup\":\"postgres\"}}" \
+            || echo "::warning::Sentry alert failed (non-fatal)"

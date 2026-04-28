@@ -1,0 +1,67 @@
+PROPRIETARY LICENSE — TheIAdvisor
+
+Copyright (c) 2026 Pedro Leme Perin. All rights reserved.
+
+This software and associated documentation files (the "Software") are
+proprietary and confidential information of Pedro Leme Perin ("Licensor").
+
+NO LICENSE GRANTED.
+
+Unless explicitly granted in a separate written agreement signed by the
+Licensor, no license, right, or permission of any kind is granted to any
+person, organization, or entity (each a "Licensee") to:
+
+  1. Use, copy, modify, merge, publish, distribute, sublicense, or sell
+     copies of the Software, in whole or in part;
+  2. Permit any other person to do any of the foregoing;
+  3. Decompile, disassemble, reverse engineer, or attempt to derive the
+     source code from any object code distributions of the Software;
+  4. Remove or alter any proprietary notices, labels, or marks on or in
+     the Software;
+  5. Use any trade name, trademark, or service mark of the Licensor,
+     including "TheIAdvisor", in any commercial communication.
+
+ACCESS TO SOURCE.
+
+Source code visibility through the public Git hosting at
+https://github.com/pedro-leme-perin/saas-ai-sales-assistant does NOT
+constitute a license. Read access for review, evaluation, security
+research, or interoperability does not grant any execution, distribution,
+or modification rights.
+
+CONTRIBUTIONS.
+
+Contributors to this repository (via pull request, issue, or other means)
+agree that:
+
+  - Their contributions are licensed back to the Licensor under the same
+    terms as the rest of the Software;
+  - The Licensor may incorporate, modify, or remove contributions at its
+    sole discretion;
+  - Contributors retain no ownership over their contributions once
+    incorporated.
+
+DISCLAIMER OF WARRANTIES.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT
+OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+GOVERNING LAW.
+
+This license is governed by the laws of the Federative Republic of
+Brazil, without regard to its conflict of law provisions. Any dispute
+arising from or related to this license shall be subject to the
+exclusive jurisdiction of the courts located in São Paulo, SP, Brazil.
+
+CONTACT.
+
+Commercial license inquiries: pedro@theiadvisor.com
+Security disclosures: pedro@theiadvisor.com (preferably encrypted; PGP
+key available on request)
+
+Last updated: 2026-04-28 (S71)

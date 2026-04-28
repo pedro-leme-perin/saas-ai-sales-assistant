@@ -57,32 +57,56 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // ── Security headers (Release It! - Defense in Depth; OWASP Secure Headers) ──
-  // CSP is disabled here because the frontend (Next.js) sets a strict CSP; the
-  // backend serves Swagger UI at /api/docs which needs inline scripts.
-  app.use(
-    helmet({
-      contentSecurityPolicy: false,
-      crossOriginEmbedderPolicy: false,
-      // HSTS: 2 years, include subdomains, preload-eligible (matches frontend)
-      strictTransportSecurity: {
-        maxAge: 63072000,
-        includeSubDomains: true,
-        preload: true,
-      },
-      // Never allow framing of API responses
-      frameguard: { action: 'deny' },
-      // Hide Express "X-Powered-By" (also removed by NestJS but defensive)
-      hidePoweredBy: true,
-      // Conservative referrer policy
-      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-      // Block MIME-sniff attacks
-      noSniff: true,
-      // Force IE to run scripts in origin mode
-      ieNoOpen: true,
-      // XSS filter (legacy but harmless)
-      xssFilter: true,
-    }),
-  );
+  // S71-3: CSP path-aware. /api/docs (Swagger UI) needs inline scripts +
+  // styles; everything else (JSON API responses) gets strict CSP that
+  // disallows scripting entirely.
+  const swaggerCspDirectives = {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", 'data:', 'https:'],
+    fontSrc: ["'self'", 'data:'],
+    connectSrc: ["'self'"],
+    frameAncestors: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    objectSrc: ["'none'"],
+  };
+  const apiCspDirectives = {
+    defaultSrc: ["'none'"],
+    frameAncestors: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'none'"],
+    objectSrc: ["'none'"],
+  };
+  const baseHelmetOpts = {
+    crossOriginEmbedderPolicy: false,
+    strictTransportSecurity: {
+      maxAge: 63072000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    frameguard: { action: 'deny' as const },
+    hidePoweredBy: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' as const },
+    noSniff: true,
+    ieNoOpen: true,
+    xssFilter: true,
+  };
+  const swaggerHelmet = helmet({
+    ...baseHelmetOpts,
+    contentSecurityPolicy: { directives: swaggerCspDirectives },
+  });
+  const apiHelmet = helmet({
+    ...baseHelmetOpts,
+    contentSecurityPolicy: { directives: apiCspDirectives },
+  });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path === '/api/docs' || req.path.startsWith('/api/docs/')) {
+      return swaggerHelmet(req, res, next);
+    }
+    return apiHelmet(req, res, next);
+  });
 
   // ── Response compression (HPBN - Performance) ──
   app.use(compression());
