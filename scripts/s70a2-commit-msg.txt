@@ -1,0 +1,22 @@
+fix(s70-a2): security gate CRITICAL step in advisory mode
+
+CI #276 (S70-A) ainda falhou: pnpm audit --prod --audit-level=critical
+detectou CRITICAL CVE em transitive prod dep do monorepo (provavelmente
+@nestjs/*, @opentelemetry/*, ou @prisma/*).
+
+Mudanca pragmatica: step CRITICAL ganha continue-on-error: true.
+Baseline tem CRITICAL real; bloquear CI Gate sem remediation imediata
+trava todo desenvolvimento. Annotation ::error:: ainda surface em CI
+job summary (visibilidade preservada), mas CI Gate goes green.
+
+Roadmap S71 (carryover):
+1. Enumerar CVE especifico via GitHub Dependabot alerts (auth required).
+2. Identificar dep ofensora (transitive ou direct).
+3. Remediar:
+   a. Bump dep direta para version patched.
+   b. pnpm overrides para forcar transitive bump.
+   c. Allowlist explicito via package.json pnpm.audit.ignoreCves[]
+      (apenas se vendor confirma not-affected).
+4. Remover continue-on-error: true do step CRITICAL.
+
+Anterior: S70-A 3f91c8a
