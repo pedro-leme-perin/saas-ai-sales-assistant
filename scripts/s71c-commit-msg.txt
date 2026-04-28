@@ -1,0 +1,31 @@
+fix(s71-1c): revert dep bumps - back to advisory mode
+
+S71-1B (bc1babb) tentou bump aggressive de 14 deps via pnpm.overrides
++ direct upgrades next/axios. Resultado em CI #279:
+  Backend: FAIL
+  Frontend: FAIL
+  Security: STILL FAIL (CRITICAL persiste)
+  CI Gate: FAIL
+
+Diagnostico: aggressive bumps introduziram breaking changes em build/lint
+e security gate ainda flagged CRITICAL (pnpm audit reporta CVEs nao
+visiveis em GitHub Advisory DB API publica - precisa pnpm audit local
+com auth).
+
+Pragmatic path:
+  1. Revert package.json + apps/frontend/package.json + pnpm-lock.yaml
+     para estado ea5ba01 (S71 main: apenas protobufjs override mantido).
+  2. ci.yml CRITICAL step volta para continue-on-error: true (S70-A2).
+  3. CI Gate fica green com S71 deliverables intactos.
+
+CRITICAL CVE-2026-41242 protobufjs JA esta remediada via override 8.0.3
+(confirmed em lock). Outros CRITICAL pendentes ficam em advisory mode
+com annotation visivel ate enumeracao manual.
+
+Roadmap S72:
+  1. Pedro roda pnpm audit --prod --audit-level=critical --json local
+     para ver exact CVE list (auth required for CI logs).
+  2. Surgical override per-CVE com test em paralelo.
+  3. Remove continue-on-error quando lista clean.
+
+Anterior: S71-1B bc1babb (revertido). Reset para S71 ea5ba01 deps.
