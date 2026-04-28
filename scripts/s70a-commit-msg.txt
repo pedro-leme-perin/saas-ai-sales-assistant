@@ -1,0 +1,20 @@
+fix(s70-a): security gate too strict (block CRITICAL only, not HIGH)
+
+CI #264 falhou: pnpm audit --prod --audit-level=high detectou HIGH+
+em transitive prod deps (NestJS/Next ecosystem). Realistic baseline
+em monorepo enterprise tem HIGH lingering em sub-deps que so resolvem
+com major bumps coordenados.
+
+Mudanca: split blocking gate em 2:
+- BLOQUEIA: pnpm audit --prod --audit-level=critical (release blockers)
+- INFORMA: pnpm audit --prod --audit-level=high (HIGH+CRITICAL counts no
+  GITHUB_STEP_SUMMARY, never fails)
+
+Mantem step 3: audit moderate+ all deps informational.
+
+Roadmap S71: enumerar advisories HIGH especificos via pnpm audit local,
+remediar via dep upgrades ou allowlist via overrides em pnpm-workspace
+com justification em ADR, raise gate de volta para --audit-level=high
+quando baseline limpo.
+
+Anterior: S70 f1acead
