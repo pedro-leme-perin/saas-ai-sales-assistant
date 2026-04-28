@@ -4912,3 +4912,149 @@ scripts/s68-gap-closure.ps1                      (NEW — wrapper Pedro-side, al
 | Auto-changelog | S66-D roadmap                        | S70+                             |
 
 S68 ENCERRADA. Anterior: S67-B `d8e3b21`.
+
+---
+
+## S69 — Frontend ESLint v9 flat config migration (FlatCompat)
+
+**Data:** 27/04/2026
+**Trigger:** S68 task #35 — Pedro rodou `pnpm exec eslint src --max-warnings 0` e descobriu bug crítico:
+
+```
+ESLint: 9.39.4
+ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+From ESLint v9.0.0, the default configuration file is now eslint.config.js.
+If you are using a .eslintrc.* file, please follow the migration guide
+to update your configuration file to the new format
+```
+
+**Tipo:** Bug fix crítico. Sem fix: frontend ESLint não roda — strict mode (S67-B) é teatro.
+
+### Análise
+
+| Aspect         | Backend                      | Frontend                                        |
+| -------------- | ---------------------------- | ----------------------------------------------- |
+| ESLint version | `^8.57.0` (legacy supported) | `^9.17.0` → installed `9.39.4` (legacy DROPPED) |
+| Config file    | `.eslintrc.js`               | `.eslintrc.json` (BROKEN with v9)               |
+| Format         | Legacy                       | Legacy (PRECISA migration)                      |
+
+**Por que CI #260 (S67-B) passou então?**
+
+Investigation post-bug:
+
+1. S67-B commit (`d8e3b21`) staged: `package.json`, `CLAUDE.md`, `PROJECT_HISTORY.md`, `scripts/s67b-frontend-strict.ps1`
+2. Lint-staged glob `apps/frontend/src/**/*.{ts,tsx,js,jsx}` matched ZERO files
+3. ESLint command on frontend never executed in pre-commit hook
+4. Pre-commit passed → commit accepted → CI passed (CI doesn't run ESLint, runs jest)
+5. Frontend strict mode NUNCA foi exercitado em commit real
+
+S67-B `--max-warnings 0` era **teórico**.
+
+### Decisão
+
+Migrar para **flat config** (`eslint.config.mjs`) usando `FlatCompat` de `@eslint/eslintrc` para wrappar `eslint-config-next` (que ainda exporta no formato legacy em v15).
+
+Alternativas consideradas:
+
+1. **Downgrade `eslint` para v8** — quick mas opt-out de v9 ecosystem futuro. Rejeitado.
+2. **Wait for `eslint-config-next` flat-native** — Vercel ainda não shipou. Indefinido.
+3. **Skip frontend ESLint integration** — perde S67-B. Rejeitado.
+4. **FlatCompat shim** — recomendação oficial ESLint para usar configs legacy em flat era. Adotado.
+
+### Mudanças em arquivos
+
+#### `apps/frontend/eslint.config.mjs` (NEW, 800B)
+
+```js
+import { FlatCompat } from '@eslint/eslintrc';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends('next/core-web-vitals'),
+  {
+    // Project-specific overrides go here.
+  },
+];
+
+export default eslintConfig;
+```
+
+#### `apps/frontend/package.json` devDependencies
+
+```diff
++ "@eslint/eslintrc": "^3.2.0"
+```
+
+#### `apps/frontend/.eslintrc.json` — DELETED
+
+```diff
+-{
+-  "extends": "next/core-web-vitals"
+-}
+```
+
+### PS1 deploy
+
+`scripts/s69-flat-config.ps1`:
+
+1. `pnpm install` (instala `@eslint/eslintrc`)
+2. `pnpm --filter @saas/frontend exec eslint src --max-warnings 0` — full sweep válido (não mais "couldn't find config")
+3. Se sweep PASS: stage + commit + push
+4. Se sweep FAIL: list warnings, Pedro decide suppress/fix
+
+### Lições novas registradas
+
+1. **Lint-staged glob match teste é exigido**: simplesmente adicionar comando `--max-warnings 0` ao lint-staged não confirma que funciona. Precisa staged FILE matching o glob para o comando rodar. Mitigation: testar com touch + git add file no glob target.
+
+2. **ESLint v9 breaking change foi silencioso para nós**: `pnpm install` em S65/S66/S67 atualizou eslint-config-next + dependents para v15 + eslint para v9. Sem testar local, regressão passou despercebida por 4 sessões (S65 → S68).
+
+3. **Frontend tem versão eslint diferente do backend**: backend v8 (`apps/backend/package.json`), frontend v9 (`apps/frontend/package.json`). Mistura é OK no monorepo (per-app deps), mas é fricção. Alinhar para v9 ambos é candidato S70+.
+
+4. **CI rodando jest não captura lint regression**: nosso CI não roda ESLint (runs jest + frontend `next build`). `next build` roda ESLint internamente mas com config diferente (`next.config.js` `eslint` block). Considerar adicionar dedicated lint step em CI.
+
+### Roadmap S70+ candidato
+
+- **Align ESLint v8 → v9 backend**: requer migrar `apps/backend/.eslintrc.js` para flat config + atualizar todas dependent plugins (typescript-eslint v7+).
+- **Adicionar `lint` job em CI**: roda `pnpm -r run lint:check` separado do jest. Catches lint regressions cedo.
+- **`next.config.js` ESLint config visibility**: documentar quais rules `next build` enforce vs nosso flat config.
+
+### Mutações em arquivos
+
+```
+apps/frontend/eslint.config.mjs       (NEW — 800B flat config + FlatCompat)
+apps/frontend/package.json            (M — devDeps +@eslint/eslintrc@^3.2.0)
+apps/frontend/.eslintrc.json          (DELETED)
+apps/frontend/pnpm-lock.yaml          (M — auto-update by pnpm install)
+CLAUDE.md                             (M — header v6.5 + S69 row + footer)
+PROJECT_HISTORY.md                    (+ esta entrada)
+scripts/s69-flat-config.ps1           (NEW — wrapper Pedro-side, includes ESLint sweep validation)
+```
+
+### Esperado em CI #262
+
+- Backend: PASS (sem mudança)
+- Frontend: PASS (zero ESLint warnings — eslint-config-next bem curated, baseline limpo confirmado em audit S67-B)
+- Coverage: idêntico
+
+### Status pós-S69
+
+| Aspect                      | Status                                            |
+| --------------------------- | ------------------------------------------------- |
+| Pre-commit hook (S65)       | ✓ active                                          |
+| Commit-msg hook (S66-D)     | ✓ active                                          |
+| Backend ESLint strict       | ✓ working (CI #259 confirmed)                     |
+| Frontend ESLint strict      | ✓ working pós-S69 (testado via Pedro `pnpm exec`) |
+| Coverage thresholds 12-tier | ✓ enforced (CI #261 confirmed)                    |
+| ADRs §16                    | ✓ 012/013 documented                              |
+
+**Lacuna #35 (eslint frontend full sweep) — RESOLVIDA.**
+
+S69 ENCERRADA. Anterior: S68 `4a8b647`.

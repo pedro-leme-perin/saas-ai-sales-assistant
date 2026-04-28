@@ -39,11 +39,11 @@
   "lint-staged": {
     "apps/backend/{src,test}/**/*.{ts,js}": [
       "prettier --write --ignore-unknown",
-      "npx --no-install eslint --fix --max-warnings 0 --no-error-on-unmatched-pattern"
+      "node apps/backend/node_modules/eslint/bin/eslint.js --resolve-plugins-relative-to apps/backend --fix --max-warnings 0 --no-error-on-unmatched-pattern"
     ],
     "apps/frontend/src/**/*.{ts,tsx,js,jsx}": [
       "prettier --write --ignore-unknown",
-      "npx --no-install eslint --fix --max-warnings 0 --no-error-on-unmatched-pattern"
+      "node apps/frontend/node_modules/eslint/bin/eslint.js --config apps/frontend/eslint.config.mjs --fix --max-warnings 0 --no-error-on-unmatched-pattern"
     ],
     "packages/shared/src/**/*.{ts,js}": [
       "prettier --write --ignore-unknown"
