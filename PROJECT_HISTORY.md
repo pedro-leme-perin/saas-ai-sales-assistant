@@ -4915,146 +4915,145 @@ S68 ENCERRADA. Anterior: S67-B `d8e3b21`.
 
 ---
 
-## S69 — Frontend ESLint v9 flat config migration (FlatCompat)
+## S69 — Frontend ESLint v9 flat config + per-app binary fix
 
-**Data:** 27/04/2026
-**Trigger:** S68 task #35 — Pedro rodou `pnpm exec eslint src --max-warnings 0` e descobriu bug crítico:
+**Data:** 27-28/04/2026 (3 deploy attempts)
+**Trigger:** S68 task #35 — Pedro rodou `pnpm exec eslint src --max-warnings 0` (frontend full sweep) e descobriu cascata de 3 bugs em série.
+**Tipo:** Bug fix crítico (multiple iterations) + completion S35.
+
+### Bug 1: ESLint v9 dropped legacy config
 
 ```
 ESLint: 9.39.4
-ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+ESLint couldnt find an eslint.config.(js|mjs|cjs) file.
 From ESLint v9.0.0, the default configuration file is now eslint.config.js.
-If you are using a .eslintrc.* file, please follow the migration guide
-to update your configuration file to the new format
 ```
 
-**Tipo:** Bug fix crítico. Sem fix: frontend ESLint não roda — strict mode (S67-B) é teatro.
+Frontend tinha `eslint@^9.17.0` mas config legacy `.eslintrc.json` (extends `next/core-web-vitals`). ESLint v9 abandonou suporte default a legacy `.eslintrc.*` — requer flat config.
 
-### Análise
+**Fix**: criar `apps/frontend/eslint.config.mjs` usando `FlatCompat` de `@eslint/eslintrc` para wrappar `eslint-config-next` (ainda legacy em v15).
 
-| Aspect         | Backend                      | Frontend                                        |
-| -------------- | ---------------------------- | ----------------------------------------------- |
-| ESLint version | `^8.57.0` (legacy supported) | `^9.17.0` → installed `9.39.4` (legacy DROPPED) |
-| Config file    | `.eslintrc.js`               | `.eslintrc.json` (BROKEN with v9)               |
-| Format         | Legacy                       | Legacy (PRECISA migration)                      |
+### Bug 2: Monorepo dual-version pnpm hoisting
 
-**Por que CI #260 (S67-B) passou então?**
+Pre-commit hook chamava `npx --no-install eslint`. Em pnpm hoisting, root `node_modules/.bin/eslint` aponta para v8 do backend (instalado primeiro). Quando frontend src files matched glob, v8 tentou ler `eslint.config.mjs` → fail (v8 só conhece legacy).
 
-Investigation post-bug:
+**Fix**: trocar `npx --no-install eslint` → `node apps/<APP>/node_modules/eslint/bin/eslint.js` (per-app binary explicit). Backend: v8.57.x. Frontend: v9.39.x. Cada um lê seu config nativo.
 
-1. S67-B commit (`d8e3b21`) staged: `package.json`, `CLAUDE.md`, `PROJECT_HISTORY.md`, `scripts/s67b-frontend-strict.ps1`
-2. Lint-staged glob `apps/frontend/src/**/*.{ts,tsx,js,jsx}` matched ZERO files
-3. ESLint command on frontend never executed in pre-commit hook
-4. Pre-commit passed → commit accepted → CI passed (CI doesn't run ESLint, runs jest)
-5. Frontend strict mode NUNCA foi exercitado em commit real
+### Bug 3: ESLint v9 não walks up de file paths
 
-S67-B `--max-warnings 0` era **teórico**.
-
-### Decisão
-
-Migrar para **flat config** (`eslint.config.mjs`) usando `FlatCompat` de `@eslint/eslintrc` para wrappar `eslint-config-next` (que ainda exporta no formato legacy em v15).
-
-Alternativas consideradas:
-
-1. **Downgrade `eslint` para v8** — quick mas opt-out de v9 ecosystem futuro. Rejeitado.
-2. **Wait for `eslint-config-next` flat-native** — Vercel ainda não shipou. Indefinido.
-3. **Skip frontend ESLint integration** — perde S67-B. Rejeitado.
-4. **FlatCompat shim** — recomendação oficial ESLint para usar configs legacy em flat era. Adotado.
-
-### Mudanças em arquivos
-
-#### `apps/frontend/eslint.config.mjs` (NEW, 800B)
-
-```js
-import { FlatCompat } from '@eslint/eslintrc';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends('next/core-web-vitals'),
-  {
-    // Project-specific overrides go here.
-  },
-];
-
-export default eslintConfig;
-```
-
-#### `apps/frontend/package.json` devDependencies
-
-```diff
-+ "@eslint/eslintrc": "^3.2.0"
-```
-
-#### `apps/frontend/.eslintrc.json` — DELETED
-
-```diff
--{
--  "extends": "next/core-web-vitals"
--}
-```
-
-### PS1 deploy
-
-`scripts/s69-flat-config.ps1`:
-
-1. `pnpm install` (instala `@eslint/eslintrc`)
-2. `pnpm --filter @saas/frontend exec eslint src --max-warnings 0` — full sweep válido (não mais "couldn't find config")
-3. Se sweep PASS: stage + commit + push
-4. Se sweep FAIL: list warnings, Pedro decide suppress/fix
-
-### Lições novas registradas
-
-1. **Lint-staged glob match teste é exigido**: simplesmente adicionar comando `--max-warnings 0` ao lint-staged não confirma que funciona. Precisa staged FILE matching o glob para o comando rodar. Mitigation: testar com touch + git add file no glob target.
-
-2. **ESLint v9 breaking change foi silencioso para nós**: `pnpm install` em S65/S66/S67 atualizou eslint-config-next + dependents para v15 + eslint para v9. Sem testar local, regressão passou despercebida por 4 sessões (S65 → S68).
-
-3. **Frontend tem versão eslint diferente do backend**: backend v8 (`apps/backend/package.json`), frontend v9 (`apps/frontend/package.json`). Mistura é OK no monorepo (per-app deps), mas é fricção. Alinhar para v9 ambos é candidato S70+.
-
-4. **CI rodando jest não captura lint regression**: nosso CI não roda ESLint (runs jest + frontend `next build`). `next build` roda ESLint internamente mas com config diferente (`next.config.js` `eslint` block). Considerar adicionar dedicated lint step em CI.
-
-### Roadmap S70+ candidato
-
-- **Align ESLint v8 → v9 backend**: requer migrar `apps/backend/.eslintrc.js` para flat config + atualizar todas dependent plugins (typescript-eslint v7+).
-- **Adicionar `lint` job em CI**: roda `pnpm -r run lint:check` separado do jest. Catches lint regressions cedo.
-- **`next.config.js` ESLint config visibility**: documentar quais rules `next build` enforce vs nosso flat config.
-
-### Mutações em arquivos
+Mesmo com binary v9 explícito, ESLint falhou:
 
 ```
-apps/frontend/eslint.config.mjs       (NEW — 800B flat config + FlatCompat)
-apps/frontend/package.json            (M — devDeps +@eslint/eslintrc@^3.2.0)
-apps/frontend/.eslintrc.json          (DELETED)
-apps/frontend/pnpm-lock.yaml          (M — auto-update by pnpm install)
-CLAUDE.md                             (M — header v6.5 + S69 row + footer)
-PROJECT_HISTORY.md                    (+ esta entrada)
-scripts/s69-flat-config.ps1           (NEW — wrapper Pedro-side, includes ESLint sweep validation)
+ESLint: 9.39.4
+ESLint couldnt find an eslint.config.(js|mjs|cjs) file.
+```
+
+Causa: ESLint v9 flat config busca config a partir de **CWD**, não a partir do file path argument (mudança vs v8). Lint-staged invoca de repo root → CWD = repo root → procura `eslint.config.mjs` em raiz → não encontra.
+
+**Fix**: adicionar `--config apps/frontend/eslint.config.mjs` ao comando frontend. Forces v9 a usar config explícito independente de CWD.
+
+### Sweep validation revealed 3 real warnings
+
+Após bug fixes, sweep passou e revelou 3 warnings que grep `as any` audit (S67-B baseline) NÃO pegou:
+
+| Arquivo:Linha              | Rule                                                          | Severity |
+| -------------------------- | ------------------------------------------------------------- | -------- |
+| `audit-logs/page.tsx:241`  | Unused `// eslint-disable-next-line no-console`               | warning  |
+| `csat/trends/error.tsx:22` | Same                                                          | warning  |
+| `company-tab.tsx:159`      | `<img>` instead of `next/image` (`@next/next/no-img-element`) | warning  |
+
+**Fixes:**
+
+1+2: Removed unused `eslint-disable-next-line no-console` directives. Razão: `no-console` rule não está habilitada em `next/core-web-vitals` default. ESLint v9 flagga unused suppressions. `console.error` permanece (fine, capturado por Sentry boundary).
+
+3: Scoped suppress com multi-line justification:
+
+```ts
+// Tenant-uploaded logos use dynamic R2 URLs that change per
+// company. Migrating to next/image would require adding the
+// R2 domain to next.config.js remotePatterns AND configuring
+// a custom loader. Deferred to a dedicated S70+ session;
+// suppression here is intentional for thumbnail-sized logos.
+// eslint-disable-next-line @next/next/no-img-element
+```
+
+### Working tree corruption 6th occurrence
+
+Lint-staged automatic stash backup + revert durante failed attempts:
+
+- Reverteu `apps/frontend/eslint.config.mjs` creation
+- Reverteu `apps/frontend/package.json` modifications (corrupted with NUL bytes binary)
+- Reverteu 3 src file fixes
+- 2 stashes residuais ficaram pendurados (`stash@{0}` lint-staged backup + `stash@{1}` pre-existing WIP)
+
+Recovery: drop ambos stashes + Edit tool re-apply de todos os fixes + `git show HEAD:apps/frontend/package.json` para restaurar corrupted file + sandbox `python3 json.dump` para re-add `@eslint/eslintrc` dep.
+
+### Final lint-staged config (`package.json`)
+
+```json
+{
+  "apps/backend/{src,test}/**/*.{ts,js}": [
+    "prettier --write --ignore-unknown",
+    "node apps/backend/node_modules/eslint/bin/eslint.js --resolve-plugins-relative-to apps/backend --fix --max-warnings 0 --no-error-on-unmatched-pattern"
+  ],
+  "apps/frontend/src/**/*.{ts,tsx,js,jsx}": [
+    "prettier --write --ignore-unknown",
+    "node apps/frontend/node_modules/eslint/bin/eslint.js --config apps/frontend/eslint.config.mjs --fix --max-warnings 0 --no-error-on-unmatched-pattern"
+  ]
+}
+```
+
+Backend command: explicit binary v8 + `--resolve-plugins-relative-to apps/backend` (plugins resolution).
+Frontend command: explicit binary v9 + `--config apps/frontend/eslint.config.mjs` (forces flat config).
+
+### Lessons new (S69)
+
+1. **Lint-staged glob test required end-to-end**. S67-B `--max-warnings 0` no frontend nunca executou porque commits S65→S68 não staged frontend src files. `--max-warnings 0` foi teórico por 4 sessões.
+
+2. **Monorepo dual eslint version**: explicit per-app binary path é única solução portable em lint-staged. `npx --no-install eslint` ambíguo.
+
+3. **ESLint v9 flat config NÃO walks up de file paths**: explicit `--config` flag obrigatório quando CWD difere de app root.
+
+4. **Grep `as any` audit insuficiente**: não pega unused-disable directives nem framework-specific rules (`no-img-element`). Real sweep (`pnpm exec eslint`) é único validation real.
+
+5. **Lint-staged automatic stash backup é destructive**: failed task reverte staged files (incl. source fixes). PS1 deve drop stashes entre attempts.
+
+6. **`apps/frontend/package.json` corrupted with NUL bytes binary**: 6th working tree corruption ocorrência. Sandbox + `git show HEAD:` + `python3 json.dump` restoration.
+
+### Mutações em arquivos (deploy final monolítico — `scripts/s69-final.ps1`)
+
+```
+apps/frontend/eslint.config.mjs                                   NEW 800B FlatCompat shim
+apps/frontend/package.json                                        M  +@eslint/eslintrc@^3.2.0
+apps/frontend/.eslintrc.json                                      DELETED via git rm
+apps/frontend/src/app/dashboard/audit-logs/page.tsx               M  -1 unused directive
+apps/frontend/src/app/dashboard/csat/trends/error.tsx             M  -1 unused directive
+apps/frontend/src/components/settings/tabs/company-tab.tsx        M  +scoped suppress + justification
+package.json                                                      M  per-app eslint binary + --config flag
+pnpm-lock.yaml                                                    M  lockfile update (+@eslint/eslintrc)
+CLAUDE.md                                                         M  S69 row + header v6.5 + footer
+PROJECT_HISTORY.md                                                M  S69 entry
+scripts/s69-flat-config.ps1                                       NEW (failed attempt #1, archived)
+scripts/s69-resume.ps1                                            NEW (failed attempt #2, archived)
+scripts/s69-final.ps1                                             NEW (monolithic final deploy)
 ```
 
 ### Esperado em CI #262
 
-- Backend: PASS (sem mudança)
-- Frontend: PASS (zero ESLint warnings — eslint-config-next bem curated, baseline limpo confirmado em audit S67-B)
-- Coverage: idêntico
+- Backend: PASS
+- Frontend: PASS (sweep clean)
+- Coverage: idêntico a CI #261
 
 ### Status pós-S69
 
-| Aspect                      | Status                                            |
-| --------------------------- | ------------------------------------------------- |
-| Pre-commit hook (S65)       | ✓ active                                          |
-| Commit-msg hook (S66-D)     | ✓ active                                          |
-| Backend ESLint strict       | ✓ working (CI #259 confirmed)                     |
-| Frontend ESLint strict      | ✓ working pós-S69 (testado via Pedro `pnpm exec`) |
-| Coverage thresholds 12-tier | ✓ enforced (CI #261 confirmed)                    |
-| ADRs §16                    | ✓ 012/013 documented                              |
-
-**Lacuna #35 (eslint frontend full sweep) — RESOLVIDA.**
+| Aspect                           | Status                                               |
+| -------------------------------- | ---------------------------------------------------- |
+| Pre-commit hook (S65)            | ✓ active                                             |
+| Commit-msg hook (S66-D)          | ✓ active                                             |
+| Backend ESLint strict            | ✓ working (v8 + .eslintrc.js + per-app binary)       |
+| Frontend ESLint strict           | ✓ working pós-S69 (v9 + flat config + --config flag) |
+| Coverage thresholds 12-tier      | ✓ enforced                                           |
+| ADRs §16                         | ✓ 012/013 documented                                 |
+| Lacuna #35 (frontend full sweep) | ✓ RESOLVED                                           |
 
 S69 ENCERRADA. Anterior: S68 `4a8b647`.

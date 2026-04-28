@@ -50,11 +50,7 @@ const TIMEZONES = [
   'Asia/Tokyo',
 ];
 
-export default function CompanyTab({
-  company,
-  updateMutation,
-  t,
-}: CompanyTabProps) {
+export default function CompanyTab({ company, updateMutation, t }: CompanyTabProps) {
   const [form, setForm] = useState<CompanyFormData>({
     name: '',
     website: '',
@@ -78,13 +74,10 @@ export default function CompanyTab({
     }
   }, [company]);
 
-  const handleChange = useCallback(
-    (field: keyof CompanyFormData, value: string) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
-      setIsDirty(true);
-    },
-    [],
-  );
+  const handleChange = useCallback((field: keyof CompanyFormData, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setIsDirty(true);
+  }, []);
 
   const handleLogoUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,11 +149,13 @@ export default function CompanyTab({
           <div className="flex items-center gap-4 pb-4 border-b">
             <div className="relative h-16 w-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted">
               {logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt="Logo"
-                  className="h-full w-full object-cover rounded-lg"
-                />
+                // Tenant-uploaded logos use dynamic R2 URLs that change per
+                // company. Migrating to next/image would require adding the
+                // R2 domain to next.config.js remotePatterns AND configuring
+                // a custom loader. Deferred to a dedicated S70+ session;
+                // suppression here is intentional for thumbnail-sized logos.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="Logo" className="h-full w-full object-cover rounded-lg" />
               ) : (
                 <Building2 className="h-8 w-8 text-muted-foreground/50" />
               )}
@@ -276,10 +271,7 @@ export default function CompanyTab({
           </div>
 
           <div className="flex justify-end pt-2">
-            <Button
-              onClick={handleSave}
-              disabled={!isDirty || updateMutation.isPending}
-            >
+            <Button onClick={handleSave} disabled={!isDirty || updateMutation.isPending}>
               <Save className="mr-2 h-4 w-4" />
               {updateMutation.isPending ? t('common.loading') : t('common.saveChanges')}
             </Button>
