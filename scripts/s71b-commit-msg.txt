@@ -1,0 +1,37 @@
+fix(s71-1b): expand pnpm.overrides + bump direct prod deps for audit clean
+
+CI #278 (S71 ea5ba01) ainda flagged CRITICAL post protobufjs upgrade.
+Investigation found discrepancia entre GitHub Advisory DB API (zero CRITICAL
+matches em 1285 packages cross-checked semver-aware) e pnpm audit reportando
+CRITICAL.
+
+Pragmatic remediation: bump TODAS deps com advisories (any severity) para
+patched versions, eliminando ambiguidade de classificacao:
+
+Direct prod deps (apps/frontend/package.json):
+  - next ^15.0.4 -> ^15.5.15 (high DoS Server Components GHSA-q4gf-8mx6-v5v3)
+  - axios ^1.7.9 -> ^1.15.0 (moderate SSRF NO_PROXY normalization)
+
+Transitive overrides (root package.json pnpm.overrides):
+  - protobufjs >=7.5.5 (CRITICAL CVE-2026-41242, mantido S71)
+  - multer >=2.1.1 (high DoS uncontrolled recursion)
+  - axios >=1.15.0 (moderate SSRF)
+  - follow-redirects >=1.15.12 (moderate auth header leak)
+  - lodash >=4.17.24 (high code injection via _.template)
+  - glob >=10.5.0 (high cmd injection via -c flag)
+  - picomatch >=4.0.4 (high ReDoS extglob)
+  - js-yaml >=4.1.1 (moderate proto pollution)
+  - ajv >=8.18.0 (moderate ReDoS)
+  - postcss >=8.5.10 (moderate XSS)
+  - file-type >=21.3.2 (moderate ZIP bomb DoS)
+  - webpack >=5.105.0 (low SSRF allowedUris bypass)
+  - uuid >=14.0.0 (moderate buffer bounds)
+  - tmp >=0.2.5 (low symlink dir param)
+
+Total: 14 overrides + 2 direct upgrades.
+
+Trade-off: large dep tree churn = potential breaking changes em tests/build.
+Aceito porque pnpm audit acceptance gate eh pre-requisito security.
+Fallback se CI quebrar: revert este commit + advisory mode (S70-A2 pattern).
+
+Anterior: S71 ea5ba01
