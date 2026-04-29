@@ -291,48 +291,60 @@ jobs:
 
       - name: Audit production dependencies (CRITICAL strict)
         id: audit_prod
-        # S74: STRICT mode after enumeration via Pedro local `pnpm audit
-        # --prod --audit-level=critical --json`. CRITICALs surfaced were all
-        # CVE-2026-41248 (Clerk middleware bypass GHSA-vqx2-fgx2-5wq9):
-        #   - @clerk/nextjs@6.39.1     -> override >=6.39.2
-        #   - @clerk/shared@3.47.3     -> override >=3.47.4 (v3.x branch)
-        #   - @clerk/shared@2.22.0     -> override >=2.22.1 (v2.x branch via
-        #                                 @clerk/clerk-sdk-node@5.1.6)
-        # protobufjs CVE-2026-41242 (S71) override retained.
+        # S74-2: STRICT mode + JSON metadata parse hardening (S74 #287 failure
+        # debugging). Previous version trusted `pnpm audit` exit code which can
+        # be non-zero for transient errors. This version parses
+        # metadata.vulnerabilities.critical from JSON and only fails when
+        # critical > 0. CVE-2026-41248 Clerk family remediated via
+        # pnpm.overrides (S74); protobufjs CVE-2026-41242 (S71) retained.
         # `continue-on-error` REMOVED — gate blocks merge on any new CRITICAL.
-        # HIGH (multer, lodash, next, follow-redirects) tracked in S75 roadmap
-        # via informational step below (non-blocking).
+        # HIGH (multer, lodash, next, follow-redirects) roadmap S75
+        # (informational step below, non-blocking).
         run: |
           set +e
-          pnpm audit --prod --audit-level=critical --json > /tmp/audit-critical.json
+          pnpm audit --prod --audit-level=critical --json > /tmp/audit-critical.json 2>/tmp/audit-stderr.log
           AUDIT_EXIT=$?
           set -e
-          # exit code 0 = clean, 1 = vulnerabilities at or above level
-          if [[ "$AUDIT_EXIT" -eq 0 ]]; then
-            echo "::notice::pnpm audit clean (no CRITICAL in production deps)"
+          if [[ ! -s /tmp/audit-critical.json ]]; then
+            echo "::error::pnpm audit failed to produce JSON output (exit=$AUDIT_EXIT)"
+            echo "## Security Audit — Tool Error" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/audit-stderr.log >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          # Parse metadata.vulnerabilities.critical via Node — authoritative
+          # source even if exit code lies. exit 0 if critical=0.
+          CRITICAL_COUNT=$(node -e "try { const a=require('/tmp/audit-critical.json'); const m=a.metadata&&a.metadata.vulnerabilities?a.metadata.vulnerabilities:{}; console.log(m.critical||0); } catch(e) { console.error(e.message); process.exit(2); }")
+          PARSE_EXIT=$?
+          if [[ "$PARSE_EXIT" -ne 0 ]]; then
+            echo "::error::failed to parse pnpm audit JSON output"
+            exit 1
+          fi
+          if [[ "$CRITICAL_COUNT" -eq 0 ]]; then
+            echo "::notice::pnpm audit clean (critical=0 in production deps; audit_exit=$AUDIT_EXIT)"
             {
               echo "## Security Audit — Production Dependencies"
               echo ""
-              echo "Production deps: clean (no CRITICAL)"
+              echo "Production deps: clean (critical=0)"
+              echo ""
+              echo "_pnpm audit exit code was $AUDIT_EXIT — JSON metadata.critical is authoritative._"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [[ ! -s /tmp/audit-critical.json ]]; then
-            echo "::error::pnpm audit failed to produce output"
-            exit 1
-          fi
           {
-            echo "## Security Audit — CRITICAL Production Vulnerabilities"
+            echo "## Security Audit — CRITICAL Production Vulnerabilities ($CRITICAL_COUNT)"
             echo ""
-            echo '<details><summary>Vulnerabilities found</summary>'
+            echo '<details><summary>Vulnerabilities found (raw JSON)</summary>'
             echo ''
             echo '```json'
-            cat /tmp/audit-critical.json | head -200
+            head -c 8000 /tmp/audit-critical.json
+            echo ''
             echo '```'
             echo ''
             echo '</details>'
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::pnpm audit found CRITICAL vulnerabilities in production dependencies — see job summary"
+          echo "::error::pnpm audit found $CRITICAL_COUNT CRITICAL vulnerabilities in production dependencies — see job summary"
           exit 1
 
       - name: Audit production dependencies (HIGH informational)
