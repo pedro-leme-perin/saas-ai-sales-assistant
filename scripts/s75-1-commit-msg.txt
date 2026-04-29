@@ -1,0 +1,30 @@
+fix(security): bump multer to ~2.1.1 via pnpm overrides (S75-1)
+
+Mitigates 3 concurrent High-severity DoS advisories in `multer@2.0.2`:
+- CVE-2026-3304 (CPU exhaustion via crafted multipart, CVSS 7.5)
+- CVE-2026-2359 (memory exhaustion via crafted multipart, CVSS 7.5)
+- CVE-2026-3520 (file descriptor exhaustion, CVSS 7.5)
+
+Vector: backend file upload pipeline (transitive via @nestjs/platform-express).
+Endpoints exposed: User avatar upload, R2 presigned URLs, DataImport CSV.
+
+Strategy:
+- pnpm.overrides entry `multer: ~2.1.1` (same-minor range per lesson #19,
+  prevents silent major-bump that broke S74-1 with `>=` ranges).
+- 1-commit-per-package per lesson #17 (S71-1B aggressive bumps revert).
+- CI security HIGH step continues informational (non-blocking).
+- Roadmap S75: 3 residual HIGH (lodash, next, follow-redirects) pending
+  S75-2/3/4. Post-S75-4 CI gate ratchet to --audit-level=high strict
+  is S76 candidate.
+
+Changed:
+- package.json: pnpm.overrides += multer ~2.1.1 (alphabetic sort)
+- pnpm-lock.yaml: regenerated via `pnpm install`
+- CHANGELOG.md: [v0.75.1] entry under Security/Changed/Notes
+- PROJECT_HISTORY.md: S75-1 session block (threat model, mutation table,
+  validation, lessons reinforced, roadmap status)
+- CLAUDE.md §2.1: header version + last commit row + S74-2 demoted
+
+Refs: roadmap S75 (PROJECT_HISTORY.md S74-2), lesson #1 (Edit unsafe),
+lesson #5 (working tree corruption #11 pré-session), lesson #17 (1 dep
+per commit), lesson #19 (range tight ~/^).

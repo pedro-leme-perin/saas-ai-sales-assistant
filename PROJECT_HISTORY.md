@@ -6083,3 +6083,69 @@ override via `pnpm.overrides` com range tight (`^` ou `~` per lição #19).
 
 `@nestjs/core 10.4.22 → 11.1.18` (CVE-2026-35515 SSE injection) requer ADR
 major-bump (breaking 10→11), defer dedicated session.
+
+---
+
+## S75-1 — multer ~2.1.1 override (S75 HIGH bumps Cowork-autônomo)
+
+**Sessão:** S75-1 (29/04/2026)
+**Commit:** (pendente — será stamp pós-push)
+**Anterior:** S74-2 `4de1922`
+
+### Objetivo
+
+Encerrar primeira de 4 entradas HIGH residuais documentadas no roadmap S75
+(S74-2): `multer` 2.0.2 → `~2.1.1`. Estratégia per lição #17: 1 commit
+per-package, validar CI verde entre cada. Range `~` (same-minor) per
+lição #19, evita silent major-bump.
+
+### Threat model
+
+| Advisory      | CVSS | Vector                                         | Fix     |
+| ------------- | ---- | ---------------------------------------------- | ------- |
+| CVE-2026-3304 | 7.5  | DoS via crafted multipart payload (CPU)        | >=2.1.1 |
+| CVE-2026-2359 | 7.5  | DoS via crafted multipart payload (memory)     | >=2.1.1 |
+| CVE-2026-3520 | 7.5  | DoS via crafted multipart payload (file desc.) | >=2.1.1 |
+
+Vetor: backend file upload pipeline (`@nestjs/platform-express` →
+`multer`). Endpoints expostos: avatar upload (User), R2 upload presigned
+URLs (Upload module), import CSV (DataImport module).
+
+### Mutação
+
+| Arquivo          | Operação                                                | Ferramenta            |
+| ---------------- | ------------------------------------------------------- | --------------------- |
+| `package.json`   | `pnpm.overrides` adiciona `multer: ~2.1.1` (alfabético) | `python3 json.dump`   |
+| `pnpm-lock.yaml` | regenerado via `pnpm install` em PS1 wrapper            | PS1 (Pedro machine)   |
+| `CHANGELOG.md`   | nova entry `[v0.75.1]` antes de `[v0.74.2]`             | `python3 str.replace` |
+| `CLAUDE.md` §2.1 | row `Último commit S75-1` adicionada                    | `python3 str.replace` |
+
+### Validação
+
+- `python3 json.load` valida JSON pós-mutação.
+- `pnpm install` em PS1 wrapper regenera lockfile (Pedro machine, lição #3).
+- CI #289+ esperado verde end-to-end (Install → Frontend → Backend →
+  Security → CI Gate). HIGH step continua informational (multer
+  resolvido reduz lista 4 → 3).
+
+### Lições reforçadas
+
+- **#1** (Edit unsafe): primeira tentativa de Edit em `package.json`
+  corrompeu arquivo (truncated mid-string). Bypass via `git show HEAD: +
+python3 json.load+dump`.
+- **#5** (working tree corruption #11): pré-S75-1 working tree mostrou 43
+  files modified vs HEAD por CRLF expansion + truncação real CLAUDE.md
+  (682 vs 716 linhas). Restaurado via `git show HEAD: + cp` em loop
+  sandbox bash.
+
+### Roadmap S75 status
+
+| Module             | Status  | Commit |
+| ------------------ | ------- | ------ |
+| `multer`           | DONE    | S75-1  |
+| `lodash`           | PENDING | S75-2  |
+| `next`             | PENDING | S75-3  |
+| `follow-redirects` | PENDING | S75-4  |
+
+S76 candidate: ratchet `--audit-level=critical` → `--audit-level=high`
+strict mode pós-S75-4 verde.

@@ -18,6 +18,33 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.75.1] — S75-1 — 2026-04-29
+
+### Security
+
+- **CVE-2026-3304 / CVE-2026-2359 / CVE-2026-3520 mitigated** — `multer` 2.0.2 has
+  three concurrent High-severity DoS advisories (resource exhaustion via crafted
+  multipart payloads). Fix `~2.1.1` (>=2.1.1 <2.2.0) tightens parser limits and
+  closes the unbounded buffer paths. Applied via `pnpm.overrides` (transitive via
+  `@nestjs/platform-express` — backend file upload pipeline). Range tightened to
+  `~` (same-minor) per Lesson #19 to prevent silent major-bump.
+
+### Changed
+
+- `package.json` `pnpm.overrides` ganha entry `multer: ~2.1.1` ordenada
+  alfabeticamente (entre `@clerk/shared@3` e `protobufjs`). Lockfile regenerado
+  via `pnpm install` (lição #1: tudo via PS1 wrapper, sandbox não roda pnpm).
+
+### Notes
+
+- HIGH advisory step do CI (`pnpm audit --prod --audit-level=high`) ainda em
+  modo informational (não bloqueia merge). Restantes 4 HIGH:
+  `lodash` (S75-2 next), `next` (S75-3), `follow-redirects` (S75-4). Após
+  S75-4 verde, S76 candidate eleva gate `--audit-level=critical` →
+  `--audit-level=high` strict mode.
+
+---
+
 ## [v0.74.2] — S74-2 — 2026-04-29
 
 ### Fixed
