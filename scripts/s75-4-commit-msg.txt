@@ -1,0 +1,32 @@
+fix(security): bump follow-redirects to ~1.16.0 via pnpm overrides (S75-4 FINAL)
+
+Mitigates GHSA-r4q5-vmmm-2653 — custom Authorization headers leak across
+cross-origin redirects in `follow-redirects@1.15.11` (CVSS 6.5).
+Operationally relevant: any HTTP call with `Authorization: Bearer
+<token>` redirecting to a different origin exposes the token.
+
+Vector: transitive via axios → @aws-sdk (R2 uploads) + stripe (billing)
++ twilio (calls/SMS) + clerk-sdk-node (legacy backend auth).
+
+Strategy:
+- pnpm.overrides entry `follow-redirects: ~1.16.0` (same-minor).
+- Final entry of S75 roadmap. ZERO HIGH residuals in production deps
+  post this commit (multer, lodash, next, follow-redirects all resolved
+  S75-1 through S75-4).
+- Validated post-S75-3 green (CI #294 end-to-end).
+
+Roadmap S76 candidate: ratchet CI security gate
+`--audit-level=critical` → `--audit-level=high` strict mode. Pre-requisite
+satisfied (pnpm audit HIGH count expected to drop from 4 to 0 with S75
+series complete).
+
+Changed:
+- package.json: pnpm.overrides += follow-redirects ~1.16.0 (alphabetic)
+- pnpm-lock.yaml: regenerated via pnpm install
+- CHANGELOG.md: [v0.75.4] entry under Security/Changed/Notes
+- PROJECT_HISTORY.md: S75-4 session block (threat model, mutation,
+  roadmap S75 FINAL status, S76 candidate documented)
+- CLAUDE.md §2.1: header version + last commit row + S75-3 demoted
+
+Refs: roadmap S75 (PROJECT_HISTORY.md S74-2), lesson #17 (1 dep per
+commit), lesson #19 (range tight ~).

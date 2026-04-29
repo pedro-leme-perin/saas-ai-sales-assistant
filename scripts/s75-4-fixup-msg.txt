@@ -1,0 +1,40 @@
+fix(s75-4-fixup): add missing root package.json follow-redirects override
+
+Recovery commit for S75-4. Previous commit 8a7c2f3 was created
+accidentally by re-execution of s75-3-commit.bat (Return key on selected
+file in File Explorer), which:
+- Used the S75-3 commit message template (wrong: should be S75-4)
+- Omitted root package.json from `git add` list (the file was modified
+  with follow-redirects override but not staged because the S75-3
+  commit script had a hardcoded list excluding root package.json)
+- Did update lockfile via pnpm install but lockfile content was still
+  not matched to staged package.json — causing CI #298 Install job
+  failure with --frozen-lockfile mismatch.
+
+This fixup:
+- Adds root package.json with `follow-redirects: ~1.16.0` to
+  pnpm.overrides (alphabetic between @clerk/shared@3 and lodash).
+- Regenerates pnpm-lock.yaml to match.
+- Restores lockfile/package.json consistency for CI install gate.
+
+The S75-4 docs (CHANGELOG v0.75.4, PROJECT_HISTORY S75-4 section,
+CLAUDE.md §2.1 S75-4 row) were correctly committed in 8a7c2f3 even
+under wrong message — leaving them as-is rather than force-pushing.
+
+Threat model unchanged from S75-4: GHSA-r4q5-vmmm-2653 (custom
+Authorization headers leak across cross-origin redirects, CVSS 6.5)
+mitigated via override on transitive `follow-redirects` (vector via
+axios → @aws-sdk + stripe + twilio + clerk-sdk-node).
+
+Roadmap S75 status pós-fixup: ZERO HIGH residuais produção (multer
++ lodash + next + follow-redirects todos resolvidos S75-1/2/3/4).
+
+Lesson #21 (new): re-execution of stale .bat scripts via Return on
+selected file in File Explorer is dangerous — selected file persists
+across navigation and Return triggers double-click semantics. Always
+explicitly click empty space to deselect before pressing Return.
+
+Refs: roadmap S75 (PROJECT_HISTORY.md S74-2), commit 8a7c2f3 partial,
+lesson #5 (working tree corruption pattern), lesson #17 (1 dep per
+commit — preserved despite fixup since this commit only adds 1 file
+mutation: package.json + lockfile re-resolution).
