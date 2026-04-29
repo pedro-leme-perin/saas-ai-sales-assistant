@@ -6331,3 +6331,103 @@ satisfaz). Defer S76 dedicated session.
 `@nestjs/core 10 → 11` (CVE-2026-35515 SSE injection) ainda requer
 ADR major-bump separado (breaking changes 10→11), defer dedicated
 session.
+
+---
+
+## S76 — CI security gate ratchet CRITICAL → HIGH+CRITICAL strict
+
+**Sessão:** S76 (29/04/2026)
+**Commit:** (pendente — será stamp pós-push)
+**Anterior:** S75-4 `33ef1fa`
+
+### Objetivo
+
+Ratchet permanente do CI security gate: `pnpm audit --prod` passa de
+`--audit-level=critical` → `--audit-level=high`. Pré-condição
+satisfeita em S75-4 (HIGH residuais produção: ZERO). Gate vira defesa
+permanente contra qualquer regressão HIGH/CRITICAL via dep update.
+
+### Pré-condição S75 (verificada)
+
+| Advisory severity         | Pré-S75 | Pós-S75-4 |
+| ------------------------- | ------- | --------- |
+| CRITICAL (prod)           | 0       | 0         |
+| HIGH (prod)               | 5       | **0**     |
+| MODERATE+ (informational) | ~14     | ~14       |
+
+`pnpm audit --prod --audit-level=high --json` local pós-S75-4 retorna
+`metadata.vulnerabilities.{high, critical}` ambos zero.
+
+### Mutação `.github/workflows/ci.yml`
+
+| Elemento                         | Antes (S74-2)                         | Depois (S76)                               |
+| -------------------------------- | ------------------------------------- | ------------------------------------------ |
+| Step name                        | `(CRITICAL strict)`                   | `(HIGH strict)`                            |
+| Audit command level              | `--audit-level=critical`              | `--audit-level=high`                       |
+| Temp file                        | `/tmp/audit-critical.json`            | `/tmp/audit-high.json`                     |
+| JSON parse field                 | `m.critical \|\| 0`                   | `(m.high \|\| 0) + (m.critical \|\| 0)`    |
+| Variable                         | `CRITICAL_COUNT`                      | `VULN_COUNT` (sum) + `HIGH_N` + `CRIT_N`   |
+| Summary heading                  | "CRITICAL Production Vulnerabilities" | "HIGH+CRITICAL Production Vulnerabilities" |
+| Step `(HIGH informational)`      | presente (non-blocking)               | **REMOVIDO** (subsumido pelo strict)       |
+| Step `(moderate+ informational)` | presente (non-blocking)               | mantém (não-blocking, útil tracking)       |
+| Step header comment              | "Blocks merge on HIGH or CRITICAL"    | + "(S76 ratchet)" sufixo                   |
+| Comment block body               | S74-2 history                         | S76 rationale + retained CVE log           |
+
+CVE log retained no comment block:
+
+- CVE-2026-41248 Clerk family (S74 pnpm.overrides)
+- CVE-2026-41242 protobufjs (S71 pnpm.overrides)
+- CVE-2026-3304 / 2359 / 3520 multer DoS (S75-1 ~2.1.1)
+- CVE-2026-4800 lodash `_.template` RCE (S75-2 ^4.18.0)
+- GHSA-q4gf-8mx6-v5v3 next RSC DoS (S75-3 ~15.5.15)
+- GHSA-r4q5-vmmm-2653 follow-redirects header leak (S75-4 ~1.16.0)
+
+### Defesa S76
+
+| Cenário                                              | Comportamento                        |
+| ---------------------------------------------------- | ------------------------------------ |
+| PR introduz nova dep com HIGH advisory               | gate bloqueia merge (`exit 1`)       |
+| PR introduz nova dep com CRITICAL advisory           | gate bloqueia merge (`exit 1`)       |
+| GHSA emitido para dep existente (HIGH ou CRITICAL)   | próximo CI run bloqueia até remediar |
+| Dependabot update silently bumps to vulnerable minor | gate bloqueia (lição #19 reforçada)  |
+| Moderate advisory permanece                          | informational only (step 2 reporta)  |
+
+### Files mutados
+
+| Arquivo                    | Operação                                                    |
+| -------------------------- | ----------------------------------------------------------- |
+| `.github/workflows/ci.yml` | step rewrite + remoção HIGH informational + comment refresh |
+| `CHANGELOG.md`             | `[v0.76.0]` entry                                           |
+| `PROJECT_HISTORY.md`       | esta seção                                                  |
+| `CLAUDE.md`                | §2.1 row S76 + footer version bump 7.2 → 7.3                |
+
+Sem mutações em `package.json`, `pnpm-lock.yaml`, código de aplicação,
+testes, schema, env vars. Mudança 100% confined em CI workflow + docs.
+
+### Validação
+
+1. **Sandbox**: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"` → OK
+2. **Diff inspection**: `diff -u ci.yml.head ci.yml.new` → mutações cirúrgicas confirmadas
+3. **CI run S76**: aguardando push (commit pendente)
+4. **Esperado**: install/frontend/backend/security/ci-gate todos `success`,
+   security job step `audit_prod` reporta `clean (high=0, critical=0)`
+   no `$GITHUB_STEP_SUMMARY`.
+
+### Lições reforçadas
+
+- **Lição #18 (doc-vs-reality drift)**: doc updates atomic com mesmo
+  commit runtime. Esta sessão atualiza `CHANGELOG.md`, `PROJECT_HISTORY.md`
+  e `CLAUDE.md` no mesmo commit que muda `ci.yml`.
+- **Lição #20 (pnpm audit JSON authoritative)**: parser preservado.
+  Ratchet só altera nível threshold + soma high+critical; lógica
+  fail-fast em JSON empty + parse error inalterada.
+- **Lição #21 (File Explorer empty-area click)**: aplicar antes de
+  Return em address bar.
+
+### Roadmap pós-S76
+
+- **Categoria E** security gate strict definitivo para HIGH+CRITICAL.
+  Próximo ratchet candidato (defer dedicated session): `--audit-level=moderate`
+  strict, requer enumeração + remediação ~14 moderates residuais.
+- **`@nestjs/core 10 → 11`** (CVE-2026-35515 SSE injection) ainda
+  pendente ADR major-bump dedicated.

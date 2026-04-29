@@ -1,0 +1,44 @@
+chore(s76): ratchet CI security gate CRITICAL -> HIGH+CRITICAL strict
+
+Pre-condition satisfied by S75-4 (33ef1fa): ZERO HIGH advisories
+in production deps. Gate becomes permanent regression guard.
+
+Mutations to .github/workflows/ci.yml (audit_prod step):
+  - Step name: (CRITICAL strict) -> (HIGH strict)
+  - Audit cmd: --audit-level=critical -> --audit-level=high
+  - Temp file: /tmp/audit-critical.json -> /tmp/audit-high.json
+  - JSON parse: m.critical -> (m.high || 0) + (m.critical || 0)
+  - Variable: CRITICAL_COUNT -> VULN_COUNT
+  - Per-severity breakdown HIGH_N + CRIT_N in PR summary
+  - Heading: CRITICAL -> HIGH+CRITICAL Production Vulnerabilities
+  - Removed redundant standalone (HIGH informational) step
+  - Comment block refresh: S76 rationale + retained CVE history
+
+Retained:
+  - continue-on-error: true REMOVED (S74-2)
+  - JSON metadata.vulnerabilities authoritative parser (S74-2)
+  - (moderate+ informational) step (non-blocking tracking)
+
+Doc atomic:
+  - CHANGELOG.md: [v0.76.0] entry
+  - PROJECT_HISTORY.md: S76 section appended
+  - CLAUDE.md: header version 7.2 -> 7.3, S76 row + dedicated S75-4 row
+
+CVE history retained in comment block:
+  - CVE-2026-41248 Clerk family (S74)
+  - CVE-2026-41242 protobufjs (S71)
+  - CVE-2026-3304/2359/3520 multer DoS (S75-1)
+  - CVE-2026-4800 lodash _.template RCE (S75-2)
+  - GHSA-q4gf-8mx6-v5v3 next RSC DoS (S75-3)
+  - GHSA-r4q5-vmmm-2653 follow-redirects header leak (S75-4)
+
+Defesa permanente:
+  - PR with new HIGH dep advisory: blocked
+  - PR with new CRITICAL dep advisory: blocked
+  - GHSA emitted for existing dep: next CI run blocked
+  - Dependabot silent vulnerable bump: blocked (lesson #19)
+
+Sem mutacoes em package.json, pnpm-lock.yaml, runtime code, schema,
+testes, env vars. Mudanca 100% em CI workflow + docs.
+
+Categoria E security gate HIGH+CRITICAL strict definitivo.

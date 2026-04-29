@@ -18,6 +18,49 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.76.0] — S76 — 2026-04-29
+
+### Changed
+
+- **CI security gate ratchet from CRITICAL-only to HIGH+CRITICAL strict.**
+  `.github/workflows/ci.yml` step `audit_prod`:
+  - Renamed `(CRITICAL strict)` → `(HIGH strict)`.
+  - Audit command `--audit-level=critical` → `--audit-level=high`.
+  - JSON parser sums `metadata.vulnerabilities.high + .critical`
+    (variable renamed `CRITICAL_COUNT` → `VULN_COUNT`).
+  - Per-severity breakdown (`HIGH_N`, `CRIT_N`) surfaced in PR summary.
+  - Job summary header: "CRITICAL Production Vulnerabilities" →
+    "HIGH+CRITICAL Production Vulnerabilities".
+  - Removed redundant standalone "(HIGH informational)" step (single
+    strict step now covers both severities, blocking).
+- **Comment block refresh**: documents S76 ratchet rationale, S75 100%
+  HIGH-zero baseline, retained CVE history (Clerk family, protobufjs,
+  multer, lodash, next, follow-redirects).
+
+### Removed
+
+- `audit-critical.json` temp filename (single audit run now writes to
+  `/tmp/audit-high.json`).
+- Standalone `Audit production dependencies (HIGH informational)` step
+  (informational role subsumed by main strict step).
+
+### Notes
+
+- **Pré-condição**: S75-4 zerou todos os HIGH advisories em produção
+  (multer ~2.1.1, lodash ^4.18.0, next ~15.5.15, follow-redirects
+  ~1.16.0). Sem essa baseline, S76 quebraria todo PR. Validado via
+  `pnpm audit --prod --audit-level=high --json` local pós-S75-4.
+- **Defesa permanente**: gate agora bloqueia merge em qualquer
+  HIGH ou CRITICAL novo introduzido via dependency update. Categoria
+  E security gate CRITICAL+HIGH strict definitivo.
+- **`continue-on-error` mantido removido** (S74-2). Strict mode 100%.
+- **Step `(moderate+ informational)`** mantido — útil para tracking
+  de moderate advisories sem bloquear merge.
+- **Próximo ratchet candidato (defer)**: `--audit-level=moderate`
+  strict. Requer enumeração + remediação dos ~14 moderates atuais.
+
+---
+
 ## [v0.75.4] — S75-4 — 2026-04-29
 
 ### Security
