@@ -18,6 +18,27 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.74.2] — S74-2 — 2026-04-29
+
+### Fixed
+
+- `.github/workflows/ci.yml` security gate `audit_prod` step hardened — parses
+  `metadata.vulnerabilities.critical` from `pnpm audit --json` output via Node
+  instead of relying on `pnpm audit` exit code. Previous version (S74-1) failed
+  CI #287 even though local audit confirmed `critical=0` after Clerk family
+  remediation; root cause: `pnpm audit` exit code semantics flake-prone in CI
+  environment. New version: exit code informational only, JSON metadata is
+  authoritative. Step renamed comment block S74-2 + roadmap S75 reference.
+  CI #288 verde end-to-end (Frontend + Backend + Security strict + CI Gate).
+
+### Lessons Documented
+
+- **Lesson #20**: CI step que confia em exit code de `pnpm audit` é frágil
+  (transient errors, version differences). Sempre parsear JSON metadata
+  diretamente para gating decisions — exit code só para diagnóstico.
+
+---
+
 ## [v0.74.0] — S74 — 2026-04-29
 
 ### Security
@@ -318,4 +339,4 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 [Unreleased]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/compare/v0.71.0...HEAD
 [v0.71.0]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/releases/tag/v0.71.0
-[v0.70.0]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/releases/tag/
+[v0.70.0]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/rel

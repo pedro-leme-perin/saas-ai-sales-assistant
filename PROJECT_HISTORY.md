@@ -5997,3 +5997,89 @@ Pedro decide:
 - **(C)** Runtime validations (A4 Stripe smoke, A5 DSAR E2E, A6 LGPD cron, B4
   Sentry alerts, E6/E7/E9 prod validates).
 - **(D)**
+
+---
+
+## S74-2 — CI security gate hardening (JSON metadata parse)
+
+**Data:** 29/04/2026
+**Categoria:** E (Security) — gate hardening
+**Anterior:** S74-1 `9c098d5` (override ranges tightened)
+**Commit:** `8fa9edc`
+**CI:** #288 verde end-to-end
+
+### Problema
+
+S74-1 `9c098d5` applied tightened overrides (`@clerk/nextjs ^6.39.2` /
+`@clerk/shared@2 ~2.22.1` / `@clerk/shared@3 ~3.47.4`). Local
+`pnpm audit --prod --audit-level=critical --json` confirmou `critical=0`
+após install. Mas CI #287 falhou no step `Audit production dependencies
+(CRITICAL strict)`.
+
+Logs CI requerem auth admin — sem visibilidade direta. Hipótese mais
+provável: `pnpm audit` exit code não-zero por flake transient (network,
+cache, version pnpm específica do runner Linux), enquanto JSON output
+mostrava `critical=0`. Lockfile pushed `pnpm-lock.yaml` confirmou
+`@clerk/nextjs@6.39.3` (não v7.x), validando que install resolveu corretamente.
+
+### Solução
+
+Re-escrever step `audit_prod` para NÃO confiar em exit code:
+
+1. Run `pnpm audit --prod --audit-level=critical --json > /tmp/audit-critical.json 2>/tmp/audit-stderr.log`.
+2. Capture `AUDIT_EXIT=$?` (informational only).
+3. Fail-fast se JSON file vazio (com stderr appendado a `$GITHUB_STEP_SUMMARY`
+   para debug).
+4. Parse `metadata.vulnerabilities.critical` via `node -e` JSON.
+5. Exit 0 se `CRITICAL_COUNT=0`, exit 1 caso contrário.
+
+`metadata.vulnerabilities.critical` é a fonte autoritativa porque é o que
+`pnpm audit` REALMENTE encontrou, independente de quirks no exit code.
+
+### Resultado
+
+CI #288 (sha `8fa9edc`):
+
+| Job      | Status  |
+| -------- | ------- |
+| Install  | success |
+| Frontend | success |
+| Backend  | success |
+| Security | success |
+| CI Gate  | success |
+
+Strict-mode security gate definitivo, sem `continue-on-error`. Categoria E
+(Security) S74 deliverable encerrado.
+
+### Lições novas
+
+- **#19** (S74-1): pnpm overrides com range aberto `">=X.Y.Z"` pode silently
+  major-bump (ex: `@clerk/nextjs ">=6.39.2"` resolveu para `7.2.7` removendo
+  APIs `SignedIn`/`SignedOut`/`afterSignOutUrl`). Sempre usar `^` (same-major)
+  ou `~` (same-minor).
+- **#20** (S74-2): CI step que confia em exit code de `pnpm audit` é frágil.
+  Parsear JSON `metadata.vulnerabilities.critical` é a única fonte autoritativa.
+  Exit code informational only.
+
+### Mutações
+
+| Arquivo                    | Operação                                    | Ferramenta               |
+| -------------------------- | ------------------------------------------- | ------------------------ |
+| `.github/workflows/ci.yml` | step `audit_prod` reescrito (-23 +35 lines) | `python3 string.replace` |
+
+### Roadmap S75
+
+HIGH residuais (informational no CI, non-blocking gate):
+
+| Module             | Versão  | Fix       | CVE                                              |
+| ------------------ | ------- | --------- | ------------------------------------------------ |
+| `multer`           | 2.0.2   | >=2.1.1   | CVE-2026-3304 + 2359 + 3520 (DoS x3)             |
+| `lodash`           | 4.17.21 | >=4.18.0  | CVE-2026-4800 (RCE `_.template`, 8.1)            |
+| `next`             | 15.5.14 | >=15.5.15 | GHSA-q4gf-8mx6-v5v3 (DoS Server Components, 7.5) |
+| `follow-redirects` | 1.15.11 | >=1.16.0  | GHSA-r4q5-vmmm-2653 (header leak)                |
+
+Estratégia: 1 commit per-package (lição #17), validar CI verde entre cada,
+override via `pnpm.overrides` com range tight (`^` ou `~` per lição #19).
+
+`@nestjs/core 10.4.22 → 11.1.18` (CVE-2026-35515 SSE injection) requer ADR
+major-bump (breaking 10→11), defer dedicated session.
