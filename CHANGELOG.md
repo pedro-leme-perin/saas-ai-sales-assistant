@@ -18,6 +18,46 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.77.0] — S77 (commit 1) — 2026-04-29
+
+### Added
+
+- **Email service unit-test amplification (D1 coverage ratchet — failure-mode
+  oriented).** `apps/backend/test/unit/email.service.spec.ts` reescrita de
+  212 → 682 linhas, 10 → 58 testes (+48). Cobertura expandida de
+  `sendInviteEmail` (único método testado) para 11 métodos públicos:
+  `sendInviteEmail`, `sendDeletionRequestEmail`, `sendDunningEmail`
+  (3 stages D1/D3/D7), `sendAccountDeletedEmail`, `sendCoachingReportEmail`,
+  `sendUsageThresholdEmail` (3 thresholds 80/95/100 → 3 cores),
+  `sendNotificationDigestEmail`, `sendCsatInvite`, `sendScheduledExportEmail`,
+  `sendDsarReadyEmail`, `sendDsarRejectedEmail` + circuit breaker behavior
+  (3 consecutive failures → fast-fail) + `getCircuitBreakerStatus` +
+  HTML escaping (observable via CSAT name com `<script>alert("XSS&'fail")`)
+  - currency formatting (BRL Intl + fallback inválida).
+- **Failure-mode coverage**: missing API key (returns success:false ou void
+  early conforme assinatura), fetch network error, Resend non-OK 4xx/5xx,
+  circuit-open fast-fail (4ª chamada não atinge fetch após 3 falhas
+  consecutivas), empty recipients (sendNotificationDigest +
+  sendScheduledExport early return), null/undefined recipientName fallback,
+  hostedInvoiceUrl null → fallback dashboard URL, currency string inválida
+  → Intl error → fallback `XYZ ###.##`.
+
+### Notes
+
+- **D1 plan**: 4-6 commits incrementais visando ratchet floor §9 80%.
+  Este commit (1/4-6) NÃO altera `coverageThreshold` — push primeiro,
+  observar CI measurement, ratchet em commits subsequentes (S66-A
+  pattern + lição #9 headroom defensivo).
+- **Próximas amplificações S77-B (commit 2)**: whatsapp.service
+  (296→500+L spec) + calls.service (334→500+L) + contacts.service
+  (334→500+L). Ratio src/spec atual 47% / 57% / 79% respectivamente.
+- **Working tree restoration** (lição #5): mesmo commit re-adiciona
+  `scripts/setup-sentry-alerts.sh`, `scripts/setup-staging.sh`,
+  `tsconfig.json` (SHA-256 == HEAD confirmado, removidos do índice
+  por Windows-side process pós-S76 push, lição #5 13ª ocorrência).
+
+---
+
 ## [v0.76.0] — S76 — 2026-04-29
 
 ### Changed

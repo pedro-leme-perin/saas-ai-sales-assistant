@@ -6431,3 +6431,72 @@ testes, schema, env vars. Mudança 100% confined em CI workflow + docs.
   strict, requer enumeração + remediação ~14 moderates residuais.
 - **`@nestjs/core 10 → 11`** (CVE-2026-35515 SSE injection) ainda
   pendente ADR major-bump dedicated.
+
+---
+
+## S77 (commit 1) — Coverage ratchet failure-mode (D1 commit 1: email.service +48 tests)
+
+**Data:** 29/04/2026
+**Foco:** Roadmap §9 CLAUDE.md target 80% statements/lines coverage. Picks por spec/src ratio (S77-1 audit) — email.service identificada como maior gap (212L spec / 1156L src; 10 testes para 14+ métodos públicos = 18.3% ratio).
+**Plan**: 4-6 commits incrementais, ratchet floor após CI measurement (S66-A pattern). Este commit NÃO altera `coverageThreshold` — push primeiro, observar measurement no PR summary.
+
+### Objetivo
+
+Amplificar `apps/backend/test/unit/email.service.spec.ts` para cobrir 11 métodos públicos + private helpers via observable behavior, com ênfase em failure modes (missing API key, network error, non-OK responses, circuit-open fast-fail).
+
+### Picks ranqueados (S77-1 audit por spec/src ratio)
+
+| Service          | src LoC | spec LoC | Ratio           | Tests baseline |
+| ---------------- | ------- | -------- | --------------- | -------------- |
+| email.service    | 1156    | 212      | 18.3% (CRÍTICO) | 10             |
+| whatsapp.service | 636     | 297      | 46.7%           | 15             |
+| calls.service    | 584     | 334      | 57.2%           | 18             |
+| contacts.service | 424     | 334      | 78.8%           | 15             |
+
+### Mutação `apps/backend/test/unit/email.service.spec.ts`
+
+- **Antes**: 212 linhas, 10 testes em 4 describes. Cobria apenas `sendInviteEmail` happy + 4 failure modes.
+- **Depois**: 682 linhas, 58 testes em 14 describes. Cobre 11 métodos públicos + circuit breaker + HTML escape + currency.
+- **Padrão**: `Test.createTestingModule` com `ConfigService` mockado por chave; helper `makeService(overrides)` para reconfigurar API key per-test; helper `buildOk(id)` / `buildErr(status, body)` para Resend response shapes.
+
+### Failure modes cobertos (delta vs baseline)
+
+1. **Missing API key**: 11 testes (1 por método público, todos retornando success:false ou void early sem chamar fetch).
+2. **Network error (fetch reject)**: 9 testes (Error obj + non-Error string fallback).
+3. **Non-OK Resend response (4xx/5xx)**: 4 testes.
+4. **Circuit breaker fast-fail**: 1 teste (3 falhas → 4ª chamada não atinge fetch após `mockClear`).
+5. **Empty recipients (sendNotificationDigest + sendScheduledExport)**: 2 testes (early return, no fetch).
+6. **Null/undefined recipientName fallback**: 4 testes (CSAT, DSAR ready, DSAR rejected).
+7. **Currency edge cases**: 2 testes (BRL Intl + currency inválido `XYZ` fallback).
+8. **hostedInvoiceUrl null fallback**: 1 teste (dunning D3 → dashboard URL).
+9. **HTML escaping XSS**: 1 teste (CSAT recipientName com `<script>alert("XSS&'fail")`).
+10. **Dunning urgency block**: 1 teste (D3+D7 contém `background:#fef2f2`, D1 não).
+11. **Threshold color mapping**: 3 testes (80→`#ca8a04`, 95→`#ea580c`, 100→`#dc2626`).
+12. **Stage-specific subjects**: 1 teste it.each (D1/D3/D7 distintos).
+13. **CSAT rethrow vs Digest swallow**: 2 testes alinhados ao runtime real.
+14. **ScheduledExport rethrow**: 1 teste (corrigido pós-leitura runtime — sendScheduledExportEmail RETHROWS, não swallows como digest).
+
+### Validação
+
+- `wc -l` = 682, `grep -cE "^\s\*it[\.\(]" = 58.
+- Imports validados via reuso do mesmo padrão de `billing.service.spec.ts` baseline.
+- `it.each` Jest 29.7 supported.
+- Working tree restoration: `scripts/setup-sentry-alerts.sh`, `scripts/setup-staging.sh`, `tsconfig.json` re-added (SHA-256 == HEAD confirmado, removidos do índice pós-S76 por Windows-side process — lição #5 13ª ocorrência).
+
+### Roadmap S77 status
+
+- **commit 1 (este)**: email.service amplificada — pendente CI green-gate.
+- **commit 2 candidato**: whatsapp.service + calls.service + contacts.service amplificações.
+- **commit 3 candidato**: medium services (analytics, summaries, sla-escalation).
+- **commit 4 final**: ratchet floor 68 → 80 (statements/lines) + 65 → 80 (functions) + 58 → 70 (branches) **OU** fechar com plano residual se CI measurement não suportar 80%.
+
+### Lições reforçadas
+
+- **Lição #1 (Edit tool unsafe)**: spec escrita via heredoc `cat << 'TSEOF'` em /tmp + `cp` para Windows mount (sandbox CAN write Windows mount, lição #4).
+- **Lição #2 (.git/index.lock persistente)**: cleanup delegado ao PS1 batch (sandbox `rm -f` retorna `Operation not permitted` em Windows mount).
+- **Lição #5 (working tree corruption recorrente)**: SHA-256 check confirmou content match HEAD; `git add` no PS1 reverte estado de "deleted from index" para clean.
+
+### Decisão deferida
+
+- **Ratchet `coverageThreshold` para 80%**: deferido para commits 2-4 conforme CI measurement.
+- **Frontend coverage**: ainda não auditado (frontend tem testes Playwright E2E mas zero unit tests Jest). Defer dedicated session.

@@ -1,0 +1,68 @@
+test(s77-a): amplify email.service.spec failure-mode coverage 10->58 tests
+
+Coverage ratchet commit 1/N (D1 §9 target 80%).
+
+Picks ranqueados S77-1 audit por spec/src ratio:
+- email.service: 1156L src / 212L spec = 18.3% (CRITICO)
+- whatsapp.service: 636L / 297L = 46.7% (commit 2)
+- calls.service: 584L / 334L = 57.2% (commit 2)
+- contacts.service: 424L / 334L = 78.8% (commit 2)
+
+apps/backend/test/unit/email.service.spec.ts:
+- 212 -> 682 linhas
+- 10 -> 58 testes (+48)
+- 4 -> 14 describes
+
+11 metodos publicos cobertos (vs 1 baseline):
+sendInviteEmail / sendDeletionRequestEmail / sendDunningEmail (3 stages
+D1/D3/D7) / sendAccountDeletedEmail / sendCoachingReportEmail /
+sendUsageThresholdEmail (3 thresholds 80/95/100 -> 3 cores) /
+sendNotificationDigestEmail / sendCsatInvite / sendScheduledExportEmail /
+sendDsarReadyEmail / sendDsarRejectedEmail
+
+Failure modes cobertos:
+- Missing API key (11 testes, todos retornando success:false ou void early
+  sem chamar fetch)
+- Network error fetch reject (9 testes, Error obj + non-Error string)
+- Non-OK Resend response 4xx/5xx (4 testes)
+- Circuit breaker fast-fail (1 teste, 4a chamada nao atinge fetch apos 3 falhas)
+- Empty recipients early return (2 testes, sendDigest + sendScheduledExport)
+- Null/undefined recipientName fallback (4 testes, CSAT/DSAR x2)
+- hostedInvoiceUrl null fallback dashboard URL (1 teste)
+- HTML escaping XSS via CSAT name <script>alert("XSS&'fail")</script> (1 teste)
+- Dunning urgency block D3+D7 only (1 teste)
+- Threshold color mapping yellow/orange/red (3 testes)
+- CSAT rethrow vs Digest swallow alinhados runtime (2 testes)
+- ScheduledExport rethrow (corrigido pos-leitura runtime, throws on err)
+- Currency format BRL Intl + fallback XYZ ###.## (2 testes)
+
+Pattern:
+- makeService(overrides) helper para reconfigurar API key per-test
+- buildOk(id) / buildErr(status, body) helpers para Resend response shapes
+- it.each(['D1','D3','D7'] as const) para stage-parametrized tests
+- mockClear() entre rodadas para circuit breaker isolation
+
+NAO altera coverageThreshold. Push primeiro, observar CI measurement,
+ratchet floor em commits subsequentes (S66-A pattern + licao #9 headroom
+defensivo). Floor atual: 68/58/65/68 stmt/br/fn/lines (S66-C ratchet).
+Real medido CI #255: 73.09/62.31/71.45/73.60.
+
+Working tree restoration (licao #5 13a ocorrencia):
+- scripts/setup-sentry-alerts.sh re-add (SHA-256 == HEAD)
+- scripts/setup-staging.sh re-add (SHA-256 == HEAD)
+- tsconfig.json re-add (SHA-256 == HEAD)
+Removidos do indice pos-S76 push por Windows-side process; content match
+HEAD confirmado pre-add.
+
+Doc atomic (licao #18):
+- CHANGELOG.md: v0.77.0 entry
+- PROJECT_HISTORY.md: S77 commit 1 section (~120 linhas)
+- CLAUDE.md: header 7.3->7.4, last update line, table row + S77 commit 1
+
+Roadmap S77:
+- commit 2 (proximo): whatsapp + calls + contacts amplificacoes (~+100 testes)
+- commit 3: medium services (analytics/summaries/sla-escalation, ~+80 testes)
+- commit 4 final: ratchet 68->80 stmt/lines + 65->80 fn + 58->70 br
+  OU plano residual se CI measurement nao suportar 80%
+
+Anterior: S76 767b94a
