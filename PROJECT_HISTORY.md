@@ -6076,4 +6076,10 @@ HIGH residuais (informational no CI, non-blocking gate):
 | `multer`           | 2.0.2   | >=2.1.1   | CVE-2026-3304 + 2359 + 3520 (DoS x3)             |
 | `lodash`           | 4.17.21 | >=4.18.0  | CVE-2026-4800 (RCE `_.template`, 8.1)            |
 | `next`             | 15.5.14 | >=15.5.15 | GHSA-q4gf-8mx6-v5v3 (DoS Server Components, 7.5) |
-| `follow-redirects` | 1.15.11 | >=1.1     |
+| `follow-redirects` | 1.15.11 | >=1.16.0  | GHSA-r4q5-vmmm-2653 (header leak)                |
+
+Estratégia: 1 commit per-package (lição #17), validar CI verde entre cada,
+override via `pnpm.overrides` com range tight (`^` ou `~` per lição #19).
+
+`@nestjs/core 10.4.22 → 11.1.18` (CVE-2026-35515 SSE injection) requer ADR
+major-bump (breaking 10→11), defer dedicated session.
