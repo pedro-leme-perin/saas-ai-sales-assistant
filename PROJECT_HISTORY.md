@@ -5550,3 +5550,140 @@ S71 ENCERRADA. Anterior: S70-A2 `abe0f6e`.
 | **B5-deps** (S71 carryover) | GH Actions secrets DATABASE_URL_BACKUP_RO + R2_BACKUP_ACCESS_KEY_ID/SECRET | Pedro                    | 10min                  |
 | AI-LR-1                     | Axiom datasets PII strip schema                                            | Cowork                   | 1h                     |
 | AI-LR-4                     | Sentry → Slack routing (#incidents-prod)                                   | Pedro                    | 30min                  |
+
+---
+
+## S72 — Doc hygiene + F5 README + F3 release cadence (Cowork-autônomo)
+
+**Data:** 28/04/2026
+**Trigger:** Pedro pediu continuação pós-S71-1C verde (CI #282). Foco em doc hygiene + 2 deliverables F (process docs).
+**Tipo:** Doc-only. Zero código aplicação. 3 deliverables.
+
+### Contexto
+
+S71 fechou com CI verde via advisory mode (`continue-on-error: true` no CRITICAL audit step). Mas CHANGELOG.md S71 entry foi escrito ANTES do revert S71-1C — afirmava STRICT mode. Inconsistência viola regra "docs are source of truth". S72 corrige + adiciona deliverables F3 e F5 (carryover do roadmap S70 Categoria F).
+
+### Deliverables (3)
+
+#### 1. Doc hygiene corrections (S72-1)
+
+**CHANGELOG.md** S71 entry "Changed > ci.yml" antes claimed:
+
+> S71-1: Security gate volta a STRICT mode... sem `continue-on-error`.
+
+Realidade pós-S71-1C: advisory mode. Texto reescrito + 2 entries novas adicionadas:
+
+- **v0.71.1 — S71-1B (revertida)**: documenta tentativa aggressive 14 dep overrides + revert em S71-1C.
+- **v0.71.2 — S71-1C**: documenta retorno ao advisory mode com trade-off claro.
+
+**branching-strategy.md** §6 CI gating row security: atualizado de `pnpm audit --prod --audit-level=high` para `--audit-level=critical` (advisory mode). Asterisco + nota explicativa sobre `continue-on-error: true` até S72 enumeration.
+
+**headers-audit.md** §6 Action items: AI-3 (Sentry CSP report-to), AI-4 (Backend CSP path-aware), AI-5 (Restringir wss connect-src) marcados ✓ Done com referência ao commit S71 `ea5ba01`.
+
+**secrets-rotation.md** §2.4 NOVO: Backup workflow secrets (`DATABASE_URL_BACKUP_RO` + `R2_BACKUP_ACCESS_KEY_ID/SECRET`) + setup pendente Pedro (Neon backup_ro role + R2 token + bucket create). S71-5 carryover documentado.
+
+#### 2. F5 README.md público (S72-2)
+
+Overhaul completo do README S20-era (Mar 2026, era SalesAI). Novo README profissional ~10KB com:
+
+- **Header:** TheIAdvisor + 5 badges (CI status, License, Production, Node, pnpm) + tagline + status atual.
+- **Highlights** seção: real-time call assistance, WhatsApp native, multi-tenant ACID, resilient (7 circuit breakers), LGPD, observable, continuous deployment.
+- **Tech stack** tabela 18 rows.
+- **Architecture** diagram + Inviolable rules.
+- **Repository layout** monorepo pnpm workspaces (apps/backend + apps/frontend + packages/shared + docs/ + .github/ + k6/ + scripts/).
+- **Getting started** (prerequisites + clone + env + DB + dev).
+- **Testing** com coverage gates atual S66-C ratchet.
+- **CI/CD** tabela jobs + deploy environments + branch protection.
+- **Security & compliance** (OWASP headers + PII strip + webhook timing-safe + secrets validation + Dependabot + pre-commit hooks + LGPD).
+- **Operations** (links runbooks + nightly backup + 4 SLOs).
+- **Schema & domain** (43 models reference).
+- **Documentation** index 10 docs com audience + content.
+- **Conventional Commits** quick reference.
+- **License** Proprietary clear statement + commercial inquiries.
+- **Status & contact** (Pedro + email + domain).
+
+Antes README era datado (mencionava "9 modules" — atualmente 47, "12 schema models" — atualmente 43, paths legacy `backend-enterprise/` em vez de `apps/backend/`).
+
+#### 3. F3 docs/process/release-cadence.md (S72-3)
+
+Novo documento ~9KB com 13 seções:
+
+1. **Modelo: Continuous Deployment** — premissa + justificativa (lead time + batch size + inventory).
+2. **Cadência por tipo de mudança** — tabela 7 tipos (bug fix <30min, feature <1h, schema migration <2h baixo tráfego, refactor <1h, hotfix SEV1/2 <30min ack + <2h fix, dependabot <24h, major framework no-target).
+3. **Janela de baixo tráfego** — 02:00-05:00 UTC + two-phase deploy para schema breaking.
+4. **Versionamento via tags** — pre-launch `vS<N>.<patch>` espelhando session number → SemVer puro pós primeira venda. Roadmap semantic-release S75+.
+5. **CHANGELOG discipline** — sections obrigatórias (Added/Changed/Deprecated/Removed/Fixed/Security/Reverted), entry per session pre-launch, auto-changelog roadmap D6.
+6. **Vendor maintenance windows** — daily check + pause deploys durante Stripe/Neon maintenance.
+7. **Rollback strategy** — 5 tiers (Vercel <1min → Railway <5min → circuit breaker manual → feature flag off → hotfix forward).
+8. **Deploy notifications** — auto Sentry deploy marker + alert routing (Slack roadmap S72).
+9. **Métricas DORA** — lead time <30min, deploy ≥1/dia, CFR <15%, MTTR <30min SEV1. Tracking informal hoje, dashboard automated S75+.
+10. **Release checklist (pré-merge)** — 9 items espelha `CLAUDE.md` §16.
+11. **Single-engineer caveats** — 4 risk mitigations + S80+ roadmap (distinct reviewer, on-call rotation, pair on schema, onboarding doc).
+12. **Maintenance windows comunicação** — pré-anunciada (status page 24h + email + in-app banner) vs não-anunciada (dependabot, docs-only).
+13. **Mudanças deste documento** — change log da própria doc.
+
+### Mutações em arquivos (S72)
+
+```
+CHANGELOG.md                                       (M — corrigido S71 ci.yml entry + novas v0.71.1/v0.71.2)
+CLAUDE.md                                          (M — header v6.9 + S72 row)
+PROJECT_HISTORY.md                                 (M — esta seção)
+README.md                                          (M — overhaul completo S20 → S72)
+docs/operations/security/headers-audit.md          (M — AI-3/4/5 marcados ✓ Done)
+docs/operations/security/secrets-rotation.md       (M +§2.4 backup secrets)
+docs/process/branching-strategy.md                 (M — §6 row security)
+docs/process/release-cadence.md                    (NEW ~9KB)
+```
+
+### Decisões S72
+
+| #   | Decisão                                        | Justificativa                                                                                                                 |
+| --- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Doc hygiene como deliverable formal (não TODO) | Inconsistência docs-vs-reality erode confiança no `CLAUDE.md`+`PROJECT_HISTORY.md` como source of truth. Bug fix obrigatório. |
+| 2   | README.md overhaul (vs incremental edit)       | S20 era diverged-too-much; rewrite menor risco que patches incrementais com strings staleness.                                |
+| 3   | Continuous Deployment como cadência declarada  | Alinha com Trunk-Based Development já adotado (`branching-strategy.md`); reduce ambiguidade pra contribuidores futuros.       |
+| 4   | DORA metrics declarados (não medidos ainda)    | Targets explícitos > silêncio. S75+ dashboard automated cobre tracking.                                                       |
+| 5   | Janela 02:00-05:00 UTC para schema migration   | Conservador pre-launch (~5% tráfego); revisar pós Latam/EU/US peak overlap se traffic crescer.                                |
+| 6   | Two-phase deploy para schema breaking          | _Continuous Delivery_ Humble & Farley standard pattern; protege contra rollback irreversível.                                 |
+
+### Lições aprendidas (S72)
+
+1. **Doc-vs-reality drift** acontece quando docs são escritos antes de fixes posteriores landed. Mitigation: review CHANGELOG/runbooks pós-revert (S71-1C) como part of revert PR, não como follow-up sessão.
+2. **Prettier reformata tabelas markdown** com padding consistente. String-replace em PR review precisa post-prettier text. S72-1 first attempt falhou em headers-audit.md AI-3/4/5 rows pelo padding diferente; second attempt com prettier-aligned strings funcionou.
+3. **README.md público vs CLAUDE.md privado** — README é GitHub-facing (visitors/contributors/recruiters); CLAUDE.md é working state (Claude/Pedro context). Audiences distintos requerem voice + depth distintos. README enxuto + landing-style; CLAUDE.md exhaustive + ops-focused.
+
+### Status pós-S72
+
+| Item                                                                                    | Status                                                              |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 3 deliverables S72 (doc hygiene + README + release cadence)                             | ✓ commit S72                                                        |
+| CHANGELOG + branching-strategy + headers-audit + secrets-rotation alinhados com runtime | ✓                                                                   |
+| README público profissional GitHub-ready                                                | ✓                                                                   |
+| Release cadence formalizada (Continuous Deployment)                                     | ✓                                                                   |
+| Coverage thresholds                                                                     | mantidos S66-C (68/58/65/68 + 75/65/75/75)                          |
+| CI security gate                                                                        | mantido advisory mode (S71-1C) — defer S72+ enumeration Pedro local |
+
+S72 ENCERRADA. Anterior: S71-1C `2905889`.
+
+### Pendências futuras (carryover S72)
+
+| #                         | Item                                                                | Owner                    | Esforço                |
+| ------------------------- | ------------------------------------------------------------------- | ------------------------ | ---------------------- |
+| #33 S68-E                 | Amplify specs failure-mode (target 80%)                             | Sandbox                  | 3-4h                   |
+| #34 S68-F                 | Working tree corruption root cause                                  | Pedro Sysinternals       | 30min                  |
+| #36 S68-H                 | GitHub fine-grained token confirm                                   | Pedro screenshot         | 1min                   |
+| AI-1 (E5)                 | HSTS preload submission hstspreload.org                             | Pedro                    | 1min                   |
+| AI-2 (E5)                 | CSP enforce after 1w clean reports                                  | Pedro                    | 5min config            |
+| AI-7 (E5)                 | Nonce-based CSP (eliminate unsafe-inline)                           | Cowork                   | 4-8h refactor          |
+| Bundle deeper             | 2.90MB → ≤2MB                                                       | Pedro `pnpm run analyze` | 1-2h                   |
+| Pre-push hook (D5)        | type-check + test                                                   | Sandbox                  | 1h                     |
+| Auto-changelog (D6)       | conventional-changelog-cli                                          | Sandbox                  | ~1h                    |
+| Backend ESLint v8→v9 (D7) | flat config migration                                               | Sandbox                  | ~2h                    |
+| Staging provisioning      | Railway+Neon+Upstash+R2                                             | Pedro 1h interativo      | bloqueia k6            |
+| WhatsApp Business live    | Meta Business Manager                                               | Pedro+MEI                | bloqueado externamente |
+| S71-1C carryover Pedro    | `pnpm audit --prod --audit-level=critical --json` local enumeration | Pedro                    | 30min                  |
+| S71-1C carryover Pedro    | Surgical override per-CVE + remove `continue-on-error`              | Pedro+Cowork             | 1-2h                   |
+| B5-deps Pedro             | Cloudflare R2 bucket `theiadvisor-backups` create                   | Pedro                    | 5min                   |
+| B5-deps Pedro             | GH Actions secrets `DATABASE_URL_BACKUP_RO` + `R2_BACKUP_*`         | Pedro                    | 10min                  |
+| AI-LR-1                   | Axiom datasets PII strip schema                                     | Cowork                   | 1h                     |
+| AI-LR-4                   | Sentry → Slack routing (#incidents-prod)                            | Pedro                    | 30min                  |

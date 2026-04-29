@@ -91,6 +91,27 @@
 | `SENTRY_PROJECT`                    | Sentry  | imutável              |
 | `SENTRY_AUTH_TOKEN`                 | Sentry  | 180 dias              |
 
+### 2.4 Backup workflow secrets (S71-5 carryover)
+
+| Variável                      | Owner vendor | Cadência    | Severidade |
+| ----------------------------- | ------------ | ----------- | ---------- |
+| `DATABASE_URL_BACKUP_RO`      | Neon         | sob demanda | High       |
+| `R2_BACKUP_ACCESS_KEY_ID`     | Cloudflare   | 180 dias    | High       |
+| `R2_BACKUP_SECRET_ACCESS_KEY` | Cloudflare   | 180 dias    | Critical   |
+
+Read-only Postgres role separated from runtime `DATABASE_URL` (least privilege —
+backup workflow só precisa SELECT). R2 backup credentials separadas do prod
+upload bucket (compromise isolation).
+
+**Setup pendente Pedro:**
+
+1. Neon Console → SQL editor: `CREATE ROLE backup_ro WITH LOGIN PASSWORD '...';
+GRANT pg_read_all_data TO backup_ro;`. Connection string em
+   `DATABASE_URL_BACKUP_RO` GH Actions secret.
+2. Cloudflare R2 → Manage R2 API Tokens → Create token scoped a
+   `theiadvisor-backups` bucket only com `Object Read & Write` permissions.
+3. R2 bucket `theiadvisor-backups` create se não existe.
+
 ---
 
 ## 3. Procedimento por categoria

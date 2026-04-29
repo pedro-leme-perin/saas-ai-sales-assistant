@@ -147,11 +147,11 @@ Convention atual: `vS<N>.<patch>` espelha session number (S69 → v0.69.0). Migr
 
 PR não merge sem CI verde. Status checks compõem `CI Gate`:
 
-| Job              | Bloqueia merge? | Detalhes                                                                                 |
-| ---------------- | --------------- | ---------------------------------------------------------------------------------------- |
-| `frontend`       | sim             | lint + type-check + build + bundle (3MB hard) + E2E Playwright                           |
-| `backend`        | sim             | lint + type-check + build + unit tests +coverage thresholds + integration tests Postgres |
-| `security` (S70) | sim             | `pnpm audit --prod --audit-level=high`                                                   |
+| Job               | Bloqueia merge? | Detalhes                                                                                                                                                         |
+| ----------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend`        | sim             | lint + type-check + build + bundle (3MB hard) + E2E Playwright                                                                                                   |
+| `backend`         | sim             | lint + type-check + build + unit tests +coverage thresholds + integration tests Postgres                                                                         |
+| `security` (S70+) | sim\*           | `pnpm audit --prod --audit-level=critical` advisory mode (S71-1C). \*Bloqueia Backend/Frontend, mas CRITICAL step `continue-on-error: true` até S72 enumeration. |
 
 CI falha = PR bloqueado. **Sem skip via flag.** Hotfixes urgentes ainda passam por CI; bypass requer comando manual `gh pr merge --admin` documentado em postmortem.
 

@@ -1,0 +1,46 @@
+chore(s72): doc hygiene + F5 README + F3 release cadence
+
+3 deliverables doc-only (Cowork-autonomo):
+
+S72-1: Doc hygiene corrections post S71-1C revert
+  - CHANGELOG.md S71 entry: STRICT mode -> advisory mode (corrige claim incorreto)
+  - CHANGELOG.md +v0.71.1 (S71-1B revert) +v0.71.2 (S71-1C) entries
+  - branching-strategy.md S6 row: --audit-level=high -> --audit-level=critical advisory
+  - headers-audit.md AI-3, AI-4, AI-5 marcados Done (S71)
+  - secrets-rotation.md S2.4 NEW: backup workflow secrets
+    (DATABASE_URL_BACKUP_RO, R2_BACKUP_ACCESS_KEY_ID/SECRET) + setup pendente Pedro
+
+S72-2: F5 README.md publico (overhaul completo S20 -> S72)
+  - Header: TheIAdvisor + 5 badges + tagline + status atual
+  - Highlights: real-time calls, WhatsApp, multi-tenant, resilient, LGPD, observable, CD
+  - Tech stack 18 rows
+  - Architecture diagram + Inviolable rules
+  - Repository layout monorepo pnpm workspaces
+  - Getting started + Testing + CI/CD + Security/compliance + Operations
+  - Schema 43 models reference + 13 ADRs index
+  - Documentation index + Conventional Commits + License + Contact
+  - ~10KB profissional GitHub-ready
+
+S72-3: F3 docs/process/release-cadence.md
+  - Modelo Continuous Deployment com justificativa
+  - Cadencia por tipo (bug fix <30min, feature <1h, schema <2h, hotfix <30min ack)
+  - Janela baixo trafego 02:00-05:00 UTC + two-phase deploy schema breaking
+  - Versionamento vS<N>.<patch> -> SemVer pos primeira venda
+  - CHANGELOG discipline (Keep a Changelog 1.1.0)
+  - Vendor maintenance windows + rollback strategy 5-tier
+  - Deploy notifications + DORA metrics targets
+  - Release checklist pre-merge (9 items) + single-engineer caveats
+  - Maintenance windows comm pre-anunciada vs nao
+  - ~9KB
+
+Mutacoes:
+  CHANGELOG.md                                       (M)
+  CLAUDE.md                                          (M v6.9 + S72 row)
+  PROJECT_HISTORY.md                                 (M S72 section)
+  README.md                                          (M overhaul)
+  docs/operations/security/headers-audit.md          (M AI-3/4/5 done)
+  docs/operations/security/secrets-rotation.md       (M +S2.4)
+  docs/process/branching-strategy.md                 (M S6 row)
+  docs/process/release-cadence.md                    (NEW)
+
+Anterior: S71-1C 2905889

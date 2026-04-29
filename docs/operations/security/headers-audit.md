@@ -190,16 +190,16 @@ Configurar `report-to` group + endpoint Sentry:
 
 ## 6. Action items
 
-| ID   | Action                                                                                                     | Owner  | Due | Severity | Status |
-| ---- | ---------------------------------------------------------------------------------------------------------- | ------ | --- | -------- | ------ |
-| AI-1 | Submeter HSTS preload em hstspreload.org                                                                   | Pedro  | S71 | Medium   | Open   |
-| AI-2 | Migrar CSP de Report-Only → enforce em prod (set `CSP_ENFORCE=true` na Vercel após 1 semana clean reports) | Pedro  | S72 | High     | Open   |
-| AI-3 | Configurar `report-to` Sentry CSP endpoint                                                                 | Cowork | S72 | High     | Open   |
-| AI-4 | Backend CSP path-aware (Swagger UI exception)                                                              | Cowork | S73 | Medium   | Open   |
-| AI-5 | Restringir `connect-src wss:` para domínios específicos                                                    | Cowork | S71 | Medium   | Open   |
-| AI-6 | Eliminate `'unsafe-eval'` (validar Stripe + recharts)                                                      | Cowork | S75 | High     | Open   |
-| AI-7 | Migrar para nonce-based CSP (eliminar `'unsafe-inline'` script-src)                                        | Cowork | S80 | High     | Defer  |
-| AI-8 | Workflow CI security headers scan weekly                                                                   | Cowork | S71 | Low      | Open   |
+| ID   | Action                                                                                                     | Owner  | Due | Severity | Status                 |
+| ---- | ---------------------------------------------------------------------------------------------------------- | ------ | --- | -------- | ---------------------- |
+| AI-1 | Submeter HSTS preload em hstspreload.org                                                                   | Pedro  | S71 | Medium   | Open                   |
+| AI-2 | Migrar CSP de Report-Only → enforce em prod (set `CSP_ENFORCE=true` na Vercel após 1 semana clean reports) | Pedro  | S72 | High     | Open                   |
+| AI-3 | Configurar `report-to` Sentry CSP endpoint                                                                 | Cowork | S71 | High     | ✓ Done (S71-2 ea5ba01) |
+| AI-4 | Backend CSP path-aware (Swagger UI exception)                                                              | Cowork | S71 | Medium   | ✓ Done (S71-3 ea5ba01) |
+| AI-5 | Restringir `connect-src wss:` para domínios específicos                                                    | Cowork | S71 | Medium   | ✓ Done (S71-4 ea5ba01) |
+| AI-6 | Eliminate `'unsafe-eval'` (validar Stripe + recharts)                                                      | Cowork | S75 | High     | Open                   |
+| AI-7 | Migrar para nonce-based CSP (eliminar `'unsafe-inline'` script-src)                                        | Cowork | S80 | High     | Defer                  |
+| AI-8 | Workflow CI security headers scan weekly                                                                   | Cowork | S71 | Low      | Open                   |
 
 ---
 
