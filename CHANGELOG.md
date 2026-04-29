@@ -18,6 +18,31 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.75.2] — S75-2 — 2026-04-29
+
+### Security
+
+- **CVE-2026-4800 mitigated** — `lodash@4.17.21` has a high-severity RCE
+  via prototype pollution in `_.template` when user-controlled input
+  reaches the template compiler (CVSS 8.1). Fix `^4.18.0` removes the
+  unsafe prototype walk in template parsing. Applied via `pnpm.overrides`
+  (transitive via `@nestjs/config` + `@nestjs/swagger` + tooling). Range
+  `^` (same-major) accepted per lesson #19 because lodash 4.x is the
+  long-stable line and there's no 5.x at risk of accidental upgrade.
+
+### Changed
+
+- `package.json` `pnpm.overrides` ganha entry `lodash: ^4.18.0` (entre
+  `@clerk/shared@3` e `multer`). Lockfile regenerado via `pnpm install`.
+
+### Notes
+
+- HIGH residuais pós-S75-2: `next` (S75-3 next), `follow-redirects`
+  (S75-4). CI security HIGH step continua informational. CI #293+
+  esperado verde.
+
+---
+
 ## [v0.75.1] — S75-1 — 2026-04-29
 
 ### Security

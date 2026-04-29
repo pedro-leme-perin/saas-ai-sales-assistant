@@ -1,0 +1,30 @@
+fix(security): bump lodash to ^4.18.0 via pnpm overrides (S75-2)
+
+Mitigates CVE-2026-4800 — high-severity RCE via prototype pollution in
+`_.template` when user-controlled input reaches the template compiler
+(CVSS 8.1).
+
+Vector: transitive via @nestjs/config + @nestjs/swagger + tooling
+(eslint, jest, etc). _.template rarely used in prod, but presence of
+the gadget enables RCE if input traverses parsing.
+
+Strategy:
+- pnpm.overrides entry `lodash: ^4.18.0` (same-major range; lodash 4.x
+  is long-stable line ~7 years without 5.x published — zero risk of
+  silent major bump despite using ^ instead of ~).
+- 1-commit-per-package per lesson #17; validated post-S75-1 green
+  (CI #292 end-to-end).
+- CI security HIGH step continues informational (non-blocking).
+- Roadmap S75 status: multer (S75-1) DONE, lodash (S75-2) THIS,
+  next (S75-3) PENDING, follow-redirects (S75-4) PENDING.
+
+Changed:
+- package.json: pnpm.overrides += lodash ^4.18.0 (alphabetic sort)
+- pnpm-lock.yaml: regenerated via pnpm install
+- CHANGELOG.md: [v0.75.2] entry under Security/Changed/Notes
+- PROJECT_HISTORY.md: S75-2 session block (threat model, range decision
+  ^ vs ~, mutation table, roadmap status)
+- CLAUDE.md §2.1: header version + last commit row + S75-1 demoted
+
+Refs: roadmap S75 (PROJECT_HISTORY.md S74-2), lesson #17 (1 dep per
+commit), lesson #19 (range tight; ^ acceptable when major-line stale).

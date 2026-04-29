@@ -6149,3 +6149,64 @@ python3 json.load+dump`.
 
 S76 candidate: ratchet `--audit-level=critical` → `--audit-level=high`
 strict mode pós-S75-4 verde.
+
+---
+
+## S75-2 — lodash ^4.18.0 override (S75 HIGH bumps Cowork-autônomo)
+
+**Sessão:** S75-2 (29/04/2026)
+**Commit:** (pendente — será stamp pós-push)
+**Anterior:** S75-1 `3c921bf`
+
+### Objetivo
+
+Segunda das 4 entradas do roadmap S75: `lodash` 4.17.21 → `^4.18.0`.
+Estratégia per lição #17: 1 commit per-package, validar CI verde antes
+do próximo (S75-1 CI #292 verde end-to-end).
+
+### Threat model
+
+| Advisory      | CVSS | Vector                                                              | Fix      |
+| ------------- | ---- | ------------------------------------------------------------------- | -------- |
+| CVE-2026-4800 | 8.1  | RCE via prototype pollution em `_.template` (user-controlled input) | >=4.18.0 |
+
+Vetor: lodash é transitive via `@nestjs/config`, `@nestjs/swagger`,
+e tooling (eslint, jest, etc). `_.template` raramente usado em prod,
+mas presença de gadget enable RCE se input atravessar parsing.
+
+### Decisão range `^4.18.0` (vs `~`)
+
+Diferente de S75-1 (`multer ~2.1.1`), `lodash` adota `^` (same-major)
+porque:
+
+- lodash 4.x é long-stable line há ~7+ anos
+- não existe lodash 5.x publicado (sem risco de salto major silencioso)
+- `^4.18.0` permite 4.18, 4.19, ... 4.99 (semver minor/patch only)
+
+Lição #19 (range tight) é satisfeita: `^` em ecosystem com major-stale
+é equivalente operacional a `~`.
+
+### Mutação
+
+| Arquivo          | Operação                                                 | Ferramenta            |
+| ---------------- | -------------------------------------------------------- | --------------------- |
+| `package.json`   | `pnpm.overrides` adiciona `lodash: ^4.18.0` (alfabético) | `python3 json.dump`   |
+| `pnpm-lock.yaml` | regenerado via `pnpm install` em PS1 wrapper             | PS1 (Pedro machine)   |
+| `CHANGELOG.md`   | nova entry `[v0.75.2]` antes de `[v0.75.1]`              | `python3 str.replace` |
+| `CLAUDE.md` §2.1 | row `Último commit S75-2` adicionada                     | `python3 str.replace` |
+
+### Validação
+
+- `python3 json.load` valida JSON pós-mutação.
+- CI #293+ esperado verde end-to-end.
+- HIGH step continua informational (multer + lodash resolvidos →
+  lista 4 → 2 residuais next + follow-redirects).
+
+### Roadmap S75 status pós-S75-2
+
+| Module             | Status  | Commit          |
+| ------------------ | ------- | --------------- |
+| `multer`           | DONE    | S75-1 `3c921bf` |
+| `lodash`           | DONE    | S75-2           |
+| `next`             | PENDING | S75-3           |
+| `follow-redirects` | PENDING | S75-4           |
