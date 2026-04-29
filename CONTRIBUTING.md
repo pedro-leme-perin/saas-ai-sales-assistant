@@ -164,20 +164,46 @@ FEAT(dsar): support... (type uppercase)
 
 `HUSKY=0 git commit -m "..."` — apenas em emergência (revert quebrado, hotfix). Documentar uso em PR description.
 
+### 3.7 Changelog generation (D6 — S73)
+
+Scripts disponíveis em `package.json`:
+
+```bash
+pnpm changelog:preview      # dry-run para stdout (no write)
+pnpm changelog:generate     # incremental, desde última tag git
+pnpm changelog:full         # regen completo (use carefully)
+```
+
+Angular preset (default) mapeia commits para sections:
+
+- `feat:` → **Features**
+- `fix:` → **Bug Fixes**
+- `perf:` → **Performance Improvements**
+- `revert:` → **Reverts**
+
+Outros types (`chore`, `docs`, `refactor`, `test`, `style`, `build`, `ci`) são filtrados — não aparecem no CHANGELOG público.
+
+**Limitação pre-launch:** auto-changelog requer git tags reais. Atualmente sessions são `vS<N>` lógico mas não taggeados. Workaround manual: entries em `CHANGELOG.md` mantidos manualmente até primeira release tag pós-launch.
+
 ---
 
-## 4. Pre-commit hooks (S65)
+## 4. Hook chain (S65 + S66-D + S73)
 
 **Hook chain ativo:**
 
-1. `.husky/pre-commit`:
+1. `.husky/pre-commit` (S65):
    - `node scripts/git-hooks/check-windows-garbage.js` — bloqueia files Windows pt-BR (`Novo*.txt`), macOS (`Untitled*`), OS metadata (`.DS_Store`, `Thumbs.db`), 0-byte
    - `node scripts/git-hooks/check-secrets.js` — 13 ERROR patterns (Stripe, Clerk, OpenAI, Anthropic, AWS, GitHub, npm, Slack) + 2 WARNING (Twilio AC\*, generic high-entropy hex)
    - `npx lint-staged`:
      - prettier --write em todos staged files
      - eslint --fix --max-warnings 0 em apps/backend (v8) + apps/frontend (v9 flat config)
-2. `.husky/commit-msg`:
+2. `.husky/commit-msg` (S66-D):
    - commitlint validação (Conventional Commits)
+3. `.husky/pre-push` (S73):
+   - `pnpm --filter @saas/backend run type-check` — backend strict TS
+   - `pnpm --filter @saas/frontend run type-check` — frontend strict TS
+   - Skip em `$GITHUB_ACTIONS` ou `$DEPENDABOT_AUTO` env (CI cobre full test suite)
+   - Bypass: `HUSKY=0 git push ...`
 
 Detalhes:
 

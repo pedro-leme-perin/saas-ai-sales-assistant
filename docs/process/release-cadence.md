@@ -91,7 +91,7 @@ Toda release tag → entry em `CHANGELOG.md` (Keep a Changelog 1.1.0 format).
 
 **Nunca ship sem changelog.** PR review checklist (`CONTRIBUTING.md` §2.4) verifica.
 
-**Roadmap S72:** auto-changelog via `conventional-changelog-cli` (D6 carryover).
+**Auto-changelog (S73 — done).** ✓ `conventional-changelog-cli` instalado em devDeps; scripts `pnpm changelog:preview` / `changelog:generate` / `changelog:full` disponíveis. Angular preset (feat/fix/perf/revert). Limitação pre-launch: requer git tags reais — defer ativação até primeira release tag pós-launch.
 
 ---
 

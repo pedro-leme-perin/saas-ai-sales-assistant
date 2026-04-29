@@ -1,0 +1,38 @@
+chore(s73): D6 auto-changelog + D5 pre-push hook (Cowork autonomo)
+
+2 deliverables tech debt zero-runtime-impact:
+
+S73-1: D6 Auto-changelog via conventional-changelog-cli
+  - package.json devDep: conventional-changelog-cli@^5.0.0
+  - 3 scripts: changelog:preview (stdout dry-run),
+    changelog:generate (incremental desde ultima tag),
+    changelog:full (regen completo)
+  - Angular preset (feat/fix/perf/revert mapeados)
+  - Limitacao pre-launch: requer git tags reais (defer pos primeira venda)
+  - Workflow setup-once, use-later
+
+S73-2: D5 Pre-push hook (.husky/pre-push)
+  - Type-check backend + frontend antes do git push
+  - Catches TS regression localmente sem CI round-trip ~5min
+  - Skip em CI/Dependabot context ($GITHUB_ACTIONS env detect)
+  - Bypass HUSKY=0 documentado para emergencia
+  - Hook chain: pre-commit -> commit-msg -> pre-push (3 stages)
+  - Tests omitidos (CI cobre full)
+
+Mutacoes:
+  .husky/pre-push                                    (NEW)
+  CHANGELOG.md                                       (M S73 entry)
+  CLAUDE.md                                          (M v7.0 + S73 row)
+  CONTRIBUTING.md                                    (M S3.7 + S4 hook chain)
+  PROJECT_HISTORY.md                                 (M S73 section)
+  docs/process/release-cadence.md                    (M S5 auto-changelog done)
+  package.json                                       (M devDep + 3 scripts)
+  pnpm-lock.yaml                                     (M regenerated)
+
+Decisoes:
+  1. conventional-changelog-cli vs semantic-release: lighter, pre-launch ROI
+  2. Angular preset (filter chore/docs): public CHANGELOG user-facing only
+  3. Pre-push type-check only (sem tests): 30s vs 3min hot-loop
+  4. Skip em CI context: evita double-execution waste
+
+Anterior: S72 70b6bb5

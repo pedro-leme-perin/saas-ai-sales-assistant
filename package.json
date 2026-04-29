@@ -28,13 +28,17 @@
     "prisma:studio": "pnpm --filter @saas/backend run prisma:studio",
     "prisma:seed": "pnpm --filter @saas/backend run prisma:seed",
     "clean": "pnpm -r exec rm -rf node_modules dist .next coverage .turbo",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "changelog:preview": "conventional-changelog -p angular -i CHANGELOG.md -s -o /dev/stdout",
+    "changelog:generate": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "changelog:full": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0"
   },
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^15.2.10",
     "@commitlint/cli": "^19.6.1",
-    "@commitlint/config-conventional": "^19.6.0"
+    "@commitlint/config-conventional": "^19.6.0",
+    "conventional-changelog-cli": "^5.0.0"
   },
   "lint-staged": {
     "apps/backend/{src,test}/**/*.{ts,js}": [

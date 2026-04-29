@@ -18,6 +18,28 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.73.0] — S73 — 2026-04-28
+
+### Added
+
+- `.husky/pre-push` (D5) — type-check backend + frontend antes do `git push`,
+  catches TypeScript regressions localmente sem CI round-trip ~5min. Skip em
+  CI/Dependabot context via `$GITHUB_ACTIONS` env detect. Bypass `HUSKY=0`.
+  Hook chain agora: pre-commit → commit-msg → pre-push.
+- `package.json` `scripts.changelog:preview` / `changelog:generate` /
+  `changelog:full` (D6) + devDep `conventional-changelog-cli@^5.0.0`. Angular
+  preset (feat/fix/perf/revert mapeados; chore/docs/refactor filtered out).
+  Pre-launch limitation: requer git tags reais (defer pós primeira venda).
+
+### Changed
+
+- `CONTRIBUTING.md` §3 + §4 — adiciona changelog scripts reference + pre-push
+  hook chain.
+- `docs/process/release-cadence.md` §5 — auto-changelog roadmap S72 marked
+  ✓ Done (S73-1).
+
+---
+
 ## [v0.71.0] — S71 — 2026-04-28
 
 ### Added

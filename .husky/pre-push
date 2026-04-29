@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+# TheIAdvisor pre-push hook (S73)
+# Type-check backend + frontend before push to catch CI regressions locally.
+# Skipped on Dependabot auto-pushes via env detection.
+# Bypass: HUSKY=0 git push ...   (use sparingly, only for emergencies)
+
+set -e
+
+# Skip on Dependabot or scheduled tasks (CI runs full pipeline anyway)
+if [ -n "$GITHUB_ACTIONS" ] || [ -n "$DEPENDABOT_AUTO" ]; then
+  echo "[husky] pre-push: skipped (CI/Dependabot context)"
+  exit 0
+fi
+
+echo "[husky] pre-push: type-check (catches CI regressions locally)..."
+
+# Backend strict type-check
+echo "[husky] pre-push: backend type-check..."
+pnpm --filter @saas/backend run type-check || {
+  echo ""
+  echo "[husky] ERROR: backend type-check failed."
+  echo "[husky] Fix TypeScript errors before pushing, or use HUSKY=0 git push to bypass (not recommended)."
+  exit 1
+}
+
+# Frontend strict type-check
+echo "[husky] pre-push: frontend type-check..."
+pnpm --filter @saas/frontend run type-check || {
+  echo ""
+  echo "[husky] ERROR: frontend type-check failed."
+  echo "[husky] Fix TypeScript errors before pushing, or use HUSKY=0 git push to bypass (not recommended)."
+  exit 1
+}
+
+echo "[husky] pre-push: OK (type-check passed; CI will run full test suite)"

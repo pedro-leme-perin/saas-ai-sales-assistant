@@ -5687,3 +5687,161 @@ S72 ENCERRADA. Anterior: S71-1C `2905889`.
 | B5-deps Pedro             | GH Actions secrets `DATABASE_URL_BACKUP_RO` + `R2_BACKUP_*`         | Pedro                    | 10min                  |
 | AI-LR-1                   | Axiom datasets PII strip schema                                     | Cowork                   | 1h                     |
 | AI-LR-4                   | Sentry → Slack routing (#incidents-prod)                            | Pedro                    | 30min                  |
+
+---
+
+## S73 — Tech debt Cowork-autônomo: D6 auto-changelog + D5 pre-push hook
+
+**Data:** 28/04/2026
+**Trigger:** Pedro confirmou continuar pós-S72 verde. Foco em 2 deliverables D (Categoria Tech debt) Cowork-autônomo zero-risco.
+**Tipo:** Tooling. Zero runtime impact. 2 deliverables.
+
+### Contexto
+
+S72 fechou Categoria F (Process/Team) 100%. S73 começa Categoria D (Tech debt) com 2 itens baixo-risco/alto-valor: D6 (auto-changelog) elimina manual CHANGELOG entry escrita; D5 (pre-push) reduz CI round-trip ~5min por TS regression caught local.
+
+### Deliverables (2)
+
+#### 1. D6 — Auto-changelog via conventional-changelog-cli (S73-1)
+
+`package.json`:
+
+```json
+{
+  "scripts": {
+    "changelog:preview": "conventional-changelog -p angular -i CHANGELOG.md -s -o /dev/stdout",
+    "changelog:generate": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "changelog:full": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0"
+  },
+  "devDependencies": {
+    "conventional-changelog-cli": "^5.0.0"
+  }
+}
+```
+
+**Angular preset default** mapeia commit types → CHANGELOG sections:
+
+- `feat:` → **Features**
+- `fix:` → **Bug Fixes**
+- `perf:` → **Performance Improvements**
+- `revert:` → **Reverts**
+
+`chore`/`docs`/`refactor`/`test`/`style`/`build`/`ci` ficam OUT (Angular preset filter). Aceitável para CHANGELOG público — internal commits não inflam noise.
+
+**Limitação pre-launch:** `conventional-changelog -r 0` (full regen) requer git tags pra delimitar releases. Atualmente não temos tags (sessions são `vS<N>` mas nunca `git tag`-ed). Workaround manual entries continua fundação até primeira release tag real (pós-primeira venda enterprise + SemVer migration).
+
+**Workflow esperado:**
+
+1. Pedro merge PRs em `main` durante session.
+2. Final da session: `git tag -a vS73 -m "S73 — D6 + D5"` + `git push origin vS73`.
+3. `pnpm changelog:generate` → atualiza CHANGELOG.md com entries desde tag anterior.
+4. `git add CHANGELOG.md && git commit -m "docs(s74): regenerate changelog from S73 tag"`.
+
+Iteração refina: S75+ pode usar `semantic-release` para auto-tag + auto-changelog em CI.
+
+#### 2. D5 — Pre-push hook (.husky/pre-push) (S73-2)
+
+```sh
+#!/usr/bin/env sh
+set -e
+
+# Skip on Dependabot or scheduled tasks (CI runs full pipeline anyway)
+if [ -n "$GITHUB_ACTIONS" ] || [ -n "$DEPENDABOT_AUTO" ]; then
+  echo "[husky] pre-push: skipped (CI/Dependabot context)"
+  exit 0
+fi
+
+echo "[husky] pre-push: type-check (catches CI regressions locally)..."
+
+pnpm --filter @saas/backend run type-check || {
+  echo "[husky] ERROR: backend type-check failed."
+  echo "[husky] Fix TypeScript errors before pushing, or use HUSKY=0 git push to bypass."
+  exit 1
+}
+
+pnpm --filter @saas/frontend run type-check || {
+  echo "[husky] ERROR: frontend type-check failed."
+  echo "[husky] Fix TypeScript errors before pushing, or use HUSKY=0 git push to bypass."
+  exit 1
+}
+
+echo "[husky] pre-push: OK (type-check passed; CI will run full test suite)"
+```
+
+**Decisões D5:**
+
+| #   | Decisão                       | Justificativa                                                                                                       |
+| --- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------ | -------------------------------------------------------- |
+| 1   | Type-check apenas (não tests) | Tests podem demorar 2-3min; PR review impatience risk. Type-check ~30s. CI cobre tests full.                        |
+| 2   | Skip em CI/Dependabot context | `GITHUB_ACTIONS` env detect: evita double-running em PR runner. `DEPENDABOT_AUTO` env detect: defer dep bumps a CI. |
+| 3   | Bypass `HUSKY=0` documented   | Emergency hotfixes onde TS error em arquivo não-tocado bloqueia push legítimo.                                      |
+| 4   | `set -e` + explicit `         |                                                                                                                     | { exit 1; }` | Fail-fast com mensagem clara em vez de silenciosa abort. |
+
+**Hook chain pós-S73:**
+
+```
+git commit  →  pre-commit (guards + prettier + dual ESLint) → commit-msg (commitlint) → commit
+git push    →  pre-push (dual type-check) → push
+```
+
+Compete com pre-commit? Não — escopos disjuntos: pre-commit mexe em **staged** files (lint-staged), pre-push roda em **whole project** (type-check completa do compilador, não diff-based).
+
+### Mutações em arquivos (S73)
+
+```
+.husky/pre-push                                    (NEW ~1.2KB)
+CLAUDE.md                                          (M — header v7.0 + S73 row)
+CHANGELOG.md                                       (M — S73 entry)
+CONTRIBUTING.md                                    (M — §3.7 changelog scripts + §4 hook chain pre-push)
+PROJECT_HISTORY.md                                 (M — esta seção S73)
+docs/process/release-cadence.md                    (M — §5 update auto-changelog roadmap done)
+package.json                                       (M — devDep + 3 scripts)
+pnpm-lock.yaml                                     (M — regenerated com conventional-changelog-cli)
+```
+
+### Decisões S73
+
+| #   | Decisão                                                                 | Justificativa                                                                                                                    |
+| --- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | conventional-changelog-cli vs semantic-release                          | semantic-release é heavyweight (auto-tag + auto-publish + GitHub release). Pre-launch single-engineer não tem ROI. Iterate S75+. |
+| 2   | Angular preset (vs Conventional Commits preset com chore/docs included) | Public changelog should be user-facing only (Features/Bug Fixes). Internal noise (docs/refactor/chore) pollui changelog público. |
+| 3   | Pre-push type-check only (sem tests)                                    | Tests 2-3min em hot-loop = developer impatience → bypass. Type-check 30s = aceitável. CI cobre tests.                            |
+| 4   | Pre-push skip em CI context                                             | `GITHUB_ACTIONS` env. Evita double-run + double-failure noise.                                                                   |
+| 5   | Bypass `HUSKY=0` documentado                                            | Emergency override é importante para hotfix sem race com CI infra.                                                               |
+
+### Lições aprendidas (S73)
+
+1. **Auto-changelog tooling pre-launch é premature mas low-cost** — instalar agora, scripts prontos, ativa quando primeira venda + tag real existir. Setup-once, use-later pattern.
+2. **Pre-push hook escopo disjunto de pre-commit** — fast diff-based formatting/secrets em pre-commit, slow whole-project type-check em pre-push. Compõem sem conflito.
+3. **CI context detection (`$GITHUB_ACTIONS`)** elimina double-execution waste quando hook runs em CI runner.
+
+### Status pós-S73
+
+| Item                             | Status                                        |
+| -------------------------------- | --------------------------------------------- |
+| 2 deliverables S73 (D6 + D5)     | ✓ commit S73                                  |
+| Auto-changelog scripts           | ✓ habilitado (limitação tag-dependent doc'd)  |
+| Pre-push hook                    | ✓ ativado (type-check dual)                   |
+| Hook chain                       | pre-commit → commit-msg → pre-push (3 stages) |
+| Categoria D (Tech debt) progress | 2/4 (D5+D6 done; D1+D7 pending)               |
+
+S73 ENCERRADA. Anterior: S72 `70b6bb5`.
+
+### Pendências futuras (carryover S73)
+
+| #                      | Item                                                                | Owner                                               | Esforço                |
+| ---------------------- | ------------------------------------------------------------------- | --------------------------------------------------- | ---------------------- |
+| #33 S68-E              | Amplify specs failure-mode (target 80%)                             | Sandbox                                             | 3-4h                   |
+| **D7**                 | Backend ESLint v8 → v9 align                                        | Cowork (com cuidado, lição S71-1B aggressive bumps) | ~2h                    |
+| **D4**                 | Bundle deeper (2.90MB → ≤2MB)                                       | Pedro `pnpm run analyze` + Cowork                   | 1-2h interativo        |
+| #34 S68-F              | Working tree corruption root cause                                  | Pedro Sysinternals                                  | 30min                  |
+| #36 S68-H              | GitHub fine-grained token confirm                                   | Pedro screenshot                                    | 1min                   |
+| AI-1 (E5)              | HSTS preload submission                                             | Pedro                                               | 1min                   |
+| AI-2 (E5)              | CSP enforce after 1w clean reports                                  | Pedro                                               | 5min config            |
+| AI-7 (E5)              | Nonce-based CSP (eliminate unsafe-inline)                           | Cowork                                              | 4-8h refactor          |
+| Staging provisioning   | Railway+Neon+Upstash+R2                                             | Pedro 1h interativo                                 | bloqueia k6            |
+| WhatsApp Business live | Meta Business Manager                                               | Pedro+MEI                                           | bloqueado externamente |
+| S71-1C carryover Pedro | `pnpm audit --prod --audit-level=critical --json` local enumeration | Pedro                                               | 30min                  |
+| B5-deps Pedro          | R2 bucket `theiadvisor-backups` create + GH Actions secrets         | Pedro                                               | 15min                  |
+| AI-LR-1                | Axiom datasets PII strip schema                                     | Cowork                                              | 1h                     |
+| AI-LR-4                | Sentry → Slack routing (#incidents-prod)                            | Pedro                                               | 30min                  |
