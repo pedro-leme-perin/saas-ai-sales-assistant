@@ -1,0 +1,29 @@
+fix(security): bump next to ~15.5.15 (S75-3)
+
+Mitigates GHSA-q4gf-8mx6-v5v3 — high-severity DoS via Server Components
+rendering (CVSS 7.5). Crafted RSC payload triggers unbounded recursion
+in stream parser. Fix `~15.5.15` patches the parser bound.
+
+Strategy:
+- Direct dep bump in apps/frontend/package.json (`^15.0.4` → `~15.5.15`)
+  rather than pnpm.overrides — `next` is framework root and overrides
+  on framework-level deps cause hoisting issues in Vercel build pipeline.
+- 1-commit-per-package per lesson #17; validated post-S75-2 green
+  (CI #293 end-to-end).
+- Range `~` (same-minor) per lesson #19.
+- CI security HIGH step continues informational. Roadmap S75 status:
+  multer (S75-1) DONE, lodash (S75-2) DONE, next (S75-3) THIS,
+  follow-redirects (S75-4) PENDING (final).
+
+Vector: 100% das rotas server-rendered expostas no frontend
+(/dashboard/**, /sign-in, /sign-up, /onboarding, etc).
+
+Changed:
+- apps/frontend/package.json: dependencies.next ^15.0.4 → ~15.5.15
+- pnpm-lock.yaml: regenerated via pnpm install
+- CHANGELOG.md: [v0.75.3] entry under Security/Changed/Notes
+- PROJECT_HISTORY.md: S75-3 session block (threat model, direct-bump
+  rationale, mutation table, roadmap status)
+- CLAUDE.md §2.1: header version + last commit row + S75-2 demoted
+
+Refs: roadmap S75, lesson #17 (1 dep per commit), lesson #19 (range tight).

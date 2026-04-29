@@ -18,6 +18,32 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.75.3] — S75-3 — 2026-04-29
+
+### Security
+
+- **GHSA-q4gf-8mx6-v5v3 mitigated** — `next@15.5.14` has high-severity
+  DoS via Server Components rendering (CVSS 7.5). Crafted RSC payload
+  triggers unbounded recursion in stream parser. Fix `~15.5.15` patches
+  the parser bound. Direct dep bump in `apps/frontend/package.json`
+  (`next: ^15.0.4` → `~15.5.15`) — first non-override fix in S75
+  series, since `next` is the framework root and pnpm overrides on
+  framework-level deps cause weird hoisting in Next/Vercel build.
+
+### Changed
+
+- `apps/frontend/package.json` `dependencies.next` tightened from
+  `^15.0.4` to `~15.5.15` (same-minor lock per lesson #19; breaking
+  changes between 15.5 and 15.6 unlikely but range tight prevents).
+- Lockfile regenerado via `pnpm install`.
+
+### Notes
+
+- HIGH residuais pós-S75-3: `follow-redirects` (S75-4 final). CI #294+
+  esperado verde.
+
+---
+
 ## [v0.75.2] — S75-2 — 2026-04-29
 
 ### Security

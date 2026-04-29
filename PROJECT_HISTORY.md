@@ -6210,3 +6210,62 @@ Lição #19 (range tight) é satisfeita: `^` em ecosystem com major-stale
 | `lodash`           | DONE    | S75-2           |
 | `next`             | PENDING | S75-3           |
 | `follow-redirects` | PENDING | S75-4           |
+
+---
+
+## S75-3 — next ~15.5.15 direct bump (S75 HIGH bumps Cowork-autônomo)
+
+**Sessão:** S75-3 (29/04/2026)
+**Commit:** (pendente — será stamp pós-push)
+**Anterior:** S75-2 `2585093`
+
+### Objetivo
+
+Terceira das 4 entradas do roadmap S75: `next` 15.5.14 → `~15.5.15`.
+Estratégia per lição #17: 1 commit per-package, validado pós-S75-2
+verde (CI #293 end-to-end).
+
+### Threat model
+
+| Advisory            | CVSS | Vector                                                  | Fix       |
+| ------------------- | ---- | ------------------------------------------------------- | --------- |
+| GHSA-q4gf-8mx6-v5v3 | 7.5  | DoS via Server Components rendering (RSC stream parser) | >=15.5.15 |
+
+Vetor: crafted RSC payload triggers unbounded recursion no stream
+parser do Next. Endpoints expostos: TODOS routes server-rendered no
+frontend (i.e., 100% das rotas /dashboard/\*\*, /sign-in, etc).
+
+### Decisão direct dep bump (vs override)
+
+Diferente de S75-1/S75-2 (overrides), `next` é o **framework root** e
+adotar `pnpm.overrides` sobre framework-level deps causa weird hoisting
+issues em Next.js + Vercel build pipeline. Direct dep bump em
+`apps/frontend/package.json` é a abordagem oficial.
+
+Range `~15.5.15` (same-minor) per lição #19. 15.5 → 15.6 não tem
+breaking change documentado mas tight range previne salto silencioso.
+
+### Mutação
+
+| Arquivo                      | Operação                               | Ferramenta            |
+| ---------------------------- | -------------------------------------- | --------------------- |
+| `apps/frontend/package.json` | `dependencies.next` ^15.0.4 → ~15.5.15 | `python3 json.dump`   |
+| `pnpm-lock.yaml`             | regenerado via `pnpm install`          | PS1 (Pedro machine)   |
+| `CHANGELOG.md`               | nova entry `[v0.75.3]`                 | `python3 str.replace` |
+| `CLAUDE.md` §2.1             | row `Último commit S75-3` adicionada   | `python3 str.replace` |
+
+### Validação
+
+- `python3 json.load` valida JSON pós-mutação.
+- CI #294+ esperado verde (frontend build deve compilar com next 15.5.15).
+- HIGH step continua informational — lista 4 → 1 residual
+  (follow-redirects S75-4).
+
+### Roadmap S75 status pós-S75-3
+
+| Module             | Status  | Commit          |
+| ------------------ | ------- | --------------- |
+| `multer`           | DONE    | S75-1 `3c921bf` |
+| `lodash`           | DONE    | S75-2 `2585093` |
+| `next`             | DONE    | S75-3           |
+| `follow-redirects` | PENDING | S75-4           |
