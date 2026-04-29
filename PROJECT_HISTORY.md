@@ -3,7 +3,7 @@
 **Documento:** Registro detalhado de todas as sessões de desenvolvimento
 **Projeto:** SaaS AI Sales Assistant (TheIAdvisor)
 **Início:** 13/03/2026
-**Última atualização:** 25/04/2026
+**Última atualização:** 29/04/2026 (S74)
 **Total de sessões:** 63
 
 ---
@@ -5845,3 +5845,155 @@ S73 ENCERRADA. Anterior: S72 `70b6bb5`.
 | B5-deps Pedro          | R2 bucket `theiadvisor-backups` create + GH Actions secrets         | Pedro                                               | 15min                  |
 | AI-LR-1                | Axiom datasets PII strip schema                                     | Cowork                                              | 1h                     |
 | AI-LR-4                | Sentry → Slack routing (#incidents-prod)                            | Pedro                                               | 30min                  |
+
+---
+
+## S74 — CRITICAL CVE remediation (Clerk family) + CI security gate strict mode
+
+**Data:** 29/04/2026
+**Categoria:** E (Security) — gate strict definitivo
+**Decisão prompt:** Pedro escolheu opção C (CRITICAL CVE enumeration + strict gate)
+**Anterior:** S73 `cd77feb` (D5 pre-push + D6 auto-changelog)
+**Commit:** S74 (a confirmar pós-push)
+
+### Objetivo
+
+Fechar débito security mais antigo do projeto: CI security gate em advisory mode
+(`continue-on-error: true`) desde S70-A2 (28/04). S71 introduziu surgical override
+para protobufjs CVE-2026-41242 mas demais CRITICALs ficaram sem visibilidade
+porque o JSON do `pnpm audit` não estava acessível em job logs sem autenticação.
+
+S74 fecha o ciclo: Pedro roda `pnpm audit --prod --audit-level=critical --json`
+local, cola output, Cowork enumera + remediates per-CVE atomically, removes
+`continue-on-error` → strict-mode definitivo.
+
+### Enumeração CVE
+
+`pnpm audit` reportou 3 CRITICALs em produção, todos rooted no mesmo upstream
+patch:
+
+| Advisory ID | Module                                 | CVE            | CVSS | Fix      |
+| ----------- | -------------------------------------- | -------------- | ---- | -------- |
+| 1117123     | `@clerk/shared@3.47.3` (transitive)    | CVE-2026-41248 | 9.1  | >=3.47.4 |
+| 1117128     | `@clerk/nextjs@6.39.1` (direct)        | CVE-2026-41248 | 9.1  | >=6.39.2 |
+| 1117129     | `@clerk/shared@2.22.0` (transitive v2) | CVE-2026-41248 | 9.1  | >=2.22.1 |
+
+**Vulnerability**: Clerk middleware bypass — `createRouteMatcher` allow-list
+pode ser bypassed por crafted requests, skipping middleware-level gating.
+GHSA-vqx2-fgx2-5wq9. Reported 13 APR 2026, patched 15 APR 2026.
+
+**Impact analysis**: Bypass afeta apenas middleware-level gating decision.
+`clerkMiddleware` ainda autentica + `auth()` reflete estado real. Backend usa
+`@Public()` decorator + `TenantGuard` class-level chain como defense-in-depth.
+Vetor primário fechado pelo upgrade; defense-in-depth permanece.
+
+**Cadeias transitivas mapeadas**:
+
+- `@clerk/shared@3.47.3` chega via:
+  - `apps/backend > @clerk/backend@2.33.1 > @clerk/shared@3.47.3`
+  - `apps/backend > @clerk/clerk-sdk-node@5.1.6 > @clerk/backend@1.34.0 > @clerk/shared@3.47.3`
+  - `apps/frontend > @clerk/nextjs@6.39.1 > @clerk/backend@2.33.1 > @clerk/shared@3.47.3`
+  - `apps/frontend > @clerk/nextjs@6.39.1 > @clerk/shared@3.47.3`
+- `@clerk/shared@2.22.0` chega via:
+  - `apps/backend > @clerk/clerk-sdk-node@5.1.6 > @clerk/shared@2.22.0` (legacy v2.x branch)
+
+### Remediação
+
+**Estratégia atomic via `pnpm.overrides`** (NÃO direct dep bump — evita lição #17
+S71-1B aggressive bumps quebrando build):
+
+```json
+"pnpm": {
+  "overrides": {
+    "@clerk/nextjs": ">=6.39.2",
+    "@clerk/shared@2": "~2.22.1",
+    "@clerk/shared@3": "~3.47.4",
+    "protobufjs": ">=7.5.5"
+  }
+}
+```
+
+Decisões críticas:
+
+1. **Selector syntax `@clerk/shared@2` / `@clerk/shared@3`** — pnpm overrides
+   permite scoping per-major-branch via `name@major`. Evita que override
+   `@clerk/shared: ">=3.47.4"` force v2 → v3 (quebraria `@clerk/clerk-sdk-node@5.1.6`
+   que pinned v2.x).
+2. **`protobufjs` retained** — S71 override mantido como invariante (não
+   regression de patch antigo).
+3. **`@clerk/nextjs` direct dep override** — apesar de ser direct dep
+   (`apps/frontend/package.json` `^6.9.0` resolveria semver caret), override
+   garante explicit floor sem tocar package.json downstream (mais seguro vs
+   future caret reset durante refresh de lockfile).
+
+### CI Security Gate strict mode
+
+`.github/workflows/ci.yml` step `audit_prod` (linhas 292-332):
+
+- **Renomeado**: `(CRITICAL advisory)` → `(CRITICAL strict)`.
+- **Removido**: `continue-on-error: true` (linha 300 antiga).
+- **Comment block atualizado**: documenta os 3 CVEs enumerados + S75 roadmap
+  para HIGH advisories.
+
+Pós-S74 chain de gates:
+
+```
+install → frontend ↘
+                    ci-gate (needs: [frontend, backend, security])
+install → backend  ↗
+              ↗
+install → security  (CRITICAL strict + HIGH/MODERATE informational)
+```
+
+Qualquer NOVO CRITICAL em production deps bloqueia merge. HIGH/MODERATE/LOW
+continuam informational em `$GITHUB_STEP_SUMMARY`.
+
+### Roadmap residual (S75 candidates)
+
+**HIGH (5)** — informational, roadmap S75 atomic per-package:
+
+| Module             | Versão atual | Fix       | CVE / Advisory                                   |
+| ------------------ | ------------ | --------- | ------------------------------------------------ |
+| `multer`           | 2.0.2        | >=2.1.1   | CVE-2026-3304 + 2359 + 3520 (DoS x3)             |
+| `lodash`           | 4.17.21      | >=4.18.0  | CVE-2026-4800 (RCE via `_.template`, 8.1)        |
+| `next`             | 15.5.14      | >=15.5.15 | GHSA-q4gf-8mx6-v5v3 (DoS Server Components, 7.5) |
+| `follow-redirects` | 1.15.11      | >=1.16.0  | GHSA-r4q5-vmmm-2653 (custom auth header leak)    |
+
+**MODERATE (14)** — informational. Notable: `@nestjs/core@10.4.22 → 11.1.18`
+requer ADR (breaking changes 10 → 11), defer dedicated session.
+
+**LOW (2)** — webpack via `@sentry/nextjs > @sentry/webpack-plugin > webpack@5.97.1`
+(`buildHttp` SSRF — não usamos `experiments.buildHttp`, false positive).
+
+### Mutações
+
+| Arquivo                    | Operação                                       | Ferramenta                        |
+| -------------------------- | ---------------------------------------------- | --------------------------------- |
+| `package.json`             | `pnpm.overrides` 1 → 4 entries                 | `python3 json.load+dump`          |
+| `.github/workflows/ci.yml` | strict mode (-9 +12 lines)                     | `python3 string.replace`          |
+| `CHANGELOG.md`             | v0.74.0 entry                                  | `python3 string.replace` (insert) |
+| `CLAUDE.md`                | header v7.1, footer v7.1, S74 row, S73 demoted | `python3 string.replace`          |
+| `PROJECT_HISTORY.md`       | header bump + S74 section append               | `python3 string.replace` + append |
+
+### Lições aplicadas
+
+- **#1 (Edit tool unsafe)**: todas mutações via Python (`json.load+dump` ou
+  `string.replace`).
+- **#17 (S71-1B aggressive bumps)**: NÃO bump direct deps en-masse. Override
+  surgical via `pnpm.overrides` é equivalente em efeito mas reversível com
+  `git revert` simples sem tocar lockfile resolution de outros packages.
+- **#18 (S71/S72 doc-vs-reality drift)**: doc updates (CHANGELOG + PROJECT_HISTORY
+  - CLAUDE.md) parte do MESMO commit atomic que aplica a mudança runtime
+    (overrides + ci.yml). Zero gap entre código e documentação.
+
+### Próxima sessão (S75 candidates)
+
+Pedro decide:
+
+- **(A)** HIGH advisories sequencial (multer, lodash, next, follow-redirects) —
+  4 commits atomic per-package, validar CI verde entre cada.
+- **(B)** Tech debt autônomo (D1 amplify specs failure-mode coverage 80%,
+  D7 backend ESLint v9 align, AI-LR-1 Axiom PII strip schema).
+- **(C)** Runtime validations (A4 Stripe smoke, A5 DSAR E2E, A6 LGPD cron, B4
+  Sentry alerts, E6/E7/E9 prod validates).
+- **(D)**

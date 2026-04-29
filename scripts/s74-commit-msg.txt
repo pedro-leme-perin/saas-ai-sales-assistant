@@ -1,0 +1,23 @@
+fix(security): remediate CVE-2026-41248 Clerk middleware bypass + CI strict mode
+
+S74 - 3 CRITICALs enumerated via Pedro local pnpm audit, all rooted in
+upstream patch GHSA-vqx2-fgx2-5wq9 (CVSS 9.1):
+  - @clerk/nextjs@6.39.1     -> >=6.39.2 (frontend direct)
+  - @clerk/shared@3.47.3     -> >=3.47.4 (transitive v3.x)
+  - @clerk/shared@2.22.0     -> >=2.22.1 (transitive v2.x via legacy SDK)
+
+Remediation atomic via pnpm.overrides - selector @clerk/shared@2 /
+@clerk/shared@3 scopes per-major-branch, evita force v2->v3 que quebraria
+@clerk/clerk-sdk-node@5.1.6 (licao #17 S71-1B).
+
+ci.yml security gate: continue-on-error REMOVED (S70-A2 + S71-1C debt
+closed). Strict-mode definitivo. HIGH residuais (multer x3, lodash, next,
+follow-redirects) roadmap S75 informational step (non-blocking).
+
+protobufjs CVE-2026-41242 override (S71) retained.
+
+Defense-in-depth: backend ja usa @Public() decorator + TenantGuard
+class-level chain; bypass afeta apenas middleware-level gating decision.
+auth() + clerkMiddleware authentication continuam funcionais.
+
+Anterior: S73 cd77feb (D5 pre-push + D6 auto-changelog).

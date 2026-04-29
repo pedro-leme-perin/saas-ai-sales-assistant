@@ -18,6 +18,61 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.74.0] — S74 — 2026-04-29
+
+### Security
+
+- **CVE-2026-41248 remediated** (CRITICAL × 3) — Clerk middleware bypass
+  (`createRouteMatcher` allow-list bypass via crafted requests, GHSA-vqx2-fgx2-5wq9,
+  CVSS 9.1). Three concurrent advisories all rooted in the same upstream patch:
+  - `@clerk/nextjs@6.39.1` → override `^6.39.2` (>=6.39.2 <7.0.0) (frontend direct dep).
+  - `@clerk/shared@3.47.3` → override `@clerk/shared@3: ~3.47.4` (>=3.47.4 <3.48.0) (transitive
+    via `@clerk/backend@2.x`, both backend + frontend).
+  - `@clerk/shared@2.22.0` → override `@clerk/shared@2: ~2.22.1` (>=2.22.1 <2.23.0) (transitive
+    via `@clerk/clerk-sdk-node@5.1.6` legacy backend SDK).
+  - **Range tightening (S74-1 followup)** — initial overrides used `">=X.Y.Z"`
+    open-ended ranges, which pnpm resolved to highest matching across MAJOR
+    versions (e.g., `@clerk/nextjs: ">=6.39.2"` resolved to `7.2.7` removing
+    `SignedIn`/`SignedOut`/`afterSignOutUrl` API surface, breaking type-check).
+    Tightened to `"^X.Y.Z"` (caret = same major) for `@clerk/nextjs`, and `"~X.Y.Z"`
+    (tilde = same minor) for `@clerk/shared@2` / `@clerk/shared@3` selectors.
+    `protobufjs: ">=7.5.5"` retained — minor bumps acceptable, no breaking expected.
+    **Lesson #19**: pnpm overrides com range aberto pode silently major-bump
+    e quebrar API. Sempre usar `^` (same-major) ou `~` (same-minor).
+
+  Defense-in-depth note: `clerkMiddleware` ainda autentica a request e `auth()`
+  reflete o estado real; bypass afeta apenas a gating decision do middleware.
+  Backend já usa `@Public()` decorator + class-level `TenantGuard` chain como
+  defense-in-depth, mas upgrade fecha o vetor primário.
+
+### Changed
+
+- `package.json` `pnpm.overrides`:
+  - `protobufjs` retained at `>=7.5.5` (S71 CVE-2026-41242).
+  - 3 new entries (Clerk family) — overrides cover BOTH direct (`@clerk/nextjs`)
+    and transitive (`@clerk/shared@2`, `@clerk/shared@3`) instances.
+  - Selector syntax `@clerk/shared@2` / `@clerk/shared@3` scopes per major to
+    avoid breaking `@clerk/clerk-sdk-node@5.1.6` (which pins v2.x branch).
+- `.github/workflows/ci.yml` security gate:
+  - Step "Audit production dependencies" renamed `(CRITICAL advisory)` →
+    `(CRITICAL strict)`.
+  - **`continue-on-error: true` REMOVED** — gate now blocks merge on any new
+    CRITICAL in production deps. Strict-mode debt (open since S70-A2) closed.
+  - Comment block updated documenting the 3 enumerated CVEs + S75 roadmap for
+    HIGH advisories.
+
+### Documented
+
+- HIGH advisories tracked for S75 roadmap (informational step in CI, non-blocking):
+  - `multer@2.0.2` → `>=2.1.1` (CVE-2026-3304 + CVE-2026-2359 + CVE-2026-3520, DoS x3).
+  - `lodash@4.17.21` → `>=4.18.0` (CVE-2026-4800, RCE via `_.template`; CVSS 8.1).
+  - `next@15.5.14` → `>=15.5.15` (GHSA-q4gf-8mx6-v5v3, Server Components DoS; CVSS 7.5).
+  - `follow-redirects@1.15.11` → `>=1.16.0` (GHSA-r4q5-vmmm-2653, custom auth header leak).
+- MODERATE: `@nestjs/core@10.4.22 → 11.1.18` requires major-version ADR (breaking
+  changes), defer to dedicated session.
+
+---
+
 ## [v0.73.0] — S73 — 2026-04-28
 
 ### Added
@@ -263,4 +318,4 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 [Unreleased]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/compare/v0.71.0...HEAD
 [v0.71.0]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/releases/tag/v0.71.0
-[v0.70.0]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/releases/tag/v0.70.0
+[v0.70.0]: https://github.com/pedro-leme-perin/saas-ai-sales-assistant/releases/tag/

@@ -61,6 +61,9 @@
   },
   "pnpm": {
     "overrides": {
+      "@clerk/nextjs": "^6.39.2",
+      "@clerk/shared@2": "~2.22.1",
+      "@clerk/shared@3": "~3.47.4",
       "protobufjs": ">=7.5.5"
     }
   }

@@ -289,15 +289,19 @@ jobs:
             packages/shared/dist
           key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Audit production dependencies (CRITICAL advisory)
+      - name: Audit production dependencies (CRITICAL strict)
         id: audit_prod
-        # S71-1C: REVERTED to advisory mode after S71-1B dep bumps broke
-        # build. protobufjs CVE-2026-41242 IS remediated via pnpm.overrides
-        # (8.0.3 confirmed in lock), but pnpm audit reports OTHER CRITICAL(s)
-        # whose specific identity isn't visible without authenticated job
-        # logs access. continue-on-error: true keeps gate non-blocking until
-        # S72 enumeration via Pedro local pnpm audit + targeted remediation.
-        continue-on-error: true
+        # S74: STRICT mode after enumeration via Pedro local `pnpm audit
+        # --prod --audit-level=critical --json`. CRITICALs surfaced were all
+        # CVE-2026-41248 (Clerk middleware bypass GHSA-vqx2-fgx2-5wq9):
+        #   - @clerk/nextjs@6.39.1     -> override >=6.39.2
+        #   - @clerk/shared@3.47.3     -> override >=3.47.4 (v3.x branch)
+        #   - @clerk/shared@2.22.0     -> override >=2.22.1 (v2.x branch via
+        #                                 @clerk/clerk-sdk-node@5.1.6)
+        # protobufjs CVE-2026-41242 (S71) override retained.
+        # `continue-on-error` REMOVED — gate blocks merge on any new CRITICAL.
+        # HIGH (multer, lodash, next, follow-redirects) tracked in S75 roadmap
+        # via informational step below (non-blocking).
         run: |
           set +e
           pnpm audit --prod --audit-level=critical --json > /tmp/audit-critical.json
