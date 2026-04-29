@@ -6269,3 +6269,65 @@ breaking change documentado mas tight range previne salto silencioso.
 | `lodash`           | DONE    | S75-2 `2585093` |
 | `next`             | DONE    | S75-3           |
 | `follow-redirects` | PENDING | S75-4           |
+
+---
+
+## S75-4 — follow-redirects ~1.16.0 override (S75 HIGH bumps Cowork-autônomo) — FINAL
+
+**Sessão:** S75-4 (29/04/2026)
+**Commit:** (pendente — será stamp pós-push)
+**Anterior:** S75-3 `89b1997`
+
+### Objetivo
+
+Quarta e ÚLTIMA entrada do roadmap S75: `follow-redirects` 1.15.11 →
+`~1.16.0`. Validado pós-S75-3 verde (CI #294).
+
+### Threat model
+
+| Advisory            | CVSS | Vector                                                     | Fix      |
+| ------------------- | ---- | ---------------------------------------------------------- | -------- |
+| GHSA-r4q5-vmmm-2653 | 6.5  | Custom Authorization headers leak em cross-origin redirect | >=1.16.0 |
+
+Vetor: transitive via `axios` → `@aws-sdk` (R2 uploads), `stripe`
+(billing), `twilio` (calls/SMS), `clerk-sdk-node` (legacy backend
+auth). Qualquer call HTTP com header `Authorization: Bearer <token>`
+(SUPER comum) redirecionando para origin diferente expõe o token.
+
+### Mutação
+
+| Arquivo          | Operação                                                     |
+| ---------------- | ------------------------------------------------------------ |
+| `package.json`   | `pnpm.overrides` += `follow-redirects: ~1.16.0` (alfabético) |
+| `pnpm-lock.yaml` | regenerado via `pnpm install`                                |
+| `CHANGELOG.md`   | `[v0.75.4]` entry                                            |
+| `CLAUDE.md` §2.1 | row `Último commit S75-4` adicionada                         |
+
+### Roadmap S75 status FINAL
+
+| Module             | Status | Commit          |
+| ------------------ | ------ | --------------- |
+| `multer`           | DONE   | S75-1 `3c921bf` |
+| `lodash`           | DONE   | S75-2 `2585093` |
+| `next`             | DONE   | S75-3 `89b1997` |
+| `follow-redirects` | DONE   | S75-4           |
+
+**HIGH residuais produção: ZERO.**
+
+### Roadmap S76 candidate
+
+CI security gate ratchet:
+
+```yaml
+# .github/workflows/ci.yml
+- name: Audit production dependencies (HIGH+CRITICAL strict)
+  run: pnpm audit --prod --audit-level=high --json
+```
+
+Em vez de `--audit-level=critical`. Gate passa a bloquear merges em
+qualquer HIGH novo. Pré-requisito: pnpm-lock 100% limpo de HIGH (S75
+satisfaz). Defer S76 dedicated session.
+
+`@nestjs/core 10 → 11` (CVE-2026-35515 SSE injection) ainda requer
+ADR major-bump separado (breaking changes 10→11), defer dedicated
+session.

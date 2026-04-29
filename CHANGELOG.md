@@ -18,6 +18,32 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.75.4] — S75-4 — 2026-04-29
+
+### Security
+
+- **GHSA-r4q5-vmmm-2653 mitigated** — `follow-redirects@1.15.11` leaks
+  custom Authorization headers across cross-origin redirects (CVSS 6.5,
+  but operationally relevant: any axios call with a custom auth header
+  redirecting to a different origin exposes the header). Fix `~1.16.0`
+  scrubs custom-header propagation on cross-origin redirect. Applied via
+  `pnpm.overrides` (transitive via `axios` → `@aws-sdk` + `stripe` +
+  `twilio` + `clerk-sdk-node`).
+
+### Changed
+
+- `package.json` `pnpm.overrides` ganha entry `follow-redirects: ~1.16.0`
+  (entre `@clerk/shared@3` e `lodash`). Lockfile regenerado.
+
+### Notes
+
+- HIGH residuais pós-S75-4: ZERO (multer + lodash + next + follow-redirects
+  todos resolvidos). S76 candidate: ratchet CI security gate
+  `--audit-level=critical` → `--audit-level=high` strict (gate começa a
+  bloquear merges em qualquer HIGH novo).
+
+---
+
 ## [v0.75.3] — S75-3 — 2026-04-29
 
 ### Security
