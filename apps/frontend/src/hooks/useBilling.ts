@@ -44,19 +44,34 @@ export function useBilling() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const authFetch = useCallback(async (path: string, options?: RequestInit) => {
-    const token = await getToken();
-    const res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...options?.headers,
-      },
-    });
-    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
-    return res.json();
-  }, [getToken]);
+  const authFetch = useCallback(
+    async (path: string, options?: RequestInit) => {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...options?.headers,
+        },
+      });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      const json = await res.json();
+      // Unwrap TransformInterceptor envelope { success, data, timestamp } when present.
+      // Backwards-compat: returns raw json if envelope absent.
+      if (
+        json &&
+        typeof json === 'object' &&
+        'success' in json &&
+        'data' in json &&
+        'timestamp' in json
+      ) {
+        return json.data;
+      }
+      return json;
+    },
+    [getToken],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,41 +97,49 @@ export function useBilling() {
     }
   }, [authFetch]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const startCheckout = useCallback(async (plan: string) => {
-    try {
-      const data = await authFetch('/api/billing/checkout', {
-        method: 'POST',
-        body: JSON.stringify({
-          plan,
-          successUrl: `${window.location.origin}/dashboard/billing?success=true`,
-          cancelUrl: `${window.location.origin}/dashboard/billing?canceled=true`,
-        }),
-      });
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError('Failed to generate checkout URL. Please try again.');
+  const startCheckout = useCallback(
+    async (plan: string) => {
+      try {
+        const data = await authFetch('/api/billing/checkout', {
+          method: 'POST',
+          body: JSON.stringify({
+            plan,
+            successUrl: `${window.location.origin}/dashboard/billing?success=true`,
+            cancelUrl: `${window.location.origin}/dashboard/billing?canceled=true`,
+          }),
+        });
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          setError('Failed to generate checkout URL. Please try again.');
+        }
+      } catch (err: any) {
+        const errorMessage = err.message || 'Failed to start checkout. Please try again.';
+        setError(errorMessage);
       }
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to start checkout. Please try again.';
-      setError(errorMessage);
-    }
-  }, [authFetch]);
+    },
+    [authFetch],
+  );
 
   const openPortal = useCallback(async () => {
     const data = await authFetch('/api/billing/portal');
     if (data.url) window.location.href = data.url;
   }, [authFetch]);
 
-  const changePlan = useCallback(async (plan: string) => {
-    await authFetch('/api/billing/change-plan', {
-      method: 'POST',
-      body: JSON.stringify({ plan }),
-    });
-    await load();
-  }, [authFetch, load]);
+  const changePlan = useCallback(
+    async (plan: string) => {
+      await authFetch('/api/billing/change-plan', {
+        method: 'POST',
+        body: JSON.stringify({ plan }),
+      });
+      await load();
+    },
+    [authFetch, load],
+  );
 
   const cancelSubscription = useCallback(async () => {
     await authFetch('/api/billing/cancel', { method: 'POST' });
