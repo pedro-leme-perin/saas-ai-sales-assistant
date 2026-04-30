@@ -331,4 +331,62 @@ describe('ContactsService', () => {
       ).resolves.toBeUndefined();
     });
   });
+
+  // ===================================================
+  // S77-B retry — small amplification (uses existing mocks)
+  // ===================================================
+  describe('list — pagination edge cases (S77-B)', () => {
+    it('caps take at LIST_MAX=100 even when limit > 100', async () => {
+      mockPrisma.contact.findMany.mockResolvedValueOnce([]);
+      await service.list('co1', { limit: 500 });
+      const args = mockPrisma.contact.findMany.mock.calls[0][0];
+      // take = min(100, 500) + 1 lookahead row
+      expect(args.take).toBe(101);
+    });
+
+    it('applies cursor + skip:1 when cursor provided', async () => {
+      mockPrisma.contact.findMany.mockResolvedValueOnce([]);
+      await service.list('co1', { cursor: 'c-prev' });
+      const args = mockPrisma.contact.findMany.mock.calls[0][0];
+      expect(args.cursor).toEqual({ id: 'c-prev' });
+      expect(args.skip).toBe(1);
+    });
+
+    it('returns empty rows + null nextCursor when DB empty', async () => {
+      mockPrisma.contact.findMany.mockResolvedValueOnce([]);
+      const res = await service.list('co1', { limit: 50 });
+      expect(res.data).toEqual([]);
+      expect(res.nextCursor).toBeNull();
+    });
+  });
+
+  describe('upsertFromTouch — phone normalization (S77-B)', () => {
+    it('coerces leading 00 to + prefix', async () => {
+      mockCache.set.mockResolvedValueOnce('OK');
+      mockPrisma.contact.upsert.mockResolvedValueOnce({
+        id: 'c-new',
+        phone: '+5511999999999',
+      });
+      const result = await service.upsertFromTouch({
+        companyId: 'co1',
+        channel: 'CALL',
+        phone: '005511999999999',
+        callId: 'call-zero-zero',
+      });
+      expect(result).not.toBeNull();
+      const args = mockPrisma.contact.upsert.mock.calls[0][0];
+      expect(JSON.stringify(args)).toContain('+5511999999999');
+    });
+
+    it('returns null when phone is empty string', async () => {
+      const result = await service.upsertFromTouch({
+        companyId: 'co1',
+        channel: 'CALL',
+        phone: '',
+        callId: 'call-empty',
+      });
+      expect(result).toBeNull();
+      expect(mockPrisma.contact.upsert).not.toHaveBeenCalled();
+    });
+  });
 });

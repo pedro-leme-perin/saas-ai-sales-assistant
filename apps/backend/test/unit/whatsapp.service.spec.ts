@@ -40,6 +40,7 @@ describe('WhatsappService', () => {
     whatsappMessage: {
       findMany: jest.fn(),
       create: jest.fn(),
+      updateMany: jest.fn(),
     },
   };
 
@@ -292,6 +293,54 @@ describe('WhatsappService', () => {
           where: expect.objectContaining({ companyId: 'wrong-company' }),
         }),
       );
+    });
+  });
+
+  // ===================================================
+  // processStatusCallback — S77-B retry amplification
+  // ===================================================
+  describe('processStatusCallback', () => {
+    beforeEach(() => {
+      mockPrismaService.whatsappMessage.updateMany.mockReset();
+    });
+
+    it.each([
+      ['sent', 'SENT'],
+      ['delivered', 'DELIVERED'],
+      ['read', 'READ'],
+      ['failed', 'FAILED'],
+      ['undelivered', 'FAILED'],
+    ])(
+      'maps Twilio status %s to internal MessageStatus %s',
+      async (twilioStatus, internalStatus) => {
+        mockPrismaService.whatsappMessage.updateMany.mockResolvedValueOnce({ count: 1 });
+        await service.processStatusCallback({
+          MessageSid: 'SM_test_fixture_1',
+          MessageStatus: twilioStatus,
+        });
+        expect(mockPrismaService.whatsappMessage.updateMany).toHaveBeenCalledWith({
+          where: { waMessageId: 'SM_test_fixture_1' },
+          data: { status: internalStatus },
+        });
+      },
+    );
+
+    it('returns early without DB call on unknown status', async () => {
+      await service.processStatusCallback({
+        MessageSid: 'SM_test_fixture_2',
+        MessageStatus: 'queued',
+      });
+      expect(mockPrismaService.whatsappMessage.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('swallows prisma error (logs only, no throw)', async () => {
+      mockPrismaService.whatsappMessage.updateMany.mockRejectedValueOnce(new Error('db down'));
+      await expect(
+        service.processStatusCallback({
+          MessageSid: 'SM_test_fixture_3',
+          MessageStatus: 'delivered',
+        }),
+      ).resolves.toBeUndefined();
     });
   });
 });
