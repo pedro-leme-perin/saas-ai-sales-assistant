@@ -1,0 +1,45 @@
+docs(s77-final): atomic doc reconciliation for S77-B retry + A4 fixes
+
+Doc atomic catch-up for 3 prior commits that lacked CHANGELOG /
+PROJECT_HISTORY / CLAUDE.md updates (licao #18 doc-vs-reality drift).
+
+Commits documented:
+- 66803a7 test(s77-b-retry): whatsapp + contacts spec amplification (+12)
+- ddcf42f fix(billing): useBilling envelope unwrap (A4 bug #1)
+- 1fbb73f fix(billing): drop successUrl/cancelUrl payload (A4 bug #2)
+
+Mutations:
+- CHANGELOG.md: v0.77.2 (S77-B retry) + v0.77.3 (A4 bug fixes) entries.
+- PROJECT_HISTORY.md: 2 sections novos (~5700 chars) — S77-B retry pattern
+  revisado (mocks shared, pre-push validation) + A4 partial validation com
+  2 production bugs descobertos via Chrome MCP smoke E2E.
+- CLAUDE.md: header 7.5->7.6, last update line, table 3 novos rows
+  (A4 1fbb73f / S77-B retry 66803a7 / S77-B revert da43287).
+
+Working tree cleanup (non-functional):
+- scripts/s77b-revert.{ps1,bat,msg.txt}: archive (S77-B revert artifacts).
+- docs/operations/s77-next-session-prompt.md: archive (forensic record).
+
+Restoration:
+- apps/backend/test/unit/whatsapp.service.spec.ts: working tree truncation
+  pos-1fbb73f Windows mount race (licao #5 + #25 cp race). Restore via
+  git checkout HEAD -- (PS1 atomic).
+
+NOVAS licoes #24-26 documentadas:
+- #24: Sandbox sem jest -> spec novo precisa `pnpm test` local pre-push;
+  pre-push type-check husky NAO pega runtime mock errors.
+- #25: TransformInterceptor envelope unwrap precisa apiClient-level, nao
+  per-hook. Refactor follow-up planejado para sessao dedicada (~2-3h).
+- #26: Smoke E2E real revela bugs cross-component (envelope contract,
+  state hydration cascading) que unit tests nao pegam.
+
+S77 cumulative final: +60 testes coverage amplification (S77-A 48 +
+S77-B retry 12), 2 production bugs fixed em billing flow, 1 follow-up
+identificado (apiClient envelope refactor).
+
+A4 status post-doc: PARTIAL VALIDATED. /dashboard/billing render OK,
+backend Stripe checkout session creation OK, webhook signature
+integration OK indirectly. Pendente proxima sessao: Stripe Dashboard
+"Send test webhook" + DB Neon SQL persistence verification.
+
+Anterior: 1fbb73f

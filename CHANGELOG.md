@@ -18,6 +18,37 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.77.3] — A4 Stripe smoke E2E fixes — 2026-04-30
+
+### Fixed
+
+- **`useBilling.ts` envelope unwrap** (`ddcf42f`): backend `TransformInterceptor` retorna `{success, data, timestamp}`. Frontend hook `authFetch` agora detecta envelope e auto-unwraps. Sem este fix, `(plansData || []).map(...)` quebrava com `(a || []).map is not a function` em /dashboard/billing.
+- **`useBilling.startCheckout` payload** (`1fbb73f`): backend `CreateCheckoutDto` rejeita extras (`forbidNonWhitelisted=true`). Frontend agora envia apenas `{plan}`. Backend constrói success/cancel URLs a partir de `FRONTEND_URL` env. Sem este fix, "Fazer upgrade" retornava 400 BAD_REQUEST.
+
+### Notes
+
+- **A4 Stripe smoke E2E status**: `/dashboard/billing` renderiza 3 planos corretamente. Backend cria Stripe checkout session live mode (`cs_live_a1GgPIhEh72qALA4i...`). Webhook test (`Send test webhook` via Stripe Dashboard) + DB persistence SQL Neon validation pendentes.
+- **Bugs adjacentes pré-existing descobertos** (separate scope, NÃO bloqueia A4 billing): `/dashboard` root crash `Cannot read undefined.length` por `auth/me` envelope sem unwrap em `apiClient.ts`. URLs derivadas tipo `/api/calls/undefined` cascateiam 403. Fix requer refactor `apiClient.ts` (~2-3h sessão dedicada). Tracked como follow-up.
+- **Lição #25 (NEW)**: `TransformInterceptor` envelope precisa unwrap consistente. Per-hook fix é band-aid; refactor `apiClient.ts` é solução definitiva.
+- **Lição #26 (NEW)**: Smoke E2E real revela bugs cross-component que unit tests não pegam (envelope contract, state hydration).
+
+---
+
+## [v0.77.2] — S77-B retry — 2026-04-30
+
+### Added
+
+- **WhatsappService spec amplification** (`66803a7` append): `processStatusCallback` describe novo (~50L em existing spec): `it.each` 5 status mappings (sent/delivered/read/failed/undelivered → SENT/DELIVERED/READ/FAILED/FAILED) + unknown-status early return (no DB call) + prisma error swallowed (no rethrow). +1 mock method `whatsappMessage.updateMany`.
+- **ContactsService spec amplification** (`66803a7` append): 2 describes novos (~60L): `list` pagination (LIST_MAX=100 cap, cursor + skip:1, empty rows + null nextCursor) + `upsertFromTouch` phone normalization (00 → + coercion, empty phone returns null). Sem novos mocks (reuso shared mockPrisma).
+- **Pattern novo**: append em existing spec files (mocks compartilhados proven CI-green) ao invés de spec files separados (`*.failures.spec.ts`). S77-B inicial `39619fe` quebrou CI (mock shape inconsistent), `da43287` reverteu, retry `66803a7` aplicou pattern novo + Pedro validação local pré-push (`pnpm test --testPathPattern=...`) → 42 testes pass → push verde.
+
+### Notes
+
+- **Lição #24 (NEW)**: Sandbox não roda jest (lição #3) → CI é único runtime gate. Spec novo PRECISA `pnpm test --testPathPattern=<file>` local antes de push. Pre-push type-check (husky) NÃO pega runtime mock errors.
+- **S77 cumulative final**: +60 testes (S77-A 48 email + S77-B retry 12 whatsapp/contacts).
+
+---
+
 ## [v0.77.1] — S77 (commit 2) — 2026-04-29
 
 ### Added

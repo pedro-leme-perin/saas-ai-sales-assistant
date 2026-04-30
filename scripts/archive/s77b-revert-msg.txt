@@ -1,0 +1,29 @@
+revert(s77-b): drop failing failure-mode spec files (CI restoration)
+
+S77-B commit 39619fe broke backend CI (job 73692761680 failure).
+Root cause: failure-mode spec files contained mock/type issues not
+caught pre-push (sandbox cannot run jest, licao #3).
+
+Restoration:
+- Delete apps/backend/test/unit/whatsapp.service.failures.spec.ts
+- Delete apps/backend/test/unit/contacts.service.failures.spec.ts
+
+Doc state preserved (CHANGELOG v0.77.1 + PROJECT_HISTORY S77-B
+section + CLAUDE.md row) as forensic record. v0.77.2 entry added
+documenting revert + retry plan.
+
+S77 cumulative reset: 48 testes (S77-A email amplification only).
+S77-B retry in next session with mandatory `pnpm test
+--testPathPattern=failures.spec` local validation before push.
+
+Lessons reinforced:
+- Licao #3 (sandbox cannot run pnpm): CI is sole runtime gate;
+  must be more careful with mock signatures pre-push.
+- NEW Licao #24: BEFORE writing failure-mode spec referencing
+  service methods, run `npx jest --testPathPattern=<existing>` to
+  validate baseline mocks shape, then mirror exactly. Cannot rely
+  on `sed -n` source inspection alone — runtime jest type
+  resolution differs from source signature inspection.
+
+Anterior failed: 39619fe (S77-B)
+Restoration target: 74cd00a (S77-A green CI baseline)
