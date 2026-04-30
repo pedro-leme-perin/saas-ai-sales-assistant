@@ -6498,5 +6498,62 @@ Amplificar `apps/backend/test/unit/email.service.spec.ts` para cobrir 11 método
 
 ### Decisão deferida
 
-- **Ratchet `coverageThreshold` para 80%**: deferido para commits 2-4 conforme CI measurement.
-- **Frontend coverage**: ainda não auditado (frontend tem testes Playwright E2E mas zero unit tests Jest). Defer dedicated session.
+- **Ratchet `coverageThreshold` para 80%**: deferido para commits 2-4
+
+---
+
+## S77 (commit 2 / S77-B) — Failure-mode spec files (whatsapp + contacts)
+
+**Data:** 29/04/2026
+**Foco:** Continuação D1 §9 80% coverage — segundo commit incremental. Padrão NOVO: failure-mode spec FILES separados (`*.failures.spec.ts`) ao invés de rewrite de baseline specs. Mitigation lição #5 (corruption risk) reduzida.
+
+### Picks (S77-B)
+
+| Service          | Baseline             | Novo file                                | Tests added |
+| ---------------- | -------------------- | ---------------------------------------- | ----------- |
+| whatsapp.service | 297L spec / 15 tests | whatsapp.service.failures.spec.ts (200L) | 14          |
+| contacts.service | 334L spec / 15 tests | contacts.service.failures.spec.ts (226L) | 15          |
+
+Total: 426L, 29 tests.
+
+### Cobertura adicionada
+
+**WhatsappService failure modes**:
+
+1. `processWebhook` — 4 branches (empty body+no media, no company, whatsapp: prefix strip, media-only).
+2. `processStatusCallback` — 7 branches via `it.each` (5 status mappings + unknown + DB error swallowed).
+3. `resolveChat` — 3 branches (happy + NotFound missing + tenant mismatch).
+
+**ContactsService failure modes**:
+
+1. `findById` tenant isolation — 2 testes.
+2. `upsertFromTouch` phone normalization — 6 testes (empty, short, whatsapp:, 00→+, SETNX collision, SETNX first-touch).
+3. `handleTouch` error swallow — 1 teste.
+4. `merge` BadRequest primary==secondary — 1 teste.
+5. `list` — 5 testes (empty companyId, q<2 no OR, q≥2 OR, LIST_MAX cap, cursor+skip:1).
+
+### Padrão novo: failure-mode spec files
+
+- Files `*.failures.spec.ts` separados dos baseline `*.service.spec.ts`.
+- **Vantagens**: (a) baseline specs intactas → menor risk de regression em rewrite; (b) PR review surface menor; (c) corruption risk localizada (se algum file for truncado, baseline spec mantém cobertura mínima); (d) nomenclatura discoverable em CI logs.
+- **Desvantagens**: jest reload por nome de arquivo redundante (mock setup repetido). Aceitável trade-off para estabilidade incremental.
+
+### Validação
+
+- `wc -l` files: whatsapp.service.failures.spec.ts (200), contacts.service.failures.spec.ts (226).
+- Service signatures verificadas via `sed -n` no source: `list(companyId, query)` 2 params, `merge(companyId, actorId, dto)` 3 params, `ContactTouchPayload` campo `phone` (não rawPhone), `callId/chatId` (não sourceId).
+- Type-checks adhoc: `Prisma.ContactWhereInput` shape para list; `MergeContactsDto` shape; `MessageStatus` enum mapping.
+
+### Lições reforçadas
+
+- **Lição #5 mitigation**: failure-mode spec files separados ao invés de rewrite. Pattern reaplicável em S77-C/D.
+- **Lição #1 (Edit tool unsafe)**: writes via `cat << 'TSEOF'` heredoc + Python3 string-replace para fixes pontuais (fix payload type + fix list signature).
+- **Lição #4 (sandbox CAN write Windows mount)**: cp /tmp → test/unit/ + sleep 1 + SHA256 verify. SHA match confirmado pré-commit.
+- **NEW lição #23**: ANTES de escrever spec, SEMPRE verificar source method signature (param count, param order, payload shape). Inicial draft tinha `service.list({obj})`, `service.merge(co, dto, actor)`, `payload.rawPhone`, todos errados. Verificação adhoc via `sed -n` em source pegou todos.
+
+### Roadmap S77 status pós-S77-B
+
+- ✅ S77-A: email.service amplificação (+48 tests, 74cd00a)
+- ⏳ S77-B: whatsapp + contacts failure-mode files (+29 tests) — push pendente
+- ⏭️ S77-C candidato: calls.service + analytics.service + summaries.service failure-mode files (~+40 tests)
+- ⏭️ S77-D candidato: ratchet floor 68 → 75-80 (target §9) + doc atomic

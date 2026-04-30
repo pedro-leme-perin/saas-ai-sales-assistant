@@ -18,6 +18,29 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.77.1] — S77 (commit 2) — 2026-04-29
+
+### Added
+
+- **WhatsappService failure-mode amplification**: `apps/backend/test/unit/whatsapp.service.failures.spec.ts` (200L, 14 testes em 3 describes). Cobre branches NÃO exercitadas por `whatsapp.service.spec.ts` baseline:
+  - `processWebhook`: empty content + no media early return; no-company-found early return; whatsapp: prefix strip; media-only message branch.
+  - `processStatusCallback`: `it.each` mapping 5 Twilio statuses (sent/delivered/read/failed/undelivered) → internal MessageStatus; unknown status early return; prisma update error swallowed (logged not thrown).
+  - `resolveChat`: happy path RESOLVED + tenant isolation NotFoundException + companyId filter validation.
+- **ContactsService failure-mode amplification**: `apps/backend/test/unit/contacts.service.failures.spec.ts` (226L, 15 testes em 6 describes). Cobre:
+  - `findById`: NotFound + companyId filter validation.
+  - `upsertFromTouch`: empty/short phone returns null; whatsapp: prefix strip; 00 → + coercion; SETNX collision skip increment; SETNX first touch increments totalCalls.
+  - `handleTouch`: error swallowing (no rethrow).
+  - `merge`: BadRequest when primary == secondary.
+  - `list`: BadRequest empty companyId; q < 2 chars no ILIKE; q ≥ 2 chars adds OR clause; LIST_MAX cap 100; cursor + skip:1 pagination.
+
+### Notes
+
+- **D1 plan progress**: 2/4 commits feitos (S77-A email + S77-B whatsapp/contacts). Total +77 testes (S77-A 48 + S77-B 29). NÃO altera `coverageThreshold` ainda — observar CI measurement S77-B antes de ratchet.
+- **Próximos**: S77-C (calls.service + analytics + summaries amplificações), S77-D (ratchet final 80%).
+- **Lição #5 mitigation aplicada**: novo padrão _FAILURE-MODE SPEC FILES_ (separados de baseline) evita rewrite de specs estáveis. Reduz blast radius de working tree corruption.
+
+---
+
 ## [v0.77.0] — S77 (commit 1) — 2026-04-29
 
 ### Added

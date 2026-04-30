@@ -1,0 +1,64 @@
+test(s77-b): failure-mode spec files (whatsapp + contacts)
+
+Coverage ratchet commit 2/N (D1 §9 target 80%).
+
+Pattern novo: failure-mode spec FILES separados ao inves de rewrite de
+baseline specs. Reduz blast radius de working tree corruption (licao #5
+mitigation aplicada pos-RCA). Pattern reaplicavel em S77-C/D.
+
+apps/backend/test/unit/whatsapp.service.failures.spec.ts (NEW, 200L, 14 tests):
+- processWebhook: empty body+no media early return / no-company-found
+  early return / whatsapp: prefix strip via extractPhone / media-only
+  message branch (4 testes).
+- processStatusCallback: it.each mapping 5 Twilio statuses
+  (sent/delivered/read/failed/undelivered) -> internal MessageStatus +
+  unknown status early return + prisma updateMany error swallowed (no
+  rethrow) (7 testes).
+- resolveChat: happy path RESOLVED + chat-missing NotFoundException +
+  tenant mismatch via companyId filter (3 testes).
+
+apps/backend/test/unit/contacts.service.failures.spec.ts (NEW, 226L, 15 tests):
+- findById: NotFound missing + tenant filter validation (2 testes).
+- upsertFromTouch phone normalization: empty -> null / too-short -> null
+  / whatsapp: prefix strip / 00 -> + coercion / SETNX collision skip
+  increment / SETNX first-touch increments totalCalls (6 testes).
+- handleTouch: error swallow no rethrow (1 teste).
+- merge: BadRequest primary == secondary (1 teste).
+- list: BadRequest empty companyId / q < 2 chars no OR clause / q >= 2
+  chars adds OR / LIST_MAX cap 100 / cursor + skip:1 pagination (5 testes).
+
+Total commit: 426L de novos test files, +29 testes.
+S77 cumulative: 48 (commit 1 email) + 29 (commit 2) = 77 testes.
+
+Pattern justification (vs rewrite baseline):
+- Baseline specs intactas -> menor risk de regression em rewrite.
+- PR review surface menor (additive only).
+- Corruption blast radius localizada por file.
+- Discoverable em CI logs (suffix .failures.spec).
+- Trade-off: jest reload + mock setup repetido. Aceitavel.
+
+Validacao pre-write (NOVA licao #23):
+- Sandbox `sed -n` em src/modules/whatsapp/whatsapp.service.ts e
+  contacts.service.ts antes de escrever specs.
+- Confirmou: `list(companyId, query)` 2 params NAO single object, `merge
+  (companyId, actorId, dto)` 3 params NAO (companyId, dto, actorId),
+  `ContactTouchPayload.phone` NAO rawPhone, `callId/chatId` NAO sourceId.
+- Initial draft tinha 4 erros de signature; todos pegos via sed antes
+  de cp para test/unit/.
+
+NAO altera coverageThreshold. Push primeiro, observar CI measurement,
+ratchet final em S77-D.
+
+Doc atomic (licao #18):
+- CHANGELOG.md: v0.77.1 entry
+- PROJECT_HISTORY.md: S77-B section (~85L)
+- CLAUDE.md: header 7.4 -> 7.5, last update line, table row + S77 commit 2
+
+Roadmap S77:
+- DONE: S77-A email.service amplification 74cd00a (+48)
+- DONE: S77-B whatsapp + contacts failure-mode files (+29)
+- TODO S77-C: calls.service + analytics + summaries failure-mode files
+  (~+40 tests)
+- TODO S77-D: ratchet floor 68 -> 75-80 + close session
+
+Anterior: S77-A 74cd00a
