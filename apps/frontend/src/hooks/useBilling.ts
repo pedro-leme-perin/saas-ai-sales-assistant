@@ -104,13 +104,11 @@ export function useBilling() {
   const startCheckout = useCallback(
     async (plan: string) => {
       try {
+        // Backend builds success/cancel URLs from FRONTEND_URL env;
+        // sending them here triggers forbidNonWhitelisted=true rejection.
         const data = await authFetch('/api/billing/checkout', {
           method: 'POST',
-          body: JSON.stringify({
-            plan,
-            successUrl: `${window.location.origin}/dashboard/billing?success=true`,
-            cancelUrl: `${window.location.origin}/dashboard/billing?canceled=true`,
-          }),
+          body: JSON.stringify({ plan }),
         });
         if (data.url) {
           window.location.href = data.url;
