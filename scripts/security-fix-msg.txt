@@ -1,0 +1,19 @@
+fix(security): bump @clerk/backend ~2.33.3 + axios ~1.15.2 (5 HIGH CVEs)
+
+CI Security gate (S76 strict HIGH+CRITICAL) flagged 5 new advisories
+since a469a83. Remediated via pnpm.overrides:
+
+- @clerk/backend ~2.33.3 (CVE-2026-42349, auth bypass org/billing/reverify)
+- axios ~1.15.2 covers 4 CVEs:
+  * CVE-2026-42043 NO_PROXY bypass via 127.0.0.0/8 (1.15.1+)
+  * CVE-2026-42264 prototype pollution credential injection (1.15.2+)
+  * CVE-2026-42033 prototype pollution response tampering (1.15.1+)
+  * CVE-2026-42035 header injection via prototype pollution (1.15.1+)
+
+Range '~' (same-minor) per licao #19 (avoid silent major bumps).
+
+Vetores:
+- @clerk/backend: backend auth flow direct dep
+- axios: backend twilio@5.13.1 transitive + frontend direct
+
+Anterior: ae2b8a6

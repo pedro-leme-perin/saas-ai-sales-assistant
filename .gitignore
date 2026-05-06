@@ -25,3 +25,7 @@ apps\backend\test-output.txt
 Backend e Frontend Completos.txt
 HANDOFF_CONTEXTO_SESSAO.md
 HANDOFF_SESSAO_15MAR2026.docx
+
+# pnpm audit local artifacts
+audit.json
+.audit*.json
