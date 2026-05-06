@@ -1,0 +1,25 @@
+fix(billing): use req.rawBody for Stripe webhook signature (P0)
+
+Backend webhook handler used @Body() payload: Buffer, but NestJS
+bodyParser still parses JSON even with rawBody:true. @Body() returned
+the parsed object, not raw bytes. stripe.webhooks.constructEvent
+received object -> toString returned '[object Object]' -> HMAC
+verification always failed.
+
+Fix:
+- Replace @Body() with @Req() req: RawBodyRequest<Request>
+- Pass req.rawBody (Buffer captured by Nest raw-body middleware)
+- Throw BadRequestException if rawBody unavailable (defensive)
+- Add Req, RawBodyRequest, BadRequestException to imports
+- Add type Request import from express
+
+Discovery:
+- A4 smoke E2E (Cowork via curl) caught this. Without fix, NO real
+  Stripe webhook event would verify successfully, blocking
+  subscription/invoice DB persistence in prod.
+
+Validation:
+- Local pre-push type-check passes.
+- After redeploy, retest with real Stripe-Signature should return 200.
+
+Anterior: 1fbb73f

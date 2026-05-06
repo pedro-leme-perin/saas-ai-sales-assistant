@@ -16,7 +16,11 @@ import {
   HttpCode,
   HttpStatus,
   Headers,
+  Req,
+  RawBodyRequest,
+  BadRequestException,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { Public } from '@/common/decorators/public.decorator';
@@ -347,7 +351,17 @@ export class BillingController {
   @Public()
   @SkipThrottle() // Stripe webhooks are server-to-server, must not be rate-limited
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Body() payload: Buffer, @Headers('stripe-signature') signature: string) {
-    return this.billingService.handleWebhook(payload, signature);
+  async handleWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    // Stripe.constructEvent requires the EXACT raw bytes received over the wire.
+    // `@Body()` would return the JSON-parsed object (NestJS bodyParser still runs
+    // even with rawBody: true) — passing that to constructEvent breaks HMAC verification.
+    // `req.rawBody` is the Buffer captured by Nest's raw-body middleware (main.ts: rawBody: true).
+    if (!req.rawBody) {
+      throw new BadRequestException('Raw body unavailable for webhook verification');
+    }
+    return this.billingService.handleWebhook(req.rawBody, signature);
   }
 }
