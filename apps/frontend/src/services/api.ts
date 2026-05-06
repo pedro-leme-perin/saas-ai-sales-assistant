@@ -67,8 +67,7 @@ export const usersService = {
 
 export const companiesService = {
   async getCurrent(): Promise<Company> {
-    const res = await apiClient.get<Company & { data?: Company }>('/companies/current');
-    return (res as unknown as { data?: Company })?.data ?? res;
+    return apiClient.get<Company>('/companies/current');
   },
 
   async getStats(): Promise<CompanyStats> {
@@ -76,8 +75,7 @@ export const companiesService = {
   },
 
   async getUsage(): Promise<CompanyUsage> {
-    const res = await apiClient.get<CompanyUsage & { data?: CompanyUsage }>('/companies/current/usage');
-    return (res as unknown as { data?: CompanyUsage })?.data ?? res;
+    return apiClient.get<CompanyUsage>('/companies/current/usage');
   },
 
   async update(data: Partial<Company> | Record<string, unknown>): Promise<Company> {
@@ -123,7 +121,7 @@ export const callsService = {
   async getActive(): Promise<Call[]> {
     const companyId = apiClient.getCompanyId();
     const calls = await apiClient.get<Call[]>(`/calls/${companyId}`);
-    return calls.filter(c => c.status === 'IN_PROGRESS');
+    return calls.filter((c) => c.status === 'IN_PROGRESS');
   },
 
   async getStats(): Promise<CallStats> {
@@ -132,24 +130,24 @@ export const callsService = {
       await authService.getMe();
     }
     const calls = await apiClient.get<Call[]>(`/calls/${apiClient.getCompanyId()}`);
-    
+
     const total = calls.length;
     const byStatus: Record<string, number> = {};
     let totalDuration = 0;
-    
-    calls.forEach(call => {
+
+    calls.forEach((call) => {
       byStatus[call.status] = (byStatus[call.status] || 0) + 1;
       totalDuration += call.duration || 0;
     });
-    
-   return {
-     total,
-     byStatus,
-     byDirection: {},
-     totalDuration,
-     avgDuration: total > 0 ? Math.round(totalDuration / total) : 0,
-   };
- },
+
+    return {
+      total,
+      byStatus,
+      byDirection: {},
+      totalDuration,
+      avgDuration: total > 0 ? Math.round(totalDuration / total) : 0,
+    };
+  },
 
   async create(data: {
     phoneNumber: string;
@@ -179,7 +177,7 @@ export const callsService = {
 
   async addTranscript(
     id: string,
-    data: { speaker: 'customer' | 'vendor'; text: string }
+    data: { speaker: 'customer' | 'vendor'; text: string },
   ): Promise<Call> {
     const companyId = apiClient.getCompanyId();
     return apiClient.post(`/calls/${companyId}/${id}/transcript`, data);
@@ -230,7 +228,9 @@ export const whatsappService = {
     if (!companyId) {
       await authService.getMe();
     }
-    const chats = await apiClient.get<WhatsAppChat[]>(`/whatsapp/chats/${apiClient.getCompanyId()}`);
+    const chats = await apiClient.get<WhatsAppChat[]>(
+      `/whatsapp/chats/${apiClient.getCompanyId()}`,
+    );
     return { data: chats, meta: { total: chats.length } };
   },
 
@@ -242,13 +242,10 @@ export const whatsappService = {
   async getActiveChats(): Promise<WhatsAppChat[]> {
     const companyId = apiClient.getCompanyId();
     const chats = await apiClient.get<WhatsAppChat[]>(`/whatsapp/chats/${companyId}`);
-    return chats.filter(c => c.status === 'ACTIVE' || c.status === 'OPEN');
+    return chats.filter((c) => c.status === 'ACTIVE' || c.status === 'OPEN');
   },
 
-  async createChat(data: {
-    customerPhone: string;
-    customerName?: string;
-  }): Promise<WhatsAppChat> {
+  async createChat(data: { customerPhone: string; customerName?: string }): Promise<WhatsAppChat> {
     const companyId = apiClient.getCompanyId();
     return apiClient.post(`/whatsapp/chats/${companyId}`, data);
   },
@@ -260,16 +257,18 @@ export const whatsappService = {
 
   async getMessages(
     chatId: string,
-    params?: { page?: number; limit?: number }
+    params?: { page?: number; limit?: number },
   ): Promise<{ data: WhatsAppMessage[]; meta: { total: number } }> {
     const companyId = apiClient.getCompanyId();
-    const messages = await apiClient.get<WhatsAppMessage[]>(`/whatsapp/chats/${companyId}/${chatId}/messages`);
+    const messages = await apiClient.get<WhatsAppMessage[]>(
+      `/whatsapp/chats/${companyId}/${chatId}/messages`,
+    );
     return { data: messages, meta: { total: messages.length } };
   },
 
   async sendMessage(
     chatId: string,
-    data: { content: string; type?: string; aiSuggestionUsed?: boolean }
+    data: { content: string; type?: string; aiSuggestionUsed?: boolean },
   ): Promise<WhatsAppMessage> {
     const companyId = apiClient.getCompanyId();
     return apiClient.post(`/whatsapp/chats/${companyId}/${chatId}/messages`, data);
@@ -290,11 +289,13 @@ export const whatsappService = {
     if (!companyId) {
       await authService.getMe();
     }
-    const chats = await apiClient.get<WhatsAppChat[]>(`/whatsapp/chats/${apiClient.getCompanyId()}`);
-    
+    const chats = await apiClient.get<WhatsAppChat[]>(
+      `/whatsapp/chats/${apiClient.getCompanyId()}`,
+    );
+
     return {
       totalChats: chats.length,
-      activeChats: chats.filter(c => c.status === 'ACTIVE' || c.status === 'OPEN').length,
+      activeChats: chats.filter((c) => c.status === 'ACTIVE' || c.status === 'OPEN').length,
       totalMessages: 0,
       avgResponseTime: '0min',
     };
@@ -403,7 +404,9 @@ export const billingService = {
     return apiClient.get('/billing/recovery/status');
   },
 
-  async pauseSubscription(reason?: string): Promise<{ success: boolean; status: string; resumableAt: string | null }> {
+  async pauseSubscription(
+    reason?: string,
+  ): Promise<{ success: boolean; status: string; resumableAt: string | null }> {
     return apiClient.post('/billing/recovery/pause', { reason });
   },
 
@@ -481,7 +484,10 @@ export interface NotificationPreferences {
 }
 
 export const notificationsService = {
-  async getAll(params?: { page?: number; limit?: number }): Promise<PaginatedResponse<Notification>> {
+  async getAll(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Notification>> {
     return apiClient.get('/notifications', params);
   },
 
@@ -506,11 +512,6 @@ export const notificationsService = {
   },
 };
 
-
-
-
-
-
 // =============================================
 // UPLOAD SERVICE
 // =============================================
@@ -521,17 +522,16 @@ export const uploadService = {
     contentType: string;
     category: 'logos' | 'avatars' | 'attachments';
   }): Promise<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }> {
-    const res = await apiClient.post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
-      '/upload/presigned-url',
-      params
-    );
+    const res = await apiClient.post<{
+      uploadUrl: string;
+      publicUrl: string;
+      key: string;
+      expiresIn: number;
+    }>('/upload/presigned-url', params);
     return res;
   },
 
-  async uploadFile(
-    file: File,
-    category: 'logos' | 'avatars' | 'attachments',
-  ): Promise<string> {
+  async uploadFile(file: File, category: 'logos' | 'avatars' | 'attachments'): Promise<string> {
     const { uploadUrl, publicUrl } = await this.getPresignedUrl({
       fileName: file.name,
       contentType: file.type,
@@ -660,4 +660,3 @@ export const analyticsService = {
     return res.blob();
   },
 };
-

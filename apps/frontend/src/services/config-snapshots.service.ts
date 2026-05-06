@@ -45,11 +45,7 @@ export interface CreateSnapshotPayload {
 }
 
 async function list(params?: ListSnapshotsParams): Promise<ConfigSnapshot[]> {
-  const res = await apiClient.get<ConfigSnapshot[]>(
-    '/config-snapshots',
-    params as Record<string, unknown>,
-  );
-  return res.data ?? [];
+  return apiClient.get<ConfigSnapshot[]>('/config-snapshots', params as Record<string, unknown>);
 }
 
 async function findById(id: string): Promise<ConfigSnapshot> {

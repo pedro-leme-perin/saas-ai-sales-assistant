@@ -56,8 +56,7 @@ async function updateMine(payload: UpdatePresencePayload): Promise<PresenceRow> 
 }
 
 async function listActive(): Promise<PresenceRow[]> {
-  const res = await apiClient.get<PresenceRow[]>('/presence/active');
-  return res.data ?? [];
+  return apiClient.get<PresenceRow[]>('/presence/active');
 }
 
 async function findForUser(userId: string): Promise<PresenceRow> {

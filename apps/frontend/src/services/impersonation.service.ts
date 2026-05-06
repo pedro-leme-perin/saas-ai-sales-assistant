@@ -50,8 +50,7 @@ async function end(sessionId: string, reason?: string): Promise<{ ended: boolean
 
 async function listActive(actorUserId?: string): Promise<ImpersonationSession[]> {
   const params = actorUserId ? { actorUserId } : undefined;
-  const res = await apiClient.get<ImpersonationSession[]>('/impersonation/sessions', params);
-  return res.data ?? [];
+  return apiClient.get<ImpersonationSession[]>('/impersonation/sessions', params);
 }
 
 async function findById(sessionId: string): Promise<ImpersonationSessionDetail> {

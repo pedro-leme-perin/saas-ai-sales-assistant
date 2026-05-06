@@ -42,8 +42,7 @@ export interface UpdateSlaEscalationPayload {
 
 async function list(policyId?: string): Promise<SlaEscalation[]> {
   const params = policyId ? { policyId } : undefined;
-  const res = await apiClient.get<SlaEscalation[]>('/sla-escalations', params);
-  return res.data ?? [];
+  return apiClient.get<SlaEscalation[]>('/sla-escalations', params);
 }
 
 async function findById(id: string): Promise<SlaEscalation> {
