@@ -1,0 +1,14 @@
+test(billing): update controller spec for raw body webhook fix
+
+S77 A4 fix #3 (9d795b8) changed handleWebhook signature from
+@Body() Buffer to @Req() RawBodyRequest. Test was passing Buffer
+directly which now becomes the req object (no rawBody) -> throws.
+
+Fix:
+- Pass mock { rawBody: Buffer } as req argument
+- Add new test for missing rawBody (BadRequestException path)
+
+Validated: webhook test in prod now returns 200 OK (HMAC verifies
+correctly with raw Buffer bytes).
+
+Anterior: 9d795b8

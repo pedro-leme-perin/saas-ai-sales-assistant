@@ -209,12 +209,20 @@ describe('BillingController', () => {
   // ─────────────────────────────────────────
 
   describe('handleWebhook', () => {
-    it('should forward raw payload and signature to service', async () => {
+    it('should forward req.rawBody and signature to service', async () => {
       const payload = Buffer.from('webhook-payload');
       const signature = 'sig_test_123';
-      const result = await controller.handleWebhook(payload, signature);
+      const req = { rawBody: payload } as unknown as Parameters<typeof controller.handleWebhook>[0];
+      const result = await controller.handleWebhook(req, signature);
       expect(result).toEqual({ received: true });
       expect(billingService.handleWebhook).toHaveBeenCalledWith(payload, signature);
+    });
+
+    it('should throw BadRequestException when req.rawBody is missing', async () => {
+      const req = {} as unknown as Parameters<typeof controller.handleWebhook>[0];
+      await expect(controller.handleWebhook(req, 'sig')).rejects.toThrow(
+        'Raw body unavailable for webhook verification',
+      );
     });
   });
 });
