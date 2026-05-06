@@ -2,14 +2,14 @@
 // 📸 Config snapshots service (Session 58 — Feature A2)
 // =============================================
 
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from '@/lib/api-client';
 
 export type ConfigResource =
-  | "COMPANY_SETTINGS"
-  | "FEATURE_FLAG"
-  | "SLA_POLICY"
-  | "ASSIGNMENT_RULE"
-  | "NOTIFICATION_PREFERENCES";
+  | 'COMPANY_SETTINGS'
+  | 'FEATURE_FLAG'
+  | 'SLA_POLICY'
+  | 'ASSIGNMENT_RULE'
+  | 'NOTIFICATION_PREFERENCES';
 
 export interface ConfigSnapshot {
   id: string;
@@ -45,8 +45,8 @@ export interface CreateSnapshotPayload {
 }
 
 async function list(params?: ListSnapshotsParams): Promise<ConfigSnapshot[]> {
-  const res = await apiClient.get<{ data: ConfigSnapshot[] }>(
-    "/config-snapshots",
+  const res = await apiClient.get<ConfigSnapshot[]>(
+    '/config-snapshots',
     params as Record<string, unknown>,
   );
   return res.data ?? [];
@@ -57,16 +57,14 @@ async function findById(id: string): Promise<ConfigSnapshot> {
 }
 
 async function create(payload: CreateSnapshotPayload): Promise<ConfigSnapshot> {
-  return apiClient.post<ConfigSnapshot>("/config-snapshots", payload);
+  return apiClient.post<ConfigSnapshot>('/config-snapshots', payload);
 }
 
 async function diff(id: string): Promise<SnapshotDiff> {
   return apiClient.get<SnapshotDiff>(`/config-snapshots/${id}/diff`);
 }
 
-async function rollback(
-  id: string,
-): Promise<{ success: boolean; preRollbackSnapshotId: string }> {
+async function rollback(id: string): Promise<{ success: boolean; preRollbackSnapshotId: string }> {
   return apiClient.post<{ success: boolean; preRollbackSnapshotId: string }>(
     `/config-snapshots/${id}/rollback`,
     {},

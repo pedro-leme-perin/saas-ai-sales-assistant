@@ -2,11 +2,11 @@
 // ⭐ CSAT SERVICE (Session 50)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
-export type CsatTrigger = "CALL_END" | "CHAT_CLOSE";
-export type CsatChannel = "WHATSAPP" | "EMAIL";
-export type CsatResponseStatus = "SCHEDULED" | "SENT" | "RESPONDED" | "EXPIRED" | "FAILED";
+export type CsatTrigger = 'CALL_END' | 'CHAT_CLOSE';
+export type CsatChannel = 'WHATSAPP' | 'EMAIL';
+export type CsatResponseStatus = 'SCHEDULED' | 'SENT' | 'RESPONDED' | 'EXPIRED' | 'FAILED';
 
 export interface CsatSurveyConfig {
   id: string;
@@ -54,7 +54,7 @@ export interface CsatAnalytics {
   responded: number;
   responseRate: number;
   avgScore: number;
-  distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
+  distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
   promoters: number;
   passives: number;
   detractors: number;
@@ -77,8 +77,8 @@ export interface CsatPublicLookup {
 // 📈 TRENDS (Session 59)
 // =============================================
 
-export type TrendBucket = "day" | "week" | "month";
-export type TrendGroupBy = "agent" | "tag" | "channel";
+export type TrendBucket = 'day' | 'week' | 'month';
+export type TrendGroupBy = 'agent' | 'tag' | 'channel';
 
 export interface TrendBucketRow {
   bucketStart: string;
@@ -101,7 +101,7 @@ export interface TrendSummary {
   responseRate: number;
   avgScore: number;
   nps: number;
-  distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
+  distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
   promoters: number;
   passives: number;
   detractors: number;
@@ -125,55 +125,53 @@ export interface TrendsQueryInput {
 
 export const csatService = {
   listConfigs: async () => {
-    const res = await apiClient.get<{ data: CsatSurveyConfig[] }>(`/csat/configs`);
-    return res.data;
+    return apiClient.get<CsatSurveyConfig[]>(`/csat/configs`);
   },
 
   upsertConfig: (input: UpsertCsatConfigInput) =>
     apiClient.put<CsatSurveyConfig>(`/csat/configs`, input),
 
-  removeConfig: (id: string) =>
-    apiClient.delete<{ success: true }>(`/csat/configs/${id}`),
+  removeConfig: (id: string) => apiClient.delete<{ success: true }>(`/csat/configs/${id}`),
 
-  listResponses: (params: { status?: CsatResponseStatus; limit?: number; cursor?: string } = {}) => {
+  listResponses: (
+    params: { status?: CsatResponseStatus; limit?: number; cursor?: string } = {},
+  ) => {
     const qs = new URLSearchParams();
-    if (params.status) qs.set("status", params.status);
-    if (params.limit) qs.set("limit", String(params.limit));
-    if (params.cursor) qs.set("cursor", params.cursor);
+    if (params.status) qs.set('status', params.status);
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.cursor) qs.set('cursor', params.cursor);
     return apiClient.get<ListCsatResponsesResponse>(
-      `/csat/responses${qs.toString() ? `?${qs.toString()}` : ""}`,
+      `/csat/responses${qs.toString() ? `?${qs.toString()}` : ''}`,
     );
   },
 
   analytics: (params: { since?: string; until?: string } = {}) => {
     const qs = new URLSearchParams();
-    if (params.since) qs.set("since", params.since);
-    if (params.until) qs.set("until", params.until);
+    if (params.since) qs.set('since', params.since);
+    if (params.until) qs.set('until', params.until);
     return apiClient.get<CsatAnalytics>(
-      `/csat/analytics${qs.toString() ? `?${qs.toString()}` : ""}`,
+      `/csat/analytics${qs.toString() ? `?${qs.toString()}` : ''}`,
     );
   },
 
   // Session 59 — trend analytics
   trends: (params: TrendsQueryInput = {}) => {
     const qs = new URLSearchParams();
-    if (params.since) qs.set("since", params.since);
-    if (params.until) qs.set("until", params.until);
-    if (params.bucket) qs.set("bucket", params.bucket);
-    if (params.groupBy) qs.set("groupBy", params.groupBy);
-    if (params.channel) qs.set("channel", params.channel);
-    if (params.trigger) qs.set("trigger", params.trigger);
-    return apiClient.get<TrendPayload>(
-      `/csat/trends${qs.toString() ? `?${qs.toString()}` : ""}`,
-    );
+    if (params.since) qs.set('since', params.since);
+    if (params.until) qs.set('until', params.until);
+    if (params.bucket) qs.set('bucket', params.bucket);
+    if (params.groupBy) qs.set('groupBy', params.groupBy);
+    if (params.channel) qs.set('channel', params.channel);
+    if (params.trigger) qs.set('trigger', params.trigger);
+    return apiClient.get<TrendPayload>(`/csat/trends${qs.toString() ? `?${qs.toString()}` : ''}`);
   },
 
   // Public (no auth) — use raw fetch to bypass auth interceptors
   publicLookup: async (token: string): Promise<CsatPublicLookup> => {
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const base = process.env.NEXT_PUBLIC_API_URL ?? '';
     const res = await fetch(`${base}/csat/public/${encodeURIComponent(token)}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
     });
     if (!res.ok) throw new Error(`Lookup failed: ${res.status}`);
     const body = await res.json();
@@ -185,14 +183,14 @@ export const csatService = {
     score: number,
     comment?: string,
   ): Promise<{ success: true }> => {
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const base = process.env.NEXT_PUBLIC_API_URL ?? '';
     const res = await fetch(`${base}/csat/public/${encodeURIComponent(token)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ score, comment }),
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
+      const text = await res.text().catch(() => '');
       throw new Error(text || `Submit failed: ${res.status}`);
     }
     const body = await res.json();

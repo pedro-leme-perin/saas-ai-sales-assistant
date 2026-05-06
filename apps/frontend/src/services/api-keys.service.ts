@@ -2,7 +2,7 @@
 // 🔑 API KEYS SERVICE (Session 47)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export interface ApiKeyView {
   id: string;
@@ -19,7 +19,10 @@ export interface ApiKeyView {
   createdById: string | null;
 }
 
-export interface IssuedApiKey extends Omit<ApiKeyView, "lastUsedAt" | "usageCount" | "revokedAt" | "createdById"> {
+export interface IssuedApiKey extends Omit<
+  ApiKeyView,
+  'lastUsedAt' | 'usageCount' | 'revokedAt' | 'createdById'
+> {
   plaintextKey: string;
 }
 
@@ -39,10 +42,7 @@ export interface UpdateApiKeyInput {
 }
 
 export const apiKeysService = {
-  list: async () => {
-    const res = await apiClient.get<{ data: ApiKeyView[] }>(`/api-keys`);
-    return res.data;
-  },
+  list: () => apiClient.get<ApiKeyView[]>(`/api-keys`),
   findById: (id: string) => apiClient.get<ApiKeyView>(`/api-keys/${id}`),
   create: (input: CreateApiKeyInput) => apiClient.post<IssuedApiKey>(`/api-keys`, input),
   update: (id: string, input: UpdateApiKeyInput) =>
@@ -52,15 +52,15 @@ export const apiKeysService = {
 };
 
 export const API_KEY_SCOPES = [
-  "calls:read",
-  "calls:write",
-  "whatsapp:read",
-  "whatsapp:write",
-  "analytics:read",
-  "webhooks:read",
-  "webhooks:write",
-  "templates:read",
-  "templates:write",
-  "tags:read",
-  "tags:write",
+  'calls:read',
+  'calls:write',
+  'whatsapp:read',
+  'whatsapp:write',
+  'analytics:read',
+  'webhooks:read',
+  'webhooks:write',
+  'templates:read',
+  'templates:write',
+  'tags:read',
+  'tags:write',
 ] as const;

@@ -2,9 +2,9 @@
 // 💾 SAVED FILTERS SERVICE (Session 48)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
-export type FilterResource = "CALL" | "CHAT";
+export type FilterResource = 'CALL' | 'CHAT';
 
 export interface SavedFilterJson {
   q?: string;
@@ -41,20 +41,18 @@ export interface CreateSavedFilterInput {
 }
 
 export type UpdateSavedFilterInput = Partial<
-  Pick<CreateSavedFilterInput, "name" | "filterJson" | "isPinned">
+  Pick<CreateSavedFilterInput, 'name' | 'filterJson' | 'isPinned'>
 >;
 
 export const savedFiltersService = {
   list: async (resource?: FilterResource) => {
-    const qs = resource ? `?resource=${resource}` : "";
-    const res = await apiClient.get<{ data: SavedFilter[] }>(`/saved-filters${qs}`);
-    return res.data;
+    const qs = resource ? `?resource=${resource}` : '';
+    return apiClient.get<SavedFilter[]>(`/saved-filters${qs}`);
   },
 
   findById: (id: string) => apiClient.get<SavedFilter>(`/saved-filters/${id}`),
 
-  create: (input: CreateSavedFilterInput) =>
-    apiClient.post<SavedFilter>(`/saved-filters`, input),
+  create: (input: CreateSavedFilterInput) => apiClient.post<SavedFilter>(`/saved-filters`, input),
 
   update: (id: string, input: UpdateSavedFilterInput) =>
     apiClient.patch<SavedFilter>(`/saved-filters/${id}`, input),

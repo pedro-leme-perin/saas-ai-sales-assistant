@@ -1,14 +1,14 @@
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export type GoalMetric =
-  | "CALLS_TOTAL"
-  | "CALLS_COMPLETED"
-  | "CONVERSION_RATE"
-  | "AI_ADOPTION_RATE"
-  | "WHATSAPP_MESSAGES";
+  | 'CALLS_TOTAL'
+  | 'CALLS_COMPLETED'
+  | 'CONVERSION_RATE'
+  | 'AI_ADOPTION_RATE'
+  | 'WHATSAPP_MESSAGES';
 
-export type GoalPeriodType = "WEEKLY" | "MONTHLY";
-export type UserRole = "OWNER" | "ADMIN" | "MANAGER" | "VENDOR";
+export type GoalPeriodType = 'WEEKLY' | 'MONTHLY';
+export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'VENDOR';
 
 export interface GoalProgress {
   id: string;
@@ -67,18 +67,15 @@ export interface CreateGoalPayload {
 }
 
 export const goalsService = {
-  leaderboard: (period: GoalPeriodType = "WEEKLY") =>
+  leaderboard: (period: GoalPeriodType = 'WEEKLY') =>
     apiClient.get<LeaderboardResponse>(`/goals/leaderboard?period=${period}`),
 
-  listCurrent: (period: GoalPeriodType = "WEEKLY") =>
-    apiClient.get<{ data: TeamGoal[] }>(`/goals/current?period=${period}`),
+  listCurrent: (period: GoalPeriodType = 'WEEKLY') =>
+    apiClient.get<TeamGoal[]>(`/goals/current?period=${period}`),
 
-  create: (payload: CreateGoalPayload) =>
-    apiClient.post<TeamGoal>("/goals", payload),
+  create: (payload: CreateGoalPayload) => apiClient.post<TeamGoal>('/goals', payload),
 
-  update: (id: string, target: number) =>
-    apiClient.patch<TeamGoal>(`/goals/${id}`, { target }),
+  update: (id: string, target: number) => apiClient.patch<TeamGoal>(`/goals/${id}`, { target }),
 
-  remove: (id: string) =>
-    apiClient.delete<{ success: boolean }>(`/goals/${id}`),
+  remove: (id: string) => apiClient.delete<{ success: boolean }>(`/goals/${id}`),
 };

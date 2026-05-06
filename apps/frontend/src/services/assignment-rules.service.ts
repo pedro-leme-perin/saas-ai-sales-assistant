@@ -2,10 +2,10 @@
 // 🎯 ASSIGNMENT RULES SERVICE (Session 54)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
-export type AssignmentStrategy = "ROUND_ROBIN" | "LEAST_BUSY" | "MANUAL_ONLY";
-export type ChatPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
+export type AssignmentStrategy = 'ROUND_ROBIN' | 'LEAST_BUSY' | 'MANUAL_ONLY';
+export type ChatPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
 
 export interface AssignmentConditions {
   priority?: ChatPriority;
@@ -41,17 +41,12 @@ export type UpdateAssignmentRuleInput = Partial<CreateAssignmentRuleInput>;
 
 export const assignmentRulesService = {
   list: async () => {
-    const res = await apiClient.get<{ data: AssignmentRule[] }>(
-      `/assignment-rules`,
-    );
-    return res.data ?? (res as unknown as AssignmentRule[]);
+    return apiClient.get<AssignmentRule[]>(`/assignment-rules`);
   },
-  findById: (id: string) =>
-    apiClient.get<AssignmentRule>(`/assignment-rules/${id}`),
+  findById: (id: string) => apiClient.get<AssignmentRule>(`/assignment-rules/${id}`),
   create: (dto: CreateAssignmentRuleInput) =>
     apiClient.post<AssignmentRule>(`/assignment-rules`, dto),
   update: (id: string, dto: UpdateAssignmentRuleInput) =>
     apiClient.patch<AssignmentRule>(`/assignment-rules/${id}`, dto),
-  remove: (id: string) =>
-    apiClient.delete<{ success: true }>(`/assignment-rules/${id}`),
+  remove: (id: string) => apiClient.delete<{ success: true }>(`/assignment-rules/${id}`),
 };

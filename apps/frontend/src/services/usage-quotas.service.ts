@@ -2,13 +2,9 @@
 // 📊 USAGE QUOTAS SERVICE (Session 55 — Feature A2)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
-export type UsageMetric =
-  | "CALLS"
-  | "WHATSAPP_MESSAGES"
-  | "AI_SUGGESTIONS"
-  | "STORAGE_MB";
+export type UsageMetric = 'CALLS' | 'WHATSAPP_MESSAGES' | 'AI_SUGGESTIONS' | 'STORAGE_MB';
 
 export interface UsageQuota {
   id: string;
@@ -43,11 +39,9 @@ export interface UpsertQuotaLimitInput {
 
 export const usageQuotasService = {
   list: async () => {
-    const res = await apiClient.get<{ data: UsageQuota[] }>(`/usage-quotas`);
-    return res.data ?? (res as unknown as UsageQuota[]);
+    return apiClient.get<UsageQuota[]>(`/usage-quotas`);
   },
-  check: (metric: UsageMetric) =>
-    apiClient.get<QuotaCheck>(`/usage-quotas/check/${metric}`),
+  check: (metric: UsageMetric) => apiClient.get<QuotaCheck>(`/usage-quotas/check/${metric}`),
   upsertLimit: (dto: UpsertQuotaLimitInput) =>
     apiClient.put<UsageQuota>(`/usage-quotas/limit`, dto),
 };

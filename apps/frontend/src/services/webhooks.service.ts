@@ -2,13 +2,13 @@
 // 🔔 WEBHOOKS SERVICE (Session 46)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export type WebhookEvent =
-  | "CALL_COMPLETED"
-  | "CHAT_MESSAGE_RECEIVED"
-  | "SUMMARY_READY"
-  | "COACHING_REPORT_CREATED";
+  | 'CALL_COMPLETED'
+  | 'CHAT_MESSAGE_RECEIVED'
+  | 'SUMMARY_READY'
+  | 'COACHING_REPORT_CREATED';
 
 export interface WebhookEndpoint {
   id: string;
@@ -28,7 +28,7 @@ export interface WebhookDelivery {
   id: string;
   endpointId: string;
   event: WebhookEvent;
-  status: "PENDING" | "SUCCEEDED" | "FAILED" | "DEAD_LETTER";
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'DEAD_LETTER';
   attempts: number;
   responseStatus: number | null;
   errorMessage: string | null;
@@ -52,28 +52,22 @@ export interface UpdateWebhookInput {
 
 export const webhooksService = {
   list: async () => {
-    const res = await apiClient.get<{ data: WebhookEndpoint[] }>("/webhooks");
-    return res.data;
+    return apiClient.get<WebhookEndpoint[]>('/webhooks');
   },
 
   listDeliveries: async (endpointId?: string, limit = 50) => {
     const qs = new URLSearchParams();
-    if (endpointId) qs.set("endpointId", endpointId);
-    qs.set("limit", String(limit));
-    const res = await apiClient.get<{ data: WebhookDelivery[] }>(
-      `/webhooks/deliveries?${qs.toString()}`,
-    );
-    return res.data;
+    if (endpointId) qs.set('endpointId', endpointId);
+    qs.set('limit', String(limit));
+    return apiClient.get<WebhookDelivery[]>(`/webhooks/deliveries?${qs.toString()}`);
   },
 
-  create: async (input: CreateWebhookInput) =>
-    apiClient.post<WebhookEndpoint>("/webhooks", input),
+  create: async (input: CreateWebhookInput) => apiClient.post<WebhookEndpoint>('/webhooks', input),
 
   update: async (id: string, input: UpdateWebhookInput) =>
     apiClient.patch<WebhookEndpoint>(`/webhooks/${id}`, input),
 
-  remove: async (id: string) =>
-    apiClient.delete<{ ok: true }>(`/webhooks/${id}`),
+  remove: async (id: string) => apiClient.delete<{ ok: true }>(`/webhooks/${id}`),
 
   rotateSecret: async (id: string) =>
     apiClient.post<{ id: string; secret: string; updatedAt: string }>(

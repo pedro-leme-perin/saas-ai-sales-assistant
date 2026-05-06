@@ -2,15 +2,15 @@
 // 🧹 RETENTION POLICIES SERVICE (Session 51)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export type RetentionResource =
-  | "CALLS"
-  | "WHATSAPP_CHATS"
-  | "AUDIT_LOGS"
-  | "AI_SUGGESTIONS"
-  | "CSAT_RESPONSES"
-  | "NOTIFICATIONS";
+  | 'CALLS'
+  | 'WHATSAPP_CHATS'
+  | 'AUDIT_LOGS'
+  | 'AI_SUGGESTIONS'
+  | 'CSAT_RESPONSES'
+  | 'NOTIFICATIONS';
 
 export interface RetentionPolicy {
   id: string;
@@ -41,21 +41,19 @@ export const MIN_RETENTION_DAYS: Record<RetentionResource, number> = {
 };
 
 export const RETENTION_RESOURCES: RetentionResource[] = [
-  "CALLS",
-  "WHATSAPP_CHATS",
-  "AUDIT_LOGS",
-  "AI_SUGGESTIONS",
-  "CSAT_RESPONSES",
-  "NOTIFICATIONS",
+  'CALLS',
+  'WHATSAPP_CHATS',
+  'AUDIT_LOGS',
+  'AI_SUGGESTIONS',
+  'CSAT_RESPONSES',
+  'NOTIFICATIONS',
 ];
 
 export const retentionPoliciesService = {
   list: async () => {
-    const res = await apiClient.get<{ data: RetentionPolicy[] }>(`/retention-policies`);
-    return res.data;
+    return apiClient.get<RetentionPolicy[]>(`/retention-policies`);
   },
   upsert: (input: UpsertRetentionPolicyInput) =>
     apiClient.put<RetentionPolicy>(`/retention-policies`, input),
-  remove: (id: string) =>
-    apiClient.delete<{ success: true }>(`/retention-policies/${id}`),
+  remove: (id: string) => apiClient.delete<{ success: true }>(`/retention-policies/${id}`),
 };

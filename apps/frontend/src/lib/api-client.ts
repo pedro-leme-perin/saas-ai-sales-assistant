@@ -1,4 +1,9 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  AxiosRequestConfig,
+  InternalAxiosRequestConfig,
+} from 'axios';
 import { toast } from 'sonner';
 import { logger } from './logger';
 
@@ -13,6 +18,53 @@ let clerkGetToken: (() => Promise<string | null>) | null = null;
 
 export function setClerkGetToken(fn: () => Promise<string | null>) {
   clerkGetToken = fn;
+}
+
+/**
+ * S78 G1: Detects backend TransformInterceptor envelope shape.
+ *
+ * Backend wraps every JSON 2xx response in `{ success, data, timestamp }` (see
+ * `apps/backend/src/common/interceptors/transform.interceptor.ts`). Per-hook
+ * unwrap (S77+A4 ddcf42f useBilling) was bug-prone — same cascade caused
+ * `/dashboard` root crash via `auth/me` returning envelope instead of user.
+ *
+ * Heuristic: object with all three keys `success`, `data`, `timestamp`. Tighter
+ * than `'success' in body` (avoids unwrapping payloads that legitimately
+ * contain a `success` flag — e.g. `DELETE /:id` returning `{ success: true }`
+ * directly is NOT wrapped because it lacks `timestamp`; TransformInterceptor
+ * sees the `success` key and skips re-wrap).
+ *
+ * Backwards-compat: returns `false` for blobs, arrays, primitives, and any
+ * shape lacking the three envelope keys → response.data left untouched.
+ */
+interface TransformEnvelope {
+  success: boolean;
+  data: unknown;
+  meta?: unknown;
+  timestamp: string;
+}
+
+function isTransformEnvelope(body: unknown): body is TransformEnvelope {
+  return (
+    body !== null &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    'success' in (body as Record<string, unknown>) &&
+    'data' in (body as Record<string, unknown>) &&
+    'timestamp' in (body as Record<string, unknown>)
+  );
+}
+
+function unwrapEnvelope(envelope: TransformEnvelope): unknown {
+  // Pagination: backend services that return `{ data, meta }` get both fields
+  // hoisted to the outer envelope by TransformInterceptor. Preserve `{ data, meta }`
+  // for paginated consumers (api.ts callsService.getAll, whatsappService.getChats,
+  // whatsappService.getMessages).
+  if ('meta' in envelope && envelope.meta !== undefined) {
+    return { data: envelope.data, meta: envelope.meta };
+  }
+  // Standard: return inner data directly.
+  return envelope.data;
 }
 
 class ApiClient {
@@ -51,11 +103,26 @@ class ApiClient {
 
         return config;
       },
-      (error) => Promise.reject(error)
+      (error) => Promise.reject(error),
     );
 
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // S78 G1: auto-unwrap TransformInterceptor envelope.
+        // Skip when responseType is blob/arraybuffer (downloads) — body is not JSON.
+        const responseType = response.config.responseType;
+        if (
+          responseType === 'blob' ||
+          responseType === 'arraybuffer' ||
+          responseType === 'stream'
+        ) {
+          return response;
+        }
+        if (isTransformEnvelope(response.data)) {
+          response.data = unwrapEnvelope(response.data);
+        }
+        return response;
+      },
       (error: AxiosError) => {
         const parsedError = this.handleError(error);
         const status = error.response?.status;
@@ -79,7 +146,7 @@ class ApiClient {
         }
 
         return Promise.reject(parsedError);
-      }
+      },
     );
   }
 

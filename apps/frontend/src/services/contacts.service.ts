@@ -2,7 +2,7 @@
 // 👤 CONTACTS SERVICE (Session 50)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export interface Contact {
   id: string;
@@ -31,9 +31,9 @@ export interface ContactNote {
 }
 
 export type TimelineEvent =
-  | { kind: "call"; id: string; at: string; data: Record<string, unknown> }
-  | { kind: "chat"; id: string; at: string; data: Record<string, unknown> }
-  | { kind: "note"; id: string; at: string; data: Record<string, unknown> };
+  | { kind: 'call'; id: string; at: string; data: Record<string, unknown> }
+  | { kind: 'chat'; id: string; at: string; data: Record<string, unknown> }
+  | { kind: 'note'; id: string; at: string; data: Record<string, unknown> };
 
 export interface UpdateContactInput {
   name?: string;
@@ -56,11 +56,11 @@ export interface ListContactsResponse {
 export const contactsService = {
   list: (params: { q?: string; limit?: number; cursor?: string } = {}) => {
     const qs = new URLSearchParams();
-    if (params.q) qs.set("q", params.q);
-    if (params.limit) qs.set("limit", String(params.limit));
-    if (params.cursor) qs.set("cursor", params.cursor);
+    if (params.q) qs.set('q', params.q);
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.cursor) qs.set('cursor', params.cursor);
     return apiClient.get<ListContactsResponse>(
-      `/contacts${qs.toString() ? `?${qs.toString()}` : ""}`,
+      `/contacts${qs.toString() ? `?${qs.toString()}` : ''}`,
     );
   },
 
@@ -76,13 +76,11 @@ export const contactsService = {
     ),
 
   timeline: async (id: string) => {
-    const res = await apiClient.get<{ data: TimelineEvent[] }>(`/contacts/${id}/timeline`);
-    return res.data;
+    return apiClient.get<TimelineEvent[]>(`/contacts/${id}/timeline`);
   },
 
   listNotes: async (id: string) => {
-    const res = await apiClient.get<{ data: ContactNote[] }>(`/contacts/${id}/notes`);
-    return res.data;
+    return apiClient.get<ContactNote[]>(`/contacts/${id}/notes`);
   },
 
   addNote: (id: string, content: string) =>

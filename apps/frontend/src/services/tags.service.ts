@@ -2,7 +2,7 @@
 // 🏷️ TAGS SERVICE (Session 47)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export interface ConversationTag {
   id: string;
@@ -23,10 +23,10 @@ export interface CreateTagInput {
 
 export type UpdateTagInput = Partial<CreateTagInput>;
 
-export type SearchScope = "CALL" | "CHAT" | "BOTH";
+export type SearchScope = 'CALL' | 'CHAT' | 'BOTH';
 
 export interface ConversationHit {
-  kind: "call" | "chat";
+  kind: 'call' | 'chat';
   id: string;
   preview: string;
   matchedAt: string;
@@ -49,8 +49,7 @@ export interface SearchInput {
 
 export const tagsService = {
   list: async () => {
-    const res = await apiClient.get<{ data: ConversationTag[] }>(`/tags`);
-    return res.data;
+    return apiClient.get<ConversationTag[]>(`/tags`);
   },
 
   create: (input: CreateTagInput) => apiClient.post<ConversationTag>(`/tags`, input),
@@ -61,8 +60,7 @@ export const tagsService = {
   remove: (id: string) => apiClient.delete<{ success: true }>(`/tags/${id}`),
 
   listCallTags: async (callId: string) => {
-    const res = await apiClient.get<{ data: ConversationTag[] }>(`/calls/${callId}/tags`);
-    return res.data;
+    return apiClient.get<ConversationTag[]>(`/calls/${callId}/tags`);
   },
 
   attachToCall: (callId: string, tagIds: string[]) =>
@@ -72,29 +70,25 @@ export const tagsService = {
     apiClient.delete<{ success: true }>(`/calls/${callId}/tags/${tagId}`),
 
   listChatTags: async (chatId: string) => {
-    const res = await apiClient.get<{ data: ConversationTag[] }>(
-      `/whatsapp/chats/${chatId}/tags`,
-    );
-    return res.data;
+    return apiClient.get<ConversationTag[]>(`/whatsapp/chats/${chatId}/tags`);
   },
 
   attachToChat: (chatId: string, tagIds: string[]) =>
-    apiClient.post<{ success: true; attached: number }>(
-      `/whatsapp/chats/${chatId}/tags`,
-      { tagIds },
-    ),
+    apiClient.post<{ success: true; attached: number }>(`/whatsapp/chats/${chatId}/tags`, {
+      tagIds,
+    }),
 
   detachFromChat: (chatId: string, tagId: string) =>
     apiClient.delete<{ success: true }>(`/whatsapp/chats/${chatId}/tags/${tagId}`),
 
   search: async (input: SearchInput) => {
     const qs = new URLSearchParams();
-    if (input.q) qs.set("q", input.q);
-    if (input.scope) qs.set("scope", input.scope);
-    if (input.tagIds && input.tagIds.length > 0) qs.set("tagIds", input.tagIds.join(","));
-    if (input.limit) qs.set("limit", String(input.limit));
+    if (input.q) qs.set('q', input.q);
+    if (input.scope) qs.set('scope', input.scope);
+    if (input.tagIds && input.tagIds.length > 0) qs.set('tagIds', input.tagIds.join(','));
+    if (input.limit) qs.set('limit', String(input.limit));
     return apiClient.get<SearchResult>(
-      `/search/conversations${qs.toString() ? `?${qs.toString()}` : ""}`,
+      `/search/conversations${qs.toString() ? `?${qs.toString()}` : ''}`,
     );
   },
 };

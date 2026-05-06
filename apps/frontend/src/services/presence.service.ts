@@ -1,6 +1,6 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from '@/lib/api-client';
 
-export type AgentStatus = "ONLINE" | "AWAY" | "BREAK" | "OFFLINE";
+export type AgentStatus = 'ONLINE' | 'AWAY' | 'BREAK' | 'OFFLINE';
 
 export interface PresenceRow {
   id: string;
@@ -44,19 +44,19 @@ export interface UpdatePresencePayload {
 }
 
 async function heartbeat(payload: HeartbeatPayload = {}): Promise<PresenceRow> {
-  return apiClient.post<PresenceRow>("/presence/heartbeat", payload);
+  return apiClient.post<PresenceRow>('/presence/heartbeat', payload);
 }
 
 async function findMine(): Promise<PresenceRow> {
-  return apiClient.get<PresenceRow>("/presence/me");
+  return apiClient.get<PresenceRow>('/presence/me');
 }
 
 async function updateMine(payload: UpdatePresencePayload): Promise<PresenceRow> {
-  return apiClient.patch<PresenceRow>("/presence/me", payload);
+  return apiClient.patch<PresenceRow>('/presence/me', payload);
 }
 
 async function listActive(): Promise<PresenceRow[]> {
-  const res = await apiClient.get<{ data: PresenceRow[] }>("/presence/active");
+  const res = await apiClient.get<PresenceRow[]>('/presence/active');
   return res.data ?? [];
 }
 

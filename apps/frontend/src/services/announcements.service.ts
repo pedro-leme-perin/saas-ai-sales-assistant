@@ -2,10 +2,10 @@
 // 📢 ANNOUNCEMENTS SERVICE (Session 53)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
-export type AnnouncementLevel = "INFO" | "WARNING" | "URGENT";
-export type UserRole = "OWNER" | "ADMIN" | "MANAGER" | "VENDOR";
+export type AnnouncementLevel = 'INFO' | 'WARNING' | 'URGENT';
+export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'VENDOR';
 
 export interface Announcement {
   id: string;
@@ -51,25 +51,13 @@ export interface UpdateAnnouncementInput {
 }
 
 export const announcementsService = {
-  list: async () => {
-    const res = await apiClient.get<{ data: Announcement[] }>(`/announcements`);
-    return res.data ?? (res as unknown as Announcement[]);
-  },
-  listActive: async () => {
-    const res = await apiClient.get<{ data: ActiveAnnouncement[] }>(
-      `/announcements/active`,
-    );
-    return res.data ?? (res as unknown as ActiveAnnouncement[]);
-  },
+  list: () => apiClient.get<Announcement[]>(`/announcements`),
+  listActive: () => apiClient.get<ActiveAnnouncement[]>(`/announcements/active`),
   findById: (id: string) => apiClient.get<Announcement>(`/announcements/${id}`),
-  create: (dto: CreateAnnouncementInput) =>
-    apiClient.post<Announcement>(`/announcements`, dto),
+  create: (dto: CreateAnnouncementInput) => apiClient.post<Announcement>(`/announcements`, dto),
   update: (id: string, dto: UpdateAnnouncementInput) =>
     apiClient.patch<Announcement>(`/announcements/${id}`, dto),
-  remove: (id: string) =>
-    apiClient.delete<{ success: true }>(`/announcements/${id}`),
-  markRead: (id: string) =>
-    apiClient.post<{ success: true }>(`/announcements/${id}/read`),
-  dismiss: (id: string) =>
-    apiClient.post<{ success: true }>(`/announcements/${id}/dismiss`),
+  remove: (id: string) => apiClient.delete<{ success: true }>(`/announcements/${id}`),
+  markRead: (id: string) => apiClient.post<{ success: true }>(`/announcements/${id}/read`),
+  dismiss: (id: string) => apiClient.post<{ success: true }>(`/announcements/${id}/dismiss`),
 };

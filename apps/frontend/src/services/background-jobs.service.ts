@@ -2,23 +2,23 @@
 // ⚙️ BACKGROUND JOBS SERVICE (Session 49)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export type BackgroundJobType =
-  | "REGENERATE_CALL_SUMMARIES"
-  | "RECOMPUTE_COACHING_REPORTS"
-  | "BULK_DELETE_CALLS"
-  | "BULK_TAG_CALLS"
-  | "BULK_ASSIGN_CHATS"
-  | "EXPORT_ANALYTICS";
+  | 'REGENERATE_CALL_SUMMARIES'
+  | 'RECOMPUTE_COACHING_REPORTS'
+  | 'BULK_DELETE_CALLS'
+  | 'BULK_TAG_CALLS'
+  | 'BULK_ASSIGN_CHATS'
+  | 'EXPORT_ANALYTICS';
 
 export type BackgroundJobStatus =
-  | "PENDING"
-  | "RUNNING"
-  | "SUCCEEDED"
-  | "FAILED"
-  | "DEAD_LETTER"
-  | "CANCELED";
+  | 'PENDING'
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'FAILED'
+  | 'DEAD_LETTER'
+  | 'CANCELED';
 
 export interface BackgroundJob {
   id: string;
@@ -46,20 +46,22 @@ export interface EnqueueJobInput {
 }
 
 export const backgroundJobsService = {
-  list: async (filters?: { status?: BackgroundJobStatus; type?: BackgroundJobType; limit?: number }) => {
+  list: async (filters?: {
+    status?: BackgroundJobStatus;
+    type?: BackgroundJobType;
+    limit?: number;
+  }) => {
     const qs = new URLSearchParams();
-    if (filters?.status) qs.set("status", filters.status);
-    if (filters?.type) qs.set("type", filters.type);
-    if (filters?.limit) qs.set("limit", String(filters.limit));
+    if (filters?.status) qs.set('status', filters.status);
+    if (filters?.type) qs.set('type', filters.type);
+    if (filters?.limit) qs.set('limit', String(filters.limit));
     const path = qs.toString() ? `/background-jobs?${qs.toString()}` : `/background-jobs`;
-    const res = await apiClient.get<{ data: BackgroundJob[] }>(path);
-    return res.data;
+    return apiClient.get<BackgroundJob[]>(path);
   },
 
   findById: (id: string) => apiClient.get<BackgroundJob>(`/background-jobs/${id}`),
 
-  enqueue: (input: EnqueueJobInput) =>
-    apiClient.post<BackgroundJob>(`/background-jobs`, input),
+  enqueue: (input: EnqueueJobInput) => apiClient.post<BackgroundJob>(`/background-jobs`, input),
 
   retry: (id: string) => apiClient.post<BackgroundJob>(`/background-jobs/${id}/retry`, {}),
 

@@ -2,19 +2,19 @@
 // 🔔 NOTIFICATION PREFERENCES SERVICE (Session 48)
 // =============================================
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 
 export type NotificationTypeKey =
-  | "SYSTEM"
-  | "CALL_STARTED"
-  | "CALL_ENDED"
-  | "NEW_MESSAGE"
-  | "AI_SUGGESTION"
-  | "SUBSCRIPTION_UPDATE"
-  | "BILLING_ALERT"
-  | "TEAM_UPDATE";
+  | 'SYSTEM'
+  | 'CALL_STARTED'
+  | 'CALL_ENDED'
+  | 'NEW_MESSAGE'
+  | 'AI_SUGGESTION'
+  | 'SUBSCRIPTION_UPDATE'
+  | 'BILLING_ALERT'
+  | 'TEAM_UPDATE';
 
-export type NotificationChannelKey = "IN_APP" | "EMAIL" | "PUSH" | "SMS";
+export type NotificationChannelKey = 'IN_APP' | 'EMAIL' | 'PUSH' | 'SMS';
 
 export interface NotificationPreferenceItem {
   id?: string;
@@ -33,10 +33,7 @@ export interface UpsertPreferencesInput {
 
 export const notificationPreferencesService = {
   list: async () => {
-    const res = await apiClient.get<{ data: NotificationPreferenceItem[] }>(
-      `/users/me/notification-preferences`,
-    );
-    return res.data;
+    return apiClient.get<NotificationPreferenceItem[]>(`/users/me/notification-preferences`);
   },
   upsert: (input: UpsertPreferencesInput) =>
     apiClient.patch<{ updated: number }>(`/users/me/notification-preferences`, input),
@@ -44,14 +41,14 @@ export const notificationPreferencesService = {
 };
 
 export const NOTIFICATION_TYPES: NotificationTypeKey[] = [
-  "SYSTEM",
-  "CALL_STARTED",
-  "CALL_ENDED",
-  "NEW_MESSAGE",
-  "AI_SUGGESTION",
-  "SUBSCRIPTION_UPDATE",
-  "BILLING_ALERT",
-  "TEAM_UPDATE",
+  'SYSTEM',
+  'CALL_STARTED',
+  'CALL_ENDED',
+  'NEW_MESSAGE',
+  'AI_SUGGESTION',
+  'SUBSCRIPTION_UPDATE',
+  'BILLING_ALERT',
+  'TEAM_UPDATE',
 ];
 
-export const NOTIFICATION_CHANNELS: NotificationChannelKey[] = ["IN_APP", "EMAIL", "PUSH", "SMS"];
+export const NOTIFICATION_CHANNELS: NotificationChannelKey[] = ['IN_APP', 'EMAIL', 'PUSH', 'SMS'];

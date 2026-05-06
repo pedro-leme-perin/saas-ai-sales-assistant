@@ -1,12 +1,9 @@
-import { apiClient } from "@/lib/api-client";
-import type { ChatPriority } from "./sla-policies.service";
+import { apiClient } from '@/lib/api-client';
+import type { ChatPriority } from './sla-policies.service';
 
-export type SlaEscalationAction =
-  | "NOTIFY_MANAGER"
-  | "REASSIGN_TO_USER"
-  | "CHANGE_PRIORITY";
+export type SlaEscalationAction = 'NOTIFY_MANAGER' | 'REASSIGN_TO_USER' | 'CHANGE_PRIORITY';
 
-export type UserRole = "OWNER" | "ADMIN" | "MANAGER" | "VENDOR";
+export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'VENDOR';
 
 export interface SlaEscalation {
   id: string;
@@ -45,10 +42,7 @@ export interface UpdateSlaEscalationPayload {
 
 async function list(policyId?: string): Promise<SlaEscalation[]> {
   const params = policyId ? { policyId } : undefined;
-  const res = await apiClient.get<{ data: SlaEscalation[] }>(
-    "/sla-escalations",
-    params
-  );
+  const res = await apiClient.get<SlaEscalation[]>('/sla-escalations', params);
   return res.data ?? [];
 }
 
@@ -56,16 +50,11 @@ async function findById(id: string): Promise<SlaEscalation> {
   return apiClient.get<SlaEscalation>(`/sla-escalations/${id}`);
 }
 
-async function create(
-  payload: CreateSlaEscalationPayload
-): Promise<SlaEscalation> {
-  return apiClient.post<SlaEscalation>("/sla-escalations", payload);
+async function create(payload: CreateSlaEscalationPayload): Promise<SlaEscalation> {
+  return apiClient.post<SlaEscalation>('/sla-escalations', payload);
 }
 
-async function update(
-  id: string,
-  payload: UpdateSlaEscalationPayload
-): Promise<SlaEscalation> {
+async function update(id: string, payload: UpdateSlaEscalationPayload): Promise<SlaEscalation> {
   return apiClient.patch<SlaEscalation>(`/sla-escalations/${id}`, payload);
 }
 
