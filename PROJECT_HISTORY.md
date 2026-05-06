@@ -3,8 +3,8 @@
 **Documento:** Registro detalhado de todas as sessões de desenvolvimento
 **Projeto:** SaaS AI Sales Assistant (TheIAdvisor)
 **Início:** 13/03/2026
-**Última atualização:** 29/04/2026 (S74-2)
-**Total de sessões:** 63
+**Última atualização:** 06/05/2026 (S78 — apiClient envelope unwrap + ESLint v9 + Pricing)
+**Total de sessões:** 78
 
 ---
 
@@ -6667,3 +6667,118 @@ Outros sintomas detectados: Sentry 503 (quota free tier).
 - ✅ Backend Stripe checkout session creation
 - ✅ Stripe live mode integration validated indirectly
 - ⏭️ Pendente próxima sessão: Stripe Dashboard "Send test webhook" event + DB SQL Neon Subscription/Invoice persistence verification.
+
+---
+
+## Sessão 78 — apiClient envelope unwrap + Backend ESLint v9 + Pricing público (06/05/2026)
+
+**Foco:** 4 commits autônomos pós S77+A4 — apiClient refactor (G1), backend ESLint v9 alignment (D7), pricing page público (C1) + fix-up commit no apiClient sweep.
+
+**Commits:**
+
+- `be49598` refactor(frontend): apiClient envelope unwrap centralized (S78 A/G1)
+- `b06d7ad` fix(frontend): finish apiClient unwrap sweep — 4 services + companies (S78 A/G1 fix-up)
+- `30ecaff` chore(backend): migrate ESLint v8 -> v9 flat config (S78 F/D7)
+- `8e7c0cd` feat(frontend): public /pricing page (S78 E/C1)
+
+### Decisões da sessão (priorização)
+
+Pedro briefing trouxe 8 candidate-tasks (A–H). Cowork-autônomo subset escolhido em ordem de prioridade:
+
+| #   | Task                                | Status       | Razão                                                                       |
+| --- | ----------------------------------- | ------------ | --------------------------------------------------------------------------- |
+| A   | G1 apiClient envelope unwrap        | ✅ concluída | P0 fix `/dashboard` root crash, runtime impact direto                       |
+| C   | LGPD DSAR E2E + cron review         | ⏸️ Pedro     | Bearer token Clerk obrigatório (TenantGuard + RolesGuard); sandbox sem auth |
+| B   | Coverage 80% push residual          | ⏸️ Pedro     | Lição #24 — Pedro jest local pré-push obrigatório; round-trip lento         |
+| F   | Backend ESLint v8→v9 align          | ✅ concluída | Autônomo, no Pedro validation gate (pre-push hook + CI cobrem)              |
+| E   | /pricing page público               | ✅ concluída | Autônomo, designer styling diferido                                         |
+| G   | Staging provisioning                | ⏸️ Pedro     | Credentials Railway/Neon/Upstash/R2 + 6 GH Actions secrets                  |
+| D   | Working tree corruption RCA         | ⏸️ Pedro     | Sysinternals Process Monitor durante sandbox writes                         |
+| H   | External blockers (MEI/HSTS/Sentry) | ⏸️ Pedro     | Pedro action items                                                          |
+
+### A — G1 apiClient envelope unwrap (`be49598` + `b06d7ad`)
+
+**Problema raiz:** Backend `TransformInterceptor` (apps/backend/src/common/interceptors/transform.interceptor.ts) wrappa toda response 2xx em `{success, data, timestamp}`. Frontend `apiClient.get<T>` retornava raw envelope ao invés de inner `T`. S77+A4 `ddcf42f` aplicou unwrap per-hook em `useBilling.ts` (band-aid). Cascade `/dashboard` root crash via `auth/me` retornando envelope ao invés de `{id, companyId, ...}` → `user.companyId` undefined → URLs `/api/calls/undefined` → 403.
+
+**Solução `be49598`:** Response interceptor central em `apps/frontend/src/lib/api-client.ts`:
+
+```ts
+function isTransformEnvelope(body: unknown): body is TransformEnvelope {
+  return (
+    body !== null &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    'success' in body &&
+    'data' in body &&
+    'timestamp' in body
+  );
+}
+
+function unwrapEnvelope(envelope: TransformEnvelope): unknown {
+  // Pagination preserved when meta present (backend hoists data+meta).
+  if ('meta' in envelope && envelope.meta !== undefined) {
+    return { data: envelope.data, meta: envelope.meta };
+  }
+  return envelope.data;
+}
+```
+
+Heurística requer **três chaves** (`success` + `data` + `timestamp`) — tighter que `'success' in body`, evita false-positive em payloads que legitimamente carregam `success` flag (ex: `DELETE /:id` retornando `{success: true}` raw — `TransformInterceptor` skip-rewrappa porque já tem `success`, e nosso heurístico não dispara porque falta `timestamp`).
+
+**Sweep Python regex** transformou 33 sites em 23 services (sandbox script `/tmp/sweep_apiclient.py`):
+
+- Pattern A/B: `const res = await apiClient.X<{ data: T }>(...); return res.data [?? (res as unknown as T)]` → `return apiClient.X<T>(...)`
+- Pattern C: `apiClient.X<{ data: T }>(...)` standalone → `apiClient.X<T>(...)`
+
+Services refactorados: announcements, api-keys, assignment-rules, background-jobs, config-snapshots, contacts, csat, custom-fields, dsar, feature-flags, goals, impersonation, macros, notification-preferences, presence, reply-templates, retention-policies, saved-filters, scheduled-exports, scheduled-messages, sla-escalations, sla-policies, tags, usage-quotas, webhooks.
+
+**Pagination case:** `api.ts` callsService.getAll/whatsappService.getChats/getMessages retornam `Promise<{data: T[], meta: {total: number}}>`. `TransformInterceptor` hoista `meta` para o envelope outer, e `unwrapEnvelope` preserva shape `{data, meta}` quando `envelope.meta !== undefined`. Casos sem paginação retornam inner `data` direto.
+
+**Bug pós-`be49598`:** CI Frontend type-check FALHOU. 4 services tinham padrão `?? []` defensive que regex não pegou: `config-snapshots`, `impersonation`, `presence`, `sla-escalations` retinham `const res = await apiClient.get<T[]>(...); return res.data ?? [];` — após unwrap, `res` já É `T[]`, e `res.data` undefined → TS error "Property 'data' does not exist on type 'X[]'".
+
+**Fix `b06d7ad`:** Python regex segundo passe + cleanup `api.ts` companiesService (drop defensive `Company & { data?: Company }` cast). Local validation: `pnpm --filter=@saas/frontend run type-check` exit 0 antes do push. CI verde.
+
+### F — Backend ESLint v8→v9 (`30ecaff`)
+
+**Estado pré-S78:** Frontend já em v9 (S69) com `eslint.config.mjs` + FlatCompat. Backend ainda em v8.57.0 + `.eslintrc.js` legacy. Causava monorepo dual-version drift.
+
+**Migração:**
+
+1. `apps/backend/package.json` devDeps: `eslint: ^8.57.0` → `^9.17.0`, +`@eslint/eslintrc: ^3.2.0` (FlatCompat helper)
+2. `apps/backend/eslint.config.mjs` (novo, 48L): wrappa legacy config via `compat.config({...})` — semântica idêntica
+3. `apps/backend/.eslintrc.js` deletado
+4. `package.json` lint-staged backend: drop `--resolve-plugins-relative-to apps/backend`, add `--config apps/backend/eslint.config.mjs`
+
+**Smoke validation pré-commit** (PS1): `pnpm install` (lockfile refresh) + `node apps/backend/node_modules/eslint/bin/eslint.js --version` (9.39.4) + smoke-lint de `apps/backend/src/main.ts` (zero output = clean).
+
+CI verde — Backend + Frontend + Security + CI Gate todos `success`.
+
+### E — /pricing page público (`8e7c0cd`)
+
+**Problema:** `theiadvisor.com/pricing` retornava 404 (route ausente).
+
+**Solução:**
+
+- `apps/frontend/src/app/pricing/page.tsx` (novo, 272L): 3-plan grid mirroring `BillingService.getPlans()` (Starter R$97, Professional R$297, Enterprise R$697). Static plan data inline (zero API call, SSR/SEO friendly). "Mais popular" highlight em Professional. CTA branching via Clerk `<SignedOut>` (→ `/sign-up?plan=<ID>`) / `<SignedIn>` (→ `/dashboard/billing?plan=<ID>`). 3-question FAQ teaser. Footer LGPD trio. Header sticky com TheIAdvisor branding.
+- `apps/frontend/src/middleware.ts`: `/pricing(.*)` adicionado a `isPublicRoute` matcher (Clerk skip auth.protect).
+
+**Pre-validation:** `pnpm --filter=@saas/frontend run type-check` exit 0.
+
+**Mutação operacional:** Primeira tentativa PS1 falhou — PowerShell `git commit -m $msg` com heredoc multi-linha gerou token-splitting "did not match any file(s)". Working tree também ganhou rename+delete spurious (`tsconfig.json` staged for deletion, `scripts/stripe-webhook-test.ps1` rename). Fix: `git reset HEAD .` + `git checkout HEAD -- tsconfig.json scripts/stripe-webhook-test.ps1` + `git commit -F scripts/s78-e-msg.txt` (file-based message). Lição #28 nova.
+
+### Lições novas
+
+- **#27 (S78)**: PowerShell `git commit -m $msg` com `@'…'@` heredoc multi-linha gera token-splitting "did not match any file(s)". Solução: gravar mensagem em txt + `git commit -F path/to/msg.txt`.
+- **#28 (S78)**: PS1 `git add` em subset pode coexistir com staged-area pré-existente poluído (rename+delete tsconfig.json). Sempre `git reset HEAD .` no início do PS1 antes de stagear seletivo, depois `git checkout HEAD -- <files>` para reverter unintended deletions.
+
+### Working tree corruption (lição #5 acumulado nesta sessão)
+
+5+ ocorrências durante S78 (.gitignore, billing.controller.ts, pnpm-lock.yaml, api-client.ts, api-keys.service.ts, middleware.ts pricing-page.tsx). Padrão: Edit tool truncation em arquivos com CRLF, ou cp race entre sandbox + Windows mount durante operações concorrentes. Restoration via `git show HEAD:<file> > /tmp/<file> && cp /tmp/<file> <path>` (lição #4 sandbox CAN write Windows mount).
+
+### Status pós-S78
+
+- ✅ /dashboard root crash resolvido
+- ✅ Backend ESLint v9 aligned (frontend+backend monorepo coerente)
+- ✅ /pricing público (theiadvisor.com/pricing 404 → render)
+- ⏸️ DSAR E2E pending Pedro auth
+- ⏸️ Coverage 80% push pending Pedro jest local validation cycle

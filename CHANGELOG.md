@@ -18,6 +18,31 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.78.0] — apiClient envelope unwrap + Backend ESLint v9 + /pricing público — 2026-05-06
+
+### Added
+
+- **`/pricing` page público** (`8e7c0cd`): nova rota `apps/frontend/src/app/pricing/page.tsx` (272L) com grid de 3 planos (Starter R$97, Professional R$297, Enterprise R$697) mirroring `BillingService.getPlans()`. Static plan data inline (SSR/SEO friendly, zero API call). "Mais popular" highlight em Professional. CTA branching via Clerk `<SignedOut>` (→ `/sign-up?plan=<ID>`) / `<SignedIn>` (→ `/dashboard/billing?plan=<ID>`). 3-question FAQ teaser linkando `/help`. Footer LGPD trio (`/terms`, `/privacy`, `/help`). `apps/frontend/src/middleware.ts`: `/pricing(.*)` adicionado ao `isPublicRoute` matcher Clerk. Resolves Categoria C1 (theiadvisor.com/pricing 404 → render).
+
+### Changed
+
+- **`apiClient` envelope unwrap centralizado** (`be49598` + `b06d7ad` fix-up): `apps/frontend/src/lib/api-client.ts` ganha response interceptor que detecta `TransformInterceptor` envelope `{success, data, timestamp}` e auto-unwraps `response.data` para inner `T`. Pagination preservada quando `meta` presente (callsService.getAll, whatsappService.getChats/getMessages retornam `{data, meta}`). Skip-unwrap quando `responseType` é `blob`/`arraybuffer`/`stream` (downloads). Heurística requer 3 chaves (`success` + `data` + `timestamp`) — tighter que `'success' in body`, evita false-positive em payloads que carregam `success` flag.
+- **25 services frontend** (`be49598` + `b06d7ad`): drop redundant `apiClient.get<{ data: T[] }>` typing + intermediate `const res = await ...; return res.data;` pattern. Defensive `?? (res as unknown as T[])` fallbacks removidos. Services refactorados: announcements, api-keys, assignment-rules, background-jobs, config-snapshots, contacts, csat, custom-fields, dsar, feature-flags, goals, impersonation, macros, notification-preferences, presence, reply-templates, retention-policies, saved-filters, scheduled-exports, scheduled-messages, sla-escalations, sla-policies, tags, usage-quotas, webhooks. `api.ts` companiesService cleanup: drop defensive `Company & { data?: Company }` cast em `getCurrent`/`getUsage` (apiClient unwrap torna desnecessário).
+- **Backend ESLint v8 → v9 flat config** (`30ecaff`): `apps/backend/.eslintrc.js` (deletado) → `apps/backend/eslint.config.mjs` (novo, 48L). FlatCompat (`@eslint/eslintrc`) wrappa legacy config preservando rule semantics idêntica. `apps/backend/package.json` devDeps: `eslint: ^8.57.0` → `^9.17.0`, +`@eslint/eslintrc: ^3.2.0`. `package.json` lint-staged backend command: drop `--resolve-plugins-relative-to apps/backend`, add `--config apps/backend/eslint.config.mjs`. Backend agora alinhado com frontend (S69 já em v9).
+
+### Fixed
+
+- **`/dashboard` root crash + cascade 403s** (`be49598`): `auth/me` retornando envelope ao invés de `{id, companyId, ...}` causava `user.companyId` undefined → URLs `/api/calls/undefined` → 403. Corrigido pelo apiClient envelope unwrap centralizado.
+- **CI Frontend type-check failure** (`b06d7ad`): primeira tentativa S78-A deixou 4 services com orphan `return res.data ?? []` pattern (após apiClient unwrap, `res` já É `T[]` sem `.data`). Fixed: `config-snapshots`, `impersonation`, `presence`, `sla-escalations`. Local validation `pnpm --filter=@saas/frontend run type-check` exit 0 antes do push.
+
+### Notes
+
+- **Lição #27 (NEW)**: PowerShell `git commit -m $msg` com `@'…'@` heredoc multi-linha gera token-splitting "did not match any file(s)". Solução: gravar mensagem em arquivo `.txt` + `git commit -F path/to/msg.txt`.
+- **Lição #28 (NEW)**: PS1 `git add` em subset pode coexistir com staged-area pré-existente poluído (rename+delete tsconfig.json). Sempre `git reset HEAD .` no início do PS1 antes de stagear seletivo, depois `git checkout HEAD -- <files>` para reverter unintended deletions.
+- **Working tree corruption recorrência (lição #5)**: 5+ ocorrências durante S78 envolvendo Edit tool truncation + sandbox-Windows mount race. Restoration via `git show HEAD:<file> > /tmp/<file> && cp /tmp/<file> <path>` aplicado consistentemente.
+
+---
+
 ## [v0.77.3] — A4 Stripe smoke E2E fixes — 2026-04-30
 
 ### Fixed
