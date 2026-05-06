@@ -135,10 +135,13 @@ Webhook: 6 eventos (`checkout.session.completed`, `customer.subscription.updated
 - [x] ~~k6 baseline público contra prod~~ ✅ Sessão S61-B (`k6/baseline-prod.js`, p95=757ms raw / ~440ms ajustado, 100% availability)
 - [x] ~~Limpar seed data ACME Sales Corp da prod~~ ✅ Sessão S61-A (278 rows cascade-deleted, snapshot preservado)
 - [x] ~~Implementar job de deleção agendada (LGPD — atualmente apenas suspende conta)~~ ✅ Sessão 43
+- [x] ~~apiClient envelope unwrap centralizado~~ ✅ Sessão S78 (`be49598` + `b06d7ad` — response interceptor `isTransformEnvelope` + `unwrapEnvelope` em `apps/frontend/src/lib/api-client.ts`, sweep 25 services drop redundant `<{data: T[]}>` typing, pagination `{data, meta}` preservada, resolve `/dashboard` root crash)
+- [x] ~~Backend ESLint v8 → v9 flat config~~ ✅ Sessão S78 (`30ecaff` — `apps/backend/eslint.config.mjs` via FlatCompat `@eslint/eslintrc`, lint-staged backend `--config` explicit, alinhado com frontend S69)
+- [x] ~~/pricing page público (Categoria C1)~~ ✅ Sessão S78 (`8e7c0cd` — `apps/frontend/src/app/pricing/page.tsx` 272L, 3 planos R$97/R$297/R$697 mirroring `BillingService.getPlans()`, CTA SignedOut→sign-up SignedIn→billing, middleware `/pricing(.*)` público, theiadvisor.com/pricing 404 → render)
 
 ### 2.5 Histórico detalhado de sessões
 
-Ver [`PROJECT_HISTORY.md`](PROJECT_HISTORY.md) para registro completo de todas as sessões (S1–S63) com invariantes de design, schema changes, testes e decisões arquiteturais. Todas as guardrails enterprise relevantes a decisões futuras estão também consolidadas em §5 (módulos), §6 (schema) e §8 (resiliência).
+Ver [`PROJECT_HISTORY.md`](PROJECT_HISTORY.md) para registro completo de todas as sessões (S1–S78) com invariantes de design, schema changes, testes e decisões arquiteturais. Todas as guardrails enterprise relevantes a decisões futuras estão também consolidadas em §5 (módulos), §6 (schema) e §8 (resiliência).
 
 ---
 
