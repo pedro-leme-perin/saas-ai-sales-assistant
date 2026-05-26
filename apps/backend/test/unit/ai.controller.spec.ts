@@ -1,8 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AiController } from '../../src/modules/ai/ai.controller';
 import { AiService } from '../../src/modules/ai/ai.service';
+import type { AuthenticatedUser } from '../../src/common/decorators';
+import { UserRole } from '@prisma/client';
 
 jest.setTimeout(15000);
+
+// Stub AuthenticatedUser for @CurrentUser() arg in controller signatures (S79 RAG: companyId is forwarded).
+const MOCK_USER: AuthenticatedUser = {
+  id: 'user-test-id',
+  clerkId: 'clerk_test',
+  email: 'test@theiadvisor.com',
+  name: 'Test User',
+  role: UserRole.OWNER,
+  companyId: 'company-test-id',
+  permissions: [],
+};
 
 describe('AiController', () => {
   let controller: AiController;
@@ -44,12 +57,14 @@ describe('AiController', () => {
       };
       service.generateSuggestion.mockResolvedValue({ suggestion: 'Offer a demo' });
 
-      const result = await controller.generateSuggestion(body);
+      const result = await controller.generateSuggestion(MOCK_USER, body);
 
       expect(service.generateSuggestion).toHaveBeenCalledWith(
         body.transcript,
         body.context,
         body.provider,
+        // S79 RAG: companyId forwarded from @CurrentUser
+        expect.objectContaining({ companyId: MOCK_USER.companyId }),
       );
       expect(result).toEqual({ suggestion: 'Offer a demo' });
     });
@@ -58,9 +73,14 @@ describe('AiController', () => {
       const body = { transcript: 'Hello' };
       service.generateSuggestion.mockResolvedValue({ suggestion: 'Greet back' });
 
-      await controller.generateSuggestion(body);
+      await controller.generateSuggestion(MOCK_USER, body);
 
-      expect(service.generateSuggestion).toHaveBeenCalledWith('Hello', undefined, undefined);
+      expect(service.generateSuggestion).toHaveBeenCalledWith(
+        'Hello',
+        undefined,
+        undefined,
+        expect.objectContaining({ companyId: MOCK_USER.companyId }),
+      );
     });
   });
 
@@ -78,11 +98,12 @@ describe('AiController', () => {
         suggestion: 'Check our plans',
       });
 
-      const result = await controller.generateSuggestionBalanced(body);
+      const result = await controller.generateSuggestionBalanced(MOCK_USER, body);
 
       expect(service.generateSuggestionBalanced).toHaveBeenCalledWith(
         body.transcript,
         body.context,
+        expect.objectContaining({ companyId: MOCK_USER.companyId }),
       );
       expect(result).toBeDefined();
     });
@@ -103,12 +124,13 @@ describe('AiController', () => {
         score: 0.85,
       });
 
-      const result = await controller.analyzeConversation(body);
+      const result = await controller.analyzeConversation(MOCK_USER, body);
 
       expect(service.analyzeConversation).toHaveBeenCalledWith(
         body.transcript,
         body.context,
         undefined,
+        expect.objectContaining({ companyId: MOCK_USER.companyId }),
       );
       expect(result.sentiment).toBe('positive');
     });

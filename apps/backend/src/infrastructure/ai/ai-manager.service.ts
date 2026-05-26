@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider, AISuggestion, AIAnalysis } from './providers/ai-provider.interface';
 import { OpenAIProvider } from './providers/openai.provider';
@@ -6,8 +6,28 @@ import { ClaudeProvider } from './providers/claude.provider';
 import { GeminiProvider } from './providers/gemini.provider';
 import { PerplexityProvider } from './providers/perplexity.provider';
 import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
+// KnowledgeBaseService is injected via the KNOWLEDGE_BASE_SERVICE token (optional).
+// AiModule must add { provide: KNOWLEDGE_BASE_SERVICE, useExisting: KnowledgeBaseService }
+// to its providers array to wire the RAG pipeline.
+// Using a token avoids a circular import between infrastructure/ and modules/.
+import type { KnowledgeBaseService } from '../../modules/knowledge-base/knowledge-base.service';
 
 export type AIProviderType = 'openai' | 'claude' | 'gemini' | 'perplexity';
+
+/** Injection token for optional KnowledgeBaseService (avoids circular dep) */
+export const KNOWLEDGE_BASE_SERVICE = 'KNOWLEDGE_BASE_SERVICE' as const;
+
+// RAG options passed per-call to control context injection
+export interface RagOptions {
+  /** Company ID for tenant-scoped knowledge retrieval */
+  companyId?: string;
+  /** Number of relevant chunks to inject (default: 5) */
+  topK?: number;
+  /** Minimum cosine similarity threshold (default: 0.7) */
+  minScore?: number;
+  /** Whether to skip RAG even if KnowledgeBaseService is available */
+  skipRag?: boolean;
+}
 
 @Injectable()
 export class AIManagerService {
@@ -18,8 +38,19 @@ export class AIManagerService {
   private fallbackOrder: AIProviderType[] = ['gemini', 'openai', 'claude', 'perplexity'];
   private currentProviderIndex = 0;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    // Optional: injected when AiModule wires KnowledgeBaseModule.
+    // When not present, RAG is silently skipped (graceful degradation).
+    @Optional() @Inject(KNOWLEDGE_BASE_SERVICE)
+    private readonly knowledgeBase: KnowledgeBaseService | null,
+  ) {
     this.initializeProviders();
+    if (this.knowledgeBase) {
+      this.logger.log('✅ RAG pipeline enabled (KnowledgeBaseService injected)');
+    } else {
+      this.logger.log('ℹ️  RAG pipeline disabled (KnowledgeBaseService not wired)');
+    }
   }
 
   private initializeProviders() {
@@ -73,23 +104,96 @@ export class AIManagerService {
     }
   }
 
+  // ==========================================
+  // RAG CONTEXT INJECTION
+  // ==========================================
+
   /**
-   * Gerar sugestão com provider específico ou fallback automático
+   * Retrieve relevant knowledge chunks and build a context string for injection
+   * into the system prompt. Returns empty string if RAG is unavailable or fails.
+   *
+   * Graceful degradation: any error here MUST NOT block the LLM call.
+   * The LLM runs with less context rather than failing entirely.
+   * (SRE — fail open for non-critical path; Designing ML Systems — retrieval augmentation)
+   */
+  private async buildRagContext(
+    query: string,
+    ragOptions?: RagOptions,
+  ): Promise<string> {
+    if (!this.knowledgeBase) return '';
+    if (ragOptions?.skipRag) return '';
+    if (!ragOptions?.companyId) return '';
+
+    try {
+      const chunks = await this.knowledgeBase.findRelevant(
+        ragOptions.companyId,
+        query,
+        ragOptions.topK ?? 5,
+        ragOptions.minScore ?? 0.7,
+      );
+
+      if (chunks.length === 0) return '';
+
+      const contextStr = this.knowledgeBase.buildContextString(chunks);
+      this.logger.debug(
+        `RAG: injected ${chunks.length} chunks for companyId=${ragOptions.companyId}`,
+      );
+      return contextStr;
+    } catch (error: unknown) {
+      // Log and degrade — never let RAG failure block a suggestion
+      this.logger.warn(
+        `RAG context retrieval failed (non-blocking): ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return '';
+    }
+  }
+
+  /**
+   * Merge RAG context into the context map passed to providers.
+   * Providers read context.ragContext and prepend it to the system prompt.
+   */
+  private mergeRagIntoContext(
+    context: Record<string, unknown> | undefined,
+    ragContext: string,
+  ): Record<string, unknown> {
+    if (!ragContext) return context ?? {};
+    return { ...(context ?? {}), ragContext };
+  }
+
+  // ==========================================
+  // SUGGESTION GENERATION
+  // ==========================================
+
+  /**
+   * Gerar sugestão com provider específico ou fallback automático.
+   *
+   * RAG pipeline (when companyId is provided via ragOptions):
+   *   1. Embed `transcript` via KnowledgeBaseService.findRelevant()
+   *   2. Inject top-k chunks as ragContext into provider system prompt
+   *   3. LLM generates suggestion grounded in company knowledge
+   *
+   * RAG is fire-and-forget on failure: if retrieval errors, the LLM call
+   * still proceeds without context (graceful degradation — SRE).
    */
   async generateSuggestion(
     transcript: string,
     context?: Record<string, unknown>,
     preferredProvider?: AIProviderType,
+    ragOptions?: RagOptions,
   ): Promise<AISuggestion> {
+    // RAG: retrieve context (non-blocking failure)
+    const ragContext = await this.buildRagContext(transcript, ragOptions);
+    const enrichedContext = this.mergeRagIntoContext(context, ragContext);
+
     // Tentar provider preferido primeiro (com circuit breaker)
     if (preferredProvider && this.providers.has(preferredProvider)) {
       const breaker = this.breakers.get(preferredProvider);
       try {
         return await (breaker
           ? breaker.execute(() =>
-              this.providers.get(preferredProvider)!.generateSuggestion(transcript, context),
+              this.providers.get(preferredProvider)!.generateSuggestion(transcript, enrichedContext),
             )
-          : this.providers.get(preferredProvider)!.generateSuggestion(transcript, context));
+          : this.providers.get(preferredProvider)!.generateSuggestion(transcript, enrichedContext));
       } catch (error: unknown) {
         this.logger.error(
           `${preferredProvider} failed, trying fallback: ${error instanceof Error ? error.message : error}`,
@@ -106,8 +210,8 @@ export class AIManagerService {
       try {
         this.logger.log(`Trying provider: ${providerType}`);
         return await (breaker
-          ? breaker.execute(() => provider.generateSuggestion(transcript, context))
-          : provider.generateSuggestion(transcript, context));
+          ? breaker.execute(() => provider.generateSuggestion(transcript, enrichedContext))
+          : provider.generateSuggestion(transcript, enrichedContext));
       } catch (error: unknown) {
         this.logger.error(
           `${providerType} failed: ${error instanceof Error ? error.message : error}`,
@@ -121,21 +225,26 @@ export class AIManagerService {
   }
 
   /**
-   * Analisar conversa com provider específico ou fallback
+   * Analisar conversa com provider específico ou fallback.
+   * RAG context also injected here — relevant knowledge improves analysis accuracy.
    */
   async analyzeConversation(
     transcript: string,
     context?: Record<string, unknown>,
     preferredProvider?: AIProviderType,
+    ragOptions?: RagOptions,
   ): Promise<AIAnalysis> {
+    const ragContext = await this.buildRagContext(transcript, ragOptions);
+    const enrichedContext = this.mergeRagIntoContext(context, ragContext);
+
     if (preferredProvider && this.providers.has(preferredProvider)) {
       const breaker = this.breakers.get(preferredProvider);
       try {
         return await (breaker
           ? breaker.execute(() =>
-              this.providers.get(preferredProvider)!.analyzeConversation(transcript, context),
+              this.providers.get(preferredProvider)!.analyzeConversation(transcript, enrichedContext),
             )
-          : this.providers.get(preferredProvider)!.analyzeConversation(transcript, context));
+          : this.providers.get(preferredProvider)!.analyzeConversation(transcript, enrichedContext));
       } catch (error: unknown) {
         this.logger.error(
           `${preferredProvider} analysis failed: ${error instanceof Error ? error.message : error}`,
@@ -151,8 +260,8 @@ export class AIManagerService {
 
       try {
         return await (breaker
-          ? breaker.execute(() => provider.analyzeConversation(transcript, context))
-          : provider.analyzeConversation(transcript, context));
+          ? breaker.execute(() => provider.analyzeConversation(transcript, enrichedContext))
+          : provider.analyzeConversation(transcript, enrichedContext));
       } catch (error: unknown) {
         this.logger.error(
           `${providerType} analysis failed: ${error instanceof Error ? error.message : error}`,
@@ -165,11 +274,13 @@ export class AIManagerService {
   }
 
   /**
-   * Load balancing round-robin
+   * Load balancing round-robin.
+   * RAG context injected when ragOptions.companyId is provided.
    */
   async generateSuggestionBalanced(
     transcript: string,
     context?: Record<string, unknown>,
+    ragOptions?: RagOptions,
   ): Promise<AISuggestion> {
     const availableProviders = Array.from(this.providers.keys());
 
@@ -177,15 +288,18 @@ export class AIManagerService {
       return this.getMockSuggestion(transcript);
     }
 
+    const ragContext = await this.buildRagContext(transcript, ragOptions);
+    const enrichedContext = this.mergeRagIntoContext(context, ragContext);
+
     // Round-robin
     const provider = availableProviders[this.currentProviderIndex % availableProviders.length];
     this.currentProviderIndex++;
 
     try {
-      return await this.providers.get(provider)!.generateSuggestion(transcript, context);
+      return await this.providers.get(provider)!.generateSuggestion(transcript, enrichedContext);
     } catch {
       this.logger.error(`Load balanced provider ${provider} failed`);
-      return this.generateSuggestion(transcript, context);
+      return this.generateSuggestion(transcript, enrichedContext);
     }
   }
 

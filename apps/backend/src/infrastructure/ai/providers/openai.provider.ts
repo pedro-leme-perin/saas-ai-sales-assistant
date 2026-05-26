@@ -18,16 +18,13 @@ export class OpenAIProvider extends AIProvider {
     const startTime = Date.now();
 
     const prompt = this.buildSuggestionPrompt(transcript, context);
+    const systemMessage = this.buildSystemMessage(context);
 
     try {
       const response = await this.client.chat.completions.create({
         model: this.config.model || 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content:
-              'Você é um coach de vendas especialista analisando ligações em tempo real. Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.',
-          },
+          { role: 'system', content: systemMessage },
           { role: 'user', content: prompt },
         ],
         max_tokens: this.config.maxTokens || 150,
@@ -91,6 +88,20 @@ export class OpenAIProvider extends AIProvider {
       console.error('OPENAI HEALTH ERROR:', error instanceof Error ? error.message : String(error));
       return false;
     }
+  }
+
+  private buildSystemMessage(context?: Record<string, unknown>): string {
+    const base =
+      'Você é um coach de vendas especialista analisando ligações em tempo real. ' +
+      'Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.';
+
+    // RAG context injected by AIManagerService.buildRagContext()
+    const ragContext =
+      typeof context?.ragContext === 'string' && context.ragContext.length > 0
+        ? `\n\n${context.ragContext}`
+        : '';
+
+    return `${base}${ragContext}`;
   }
 
   private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {

@@ -5,6 +5,7 @@ import { AiService } from './ai.service';
 import { Public } from '@/common/decorators/public.decorator';
 import { TenantGuard } from '@/modules/auth/guards/tenant.guard';
 import { AIProviderType } from '@/infrastructure/ai/ai-manager.service';
+import { CurrentUser, AuthenticatedUser } from '@/common/decorators';
 
 // Rate limit AI endpoints more strictly (System Design Interview - Cap. 4)
 // AI calls are expensive — 20 req/min vs 100 req/min default
@@ -36,14 +37,23 @@ export class AiController {
     },
   })
   async generateSuggestion(
+    @CurrentUser() user: AuthenticatedUser,
     @Body()
     body: {
       transcript: string;
       context?: Record<string, unknown>;
       provider?: AIProviderType;
+      /** Pass skipRag:true to bypass knowledge base retrieval for this call */
+      skipRag?: boolean;
     },
   ) {
-    return this.aiService.generateSuggestion(body.transcript, body.context, body.provider);
+    return this.aiService.generateSuggestion(
+      body.transcript,
+      body.context,
+      body.provider,
+      // RAG: pass companyId so AIManagerService can retrieve tenant knowledge chunks
+      { companyId: user?.companyId, skipRag: body.skipRag },
+    );
   }
 
   @Post('suggestion/balanced')
@@ -58,9 +68,14 @@ export class AiController {
     description: 'Suggestion generated successfully',
   })
   async generateSuggestionBalanced(
-    @Body() body: { transcript: string; context?: Record<string, unknown> },
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { transcript: string; context?: Record<string, unknown>; skipRag?: boolean },
   ) {
-    return this.aiService.generateSuggestionBalanced(body.transcript, body.context);
+    return this.aiService.generateSuggestionBalanced(
+      body.transcript,
+      body.context,
+      { companyId: user?.companyId, skipRag: body.skipRag },
+    );
   }
 
   @Post('analyze')
@@ -75,14 +90,21 @@ export class AiController {
     description: 'Analysis completed successfully',
   })
   async analyzeConversation(
+    @CurrentUser() user: AuthenticatedUser,
     @Body()
     body: {
       transcript: string;
       context?: Record<string, unknown>;
       provider?: AIProviderType;
+      skipRag?: boolean;
     },
   ) {
-    return this.aiService.analyzeConversation(body.transcript, body.context, body.provider);
+    return this.aiService.analyzeConversation(
+      body.transcript,
+      body.context,
+      body.provider,
+      { companyId: user?.companyId, skipRag: body.skipRag },
+    );
   }
 
   @Get('health')

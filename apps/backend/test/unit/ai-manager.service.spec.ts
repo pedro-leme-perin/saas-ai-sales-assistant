@@ -28,7 +28,7 @@ describe('AIManagerService', () => {
       get: jest.fn((key: string) => mockConfigGet(key)),
     } as unknown as jest.Mocked<ConfigService>;
 
-    service = new AIManagerService(configService);
+    service = new AIManagerService(configService, null);
     jest.clearAllMocks();
   });
 
@@ -59,7 +59,7 @@ describe('AIManagerService', () => {
         return undefined;
       });
 
-      const limitedService = new AIManagerService(configService);
+      const limitedService = new AIManagerService(configService, null);
 
       expect(limitedService['providers'].size).toBe(1);
       expect(limitedService['providers'].has('openai')).toBe(true);
@@ -71,7 +71,7 @@ describe('AIManagerService', () => {
 
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const noProviderService = new AIManagerService(configService);
+      const noProviderService = new AIManagerService(configService, null);
 
       expect(noProviderService['providers'].size).toBe(0);
 
@@ -346,7 +346,7 @@ describe('AIManagerService', () => {
 
     it('should return mock when no providers available', async () => {
       configService.get.mockReturnValue(undefined);
-      const emptyService = new AIManagerService(configService);
+      const emptyService = new AIManagerService(configService, null);
 
       const result = await emptyService.generateSuggestionBalanced('test');
 
@@ -438,7 +438,7 @@ describe('AIManagerService', () => {
 
     it('should return empty object when no providers configured', async () => {
       configService.get.mockReturnValue(undefined);
-      const emptyService = new AIManagerService(configService);
+      const emptyService = new AIManagerService(configService, null);
 
       const result = await emptyService.healthCheckAll();
 
@@ -459,7 +459,7 @@ describe('AIManagerService', () => {
 
     it('should return empty array when no providers configured', () => {
       configService.get.mockReturnValue(undefined);
-      const emptyService = new AIManagerService(configService);
+      const emptyService = new AIManagerService(configService, null);
 
       const providers = emptyService.getAvailableProviders();
 
@@ -473,7 +473,7 @@ describe('AIManagerService', () => {
         return undefined;
       });
 
-      const partialService = new AIManagerService(configService);
+      const partialService = new AIManagerService(configService, null);
       const providers = partialService.getAvailableProviders();
 
       expect(providers).toContain('openai');
@@ -513,7 +513,7 @@ describe('AIManagerService', () => {
 
     it('should return empty object when no providers configured', () => {
       configService.get.mockReturnValue(undefined);
-      const emptyService = new AIManagerService(configService);
+      const emptyService = new AIManagerService(configService, null);
 
       const status = emptyService.getCircuitBreakerStatus();
 

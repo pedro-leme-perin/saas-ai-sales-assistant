@@ -18,14 +18,14 @@ export class ClaudeProvider extends AIProvider {
     const startTime = Date.now();
 
     const prompt = this.buildSuggestionPrompt(transcript, context);
+    const systemMessage = this.buildSystemMessage(context);
 
     try {
       const response = await this.client.messages.create({
         model: this.config.model || 'claude-3-5-sonnet-20241022',
         max_tokens: this.config.maxTokens || 150,
         messages: [{ role: 'user', content: prompt }],
-        system:
-          'Você é um coach de vendas especialista analisando ligações em tempo real. Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.',
+        system: systemMessage,
       });
 
       const latencyMs = Date.now() - startTime;
@@ -89,6 +89,19 @@ export class ClaudeProvider extends AIProvider {
     } catch {
       return false;
     }
+  }
+
+  private buildSystemMessage(context?: Record<string, unknown>): string {
+    const base =
+      'Você é um coach de vendas especialista analisando ligações em tempo real. ' +
+      'Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.';
+
+    const ragContext =
+      typeof context?.ragContext === 'string' && context.ragContext.length > 0
+        ? `\n\n${context.ragContext}`
+        : '';
+
+    return `${base}${ragContext}`;
   }
 
   private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {

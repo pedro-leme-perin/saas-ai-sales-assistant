@@ -22,17 +22,12 @@ export class GeminiProvider extends AIProvider {
         model: this.config.model || 'gemini-2.0-flash',
       });
 
+      const systemPrefix = this.buildSystemMessage(context);
       const result = await model.generateContent({
         contents: [
           {
             role: 'user',
-            parts: [
-              {
-                text:
-                  'Você é um coach de vendas especialista analisando ligações em tempo real. Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.\n\n' +
-                  prompt,
-              },
-            ],
+            parts: [{ text: `${systemPrefix}\n\n${prompt}` }],
           },
         ],
         generationConfig: {
@@ -110,6 +105,19 @@ export class GeminiProvider extends AIProvider {
       console.error('GEMINI HEALTH ERROR:', error instanceof Error ? error.message : String(error));
       return false;
     }
+  }
+
+  private buildSystemMessage(context?: Record<string, unknown>): string {
+    const base =
+      'Você é um coach de vendas especialista analisando ligações em tempo real. ' +
+      'Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.';
+
+    const ragContext =
+      typeof context?.ragContext === 'string' && context.ragContext.length > 0
+        ? `\n\n${context.ragContext}`
+        : '';
+
+    return `${base}${ragContext}`;
   }
 
   private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {

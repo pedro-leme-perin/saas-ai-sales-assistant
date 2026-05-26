@@ -37,6 +37,11 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   OPENAI_MAX_TOKENS: z.coerce.number().int().positive().default(1000),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // RAG Knowledge Base (uses OPENAI_API_KEY for embeddings — no extra key needed)
+  // Optional tuning vars — safe defaults apply when absent.
+  RAG_DEFAULT_TOP_K: z.coerce.number().int().min(1).max(20).default(5),
+  RAG_DEFAULT_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.7),
+  RAG_ENABLED: z.string().default('true'), // set to 'false' to disable RAG globally
 
   // ── Twilio ──
   TWILIO_ACCOUNT_SID: z.string().min(1).optional(),

@@ -57,6 +57,7 @@ import { MacrosModule } from './modules/macros/macros.module';
 import { ImpersonationModule } from './modules/impersonation/impersonation.module';
 import { ConfigSnapshotsModule } from './modules/config-snapshots/config-snapshots.module';
 import { DsarModule } from './modules/dsar/dsar.module';
+import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 import { CompanyThrottlerGuard } from './common/guards/company-throttler.guard';
 import { CompanyPlanMiddleware } from './common/middleware/company-plan.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -134,6 +135,7 @@ import configuration from './config/configuration';
     ImpersonationModule,
     ConfigSnapshotsModule,
     DsarModule,
+    KnowledgeBaseModule,
   ],
   providers: [
     // CompanyThrottlerGuard: Redis sliding window per companyId

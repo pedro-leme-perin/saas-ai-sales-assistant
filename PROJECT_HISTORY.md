@@ -6782,3 +6782,101 @@ CI verde — Backend + Frontend + Security + CI Gate todos `success`.
 - ✅ /pricing público (theiadvisor.com/pricing 404 → render)
 - ⏸️ DSAR E2E pending Pedro auth
 - ⏸️ Coverage 80% push pending Pedro jest local validation cycle
+
+
+---
+
+## Sessão S79 (25/05/2026) — RAG Knowledge Base (Cowork-autônomo)
+
+**Objetivo:** Implementar base de conhecimento com busca semântica vetorial (RAG — Retrieval-Augmented Generation) para enriquecer o contexto dos providers de IA com documentação e conteúdo por tenant.
+
+**Entregáveis:**
+
+### A — Schema Prisma: KnowledgeChunk + pgvector
+
+- `apps/backend/prisma/schema.prisma`: `previewFeatures = ["postgresqlExtensions"]` + `extensions = [vector]` no datasource. Novo model `KnowledgeChunk` (44 campos incluindo `embedding Unsupported("vector(1536)")`). Enum `KnowledgeChunkSource` (DOCUMENT/URL/MANUAL/CALL/WHATSAPP). Unique constraint `(companyId, contentHash)`. IVFFlat index `(embedding vector_cosine_ops) WITH (lists=100)`. Índices compostos `[companyId, isActive, createdAt]` + `[companyId, source, sourceRef]`. Soft-delete `deletedAt`. CASCADE em Company. Relação `Company.knowledgeChunks KnowledgeChunk[]` adicionada.
+- Migration `apps/backend/prisma/migrations/20260525010000_add_knowledge_base_rag/migration.sql`: `CREATE EXTENSION IF NOT EXISTS vector`, DDL completo, FK, unique, IVFFlat index.
+
+### B — KnowledgeBaseModule
+
+**DTOs** (3 arquivos):
+- `create-knowledge-chunk.dto.ts`: `source`, `sourceRef` (MaxLength 500), `chunkIndex?`, `content`, `metadata?`, `isActive?`
+- `update-knowledge-chunk.dto.ts`: todos opcionais — `content`, `sourceRef`, `metadata`, `isActive`
+- `query-knowledge-base.dto.ts`: `QueryKnowledgeBaseDto` (filtros + cursor) + `SemanticSearchDto` (query, topK 1-20, minScore 0-1, source?)
+
+**Service** (`knowledge-base.service.ts`, ~320 linhas):
+- Constantes: `EMBEDDING_MODEL = 'text-embedding-3-small'`, `EMBEDDING_DIMS = 1536`, `MAX_CHUNK_CHARS = 1600`, `MAX_CHUNKS_PER_COMPANY = 10_000`
+- `embed(text)` + `embedBatch(texts[])`: OpenAI embeddings API, groups of 100, sort by index
+- `ingestChunk(companyId, dto)`: capacity check → embed → upsert (SHA-256 hash guard, P2002 race handling via ON CONFLICT)
+- `ingestBatch(companyId, chunks[])`: in-batch dedup → embedBatch → sequential upsert ON CONFLICT DO NOTHING
+- `findRelevant(companyId, query, topK, minScore, source?)`: embed query → `$queryRaw` cosine `<=>` → filter by minScore
+- `buildContextString(chunks[])`: formata chunks em bloco de system prompt
+- `findAll(companyId, query)`: `$transaction([findMany, count])`, exclui coluna embedding do select
+- `update(companyId, id, dto)`: re-embeds se content muda, hash collision check
+- `remove(companyId, id)`: soft-delete via `update({ deletedAt, isActive: false })`
+- `removeBySourceRef(companyId, sourceRef)`: `updateMany`, retorna count
+- `countActive(companyId)`: count com `{ isActive: true, deletedAt: null }`
+- Multi-tenancy: `companyId` em toda query, enforced no service layer
+
+**Controller** (`knowledge-base.controller.ts`):
+- `POST /knowledge-base/chunks` — ingestChunk (OWNER/ADMIN, 20/min strict)
+- `POST /knowledge-base/chunks/batch` — ingestBatch (OWNER/ADMIN, 5/min)
+- `POST /knowledge-base/search` — semantic search (30/min)
+- `GET /knowledge-base/chunks` + `GET /knowledge-base/chunks/:id`
+- `GET /knowledge-base/stats` — activeChunks + utilization %
+- `PATCH /knowledge-base/chunks/:id` — update (OWNER/ADMIN)
+- `DELETE /knowledge-base/chunks/:id` — remove (OWNER/ADMIN, 204)
+- `DELETE /knowledge-base/source/:sourceRef` — removeBySourceRef (OWNER/ADMIN)
+
+**Module** (`knowledge-base.module.ts`): imports ConfigModule, exports KnowledgeBaseService.
+
+### C — CLI de ingestão
+
+`apps/backend/scripts/ingest-knowledge-base.ts`:
+- Flags: `--company-id`, `--source`, `--source-ref`, `--file`, `--chunk-size` (default 800), `--overlap` (default 100), `--replace`, `--dry-run`, `--batch-size` (default 50), `--api-url`, `--api-key`
+- `chunkText(text, size, overlap)`: sliding window com sentence-boundary detection (`.!?\n`)
+- Exit codes: 0=success, 1=config error, 2=partial failure, 3=total failure
+
+### D — RAG integrado nos providers de IA
+
+**`ai-manager.service.ts`** (modificado):
+- Exporta `KNOWLEDGE_BASE_SERVICE = 'KNOWLEDGE_BASE_SERVICE' as const` (injection token)
+- Exporta `RagOptions` interface: `{ companyId?, topK?, minScore?, skipRag? }`
+- Constructor: `@Optional() @Inject(KNOWLEDGE_BASE_SERVICE) knowledgeBase: KnowledgeBaseService | null`
+- `buildRagContext(query, ragOptions?)`: retrieval + graceful degradation try/catch
+- `mergeRagIntoContext(context, ragContext)`: merge de `ragContext` key no context map
+- `generateSuggestion`, `analyzeConversation`, `generateSuggestionBalanced`: todos recebem `ragOptions?` e injetam contexto antes do provider call
+
+**Decisão arquitetural crítica**: `import type { KnowledgeBaseService }` em `ai-manager.service.ts` (camada infrastructure) — mantém Clean Architecture Dependency Rule sem circular import. Token string `KNOWLEDGE_BASE_SERVICE` + `@Optional() @Inject()` rompe a dependência em runtime.
+
+**4 providers** (openai, claude, gemini, perplexity): `buildSystemMessage(context?)` extrai `context?.ragContext` e appenda ao system prompt base. Graceful: ragContext ausente → system prompt base inalterado.
+
+### E — Wiring em ai.module.ts e app.module.ts
+
+- `ai.module.ts`: imports `KnowledgeBaseModule`, providers: `{ provide: KNOWLEDGE_BASE_SERVICE, useExisting: KnowledgeBaseService }`
+- `app.module.ts`: imports `KnowledgeBaseModule`
+- `ai.controller.ts`: `@CurrentUser() user: AuthenticatedUser` em 3 endpoints, `skipRag?: boolean` no body, `ragOptions: { companyId: user?.companyId, skipRag: body.skipRag }` forwarded
+- `ai.service.ts`: `RagOptions` param adicionado às 3 funções públicas
+
+### F — Env vars (env.validation.ts)
+
+```
+RAG_DEFAULT_TOP_K: z.coerce.number().int().min(1).max(20).default(5)
+RAG_DEFAULT_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.7)
+RAG_ENABLED: z.string().default('true')
+```
+
+### G — Testes (knowledge-base.service.spec.ts)
+
+42 testes em 11 describes:
+- OpenAI mockado a nível de módulo (`jest.mock('openai', ...)`)
+- PrismaService completamente mockado (knowledgeChunk.\*, $queryRaw, $executeRaw, $transaction)
+- Cobertura: embed API, ingestChunk (happy + P2002 race + capacity exceeded + hash collision), ingestBatch (dedup + partial failure), findRelevant (happy + embed fail + vector query fail), buildContextString, findAll (pagination + cursor), findOne (happy + NotFound + tenant isolation), update (content change re-embed + no-embed + hash collision + NotFound), remove (happy + NotFound), removeBySourceRef, countActive
+
+**Schema changes:** +1 modelo (KnowledgeChunk), +1 enum (KnowledgeChunkSource) → total 44 modelos / 46 enums  
+**Novos módulos:** KnowledgeBaseModule  
+**Novos env vars:** RAG_DEFAULT_TOP_K, RAG_DEFAULT_MIN_SCORE, RAG_ENABLED  
+**Testes novos:** +42 (knowledge-base.service.spec.ts) → total 79 unit suites  
+**Decisões:** KNOWLEDGE_BASE_SERVICE token pattern (circular dep prevention), graceful RAG degradation, import type isolamento, IVFFlat lists=100 (balanceio build-time vs query speed para até 10k chunks)
+
+**Status pós-S79:** pending push ao GitHub. CI vai executar `prisma generate` (linha 217 do ci.yml) antes de `type-check` (linha 223) — `KnowledgeChunkSource` será gerado pelo Prisma client corretamente. Neon prod precisará `CREATE EXTENSION vector` antes da migration (ou extension já habilitada no plano).

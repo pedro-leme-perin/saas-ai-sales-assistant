@@ -25,11 +25,7 @@ export class PerplexityProvider extends AIProvider {
       const response = await this.client.chat.completions.create({
         model: this.config.model || 'llama-3.1-sonar-large-128k-online',
         messages: [
-          {
-            role: 'system',
-            content:
-              'Você é um coach de vendas especialista analisando ligações em tempo real. Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.',
-          },
+          { role: 'system', content: this.buildSystemMessage(context) },
           { role: 'user', content: prompt },
         ],
         max_tokens: this.config.maxTokens || 150,
@@ -97,6 +93,19 @@ export class PerplexityProvider extends AIProvider {
     } catch {
       return false;
     }
+  }
+
+  private buildSystemMessage(context?: Record<string, unknown>): string {
+    const base =
+      'Você é um coach de vendas especialista analisando ligações em tempo real. ' +
+      'Responda SEMPRE em português do Brasil. Forneça UMA sugestão concisa e prática.';
+
+    const ragContext =
+      typeof context?.ragContext === 'string' && context.ragContext.length > 0
+        ? `\n\n${context.ragContext}`
+        : '';
+
+    return `${base}${ragContext}`;
   }
 
   private buildSuggestionPrompt(transcript: string, context?: Record<string, unknown>): string {

@@ -8,12 +8,14 @@
 // =============================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 // =============================================
@@ -95,6 +97,7 @@ model Company {
   impersonationSessions  ImpersonationSession[]
   configSnapshots        ConfigSnapshot[]
   dsarRequests           DsarRequest[]
+  knowledgeChunks        KnowledgeChunk[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -1960,4 +1963,71 @@ enum DsarStatus {
   COMPLETED
   EXPIRED
   FAILED
+}
+
+// =============================================
+// KNOWLEDGE BASE — RAG (Retrieval-Augmented Generation)
+// =============================================
+// Per-tenant document chunks with pgvector embeddings.
+// Used by AIManagerService to inject relevant context before LLM calls,
+// reducing hallucinations and grounding suggestions in company-specific
+// knowledge (products, scripts, FAQs, objection handlers, etc.).
+//
+// Embedding model: text-embedding-3-small (1536 dims, OpenAI).
+// Similarity search: cosine distance via pgvector <=> operator, raw SQL.
+//
+// Ingestion flow:
+//   ingest-knowledge-base.ts CLI → chunk text → embed → upsert KnowledgeChunk
+//
+// Retrieval flow:
+//   AIManagerService.generateSuggestion() → KnowledgeBaseService.findRelevant()
+//   → top-k chunks injected into system prompt context
+//
+// Multi-tenancy: companyId on every row; every query filters by companyId.
+// Index: IVFFlat lists=100 for approximate nearest-neighbour (DDIA Cap. 3).
+// Exact KNN used until chunk count per tenant exceeds ~10k rows.
+//
+// Retention: soft-delete via deletedAt; hard-purge via RetentionPolicy cron.
+// LGPD: chunks contain only company knowledge, not PII. No DSAR scope.
+
+model KnowledgeChunk {
+  id          String               @id @default(uuid())
+  companyId   String               @map("company_id")
+  source      KnowledgeChunkSource
+  // Human-readable identifier for the source document (filename, URL, title)
+  sourceRef   String               @map("source_ref") @db.VarChar(500)
+  // Ordered position within the source document (for re-assembly / context window ordering)
+  chunkIndex  Int                  @default(0) @map("chunk_index")
+  // Raw text of the chunk (stored for display + re-embedding if model changes)
+  content     String               @db.Text
+  // SHA-256 hex of content — idempotent upsert guard during re-ingestion
+  contentHash String               @map("content_hash") @db.Char(64)
+  // pgvector column: text-embedding-3-small = 1536 dims
+  // Prisma does not have a native vector type in v5 — stored as Unsupported,
+  // queried via prisma.$queryRaw with <=> cosine distance operator.
+  embedding   Unsupported("vector(1536)")?
+  // Optional metadata JSON: page number, section title, tags, language, etc.
+  metadata    Json?
+  isActive    Boolean              @default(true) @map("is_active")
+  deletedAt   DateTime?            @map("deleted_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Composite unique: prevents duplicate chunk ingestion for the same content
+  @@unique([companyId, contentHash], name: "knowledge_chunk_content_hash_unique")
+  // Primary filter: tenant + active status (most queries)
+  @@index([companyId, isActive, createdAt(sort: Desc)])
+  // Source-level management: re-ingest / delete by sourceRef
+  @@index([companyId, source, sourceRef])
+  @@map("knowledge_chunks")
+}
+
+enum KnowledgeChunkSource {
+  DOCUMENT   // PDF, DOCX, TXT uploaded via dashboard
+  URL        // Web page scraped on demand
+  MANUAL     // Text entered directly via API / dashboard
+  CALL       // Transcript snippet promoted to knowledge base
+  WHATSAPP   // Chat transcript snippet promoted to knowledge base
 }
