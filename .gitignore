@@ -29,3 +29,6 @@ HANDOFF_SESSAO_15MAR2026.docx
 # pnpm audit local artifacts
 audit.json
 .audit*.json
+Livros Para Conteúdo/
+chunks_*.json
+scripts/test-invoke.bat

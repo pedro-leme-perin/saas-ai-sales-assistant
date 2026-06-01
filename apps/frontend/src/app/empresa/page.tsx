@@ -153,12 +153,10 @@ export default function EmpresaPage() {
           <div className="inline-flex items-center justify-center p-3 rounded-full bg-primary/10 mb-6">
             <Building2 className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Quem somos
-          </h1>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Quem somos</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Transparência institucional completa. Dados públicos da pessoa jurídica responsável
-            pela plataforma TheIAdvisor.
+            Transparência institucional completa. Dados públicos da pessoa jurídica responsável pela
+            plataforma TheIAdvisor.
           </p>
         </div>
 
@@ -188,14 +186,14 @@ export default function EmpresaPage() {
           <p className="text-sm leading-relaxed text-muted-foreground mb-3">
             A TheIAdvisor desenvolve um SaaS de assistência de vendas baseado em inteligência
             artificial. Nossa plataforma transcreve ligações em tempo real e analisa conversas no
-            WhatsApp Business para sugerir as melhores respostas aos vendedores enquanto eles
-            falam com o cliente.
+            WhatsApp Business para sugerir as melhores respostas aos vendedores enquanto eles falam
+            com o cliente.
           </p>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Construímos enterprise-grade desde o primeiro commit: ACID em todas as operações
-            críticas, multi-tenancy estrito, observabilidade completa (SLOs 99,9%
-            disponibilidade), conformidade LGPD ponta a ponta, criptografia em trânsito e em
-            repouso. Sem decisões de &ldquo;MVP descartável&rdquo;.
+            críticas, multi-tenancy estrito, observabilidade completa (SLOs 99,9% disponibilidade),
+            conformidade LGPD ponta a ponta, criptografia em trânsito e em repouso. Sem decisões de
+            &ldquo;MVP descartável&rdquo;.
           </p>
         </Card>
 
@@ -208,13 +206,10 @@ export default function EmpresaPage() {
             <li className="flex gap-3">
               <span className="text-primary font-bold flex-shrink-0">·</span>
               <span>
-                <strong>LGPD (Lei 13.709/2018):</strong> Controlador declarado nos Termos de Uso
-                e Política de Privacidade. Workflow completo para Art. 18 (acesso, portabilidade,
+                <strong>LGPD (Lei 13.709/2018):</strong> Controlador declarado nos Termos de Uso e
+                Política de Privacidade. Workflow completo para Art. 18 (acesso, portabilidade,
                 correção, deleção, anonimização). DPO designado:{' '}
-                <a
-                  href="mailto:dpo@theiadvisor.com"
-                  className="text-primary hover:underline"
-                >
+                <a href="mailto:dpo@theiadvisor.com" className="text-primary hover:underline">
                   dpo@theiadvisor.com
                 </a>
                 .
@@ -223,8 +218,8 @@ export default function EmpresaPage() {
             <li className="flex gap-3">
               <span className="text-primary font-bold flex-shrink-0">·</span>
               <span>
-                <strong>Auditoria:</strong> Todo evento sensível registrado em audit trail
-                imutável com retenção mínima de 180 dias (LGPD floor).
+                <strong>Auditoria:</strong> Todo evento sensível registrado em audit trail imutável
+                com retenção mínima de 180 dias (LGPD floor).
               </span>
             </li>
             <li className="flex gap-3">
@@ -238,8 +233,8 @@ export default function EmpresaPage() {
             <li className="flex gap-3">
               <span className="text-primary font-bold flex-shrink-0">·</span>
               <span>
-                <strong>Backup:</strong> Banco de dados em backup diário criptografado, retenção
-                30 dias, restore game-day testado semestralmente.
+                <strong>Backup:</strong> Banco de dados em backup diário criptografado, retenção 30
+                dias, restore game-day testado semestralmente.
               </span>
             </li>
           </ul>
