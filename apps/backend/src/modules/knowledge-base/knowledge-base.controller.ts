@@ -12,13 +12,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
 import { KnowledgeBaseService } from './knowledge-base.service';
@@ -51,10 +45,7 @@ export class KnowledgeBaseController {
       'Idempotent: duplicate content (same SHA-256 hash) returns the existing chunk.',
   })
   @ApiResponse({ status: 201, description: 'Chunk created or updated' })
-  async ingestChunk(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateKnowledgeChunkDto,
-  ) {
+  async ingestChunk(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateKnowledgeChunkDto) {
     return this.knowledgeBaseService.ingestChunk(user.companyId, dto);
   }
 
@@ -89,10 +80,7 @@ export class KnowledgeBaseController {
       'Available to all authenticated users. Used internally by RAG pipeline.',
   })
   @ApiResponse({ status: 200, description: 'Relevant chunks ranked by similarity score' })
-  async search(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: SemanticSearchDto,
-  ) {
+  async search(@CurrentUser() user: AuthenticatedUser, @Body() dto: SemanticSearchDto) {
     const chunks = await this.knowledgeBaseService.findRelevant(
       user.companyId,
       dto.query,
@@ -120,10 +108,7 @@ export class KnowledgeBaseController {
       'Supports filtering by source, sourceRef, and active status.',
   })
   @ApiResponse({ status: 200, description: 'Paginated chunk list' })
-  async findAll(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() query: QueryKnowledgeBaseDto,
-  ) {
+  async findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: QueryKnowledgeBaseDto) {
     return this.knowledgeBaseService.findAll(user.companyId, query);
   }
 
@@ -132,10 +117,7 @@ export class KnowledgeBaseController {
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Chunk found' })
   @ApiResponse({ status: 404, description: 'Chunk not found' })
-  async findOne(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.knowledgeBaseService.findOne(user.companyId, id);
   }
 
@@ -190,10 +172,7 @@ export class KnowledgeBaseController {
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'Chunk deleted' })
   @ApiResponse({ status: 404, description: 'Chunk not found' })
-  async remove(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.knowledgeBaseService.remove(user.companyId, id);
   }
 

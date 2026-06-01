@@ -173,9 +173,7 @@ export class KnowledgeBaseService {
       });
 
       // Sort by index to guarantee order (OpenAI returns in order but be explicit)
-      return response.data
-        .sort((a, b) => a.index - b.index)
-        .map((item) => item.embedding);
+      return response.data.sort((a, b) => a.index - b.index).map((item) => item.embedding);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Batch embedding failed: ${msg}`);
@@ -191,10 +189,7 @@ export class KnowledgeBaseService {
    * Ingest a single chunk: embed → upsert (idempotent by contentHash).
    * Multi-tenancy: companyId enforced as first-class param.
    */
-  async ingestChunk(
-    companyId: string,
-    dto: CreateKnowledgeChunkDto,
-  ): Promise<KnowledgeChunk> {
+  async ingestChunk(companyId: string, dto: CreateKnowledgeChunkDto): Promise<KnowledgeChunk> {
     await this.assertChunkCapacity(companyId);
 
     const contentHash = this.hashContent(dto.content);
@@ -252,10 +247,7 @@ export class KnowledgeBaseService {
       })) as KnowledgeChunk;
     } catch (error: unknown) {
       // Unique constraint race condition (concurrent ingestion of same content)
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         this.logger.warn(
           `Duplicate chunk (concurrent ingest) — contentHash=${contentHash} companyId=${companyId}`,
         );
@@ -275,10 +267,7 @@ export class KnowledgeBaseService {
    * Note: intentionally sequential upserts (not Promise.all) to avoid
    * overwhelming the DB connection pool on large ingestion batches.
    */
-  async ingestBatch(
-    companyId: string,
-    chunks: CreateKnowledgeChunkDto[],
-  ): Promise<IngestResult> {
+  async ingestBatch(companyId: string, chunks: CreateKnowledgeChunkDto[]): Promise<IngestResult> {
     if (chunks.length === 0) return { created: 0, skipped: 0, errors: 0, chunkIds: [] };
 
     await this.assertChunkCapacity(companyId);
@@ -484,9 +473,7 @@ export class KnowledgeBaseService {
   buildContextString(chunks: RelevantChunk[]): string {
     if (chunks.length === 0) return '';
 
-    const lines = [
-      '--- COMPANY KNOWLEDGE BASE (use this context to improve your suggestions) ---',
-    ];
+    const lines = ['--- COMPANY KNOWLEDGE BASE (use this context to improve your suggestions) ---'];
 
     for (const chunk of chunks) {
       lines.push(`[${chunk.source} | ${chunk.sourceRef} | score=${chunk.score.toFixed(2)}]`);
@@ -506,13 +493,7 @@ export class KnowledgeBaseService {
     companyId: string,
     query: QueryKnowledgeBaseDto,
   ): Promise<{ data: KnowledgeChunk[]; total: number; cursor: string | null }> {
-    const {
-      source,
-      sourceRef,
-      isActive = true,
-      limit = 50,
-      cursor,
-    } = query;
+    const { source, sourceRef, isActive = true, limit = 50, cursor } = query;
 
     const where: Prisma.KnowledgeChunkWhereInput = {
       companyId,
@@ -547,8 +528,7 @@ export class KnowledgeBaseService {
       this.prisma.knowledgeChunk.count({ where }),
     ]);
 
-    const nextCursor =
-      data.length === limit ? (data[data.length - 1]?.id ?? null) : null;
+    const nextCursor = data.length === limit ? (data[data.length - 1]?.id ?? null) : null;
 
     return {
       data: data as unknown as KnowledgeChunk[],
@@ -672,10 +652,7 @@ export class KnowledgeBaseService {
    * Used by ingest CLI when re-ingesting a document (replace strategy).
    * Returns count of soft-deleted chunks.
    */
-  async removeBySourceRef(
-    companyId: string,
-    sourceRef: string,
-  ): Promise<number> {
+  async removeBySourceRef(companyId: string, sourceRef: string): Promise<number> {
     const result = await this.prisma.knowledgeChunk.updateMany({
       where: { companyId, sourceRef, deletedAt: null },
       data: { deletedAt: new Date(), isActive: false },
@@ -723,9 +700,7 @@ export class KnowledgeBaseService {
    */
   private assertEmbeddingConfigured(): void {
     if (!this.isEmbeddingConfigured) {
-      throw new BadRequestException(
-        'Embedding not available: OPENAI_API_KEY is not configured',
-      );
+      throw new BadRequestException('Embedding not available: OPENAI_API_KEY is not configured');
     }
   }
 
