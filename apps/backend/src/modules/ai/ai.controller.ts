@@ -71,11 +71,10 @@ export class AiController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: { transcript: string; context?: Record<string, unknown>; skipRag?: boolean },
   ) {
-    return this.aiService.generateSuggestionBalanced(
-      body.transcript,
-      body.context,
-      { companyId: user?.companyId, skipRag: body.skipRag },
-    );
+    return this.aiService.generateSuggestionBalanced(body.transcript, body.context, {
+      companyId: user?.companyId,
+      skipRag: body.skipRag,
+    });
   }
 
   @Post('analyze')
@@ -99,12 +98,10 @@ export class AiController {
       skipRag?: boolean;
     },
   ) {
-    return this.aiService.analyzeConversation(
-      body.transcript,
-      body.context,
-      body.provider,
-      { companyId: user?.companyId, skipRag: body.skipRag },
-    );
+    return this.aiService.analyzeConversation(body.transcript, body.context, body.provider, {
+      companyId: user?.companyId,
+      skipRag: body.skipRag,
+    });
   }
 
   @Get('health')

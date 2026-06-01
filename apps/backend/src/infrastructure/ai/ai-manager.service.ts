@@ -42,7 +42,8 @@ export class AIManagerService {
     private configService: ConfigService,
     // Optional: injected when AiModule wires KnowledgeBaseModule.
     // When not present, RAG is silently skipped (graceful degradation).
-    @Optional() @Inject(KNOWLEDGE_BASE_SERVICE)
+    @Optional()
+    @Inject(KNOWLEDGE_BASE_SERVICE)
     private readonly knowledgeBase: KnowledgeBaseService | null,
   ) {
     this.initializeProviders();
@@ -116,10 +117,7 @@ export class AIManagerService {
    * The LLM runs with less context rather than failing entirely.
    * (SRE — fail open for non-critical path; Designing ML Systems — retrieval augmentation)
    */
-  private async buildRagContext(
-    query: string,
-    ragOptions?: RagOptions,
-  ): Promise<string> {
+  private async buildRagContext(query: string, ragOptions?: RagOptions): Promise<string> {
     if (!this.knowledgeBase) return '';
     if (ragOptions?.skipRag) return '';
     if (!ragOptions?.companyId) return '';
@@ -191,7 +189,9 @@ export class AIManagerService {
       try {
         return await (breaker
           ? breaker.execute(() =>
-              this.providers.get(preferredProvider)!.generateSuggestion(transcript, enrichedContext),
+              this.providers
+                .get(preferredProvider)!
+                .generateSuggestion(transcript, enrichedContext),
             )
           : this.providers.get(preferredProvider)!.generateSuggestion(transcript, enrichedContext));
       } catch (error: unknown) {
@@ -242,9 +242,13 @@ export class AIManagerService {
       try {
         return await (breaker
           ? breaker.execute(() =>
-              this.providers.get(preferredProvider)!.analyzeConversation(transcript, enrichedContext),
+              this.providers
+                .get(preferredProvider)!
+                .analyzeConversation(transcript, enrichedContext),
             )
-          : this.providers.get(preferredProvider)!.analyzeConversation(transcript, enrichedContext));
+          : this.providers
+              .get(preferredProvider)!
+              .analyzeConversation(transcript, enrichedContext));
       } catch (error: unknown) {
         this.logger.error(
           `${preferredProvider} analysis failed: ${error instanceof Error ? error.message : error}`,
