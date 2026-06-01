@@ -370,7 +370,11 @@ describe('KnowledgeBaseService', () => {
       mockPrismaService.$queryRaw.mockResolvedValue([]);
 
       const chunks = [
-        { source: KnowledgeChunkSource.DOCUMENT, sourceRef: 'doc.pdf', content: 'Unique content A' },
+        {
+          source: KnowledgeChunkSource.DOCUMENT,
+          sourceRef: 'doc.pdf',
+          content: 'Unique content A',
+        },
       ];
 
       const result = await service.ingestBatch(COMPANY_ID, chunks as CreateKnowledgeChunkDto[]);
@@ -442,7 +446,7 @@ describe('KnowledgeBaseService', () => {
     });
 
     it('filters out chunks below minScore threshold', async () => {
-      const results = await service.findRelevant(COMPANY_ID, 'pricing information', 5, 0.80);
+      const results = await service.findRelevant(COMPANY_ID, 'pricing information', 5, 0.8);
 
       // Only chunk-1 (score=0.92) passes; chunk-2 (score=0.75) is filtered
       expect(results).toHaveLength(1);
