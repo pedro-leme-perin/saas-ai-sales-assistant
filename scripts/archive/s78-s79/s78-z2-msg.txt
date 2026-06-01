@@ -1,0 +1,11 @@
+docs(s78): closure final CLAUDE.md sec 2.4 + 2.5
+
+CLAUDE.md sec 2.5:
+- Footer "(S1-S63)" -> "(S1-S78)"
+
+CLAUDE.md sec 2.4 add 3 done bullets refletindo entregas S78:
+- apiClient envelope unwrap centralizado (be49598 + b06d7ad)
+- Backend ESLint v8 -> v9 flat config (30ecaff)
+- /pricing page publico Categoria C1 (8e7c0cd)
+
+Atomicidade sec 16 fechada para S78.

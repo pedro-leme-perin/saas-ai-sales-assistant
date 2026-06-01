@@ -1,0 +1,52 @@
+feat(s79): RAG knowledge base — pgvector embeddings per tenant
+
+Schema:
+- Enable pgvector extension (Prisma postgresqlExtensions preview)
+- KnowledgeChunk model: content, embedding vector(1536), contentHash
+  SHA-256 upsert guard, source enum (DOCUMENT/URL/MANUAL/CALL/WHATSAPP),
+  IVFFlat cosine index lists=100, composite unique [companyId, contentHash]
+- Migration: 20260525010000_add_knowledge_base_rag (CREATE EXTENSION vector)
+
+Module knowledge-base:
+- KnowledgeBaseService: embed/embedBatch (text-embedding-3-small),
+  ingestChunk/ingestBatch (SHA-256 idempotency, capacity guard 10k),
+  findRelevant (cosine distance <=> raw SQL, minScore threshold),
+  buildContextString, CRUD with soft-delete
+- KnowledgeBaseController: 9 endpoints (ingest single/batch,
+  semantic search, list/read/update/delete, stats, delete-by-source)
+  ADMIN+ for mutations, all authenticated for search
+- 3 DTOs: CreateKnowledgeChunkDto, UpdateKnowledgeChunkDto,
+  QueryKnowledgeBaseDto + SemanticSearchDto
+
+RAG integration in AI pipeline:
+- AIManagerService: buildRagContext() retrieves top-k chunks,
+  mergeRagIntoContext() injects into provider context map.
+  Graceful degradation: any RAG failure is non-blocking (SRE).
+  KNOWLEDGE_BASE_SERVICE injection token avoids circular import
+  (infrastructure → modules via import type + @Inject token).
+- All 4 providers (OpenAI/Claude/Gemini/Perplexity): buildSystemMessage()
+  appends ragContext to system prompt when present.
+- AiController: passes companyId from @CurrentUser() automatically;
+  skipRag body field for opt-out per call.
+
+CLI ingestion script:
+- scripts/ingest-knowledge-base.ts: sentence-boundary chunking with
+  configurable chunk-size/overlap, batch embedding (100/call),
+  --replace (re-ingest), --dry-run, idempotent via API.
+
+Tests:
+- knowledge-base.service.spec.ts: 42 tests across 11 describes
+  (embed, embedBatch, ingestChunk, ingestBatch, findRelevant,
+  buildContextString, findAll, findOne, update, remove,
+  removeBySourceRef, countActive). Failure modes: missing API key,
+  wrong dimensions, API rejection, capacity exceeded, P2002 race,
+  tenant isolation violation, not found, graceful degradation.
+
+Env vars (optional, safe defaults):
+- RAG_DEFAULT_TOP_K (5), RAG_DEFAULT_MIN_SCORE (0.7), RAG_ENABLED (true)
+
+References:
+- DDIA Cap. 3 — IVFFlat approximate nearest-neighbour index
+- Designing ML Systems — embedding-based retrieval, chunking strategy
+- Release It! — graceful degradation on RAG failure
+- Clean Architecture Cap. 22 — injection token preserves Dependency Rule

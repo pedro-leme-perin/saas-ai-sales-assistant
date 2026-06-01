@@ -353,6 +353,7 @@
     "footerRazaoSocial": "THEIADVISOR SAAS TECNOLOGIA LTDA",
     "footerEndereco": "Rua Guilherme Faim, 20 - Ribeirao Preto/SP",
     "help": "Ajuda",
+    "empresa": "Empresa",
     "termsOfService": "Termos de Uso",
     "privacyPolicy": "Politica de Privacidade"
   },
@@ -1682,7 +1683,10 @@
   "dsar": {
     "title": "Solicitacoes LGPD (DSAR)",
     "subtitle": "Gerencie pedidos de acesso, portabilidade, correcao, eliminacao e informacao do titular dos dados (LGPD Art. 18).",
-    "list": { "title": "Solicitacoes", "empty": "Nenhuma solicitacao DSAR encontrada." },
+    "list": {
+      "title": "Solicitacoes",
+      "empty": "Nenhuma solicitacao DSAR encontrada."
+    },
     "create": {
       "title": "Nova solicitacao DSAR",
       "correctionHint": "Preencha apenas os campos a serem corrigidos. Demais permanecem inalterados."

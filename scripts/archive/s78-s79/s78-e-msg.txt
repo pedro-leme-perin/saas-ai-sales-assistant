@@ -1,0 +1,25 @@
+feat(frontend): public /pricing page (S78 E/C1)
+
+apps/frontend/src/app/pricing/page.tsx (new):
+- 3-plan grid mirroring backend BillingService.getPlans (Starter R$97 /
+  Professional R$297 / Enterprise R$697).
+- Static plan data inline (no API call): SSR/SEO friendly, zero auth surface.
+  When plan/price changes, update both this file AND
+  apps/backend/src/modules/billing/billing.service.ts.
+- "Mais popular" highlight ribbon on Professional.
+- CTA branching via Clerk SignedOut/SignedIn:
+  SignedOut -> /sign-up?plan=<ID>
+  SignedIn  -> /dashboard/billing?plan=<ID>
+- 3-question FAQ teaser linking to /help.
+- Footer links to /terms, /privacy, /help.
+- Header sticky with TheIAdvisor branding.
+- formatBRL: pt-BR locale, integer display (R$ 297, no centavos).
+
+apps/frontend/src/middleware.ts:
+- Add /pricing(.*) to isPublicRoute matcher.
+
+Resolves Categoria C1: theiadvisor.com/pricing no longer 404.
+Pre-validation: pnpm --filter=@saas/frontend run type-check exit 0.
+
+Lessons applied: #1 (Edit tool unsafe -> heredoc + cp restoration after Edit
+truncated middleware.ts trailing matcher line), #18 (atomic feat+route+middleware).

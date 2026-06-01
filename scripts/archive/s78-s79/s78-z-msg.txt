@@ -1,0 +1,22 @@
+docs(s78): closure CLAUDE.md + PROJECT_HISTORY.md + CHANGELOG.md
+
+CLAUDE.md:
+- Versao 7.6 -> 7.7
+- Atualizacao "Abril 2026 (S77 final + A4 partial)" -> "Maio 2026 (S78)"
+- Section 2.1 last-update line refletindo 4 commits S78
+- Tabela 2.1 ganha row "Ultimo commit | S78" no topo
+- Row anterior "Ultimo commit | A4" preservada como historico
+
+PROJECT_HISTORY.md:
+- Header "Total de sessoes 63" -> "78"
+- Append section "Sessao 78 - apiClient envelope unwrap +
+  Backend ESLint v9 + Pricing publico (06/05/2026)"
+- 4 commits documentados + tabela de priorizacao 8 tasks
+- Detalhes A/F/E + licoes #27 #28 + corruption recap
+
+CHANGELOG.md:
+- Append entry [v0.78.0] - 2026-05-06
+- Sections Added/Changed/Fixed/Notes
+
+Doc atomicity sec 16 satisfeita.
+Lessons applied: #1 #18 #27 #28.

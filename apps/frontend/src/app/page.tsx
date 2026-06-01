@@ -229,6 +229,12 @@ export default function Home() {
                 {t('landing.help')}
               </Link>
               <Link
+                href="/empresa"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t('landing.empresa')}
+              </Link>
+              <Link
                 href="/terms"
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -257,3 +263,4 @@ export default function Home() {
     </main>
   );
 }
+                                                           

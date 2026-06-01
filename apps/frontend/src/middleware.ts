@@ -11,6 +11,7 @@ const isPublicRoute = createRouteMatcher([
   '/privacy(.*)',
   '/help(.*)',
   '/pricing(.*)',
+  '/empresa(.*)',
   '/csat/(.*)',
 ]);
 

@@ -1,0 +1,54 @@
+feat(s79-postcnpj): identidade juridica THEIADVISOR SAAS TECNOLOGIA LTDA nos artefatos
+
+SLU constituida em 01/06/2026 via REDESIM (protocolo SPP2630711235 deferido).
+CNPJ 67.084.607/0001-78 ATIVO. Propaga identidade juridica em frontend
+institucional, backend env vars e docs SEM tocar runtime de produto.
+
+Adicionado:
+- i18n bilingue (pt-BR + en) — landing.footerCnpj/RazaoSocial/Endereco +
+  terms.controllerInfo (texto Controlador LGPD Art. 5, VI)
+- Frontend rodape institucional border-t em 5 surfaces: landing, /terms,
+  /privacy, /help, /pricing (Razao Social, CNPJ, Endereco)
+- Backend env.validation.ts — bloco "Company Identity (Legal/Fiscal)"
+  com 16 vars Zod-validated (COMPANY_CNPJ regex, COMPANY_RAZAO_SOCIAL,
+  COMPANY_NOME_FANTASIA, enderecos completos, COMPANY_FORO,
+  COMPANY_INSCRICAO_MUNICIPAL optional, COMPANY_REGIME_TRIBUTARIO enum,
+  COMPANY_CNAE_PRINCIPAL regex, LGPD_CONTROLLER_EMAIL, LGPD_DPO_EMAIL).
+  Defaults idênticos aos valores reais (THEIADVISOR/SLU/SP) — producao
+  pode rodar sem override.
+- apps/backend/.env.example bloco equivalente comentado
+- CLAUDE.md §1 — razao social, CNPJ, IM pendente, sede, CNAEs, regime,
+  foro, socio unico; §11 LGPD — Controlador (Art. 5, VI) declarado
+- CHANGELOG.md v0.79.0 entry (Keep a Changelog 1.1.0)
+- PROJECT_HISTORY.md secao S79-PostCNPJ (constituicao + B.1-B.4 + C
+  pendencias + D licoes 29-33)
+
+Alterado:
+- terms.section12Text — foro Sao Paulo/SP -> Ribeirao Preto/SP (alinha
+  Clausula 12 Contrato Social SLU registrado JUCESP)
+- privacy.section1Text — placeholder "operado por sua empresa
+  responsavel" -> declaracao Art. 5, VI da LGPD com razao social,
+  CNPJ, sede e contato
+- CLAUDE.md header — versao 7.8 -> 7.9; atualizacao "Maio 2026 (S79
+  RAG)" -> "Junho 2026 (S79-PostCNPJ — SLU constituida)"
+
+Liçoes novas:
+29. Edit tool truncation recorrente em files medios (page.tsx 249L,
+    .env.example 170L, i18n JSONs 1690L) — mitigacao reforcada
+    git show HEAD: + Python string-replace, NUNCA Edit direto > 80L
+30. Footers institucionais border-t pt-4 — preserva CTA + linha
+    minimalista text-[11px] gap-x-4 sem competir
+31. i18n bilingue tambem para identidade juridica — flexibilidade
+    futura (subsidiaria Delaware Inc., M&A)
+32. Foro deve alinhar Clausula 12 do Contrato Social registrado JUCESP
+33. Controlador LGPD declarado (nao generico) — Art. 5, VI compliance
+
+Pendencias bloqueantes carryover S80+:
+- Inscricao Municipal CCM RP (aguardar sync REDESIM ate 04/06)
+- Contador contratado (Contaja/Tactus/Syhus)
+- Conta bancaria PJ (Inter/C6/Cora/Stark/BTG+ PJ)
+- Stripe migracao CPF -> CNPJ
+- Stripe payout para conta PJ
+
+12 arquivos modificados, zero migrations, zero novos modulos, zero novos
+endpoints, zero impacto runtime producao.
