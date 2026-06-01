@@ -3,8 +3,14 @@
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import {
-  Phone, MessageSquare, Sparkles, ArrowRight,
-  BarChart3, Shield, Zap, CheckCircle,
+  Phone,
+  MessageSquare,
+  Sparkles,
+  ArrowRight,
+  BarChart3,
+  Shield,
+  Zap,
+  CheckCircle,
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/use-translation';
 
@@ -143,9 +149,7 @@ export default function Home() {
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight mb-4">
-              {t('landing.featuresTitle')}
-            </h2>
+            <h2 className="text-3xl font-bold tracking-tight mb-4">{t('landing.featuresTitle')}</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
               {t('landing.featuresSubtitle')}
             </p>
@@ -189,9 +193,7 @@ export default function Home() {
       <section className="py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">{t('landing.ctaTitle')}</h2>
-          <p className="text-muted-foreground mb-8">
-            {t('landing.ctaSubtitle')}
-          </p>
+          <p className="text-muted-foreground mb-8">{t('landing.ctaSubtitle')}</p>
           <SignedOut>
             <Link href="/sign-up">
               <button className="bg-primary text-primary-foreground px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-primary/90 transition-all hover:shadow-lg inline-flex items-center gap-2">
@@ -211,37 +213,45 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t py-8 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
-              <Sparkles className="h-3 w-3 text-primary-foreground" />
+        <div className="max-w-6xl mx-auto flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
+                <Sparkles className="h-3 w-3 text-primary-foreground" />
+              </div>
+              <span className="text-sm font-semibold">TheIAdvisor</span>
             </div>
-            <span className="text-sm font-semibold">TheIAdvisor</span>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/help"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t('landing.help')}
+              </Link>
+              <Link
+                href="/terms"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t('landing.termsOfService')}
+              </Link>
+              <Link
+                href="/privacy"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t('landing.privacyPolicy')}
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} TheIAdvisor. {t('landing.footerRights')}
+            </p>
           </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/help"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t('landing.help')}
-            </Link>
-            <Link
-              href="/terms"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t('landing.termsOfService')}
-            </Link>
-            <Link
-              href="/privacy"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t('landing.privacyPolicy')}
-            </Link>
+          <div className="border-t pt-4 flex flex-col sm:flex-row items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+            <span>{t('landing.footerRazaoSocial')}</span>
+            <span className="hidden sm:inline">·</span>
+            <span>{t('landing.footerCnpj')}</span>
+            <span className="hidden sm:inline">·</span>
+            <span>{t('landing.footerEndereco')}</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} TheIAdvisor.{' '}
-            {t('landing.footerRights')}
-          </p>
         </div>
       </footer>
     </main>

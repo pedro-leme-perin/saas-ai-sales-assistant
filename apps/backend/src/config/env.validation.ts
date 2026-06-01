@@ -90,6 +90,39 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1).optional(),
   ENCRYPTION_KEY: z.string().min(1).optional(),
 
+  // ── Company Identity (Legal/Fiscal — institutional metadata) ──
+  // Used in transactional emails, invoices/receipts, audit trails, LGPD Controller declarations.
+  // All defaults match THEIADVISOR SAAS TECNOLOGIA LTDA (CNPJ 67.084.607/0001-78) constituted 2026-06-01.
+  COMPANY_CNPJ: z
+    .string()
+    .regex(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, 'CNPJ must match XX.XXX.XXX/XXXX-XX format')
+    .default('67.084.607/0001-78'),
+  COMPANY_RAZAO_SOCIAL: z.string().min(1).max(200).default('THEIADVISOR SAAS TECNOLOGIA LTDA'),
+  COMPANY_NOME_FANTASIA: z.string().min(1).max(200).default('TheIAdvisor'),
+  COMPANY_ENDERECO_LOGRADOURO: z.string().min(1).max(200).default('Rua Guilherme Faim, 20'),
+  COMPANY_ENDERECO_BAIRRO: z.string().max(100).default(''),
+  COMPANY_ENDERECO_CIDADE: z.string().min(1).max(100).default('Ribeirao Preto'),
+  COMPANY_ENDERECO_UF: z.string().length(2).default('SP'),
+  COMPANY_ENDERECO_CEP: z
+    .string()
+    .regex(/^\d{5}-?\d{3}$/, 'CEP must match XXXXX-XXX or XXXXXXXX')
+    .optional(),
+  COMPANY_ENDERECO_PAIS: z.string().min(1).max(80).default('Brasil'),
+  COMPANY_FORO: z.string().min(1).max(80).default('Ribeirao Preto/SP'),
+  // Optional after Inscricao Municipal (CCM/CMC RP) is issued; required for NFS-e emission.
+  COMPANY_INSCRICAO_MUNICIPAL: z.string().min(1).max(40).optional(),
+  COMPANY_INSCRICAO_ESTADUAL: z.string().min(1).max(40).optional(),
+  COMPANY_REGIME_TRIBUTARIO: z
+    .enum(['SIMPLES_NACIONAL', 'LUCRO_PRESUMIDO', 'LUCRO_REAL'])
+    .default('SIMPLES_NACIONAL'),
+  COMPANY_CNAE_PRINCIPAL: z
+    .string()
+    .regex(/^\d{4}-\d\/\d{2}$/, 'CNAE must match XXXX-X/XX')
+    .default('6203-1/00'),
+  // LGPD Controller declaration (Art. 5, VI). Independent of operational support email.
+  LGPD_CONTROLLER_EMAIL: z.string().email().default('team@theiadvisor.com'),
+  LGPD_DPO_EMAIL: z.string().email().default('dpo@theiadvisor.com'),
+
   // ── Telemetry ──
   OTEL_ENABLED: z.string().default('true'),
   OTEL_SERVICE_NAME: z.string().default('theiadvisor-backend'),

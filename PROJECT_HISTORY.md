@@ -6783,7 +6783,6 @@ CI verde — Backend + Frontend + Security + CI Gate todos `success`.
 - ⏸️ DSAR E2E pending Pedro auth
 - ⏸️ Coverage 80% push pending Pedro jest local validation cycle
 
-
 ---
 
 ## Sessão S79 (25/05/2026) — RAG Knowledge Base (Cowork-autônomo)
@@ -6800,11 +6799,13 @@ CI verde — Backend + Frontend + Security + CI Gate todos `success`.
 ### B — KnowledgeBaseModule
 
 **DTOs** (3 arquivos):
+
 - `create-knowledge-chunk.dto.ts`: `source`, `sourceRef` (MaxLength 500), `chunkIndex?`, `content`, `metadata?`, `isActive?`
 - `update-knowledge-chunk.dto.ts`: todos opcionais — `content`, `sourceRef`, `metadata`, `isActive`
 - `query-knowledge-base.dto.ts`: `QueryKnowledgeBaseDto` (filtros + cursor) + `SemanticSearchDto` (query, topK 1-20, minScore 0-1, source?)
 
 **Service** (`knowledge-base.service.ts`, ~320 linhas):
+
 - Constantes: `EMBEDDING_MODEL = 'text-embedding-3-small'`, `EMBEDDING_DIMS = 1536`, `MAX_CHUNK_CHARS = 1600`, `MAX_CHUNKS_PER_COMPANY = 10_000`
 - `embed(text)` + `embedBatch(texts[])`: OpenAI embeddings API, groups of 100, sort by index
 - `ingestChunk(companyId, dto)`: capacity check → embed → upsert (SHA-256 hash guard, P2002 race handling via ON CONFLICT)
@@ -6819,6 +6820,7 @@ CI verde — Backend + Frontend + Security + CI Gate todos `success`.
 - Multi-tenancy: `companyId` em toda query, enforced no service layer
 
 **Controller** (`knowledge-base.controller.ts`):
+
 - `POST /knowledge-base/chunks` — ingestChunk (OWNER/ADMIN, 20/min strict)
 - `POST /knowledge-base/chunks/batch` — ingestBatch (OWNER/ADMIN, 5/min)
 - `POST /knowledge-base/search` — semantic search (30/min)
@@ -6833,6 +6835,7 @@ CI verde — Backend + Frontend + Security + CI Gate todos `success`.
 ### C — CLI de ingestão
 
 `apps/backend/scripts/ingest-knowledge-base.ts`:
+
 - Flags: `--company-id`, `--source`, `--source-ref`, `--file`, `--chunk-size` (default 800), `--overlap` (default 100), `--replace`, `--dry-run`, `--batch-size` (default 50), `--api-url`, `--api-key`
 - `chunkText(text, size, overlap)`: sliding window com sentence-boundary detection (`.!?\n`)
 - Exit codes: 0=success, 1=config error, 2=partial failure, 3=total failure
@@ -6840,6 +6843,7 @@ CI verde — Backend + Frontend + Security + CI Gate todos `success`.
 ### D — RAG integrado nos providers de IA
 
 **`ai-manager.service.ts`** (modificado):
+
 - Exporta `KNOWLEDGE_BASE_SERVICE = 'KNOWLEDGE_BASE_SERVICE' as const` (injection token)
 - Exporta `RagOptions` interface: `{ companyId?, topK?, minScore?, skipRag? }`
 - Constructor: `@Optional() @Inject(KNOWLEDGE_BASE_SERVICE) knowledgeBase: KnowledgeBaseService | null`
@@ -6869,6 +6873,7 @@ RAG_ENABLED: z.string().default('true')
 ### G — Testes (knowledge-base.service.spec.ts)
 
 42 testes em 11 describes:
+
 - OpenAI mockado a nível de módulo (`jest.mock('openai', ...)`)
 - PrismaService completamente mockado (knowledgeChunk.\*, $queryRaw, $executeRaw, $transaction)
 - Cobertura: embed API, ingestChunk (happy + P2002 race + capacity exceeded + hash collision), ingestBatch (dedup + partial failure), findRelevant (happy + embed fail + vector query fail), buildContextString, findAll (pagination + cursor), findOne (happy + NotFound + tenant isolation), update (content change re-embed + no-embed + hash collision + NotFound), remove (happy + NotFound), removeBySourceRef, countActive
@@ -6880,3 +6885,120 @@ RAG_ENABLED: z.string().default('true')
 **Decisões:** KNOWLEDGE_BASE_SERVICE token pattern (circular dep prevention), graceful RAG degradation, import type isolamento, IVFFlat lists=100 (balanceio build-time vs query speed para até 10k chunks)
 
 **Status pós-S79:** pending push ao GitHub. CI vai executar `prisma generate` (linha 217 do ci.yml) antes de `type-check` (linha 223) — `KnowledgeChunkSource` será gerado pelo Prisma client corretamente. Neon prod precisará `CREATE EXTENSION vector` antes da migration (ou extension já habilitada no plano).
+
+---
+
+## S79-PostCNPJ (01/06/2026) — Constituição da SLU + identidade jurídica nos artefatos
+
+**Objetivo:** registrar abertura da Sociedade Limitada Unipessoal (SLU) THEIADVISOR SAAS TECNOLOGIA LTDA e propagar a identidade jurídica para todos os artefatos públicos (frontend institucional, LGPD Controller, env vars backend) sem tocar runtime crítico de produto.
+
+### A — Constituição empresarial (off-platform, Pedro + REDESIM/JUCESP)
+
+| Item                 | Valor                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| Razão Social         | THEIADVISOR SAAS TECNOLOGIA LTDA                                                             |
+| CNPJ                 | 67.084.607/0001-78                                                                           |
+| Situação cadastral   | ATIVA                                                                                        |
+| Natureza jurídica    | 206-2 Sociedade Empresária Limitada (Unipessoal — SLU)                                       |
+| Porte                | ME (Microempresa)                                                                            |
+| CNAE principal       | 6203-1/00 (Desenvolvimento e licenciamento de programas de computador não-customizáveis)     |
+| CNAEs secundários    | 6202-3/00, 6201-5/01, 6311-9/00, 6204-0/00                                                   |
+| Capital social       | R$ 1.000,00 integralizado (Cláusula 5)                                                       |
+| Sede                 | Rua Guilherme Faim, 20 — Ribeirão Preto/SP (residencial casa térrea, ≤ 200m², Baixo Risco A) |
+| Sócio único          | Pedro Leme Perin — CPF 438.360.178-22 — RG 552.071.833 SSP/SP — profissão Empresário         |
+| Foro                 | Ribeirão Preto/SP (Cláusula 12)                                                              |
+| Cláusula 11          | Pró-labore presente — habilita Anexo III via Fator R                                         |
+| Cláusula 10          | Enquadramento como ME — Simples Nacional ativado                                             |
+| Protocolo REDESIM    | SPP2630711235 (DEFERIDO)                                                                     |
+| Taxa JUCESP (DARE)   | R$ 218,99 (DARF Isento)                                                                      |
+| e-CPF A1 (AC SOLUTI) | ~R$ 195 (validade 12 meses)                                                                  |
+| Regime tributário    | Simples Nacional (opção em 01/06/2026, ciência DTE + Ciência Simples Nacional)               |
+| Alíquota alvo        | 6% (1ª faixa Anexo III, até R$ 180k/ano)                                                     |
+
+**Dispensas confirmadas:** Alvará Estadual/Municipal dispensado (CNAEs Baixo Risco A — Lei 13.874/2019 + Resolução CGSIM 51/2019 — casa térrea ≤ 200m²).
+
+**Documentos assinados digitalmente (e-CPF A1 + Módulo Assinador JUCESP):** DBE (Documento Básico de Entrada), Contrato Social Padrão, Declaração de Licenciamento (dispensa Baixo Risco A), Capa de Constituição.
+
+### B — Propagação da identidade jurídica nos artefatos (Cowork-autônomo)
+
+#### B.1 — Frontend i18n (chaves novas)
+
+`apps/frontend/src/i18n/dictionaries/pt-BR.json` + `en.json`:
+
+- `landing.footerCnpj` = "CNPJ 67.084.607/0001-78"
+- `landing.footerRazaoSocial` = "THEIADVISOR SAAS TECNOLOGIA LTDA"
+- `landing.footerEndereco` = "Rua Guilherme Faim, 20 - Ribeirao Preto/SP"
+- `terms.controllerInfo` (texto institucional, citado em rodapés contratuais)
+- `terms.section12Text` foro corrigido: Sao Paulo/SP → Ribeirao Preto/SP (alinha contrato social Cláusula 12)
+- `privacy.section1Text` reescrito: "operado por sua empresa responsavel" → declaração concreta do Controlador (Art. 5, VI LGPD) com razão social, CNPJ, sede e contato
+
+#### B.2 — Frontend páginas com rodapé institucional bilingue (5 surfaces)
+
+5 footers atualizados em duas linhas (existente + nova linha border-t com Razão Social · CNPJ · Endereço):
+
+- `apps/frontend/src/app/page.tsx` (landing)
+- `apps/frontend/src/app/terms/page.tsx`
+- `apps/frontend/src/app/privacy/page.tsx`
+- `apps/frontend/src/app/help/page.tsx`
+- `apps/frontend/src/app/pricing/page.tsx` (texto hardcoded por consistência com hardcode dos planos)
+
+#### B.3 — Backend env.validation.ts (institutional metadata)
+
+Bloco novo "Company Identity (Legal/Fiscal)" inserido antes de Telemetry com 16 vars Zod-validated:
+
+```
+COMPANY_CNPJ                  regex XX.XXX.XXX/XXXX-XX,  default 67.084.607/0001-78
+COMPANY_RAZAO_SOCIAL          z.string(1..200),         default THEIADVISOR SAAS TECNOLOGIA LTDA
+COMPANY_NOME_FANTASIA         z.string(1..200),         default TheIAdvisor
+COMPANY_ENDERECO_LOGRADOURO   z.string(1..200),         default Rua Guilherme Faim, 20
+COMPANY_ENDERECO_BAIRRO       z.string(0..100),         default ""
+COMPANY_ENDERECO_CIDADE       z.string(1..100),         default Ribeirao Preto
+COMPANY_ENDERECO_UF           z.string(2),              default SP
+COMPANY_ENDERECO_CEP          regex,                    optional (não publicado no contrato social)
+COMPANY_ENDERECO_PAIS         z.string(1..80),          default Brasil
+COMPANY_FORO                  z.string(1..80),          default Ribeirao Preto/SP
+COMPANY_INSCRICAO_MUNICIPAL   z.string(1..40),          optional (pendente até CCM RP sincronizar)
+COMPANY_INSCRICAO_ESTADUAL    z.string(1..40),          optional
+COMPANY_REGIME_TRIBUTARIO     z.enum(3 valores),        default SIMPLES_NACIONAL
+COMPANY_CNAE_PRINCIPAL        regex XXXX-X/XX,          default 6203-1/00
+LGPD_CONTROLLER_EMAIL         z.email,                  default team@theiadvisor.com
+LGPD_DPO_EMAIL                z.email,                  default dpo@theiadvisor.com
+```
+
+`apps/backend/.env.example` ganha bloco equivalente comentado, sinalizando que `COMPANY_INSCRICAO_MUNICIPAL` deve ser descomentado quando CCM RP sincronizar (~3 dias úteis pós-CNPJ).
+
+#### B.4 — Documentação
+
+- `CLAUDE.md` §1 ganha 8 linhas novas com identidade jurídica completa (razão social, CNPJ, IM pendente, sede, CNAEs, regime, foro, sócio único). Footer header atualizado para Versão 7.9.
+- `CLAUDE.md` §11 LGPD/COMPLIANCE ganha linha do Controlador (Art. 5, VI) com razão social, CNPJ e contatos.
+- `CHANGELOG.md` v0.79.0 entry (Keep a Changelog 1.1.0 format).
+
+### C — Pendências bloqueantes pré-operação comercial
+
+| Prioridade | Item                         | Bloqueio                                                       | Plano                                                                      |
+| ---------- | ---------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| P0         | Inscrição Municipal (CCM RP) | Emissão NFS-e                                                  | Aguardar sync REDESIM até 04/06; senão telefone (16) 3977-9595 ou contador |
+| P0         | Contador contratado          | NFS-e + DAS + DEFIS + eSocial + Fator R operacional            | Decidir Contajá R$2.376/ano ou Tactus/Syhus                                |
+| P1         | Conta bancária PJ            | Integralização capital + Stripe payout + separação patrimonial | Sugestões: Inter PJ, C6 PJ, Cora, Stark, BTG+ PJ                           |
+| P1         | Stripe migração CPF → CNPJ   | Receita em conformidade fiscal                                 | Stripe Dashboard → Settings → Business → Update Identity                   |
+| P1         | Stripe payout para conta PJ  | Recebimento legal                                              | Após item anterior + conta PJ aberta                                       |
+
+### D — Lições novas / decisões arquiteturais
+
+29. **Edit tool truncation NOVAMENTE em arquivos médios** (apps/frontend/src/app/page.tsx 249L, .env.example 170L, i18n JSONs 1690L). Padrão: corrupção silenciosa no FINAL do arquivo. Mitigação reforçada: para qualquer arquivo > ~80 linhas usar `git show HEAD:<file> > /tmp/file` + Python string.replace + write — NUNCA Edit tool direto. Aplicado 5x nesta sessão sem falha.
+
+30. **Footers institucionais bilíngues**: estratégia border-t pt-4 abaixo do rodapé existente preserva backward-compat de hover-link styles e adiciona linha institucional minimalista (text-[11px] gap-x-4) sem competir com CTA.
+
+31. **i18n bilíngue para identidade jurídica**: apesar de campos como CNPJ/Razão Social serem nominalmente fixos, criar chaves i18n preserva flexibilidade futura (subsidiária Delaware Inc., reorganização societária, M&A).
+
+32. **Foro alinhado ao Contrato Social**: terms.section12Text estava SP/SP por default — Pedro abriu SLU em Ribeirão Preto/SP. Correção obrigatória legal (alinha Cláusula 12 do Contrato Social registrado na JUCESP).
+
+33. **Controlador LGPD declarado, não genérico**: privacy.section1Text estava "operado por sua empresa responsavel" — placeholder pré-CNPJ. Agora declaração concreta Art. 5, VI da LGPD com razão social + CNPJ + sede + contato.
+
+### E — Status pós-S79-PostCNPJ
+
+- 12 arquivos modificados (5 page.tsx + 2 i18n JSON + 1 env.validation.ts + 1 .env.example + CLAUDE.md + PROJECT_HISTORY.md + CHANGELOG.md)
+- Zero migrations Prisma, zero novos módulos NestJS, zero novos endpoints
+- Backend env vars com defaults idênticos aos valores reais — produção pode rodar sem override
+- LGPD Controller declarado nos Termos + Privacy + CLAUDE.md §11 (Art. 5, VI compliance)
+- Anterior: S79 (pending push) ou S78 `4ac6918`

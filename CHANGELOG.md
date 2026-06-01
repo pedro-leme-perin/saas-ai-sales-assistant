@@ -18,6 +18,35 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.79.0] — Identidade jurídica THEIADVISOR SAAS TECNOLOGIA LTDA (S79-PostCNPJ) — 2026-06-01
+
+### Added
+
+- **Frontend i18n bilíngue** — chaves novas `landing.footerCnpj` (CNPJ 67.084.607/0001-78), `landing.footerRazaoSocial` (THEIADVISOR SAAS TECNOLOGIA LTDA), `landing.footerEndereco` (Rua Guilherme Faim, 20 - Ribeirao Preto/SP) e `terms.controllerInfo` (texto institucional Controlador LGPD) em `apps/frontend/src/i18n/dictionaries/pt-BR.json` + `en.json`.
+- **Frontend rodapés institucionais** — 5 surfaces ganham linha border-t com Razão Social, CNPJ, Endereço: `apps/frontend/src/app/page.tsx` (landing), `terms/page.tsx`, `privacy/page.tsx`, `help/page.tsx`, `pricing/page.tsx`.
+- **Backend env vars institucionais** — bloco "Company Identity (Legal/Fiscal)" em `apps/backend/src/config/env.validation.ts` com 16 vars Zod-validated (`COMPANY_CNPJ` regex, `COMPANY_RAZAO_SOCIAL`, `COMPANY_NOME_FANTASIA`, `COMPANY_ENDERECO_LOGRADOURO/BAIRRO/CIDADE/UF/CEP/PAIS`, `COMPANY_FORO`, `COMPANY_INSCRICAO_MUNICIPAL` optional, `COMPANY_INSCRICAO_ESTADUAL` optional, `COMPANY_REGIME_TRIBUTARIO` enum, `COMPANY_CNAE_PRINCIPAL` regex, `LGPD_CONTROLLER_EMAIL`, `LGPD_DPO_EMAIL`). Defaults idênticos aos valores reais (THEIADVISOR/SLU/SP).
+- **`apps/backend/.env.example`** — bloco equivalente comentado com instruções sobre Inscrição Municipal pendente.
+- **`CLAUDE.md` §1 e §11** — identidade jurídica completa (razão social, CNPJ, IM pendente, sede, CNAEs, regime tributário, foro, sócio único) e Controlador LGPD (Art. 5, VI) declarado.
+
+### Changed
+
+- **`terms.section12Text`** (Foro e Legislação) — corrigido de `comarca de Sao Paulo/SP` para `comarca de Ribeirao Preto/SP` (alinha Cláusula 12 do Contrato Social SLU registrado na JUCESP).
+- **`privacy.section1Text`** (Controlador de Dados) — reescrito de `operado por sua empresa responsavel` (placeholder pré-CNPJ) para declaração concreta Art. 5, VI da LGPD com razão social, CNPJ, sede e contato.
+- **`CLAUDE.md` header** — versão 7.8 → 7.9; atualização "Maio 2026 (S79 RAG)" → "Junho 2026 (S79-PostCNPJ — SLU constituída)".
+
+### Context
+
+- SLU THEIADVISOR SAAS TECNOLOGIA LTDA constituída em 01/06/2026 via REDESIM protocolo SPP2630711235 (DEFERIDO). CNPJ 67.084.607/0001-78 ATIVO. Natureza 206-2 Sociedade Limitada Unipessoal, Porte ME. CNAE principal 6203-1/00. Capital social R$ 1.000,00 integralizado. Sede Rua Guilherme Faim, 20 - Ribeirão Preto/SP. Sócio único Pedro Leme Perin. Foro Ribeirão Preto/SP. Cláusula 11 Pró-labore presente (habilita Anexo III Fator R). Regime Simples Nacional opcionado. Dispensa de Alvará Estadual/Municipal por CNAEs Baixo Risco A (Lei 13.874/2019 + Resolução CGSIM 51/2019).
+- Pendências bloqueantes pré-operação comercial (carryover S80+): (a) Inscrição Municipal CCM RP — aguardar sync REDESIM até 04/06; (b) Contador contratado (Contajá R$2.376/ano ou Tactus/Syhus); (c) Conta bancária PJ; (d) Stripe migração CPF → CNPJ; (e) Stripe payout para conta PJ.
+
+### Operational
+
+- Zero schema migrations Prisma, zero novos módulos NestJS, zero novos endpoints, zero impacto em runtime de produção.
+- Backend env vars com defaults idênticos aos valores reais — Railway produção pode rodar sem override de qualquer das 16 vars novas.
+- LGPD Controller agora **declarado** (Art. 5, VI compliance) nos Termos de Uso + Política de Privacidade + CLAUDE.md §11.
+
+---
+
 ## [v0.78.0] — apiClient envelope unwrap + Backend ESLint v9 + /pricing público — 2026-05-06
 
 ### Added

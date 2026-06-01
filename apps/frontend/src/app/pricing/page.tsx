@@ -265,6 +265,13 @@ export default function PricingPage() {
               Ajuda
             </Link>
           </div>
+          <div className="mt-4 pt-4 border-t border-border/40 flex flex-col sm:flex-row items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+            <span>THEIADVISOR SAAS TECNOLOGIA LTDA</span>
+            <span className="hidden sm:inline">·</span>
+            <span>CNPJ 67.084.607/0001-78</span>
+            <span className="hidden sm:inline">·</span>
+            <span>Rua Guilherme Faim, 20 - Ribeirao Preto/SP</span>
+          </div>
         </div>
       </footer>
     </main>
