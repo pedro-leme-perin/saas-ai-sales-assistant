@@ -295,9 +295,8 @@ export class KnowledgeBaseService {
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         this.logger.error(`Batch embedding failed at offset ${i}: ${msg}`);
-        // Mark all chunks in this batch as errors and continue
-        result.errors += slice.length;
-        // Fill placeholders so index alignment stays correct
+        // Fill placeholders so index alignment stays correct.
+        // Errors counted in upsert loop via empty-embedding check (avoids double-counting).
         embeddings.push(...slice.map(() => [] as number[]));
       }
     }

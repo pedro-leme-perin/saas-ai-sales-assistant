@@ -117,6 +117,12 @@ describe('KnowledgeBaseService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    // Reset Once queues to avoid leakage between tests (jest.clearAllMocks
+    // resets call history but NOT mockResolvedValueOnce/mockRejectedValueOnce queues).
+    mockPrismaService.$queryRaw.mockReset();
+    mockPrismaService.$executeRaw.mockReset();
+    mockEmbeddingsCreate.mockReset();
+    Object.values(mockPrismaService.knowledgeChunk).forEach((fn) => (fn as jest.Mock).mockReset());
     service = await buildModule(true);
   });
 
