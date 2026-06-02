@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { CallsService } from '../../src/modules/calls/calls.service';
 import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { AiService } from '../../src/modules/ai/ai.service';
@@ -329,6 +333,573 @@ describe('CallsService', () => {
       await expect(service.endCall('call-123', 'company-123')).rejects.toThrow(
         'Twilio not configured',
       );
+    });
+  });
+
+  // findCallById
+  describe('findCallById', () => {
+    it('returns call via findUnique', async () => {
+      mockPrismaService.call.findUnique.mockResolvedValue(mockCall);
+      const result = await service.findCallById('call-123');
+      expect(result).toEqual(mockCall);
+      expect(mockPrismaService.call.findUnique).toHaveBeenCalledWith({
+        where: { id: 'call-123' },
+      });
+    });
+
+    it('returns null when not found', async () => {
+      mockPrismaService.call.findUnique.mockResolvedValue(null);
+      const result = await service.findCallById('missing');
+      expect(result).toBeNull();
+    });
+  });
+
+  // initiateCall
+  describe('initiateCall', () => {
+    it('throws ServiceUnavailableException when Twilio not configured', async () => {
+      await expect(
+        service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('happy path: creates call, calls Twilio, updates with SID', async () => {
+      const twilioCallsCreate = jest.fn().mockResolvedValue({ sid: 'CA-SID' });
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: { create: twilioCallsCreate },
+      };
+      mockPrismaService.call.create.mockResolvedValue({ ...mockCall, id: 'new-call' });
+      mockPrismaService.call.update.mockResolvedValue({
+        ...mockCall,
+        id: 'new-call',
+        twilioCallSid: 'CA-SID',
+      });
+
+      const result = await service.initiateCall(
+        'company-123',
+        'user-123',
+        '+5511',
+        'https://hook.com',
+      );
+
+      expect(result.twilioCallSid).toBe('CA-SID');
+      expect(twilioCallsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: '+5511',
+          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+          record: true,
+        }),
+      );
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'new-call' },
+        data: { twilioCallSid: 'CA-SID', status: 'INITIATED' },
+      });
+    });
+
+    it('marks call FAILED when Twilio create rejects, then rethrows', async () => {
+      const twilioCallsCreate = jest.fn().mockRejectedValue(new Error('twilio-down'));
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: { create: twilioCallsCreate },
+      };
+      mockPrismaService.call.create.mockResolvedValue({ ...mockCall, id: 'new-call' });
+      mockPrismaService.call.update.mockResolvedValue({});
+
+      await expect(
+        service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
+      ).rejects.toThrow('twilio-down');
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'new-call' },
+        data: { status: 'FAILED' },
+      });
+    });
+
+    it('propagates prisma.call.create errors before Twilio is hit', async () => {
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: { create: jest.fn() },
+      };
+      mockPrismaService.call.create.mockRejectedValue(new Error('db-create-fail'));
+
+      await expect(
+        service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
+      ).rejects.toThrow('db-create-fail');
+    });
+  });
+
+  // endCall failure modes
+  describe('endCall (failure modes)', () => {
+    it('throws BadRequestException when call has no twilioCallSid', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: null,
+      });
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: jest.fn(),
+      };
+
+      await expect(service.endCall('call-123', 'company-123')).rejects.toThrow(BadRequestException);
+    });
+
+    it('happy path updates Twilio + persists COMPLETED', async () => {
+      const updateMock = jest.fn().mockResolvedValue({});
+      const twilioCallsFn = jest.fn().mockReturnValue({ update: updateMock });
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: twilioCallsFn,
+      };
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA-XYZ',
+      });
+      mockPrismaService.call.update.mockResolvedValue({ ...mockCall, status: 'COMPLETED' });
+
+      const result = await service.endCall('call-123', 'company-123');
+
+      expect(twilioCallsFn).toHaveBeenCalledWith('CA-XYZ');
+      expect(updateMock).toHaveBeenCalledWith({ status: 'completed' });
+      expect(result.status).toBe('COMPLETED');
+    });
+
+    it('rethrows when Twilio update fails', async () => {
+      const updateMock = jest.fn().mockRejectedValue(new Error('twilio-update-fail'));
+      const twilioCallsFn = jest.fn().mockReturnValue({ update: updateMock });
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: twilioCallsFn,
+      };
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA-XYZ',
+      });
+
+      await expect(service.endCall('call-123', 'company-123')).rejects.toThrow(
+        'twilio-update-fail',
+      );
+    });
+  });
+
+  // findOrCreateByCallSid
+  describe('findOrCreateByCallSid', () => {
+    it('returns existing call without upserting when SID already known', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA-EXISTING',
+      });
+
+      const result = await service.findOrCreateByCallSid('CA-EXISTING', '+5511');
+
+      expect(result).toBeDefined();
+      expect(mockPrismaService.call.upsert).not.toHaveBeenCalled();
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when no active company exists', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+      mockPrismaService.company.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOrCreateByCallSid('CA-NEW', '+5511')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException when company has no users', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+      mockPrismaService.company.findFirst.mockResolvedValue({ id: 'company-123' });
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOrCreateByCallSid('CA-NEW', '+5511')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('upserts atomic and emits contact.touch event on new call', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+      mockPrismaService.company.findFirst.mockResolvedValue({ id: 'company-123' });
+      mockPrismaService.user.findFirst.mockResolvedValue({ id: 'user-123' });
+      mockPrismaService.call.upsert.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA-NEW',
+        direction: 'INBOUND',
+      });
+
+      const result = await service.findOrCreateByCallSid('CA-NEW', '+5511');
+
+      expect(result.direction).toBe('INBOUND');
+      expect(mockPrismaService.call.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { twilioCallSid: 'CA-NEW' },
+          create: expect.objectContaining({
+            direction: 'INBOUND',
+            twilioCallSid: 'CA-NEW',
+            duration: 0,
+          }),
+        }),
+      );
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'contacts.touch',
+        expect.objectContaining({ phone: '+5511', channel: 'CALL' }),
+      );
+    });
+  });
+
+  // handleStatusWebhookBySid
+  describe('handleStatusWebhookBySid', () => {
+    it('no-ops when no call matches the SID', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+      await service.handleStatusWebhookBySid('CA-MISSING', 'completed', 60);
+      expect(mockPrismaService.call.update).not.toHaveBeenCalled();
+    });
+
+    it('delegates to handleStatusWebhook when call is found', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        id: 'call-abc',
+        twilioCallSid: 'CA-FOUND',
+      });
+      mockPrismaService.call.update.mockResolvedValue(mockCall);
+
+      await service.handleStatusWebhookBySid('CA-FOUND', 'ringing');
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'call-abc' },
+        data: { status: 'RINGING' },
+      });
+    });
+  });
+
+  // handleStatusWebhook fan-out
+  describe('handleStatusWebhook (event fan-out)', () => {
+    it.each([
+      ['initiated', 'INITIATED'],
+      ['ringing', 'RINGING'],
+      ['in-progress', 'IN_PROGRESS'],
+      ['busy', 'BUSY'],
+      ['no-answer', 'NO_ANSWER'],
+      ['failed', 'FAILED'],
+      ['canceled', 'CANCELED'],
+    ])('maps Twilio %s -> internal %s', async (twilioStatus, expected) => {
+      mockPrismaService.call.update.mockResolvedValue(mockCall);
+      await service.handleStatusWebhook('call-123', twilioStatus);
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'call-123' },
+        data: { status: expected },
+      });
+    });
+
+    it('does NOT auto-summarize when COMPLETED without transcript', async () => {
+      mockPrismaService.call.update.mockResolvedValue({
+        ...mockCall,
+        status: 'COMPLETED',
+        transcript: null,
+      });
+      await service.handleStatusWebhook('call-123', 'completed');
+      expect(mockSummariesService.autoSummarizeCall).not.toHaveBeenCalled();
+    });
+
+    it('does NOT auto-summarize when COMPLETED with whitespace-only transcript', async () => {
+      mockPrismaService.call.update.mockResolvedValue({
+        ...mockCall,
+        status: 'COMPLETED',
+        transcript: '   \n\t  ',
+      });
+      await service.handleStatusWebhook('call-123', 'completed');
+      expect(mockSummariesService.autoSummarizeCall).not.toHaveBeenCalled();
+    });
+
+    it('triggers auto-summary on COMPLETED with non-empty transcript', async () => {
+      mockPrismaService.call.update.mockResolvedValue({
+        ...mockCall,
+        status: 'COMPLETED',
+        transcript: 'Some real transcript content',
+      });
+      await service.handleStatusWebhook('call-123', 'completed');
+      await new Promise((r) => setImmediate(r));
+      expect(mockSummariesService.autoSummarizeCall).toHaveBeenCalledWith('call-123');
+    });
+
+    it('swallows auto-summary rejection silently (never crashes hot path)', async () => {
+      mockSummariesService.autoSummarizeCall.mockRejectedValueOnce(new Error('boom'));
+      mockPrismaService.call.update.mockResolvedValue({
+        ...mockCall,
+        status: 'COMPLETED',
+        transcript: 'transcript',
+      });
+      await expect(service.handleStatusWebhook('call-123', 'completed')).resolves.toBeDefined();
+    });
+
+    it('emits CALL_COMPLETED webhook + CSAT schedule on COMPLETED', async () => {
+      mockPrismaService.call.update.mockResolvedValue({
+        ...mockCall,
+        status: 'COMPLETED',
+        transcript: null,
+      });
+      await service.handleStatusWebhook('call-123', 'completed', 90);
+      const eventNames = mockEventEmitter.emit.mock.calls.map((c) => c[0]);
+      expect(eventNames).toContain('webhooks.emit');
+      expect(eventNames).toContain('csat.schedule');
+    });
+
+    it('does NOT fire webhook/CSAT on non-COMPLETED status', async () => {
+      mockPrismaService.call.update.mockResolvedValue({
+        ...mockCall,
+        status: 'RINGING',
+      });
+      await service.handleStatusWebhook('call-123', 'ringing');
+      const eventNames = mockEventEmitter.emit.mock.calls.map((c) => c[0]);
+      expect(eventNames).not.toContain('webhooks.emit');
+      expect(eventNames).not.toContain('csat.schedule');
+    });
+  });
+
+  // handleRecordingCompleted
+  describe('handleRecordingCompleted', () => {
+    const originalFetch = global.fetch;
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('saves recordingUrl + duration to call', async () => {
+      mockPrismaService.call.update.mockResolvedValue({});
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        arrayBuffer: jest.fn(),
+      }) as unknown as typeof fetch;
+
+      await service.handleRecordingCompleted('call-123', 'https://r.io/abc', 75);
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'call-123' },
+        data: { recordingUrl: 'https://r.io/abc.mp3', duration: 75 },
+      });
+    });
+
+    it('returns early when Twilio fetch returns non-OK status', async () => {
+      mockPrismaService.call.update.mockResolvedValue({});
+      const fetchFn = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        arrayBuffer: jest.fn(),
+      });
+      global.fetch = fetchFn as unknown as typeof fetch;
+
+      await service.handleRecordingCompleted('call-123', 'https://r.io/abc', 75);
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledTimes(1);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns early when Deepgram fetch returns non-OK', async () => {
+      mockPrismaService.call.update.mockResolvedValue({});
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(8)),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 502,
+          json: jest.fn(),
+        }) as unknown as typeof fetch;
+
+      await service.handleRecordingCompleted('call-123', 'https://r.io/abc', 75);
+      expect(mockPrismaService.call.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('persists transcript when Deepgram returns text', async () => {
+      mockPrismaService.call.update.mockResolvedValue({});
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(8)),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue({
+            results: { channels: [{ alternatives: [{ transcript: 'ola mundo' }] }] },
+          }),
+        }) as unknown as typeof fetch;
+
+      await service.handleRecordingCompleted('call-123', 'https://r.io/abc', 75);
+
+      expect(mockPrismaService.call.update).toHaveBeenCalledWith({
+        where: { id: 'call-123' },
+        data: { transcript: 'ola mundo' },
+      });
+    });
+
+    it('does NOT persist transcript when Deepgram returns empty string', async () => {
+      mockPrismaService.call.update.mockResolvedValue({});
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(8)),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue({
+            results: { channels: [{ alternatives: [{ transcript: '' }] }] },
+          }),
+        }) as unknown as typeof fetch;
+
+      await service.handleRecordingCompleted('call-123', 'https://r.io/abc', 75);
+      expect(mockPrismaService.call.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('swallows transcription errors silently', async () => {
+      mockPrismaService.call.update.mockResolvedValue({});
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new Error('network-fail')) as unknown as typeof fetch;
+      await expect(
+        service.handleRecordingCompleted('call-123', 'https://r.io/abc', 75),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  // exportCallsAsCsv
+  describe('exportCallsAsCsv', () => {
+    it('returns header-only when there are no calls', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([]);
+      const csv = await service.exportCallsAsCsv('company-123');
+      expect(csv).toBe('Date,Phone,Direction,Status,Duration (sec),Sentiment,AI Suggestions Count');
+    });
+
+    it('formats sentiment with 2 decimals + counts aiSuggestions', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([
+        {
+          ...mockCall,
+          createdAt: new Date('2026-05-01T10:00:00Z'),
+          sentiment: 0.7314,
+          aiSuggestions: [{ id: 'a' }, { id: 'b' }],
+        },
+      ]);
+      const csv = await service.exportCallsAsCsv('company-123');
+      const lines = csv.split('\n');
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain('0.73');
+      expect(lines[1]).toContain(',2');
+    });
+
+    it('escapes fields containing commas with surrounding quotes', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([
+        {
+          ...mockCall,
+          phoneNumber: '+55,foo',
+          sentiment: null,
+          aiSuggestions: [],
+        },
+      ]);
+      const csv = await service.exportCallsAsCsv('company-123');
+      expect(csv).toContain('"+55,foo"');
+    });
+
+    it('escapes embedded double quotes per RFC 4180', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([
+        {
+          ...mockCall,
+          phoneNumber: '+55"weird"',
+          sentiment: null,
+          aiSuggestions: [],
+        },
+      ]);
+      const csv = await service.exportCallsAsCsv('company-123');
+      expect(csv).toContain('"+55""weird"""');
+    });
+
+    it('escapes fields with embedded newlines', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([
+        {
+          ...mockCall,
+          phoneNumber: 'line1\nline2',
+          sentiment: null,
+          aiSuggestions: [],
+        },
+      ]);
+      const csv = await service.exportCallsAsCsv('company-123');
+      expect(csv).toContain('"line1\nline2"');
+    });
+
+    it('caps result set at 10000 rows', async () => {
+      mockPrismaService.call.findMany.mockResolvedValue([]);
+      await service.exportCallsAsCsv('company-123');
+      expect(mockPrismaService.call.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 10000 }),
+      );
+    });
+  });
+
+  // analyzeCall failure modes
+  describe('analyzeCall (failure modes)', () => {
+    it('throws BadRequestException when transcript missing', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue({ ...mockCall, transcript: null });
+      await expect(service.analyzeCall('call-123', 'company-123', 'user-123')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('completes when all AI calls fail', async () => {
+      const transcript = Array(10)
+        .fill('Sentence longer than twenty characters to pass filter.')
+        .join(' ');
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        transcript,
+        aiSuggestions: [],
+      });
+      mockPrismaService.aISuggestion.deleteMany.mockResolvedValue({ count: 0 });
+      mockAiService.generateSuggestion.mockRejectedValue(new Error('ai-down'));
+
+      const result = await service.analyzeCall('call-123', 'company-123', 'user-123');
+
+      expect(result).toBeDefined();
+      expect(mockPrismaService.aISuggestion.create).not.toHaveBeenCalled();
+    });
+
+    it('swallows individual aISuggestion.create errors but completes', async () => {
+      const transcript = Array(10)
+        .fill('Sentence longer than twenty characters to pass filter.')
+        .join(' ');
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        transcript,
+        aiSuggestions: [],
+      });
+      mockPrismaService.aISuggestion.deleteMany.mockResolvedValue({ count: 0 });
+      mockAiService.generateSuggestion.mockResolvedValue({
+        text: 'suggested reply',
+        confidence: 0.9,
+        provider: 'openai',
+        latencyMs: 150,
+      });
+      mockPrismaService.aISuggestion.create.mockRejectedValue(new Error('db-fail'));
+
+      const result = await service.analyzeCall('call-123', 'company-123', 'user-123');
+      expect(result).toBeDefined();
+    });
+
+    it('skips AI results with empty text', async () => {
+      const transcript = Array(10)
+        .fill('Sentence longer than twenty characters to pass filter.')
+        .join(' ');
+      mockPrismaService.call.findFirst.mockResolvedValue({
+        ...mockCall,
+        transcript,
+        aiSuggestions: [],
+      });
+      mockPrismaService.aISuggestion.deleteMany.mockResolvedValue({ count: 0 });
+      mockAiService.generateSuggestion.mockResolvedValue({
+        text: '',
+        confidence: 0,
+        provider: 'openai',
+        latencyMs: 100,
+      });
+
+      await service.analyzeCall('call-123', 'company-123', 'user-123');
+      expect(mockPrismaService.aISuggestion.create).not.toHaveBeenCalled();
     });
   });
 });
