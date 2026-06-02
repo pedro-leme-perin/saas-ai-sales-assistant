@@ -1,0 +1,69 @@
+test(s81-t4b): amplify dsar-extract.service.spec failure-modes (+19 tests / +674L)
+
+T4b deliverable per S81 carryover. LGPD-critical DSAR Art. 18 EXTRACT_DSAR
+worker. dsar-extract.service: 627 src / 334 spec / ratio 0.53 (T4 audit
+pick #2 after T4a calls.service).
+
+Spec amplified: 334 -> 1008 lines, 7 -> 26 tests (+19), 5 -> 16 describes.
+
+Coverage gaps closed (per source method analysis):
+
+ACCESS type with User match (employee path): fetchAiSuggestions scoped
+by userId; fetchNotifications scoped by companyId+userId; fetchAuditLogs
+OR-clause includes userId when match exists; OR-clause always includes
+resourceId=dsarRequestId even without userId match.
+
+PORTABILITY type: routes to buildSubjectDataArtifact (NOT INFO metadata
+path). company.findFirst NOT called; user/contact findFirst IS called.
+
+Progress milestones: updateProgress called with [10, 60, 85, 100] in
+order on successful run.
+
+Audit lifecycle: PROCESSING transition fires UPDATE audit; COMPLETED
+transition fires DSAR_COMPLETED audit.
+
+Upload contract: downloadTtlSeconds = min(MAX_DOWNLOAD, TTL_DAYS*86400)
+= 604800; artefact key matches dsar/<companyId>/<yyyy>/<mm>/<id>.json
+layout; contentType=application/json; charset=utf-8.
+
+Completion metadata: COMPLETED row writes artifactKey + artifactBytes
++ downloadUrl + expiresAt (Date instance); result.expiresAt ISO ~TTL
+days in future (6.9-7.1 day window).
+
+Fetcher short-circuits: contact.phone=null -> no calls/chats query;
+user=null -> no aiSuggestions/notifications query; contact.id=null ->
+no csatResponse query.
+
+Per-resource cap: DSAR_MAX_ROWS_PER_RESOURCE=5000 applied as take on
+calls.findMany and whatsappChat.findMany.
+
+Email best-effort: sendDsarReadyEmail rejects -> handler still resolves
+COMPLETED (void promise catch swallows).
+
+Failure handling additional: company.findFirst rejects mid-flow ->
+FAILED flip + rethrow; FAILED flip itself rejects -> swallows secondary
+error and rethrows original (R2 down).
+
+Multi-tenant scoping: findFirst always filters by companyId from job.
+
+Test infrastructure: existing buildPrismaMock + jest.resetAllMocks
+preserved. Used mkJob helper to override companyId/payload. Added
+explicit type casts for prisma.auditLog.findMany jest.Mock and
+result.expiresAt optional string.
+
+Pre-push validation: jest --runInBand --bail -> 26 passed, 14.9s
+(per licao #24).
+
+Licoes aplicadas: #1 Python3 raw r-heredoc preserves \n literally;
+#4 sandbox writes Windows mount; #5 working tree restored pre-write;
+#23 source signature verified via Read + grep; #24 jest local pre-push;
+#40 raw r-string vs interpreted; #41 NO regex sweep fix-all.
+
+Metrica esperada: dsar-extract.service.ts coverage ~22% -> 60+%
+funcoes (handleExtract sub-branches + fetchers + audit lifecycle agora
+cobertos). Global threshold 68/58/65/68 mantido. Ratchet defer S82+.
+
+Files: apps/backend/test/unit/dsar-extract.service.spec.ts +674 / -0
+
+S81-T4b fecha segundo deliverable autonomo. T4c (doc atomic) candidate
+proximo. T1/T2/T3 ainda blocked-by Chrome extension nao conectada.

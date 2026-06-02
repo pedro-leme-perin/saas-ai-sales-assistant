@@ -1,0 +1,26 @@
+docs(s81-close): atomic CLAUDE.md + PROJECT_HISTORY.md S81 update
+
+T4c (S81 doc atomic) per licao #18 (doc updates atomic with code).
+
+CLAUDE.md:
+  - Adiciona 2 rows "Ultimo commit" para S81-T4a + S81-T4b
+  - Mantem cumulative history (resto inalterado)
+
+PROJECT_HISTORY.md:
+  - +section S81 (300L)
+  - T4 audit baseline + ratios spec/src calls/dsar-extract/whatsapp
+  - T4a calls.service amplificacao detalhada (18 describes, 62 tests, +48)
+  - T4b dsar-extract.service amplificacao detalhada (16 describes, 26 tests, +19)
+  - Licoes novas #40 (raw r-string heredoc) + #41 (regex sweep destrutivo)
+  - Carryover S82+ T4d (next service picks) + T1/T2/T3 (Chrome ext blocked)
+  - Metricas esperadas coverage delta
+
+Pre-push: type-check backend+frontend.
+
+S81 conquistas:
+  - 67 testes amplificados (+48 T4a + +19 T4b)
+  - 2 commits CI verdes (#360 + #361)
+  - 2 licoes novas (#40 + #41)
+  - 0 alteracoes runtime
+
+Files: CLAUDE.md +2 rows | PROJECT_HISTORY.md +182L | 0 src changes

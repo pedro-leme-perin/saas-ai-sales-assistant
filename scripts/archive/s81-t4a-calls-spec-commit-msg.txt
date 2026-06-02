@@ -1,0 +1,77 @@
+test(s81-t4a): amplify calls.service.spec failure-modes (+48 tests / +574L)
+
+T4a deliverable per S81 carryover D1: coverage 80% backend roadmap.
+
+T4 audit (CI #26828739853 baseline ratios spec/src):
+  - calls.service: 584 src / 334 spec / ratio 0.53 (T4a pick)
+  - dsar-extract.service: 627 src / 334 spec / ratio 0.53 (T4b candidate)
+  - whatsapp.service: 636 src / 346 spec / ratio 0.54 (S77-B touched)
+
+Spec amplified: 334 -> 908 lines, 14 -> 62 tests (+48), 9 -> 18 describes.
+
+Coverage gaps closed (per source method analysis):
+
+findCallById (webhook lookup, no tenant) - was 0 tests.
+
+initiateCall 4 failure modes: !twilioClient throws ServiceUnavailable;
+prisma.call.create rejects propagates; twilio.calls.create rejects
+marks FAILED and rethrows; happy SID persisted.
+
+endCall 3 branches: !twilioCallSid throws BadRequest; happy COMPLETED;
+twilio.calls.update rejects rethrows.
+
+findOrCreateByCallSid 4 branches (S60a code, never tested): existing
+SID skip upsert and skip emit; !company throws NotFound; !user throws
+NotFound; happy upsert + emit contacts.touch.
+
+handleStatusWebhookBySid 2 branches: !call no-op; found delegates.
+
+handleStatusWebhook 7 status it.each + 6 fan-out: 7 Twilio mappings
+(initiated/ringing/in-progress/busy/no-answer/failed/canceled);
+COMPLETED+null transcript skip autoSummarize; COMPLETED+whitespace skip;
+COMPLETED+real transcript triggers autoSummarize (microtask drain);
+autoSummarize rejects swallow; COMPLETED emits webhooks.emit+csat.schedule;
+non-COMPLETED no emit.
+
+handleRecordingCompleted 6 branches (Twilio+Deepgram pipeline): happy
+save URL+duration; Twilio fetch non-OK early return; Deepgram non-OK
+early return; transcript persisted; empty transcript skip persist;
+network throw swallow.
+
+exportCallsAsCsv 6 RFC 4180 edge cases: empty list header-only;
+sentiment toFixed(2)+aiSuggestions.length; comma quoted; embedded
+quote doubled; embedded newline quoted; take:10000 cap.
+
+analyzeCall 4 failure modes: !transcript throws BadRequest; all AI
+rejects resolves no-creates; aISuggestion.create rejects swallows
+per-item completes; empty AI text skip create.
+
+Twilio mock strategy: ConfigService default returns null
+(twilioClient=null). Tests that exercise twilioClient set
+(service as unknown).twilioClient=stub after module compile.
+
+Pre-push validation: jest --runInBand --bail -> 62 passed, 12.7s
+(per licao #24 sandbox cannot run jest).
+
+Licoes aplicadas: #1 Edit unsafe >80L Python3+heredoc; #4 sandbox
+writes Windows mount; #5 working tree corruption #14 restored via
+git show HEAD: + cp; #23 source signatures verified pre-write;
+#24 Pedro validated local pre-push; #29 Edit truncation mid-line.
+
+Licao nova #40: Python heredoc PRESERVA \n literal apenas com raw
+r-string. Regular '' string interpreta \n como newline real.
+
+Licao nova #41: regex sweep "fix all multiline literals" e
+destrutivo. Diferenciar literal multiline (ERRO) vs separadores
+JS ',\n  next:' (NORMAL) requer parser AST nao regex. NUNCA aplicar
+fix automatico sem verificar contexto. Working tree corruption #14
+foi auto-causada por sweep, 75 fixes (74 erros + 1 correto).
+
+Metrica esperada: calls.service.ts coverage 49.6 -> 75+% funcoes
+(9 metodos sem teste agora cobertos). Global threshold 68/58/65/68
+mantido. Ratchet defer S82+.
+
+Files: apps/backend/test/unit/calls.service.spec.ts +574 / -0
+
+S81-T4a fecha primeiro deliverable autonomo. T1/T2/T3 blocked-by
+Chrome extension nao conectada. T4b (dsar-extract) candidate proxima.

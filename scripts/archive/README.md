@@ -34,32 +34,46 @@ historical / forensic purposes.
 
 ## Index (chronological)
 
-| Script                           | Session        | Outcome commit | Notes                      |
-| -------------------------------- | -------------- | -------------- | -------------------------- |
-| `s63-cleanup-and-commit.ps1`     | S63            | (replaced)     | Initial S63 deploy attempt |
-| `s63-fetch-fail.ps1`             | S63            | (helper)       | Diagnose fetch failure     |
-| `s63-verify-ci.ps1`              | S63            | (helper)       | CI status verification     |
-| `s63d-recommit.ps1`              | S63-D          | (recovery)     | After failed commit        |
-| `s64a-add-apikey-spec.ps1`       | S64-A          | b4f5fd1        | api-key.guard spec         |
-| `s64a-amend-fix.ps1`             | S64-A v2       | (recovery)     | Fix Stripe-pattern leak    |
-| `s64a-amend-fix2.ps1`            | S64-A v3       | (recovery)     | Fix self-recursive leak    |
-| `s64a-prettier-fix.ps1`          | S64-A v4       | b4f5fd1        | Prettier formatting fix    |
-| `s64b-check-guards-coverage.ps1` | S64-B          | (helper)       | Coverage artifact parser   |
-| `s64b-ratchet.ps1`               | S64-B          | 7d1dddc        | Coverage ratchet round 2   |
-| `s64c-functions-relax.ps1`       | S64-C          | c00ae5a        | Functions floor relax      |
-| `s65-pre-commit-setup.ps1`       | S65            | 8f522b9        | Pre-commit base install    |
-| `s65-resume-commit.ps1`          | S65 (resume)   | 8f522b9        | Resume after literal leak  |
-| `s66a-coverage-ratchet.ps1`      | S66-A          | 763bd64        | Coverage round 3           |
-| `s66b-controllers-batch.ps1`     | S66-B          | ae64924        | Coverage round 4           |
-| `s66c-ratchet.ps1`               | S66-C          | 1820f19        | Floor ratchet defensive    |
-| `s66d-commitlint.ps1`            | S66-D          | (failed)       | npx stderr crash           |
-| `s66d-resume.ps1`                | S66-D (resume) | 9c7e858        | Resume                     |
-| `s66e-eslint-hook.ps1`           | S66-E          | 2e7f224        | ESLint pragmatic           |
-| `s67-eslint-strict.ps1`          | S67            | (failed)       | .eslintrc.js glob match    |
-| `s67-resume.ps1`                 | S67 (resume)   | b14e3df        | Resume narrowed glob       |
-| `s67b-frontend-strict.ps1`       | S67-B          | d8e3b21        | Frontend strict mode       |
+| Script                                | Session        | Outcome commit | Notes                                        |
+| ------------------------------------- | -------------- | -------------- | -------------------------------------------- |
+| `s63-cleanup-and-commit.ps1`          | S63            | (replaced)     | Initial S63 deploy attempt                   |
+| `s63-fetch-fail.ps1`                  | S63            | (helper)       | Diagnose fetch failure                       |
+| `s63-verify-ci.ps1`                   | S63            | (helper)       | CI status verification                       |
+| `s63d-recommit.ps1`                   | S63-D          | (recovery)     | After failed commit                          |
+| `s64a-add-apikey-spec.ps1`            | S64-A          | b4f5fd1        | api-key.guard spec                           |
+| `s64a-amend-fix.ps1`                  | S64-A v2       | (recovery)     | Fix Stripe-pattern leak                      |
+| `s64a-amend-fix2.ps1`                 | S64-A v3       | (recovery)     | Fix self-recursive leak                      |
+| `s64a-prettier-fix.ps1`               | S64-A v4       | b4f5fd1        | Prettier formatting fix                      |
+| `s64b-check-guards-coverage.ps1`      | S64-B          | (helper)       | Coverage artifact parser                     |
+| `s64b-ratchet.ps1`                    | S64-B          | 7d1dddc        | Coverage ratchet round 2                     |
+| `s64c-functions-relax.ps1`            | S64-C          | c00ae5a        | Functions floor relax                        |
+| `s65-pre-commit-setup.ps1`            | S65            | 8f522b9        | Pre-commit base install                      |
+| `s65-resume-commit.ps1`               | S65 (resume)   | 8f522b9        | Resume after literal leak                    |
+| `s66a-coverage-ratchet.ps1`           | S66-A          | 763bd64        | Coverage round 3                             |
+| `s66b-controllers-batch.ps1`          | S66-B          | ae64924        | Coverage round 4                             |
+| `s66c-ratchet.ps1`                    | S66-C          | 1820f19        | Floor ratchet defensive                      |
+| `s66d-commitlint.ps1`                 | S66-D          | (failed)       | npx stderr crash                             |
+| `s66d-resume.ps1`                     | S66-D (resume) | 9c7e858        | Resume                                       |
+| `s66e-eslint-hook.ps1`                | S66-E          | 2e7f224        | ESLint pragmatic                             |
+| `s67-eslint-strict.ps1`               | S67            | (failed)       | .eslintrc.js glob match                      |
+| `s67-resume.ps1`                      | S67 (resume)   | b14e3df        | Resume narrowed glob                         |
+| `s67b-frontend-strict.ps1`            | S67-B          | d8e3b21        | Frontend strict mode                         |
+| `s79-empresa-lint.ps1`                | S79-PostCNPJ   | (helper)       | Lint fixup after empresa data ingest         |
+| `s79-empresa-lint.bat`                | S79-PostCNPJ   | (wrapper)      | .bat double-click trigger                    |
+| `s80a-otel-fix-commit.ps1`            | S80-A          | e908dfa        | OTel exporter-prometheus override            |
+| `s80a-otel-fix-commit.bat`            | S80-A          | (wrapper)      |                                              |
+| `s80a-otel-fix-commit-msg.txt`        | S80-A          | (msg)          | Commit message text                          |
+| `s81-t4a-calls-spec-commit.ps1`       | S81-T4a        | a700140        | calls.service.spec +48 tests                 |
+| `s81-t4a-calls-spec-commit.bat`       | S81-T4a        | (wrapper)      |                                              |
+| `s81-t4a-calls-spec-commit-msg.txt`   | S81-T4a        | (msg)          |                                              |
+| `s81-t4b-dsar-extract-commit.ps1`     | S81-T4b        | 506ec4c        | dsar-extract.service.spec +19 tests          |
+| `s81-t4b-dsar-extract-commit.bat`     | S81-T4b        | (wrapper)      |                                              |
+| `s81-t4b-dsar-extract-commit-msg.txt` | S81-T4b        | (msg)          |                                              |
+| `s81-doc-commit.ps1`                  | S81-doc        | 0c9f5f2        | Atomic CLAUDE.md + PROJECT_HISTORY.md update |
+| `s81-doc-commit.bat`                  | S81-doc        | (wrapper)      |                                              |
+| `s81-doc-commit-msg.txt`              | S81-doc        | (msg)          |                                              |
 
-22 scripts archived in S68-A.
+36 scripts archived (22 in S68-A + 2 in S79-PostCNPJ + 12 in S81).
 
 ## See also
 

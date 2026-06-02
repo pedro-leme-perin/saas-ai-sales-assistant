@@ -1,0 +1,18 @@
+docs(s80-a-close): atomic CLAUDE.md + PROJECT_HISTORY.md doc update
+
+Encerramento formal S80-A per CLAUDE.md secao 16 (Encerramento de Tarefa)
++ licao #18 (doc-vs-reality drift evitado via atomic doc updates).
+
+Files:
+- CLAUDE.md: +2 rows em secao 2.1 "Estado Geral" (S80-A-2 1ceeb7c + S80-A
+             e908dfa) ordem cronologica reversa, formato consistente com
+             rows anteriores (S79, S78, A4, S77*)
+- PROJECT_HISTORY.md: +section "Sessao S80-A" 6.1KB com contexto + 2 commits
+                       + pivot intermediario + diff total + 2 licoes novas
+                       (#38 GitHub Advisory multi-pacote correlacionado,
+                       #39 SDK 0.x lock-step major bump cascade) + status
+                       pos-S80-A + pendencias adjacentes nao-bloqueantes
+
+CI run 26827788597 = 100% verde (Install + Frontend + Backend +
+Security + CI Gate todos success). Operacao comercial pos-CNPJ
+destravada. Anterior: 1ceeb7c.

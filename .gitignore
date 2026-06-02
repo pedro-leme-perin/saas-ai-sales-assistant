@@ -32,3 +32,19 @@ audit.json
 Livros Para Conteúdo/
 chunks_*.json
 scripts/test-invoke.bat
+audit-out.json
+
+# S81: per-session commit log artifacts (regenerated each run)
+scripts/*.log
+
+# S81: per-session commit wrapper scripts (canonical copy lives in scripts/archive/)
+/scripts/s79-empresa-lint.*
+/scripts/s79-empresa.*
+/scripts/s80a-otel-fix-commit.*
+/scripts/s80a-otel-fix-commit-msg.txt
+/scripts/s81-t4a-calls-spec-commit.*
+/scripts/s81-t4a-calls-spec-commit-msg.txt
+/scripts/s81-t4b-dsar-extract-commit.*
+/scripts/s81-t4b-dsar-extract-commit-msg.txt
+/scripts/s81-doc-commit.*
+/scripts/s81-doc-commit-msg.txt
