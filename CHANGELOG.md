@@ -18,6 +18,48 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.81.0] — Coverage 80% backend roadmap (S81 — T4a + T4b + T4d) — 2026-06-02
+
+### Added
+
+- **Backend coverage amplification** — +100 testes em 3 services críticos:
+  - `apps/backend/test/unit/calls.service.spec.ts` (T4a `a700140`): +48 testes (14→62), 9→18 describes, 334→908 lines. Cobertura: `findCallById`, `initiateCall` 4 failure modes, `endCall` 3 branches, `findOrCreateByCallSid` 4 branches (S60a code), `handleStatusWebhookBySid` 2 branches, `handleStatusWebhook` 7 status `it.each` + 6 fan-out, `handleRecordingCompleted` 6 branches (Twilio+Deepgram), `exportCallsAsCsv` 6 RFC 4180 edge cases, `analyzeCall` 4 failure modes. Twilio mock strategy via `(service as unknown).twilioClient=stub` post-compile.
+  - `apps/backend/test/unit/dsar-extract.service.spec.ts` (T4b `506ec4c`): +19 testes (7→26), 5→16 describes, 334→1008 lines. LGPD Art. 18 EXTRACT_DSAR worker. Cobertura: ACCESS+User match employee path (fetchAiSuggestions/Notifications/AuditLogs scoping), PORTABILITY type routing, progress milestones [10,60,85,100], audit lifecycle (UPDATE+DSAR_COMPLETED), upload contract (key layout/contentType/ttlSeconds), completion metadata, fetcher short-circuits (phone=null/user=null/contact.id=null), per-resource cap 5000, email best-effort, failure handling additional (FAILED flip rejects swallow), multi-tenant scoping.
+  - `apps/backend/test/unit/csat-trends.service.spec.ts` (T4d `8a34f7d`): +33 testes (10→43), 7→15 describes, 329→812 lines. Cobertura: query filters (channel/trigger/take/orderBy), default window 30d + bucket=day, window validation extras (invalid until/since==until/exact 180d), hydration (no callIds/missing FK/Set dedupe), summary extras (responseRate decimal/NPS 100/-100/0), time series (respondedAt null fallback/Sunday→Monday/Dec→Jan rollover), breakdown edge cases (null groupBy/score=null skip/sorted desc/user.findMany scoped+optional/call.userId priority).
+
+- **Documentação operacional** — `docs/operations/s81/T1_STRIPE_MANUAL.md` + `T2_INTER_PJ_MANUAL.md` (runbooks manuais para migração comercial Stripe CPF→CNPJ + abertura Inter PJ; bloqueados por safety MCP / Kaspersky Safe Money, executáveis offline pelo operador).
+
+- **Archive estrutural** — `scripts/archive/` recebe 14 novos PS1/BAT/MSG (S79-PostCNPJ + S80-A + S81 series); `docs/operations/sessions-archive/` consolida next-session prompts S78/S80a. Index README.md atualizado (22 → 36 scripts arquivados).
+
+### Changed
+
+- **`.gitignore`** — patterns adicionados para artefatos transitórios: `audit-out.json` (pnpm audit local), `scripts/*.log` (PS1 exec logs), `/scripts/s79-*`, `/scripts/s80a-*`, `/scripts/s81-*` (originais; canonical em `scripts/archive/`).
+
+- **`scripts/archive/README.md`** — +14 rows no index table (S79/S80a/S81 wrappers).
+
+### Fixed
+
+- **Working tree corruption #14 + #15** — Restoration via `git show HEAD: + cp` (lição #5 13ª+14ª ocorrências) afetando CLAUDE.md, PROJECT_HISTORY.md, 2 spec.ts files, .gitignore (stat-only e CRLF/LF normalization).
+
+### Lições novas
+
+- **#40 Python raw heredoc** — Python heredoc preserva `\n` literal APENAS com raw `r'''...'''`. Regular `'''...'''` interpreta como newline real durante string assignment. Mitigation: usar raw r-string OR placeholder token substitute OR concatenação explícita.
+- **#41 Regex sweep destrutivo** — "Fix all multiline literals" sweep regex requer parser AST (não regex) para diferenciar literal multiline ERROR vs separadores JS legítimos `',\n  next:'`. NUNCA aplicar fix automático a TODOS os matches sem verificar contexto. Working tree corruption #14 foi auto-causada por sweep — 75 fixes / 74 erros + 1 correto.
+- **#42 Helper null coalescing coercion** — Helper functions com nullish coalescing (`?? default`) coercem explicit `null` para default. Para passar null em test fixtures: spread + override do campo separadamente. Pattern detection: tests que passam `null as unknown as T` para helper function arg provavelmente perdem o null.
+
+### Verified
+
+- CI runs `#360` (T4a), `#361` (T4b), `#362` (doc atomic), pós-cleanup, pós-T4d — todos 5 jobs verdes (Install/Frontend/Backend/Security/CI Gate).
+- Pedro local jest validation per lição #24 — 62 PASS (calls), 26 PASS (dsar-extract), 43 PASS (csat-trends).
+- Type-check backend+frontend OK em todos os commits via husky pre-push hook.
+
+### Notes
+
+- T1/T2/T3 (Stripe CPF→CNPJ + Inter PJ + payout) **blocked** via Chrome MCP (safety + Kaspersky Safe Money). Runbooks manuais em `docs/operations/s81/` documentam execução operacional.
+- Coverage threshold global mantido em `68/58/65/68` (stmt/br/fn/lines). Ratchet defer para S82+ após CI mensurar delta consolidado pós-T4a+T4b+T4d.
+
+---
+
 ## [v0.79.0] — Identidade jurídica THEIADVISOR SAAS TECNOLOGIA LTDA (S79-PostCNPJ) — 2026-06-01
 
 ### Added
