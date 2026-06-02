@@ -7122,3 +7122,196 @@ pnpm-lock.yaml                                      | ~75 lines (auto)
 - ADR S82+ Bump SDK 2.x completo — remove allowlist + override + atualiza source
 
 ### Anterior: S79-PostCNPJ (pending push originalmente; merged pré-S80)
+
+## Sessão S81 — Coverage 80% backend roadmap (T4 audit + T4a + T4b)
+
+**Data**: 02/06/2026
+**Tipo**: Cowork-autônomo (tech debt — coverage ratchet)
+**Carryover**: D1 pré-S78 (target 80/70/80/80 vs floor atual 68/58/65/68)
+**Modo Pedro**: validador jest local (lição #24 sandbox sem jest)
+
+### Objetivo
+
+Continuar evolução técnica do coverage backend conforme CLAUDE.md §9 (target 80%
+alcançável em 4-6 PRs incrementais). Estratégia: amplificar specs de services com
+ratio spec/src baixo + LoC alto. Carryover de T1/T2/T3 (Stripe + Inter PJ + Chrome
+extension não conectada).
+
+### Decisão de roteamento
+
+Pedro recebeu briefing com 6 tasks (T1 Stripe, T2 Inter PJ, T3 Stripe payout, T4
+coverage, T4a amplify, T5 verificação). Pedro respondeu "faça o que achar melhor
+por necessidade/urgência/importância". Análise:
+
+- T1/T2/T3 P0 críticos compliance fiscal MAS exigem Pedro logado em portais externos
+- T4/T4a/T4b 100% autônomos Cowork
+- Chrome MCP não conectado nesta sessão → T1/T2/T3 blocked
+
+Roteamento: focar T4+T4a+T4b autônomos. T1/T2/T3 ficam como follow-up.
+
+### T4 — Audit baseline (concluído)
+
+Ranqueamento de services por LoC desc + ratio spec/src asc (proxy para gap real
+de coverage). Top 3 picks:
+
+| Service              | src lines | spec lines | ratio | Pick                   |
+| -------------------- | --------- | ---------- | ----- | ---------------------- |
+| calls.service        | 584       | 334        | 0.53  | T4a                    |
+| dsar-extract.service | 627       | 334        | 0.53  | T4b                    |
+| whatsapp.service     | 636       | 346        | 0.54  | S77-B já tocou (defer) |
+
+Outros candidatos identificados (próximas sessões): email (1156/687 = 0.59 mas
+S77-A já amplificou recentemente), users (817/899 = 1.10 OK), summaries (574/577
+= 1.01 OK), assignment-rules (467/782 = 1.67 OK).
+
+### T4a — calls.service.spec amplificação (`a700140`)
+
+**LGPD-independent**: fluxo de ligação telefônica Twilio + Deepgram + AI suggestions.
+
+Spec amplificado: 334 → 908 lines, 14 → 62 tests (+48), 9 → 18 describes.
+
+**Gaps cobertos** (per source method analysis):
+
+- `findCallById` (webhook lookup sem tenant guard) — era 0 tests
+- `initiateCall` 4 failure modes:
+  - `!twilioClient` → `ServiceUnavailableException`
+  - `prisma.call.create` rejects → propagates
+  - `twilio.calls.create` rejects → marks FAILED + rethrows
+  - Happy path: SID persisted
+- `endCall` 3 branches:
+  - `!twilioCallSid` → `BadRequestException`
+  - Happy COMPLETED + Twilio update
+  - `twilio.calls.update` rejects → rethrows
+- `findOrCreateByCallSid` 4 branches (S60a code, never tested):
+  - Existing SID → skip upsert + skip emit
+  - `!company` → NotFound
+  - `!user` → NotFound
+  - Happy upsert + emit `contacts.touch` event
+- `handleStatusWebhookBySid` 2 branches: no-op vs delegate
+- `handleStatusWebhook` 7 status `it.each` + 6 fan-out:
+  - 7 Twilio→internal mappings: initiated/ringing/in-progress/busy/no-answer/failed/canceled
+  - COMPLETED + null transcript → skip autoSummarize
+  - COMPLETED + whitespace-only transcript → skip autoSummarize
+  - COMPLETED + real transcript → trigger autoSummarize (microtask drain)
+  - autoSummarize rejects → swallow (never crash hot path)
+  - COMPLETED emits `webhooks.emit` + `csat.schedule`
+  - non-COMPLETED → no emit
+- `handleRecordingCompleted` 6 branches (Twilio + Deepgram pipeline):
+  - Happy save URL + duration
+  - Twilio fetch non-OK → early return
+  - Deepgram fetch non-OK → early return
+  - Transcript persisted
+  - Empty transcript skip persist
+  - Network throw → swallow (resolves undefined)
+- `exportCallsAsCsv` 6 RFC 4180 edge cases:
+  - Empty list → header-only
+  - Sentiment `.toFixed(2)` + `aiSuggestions.length`
+  - Comma → quoted
+  - Embedded quote → `""` doubling
+  - Embedded newline → quoted
+  - `take: 10000` cap (memory exhaustion guard)
+- `analyzeCall` 4 failure modes:
+  - `!transcript` → BadRequest
+  - All AI rejects → resolves no-creates
+  - `aISuggestion.create` rejects → swallows per-item, completes
+  - Empty AI text → skip create
+
+**Twilio mock strategy**: `ConfigService` default retorna null → `twilioClient =
+null`. Tests que exercitam twilioClient fazem `(service as unknown as {twilioClient})
+.twilioClient = stub` POST-module-compile. Evita re-criar TestingModule per-branch.
+
+**Pre-push validation**: `jest --runInBand --bail` → 62 passed, 12.7s.
+**CI run #360**: todos 5 jobs verdes.
+
+### T4b — dsar-extract.service.spec amplificação (`506ec4c`)
+
+**LGPD-critical** (Art. 18 DSAR): EXTRACT_DSAR worker (S60a).
+
+Spec amplificado: 334 → 1008 lines, 7 → 26 tests (+19), 5 → 16 describes.
+
+**Gaps cobertos**:
+
+- ACCESS+User match employee path:
+  - `fetchAiSuggestions` scoped por userId
+  - `fetchNotifications` scoped por companyId+userId
+  - `fetchAuditLogs` OR-clause inclui userId quando match
+  - OR-clause SEMPRE inclui `resourceId=dsarRequestId` (mesmo sem userId)
+- PORTABILITY type routing: usa `buildSubjectDataArtifact` (NOT INFO metadata)
+- Progress milestones: `updateProgress` chamado com `[10, 60, 85, 100]` em ordem
+- Audit lifecycle: PROCESSING fires UPDATE; COMPLETED fires DSAR_COMPLETED
+- Upload contract:
+  - `downloadTtlSeconds = min(DSAR_MAX_DOWNLOAD_TTL_SECONDS, TTL_DAYS*86400) = 604800`
+  - Key layout `dsar/<companyId>/<yyyy>/<mm>/<id>.json`
+  - `contentType: 'application/json; charset=utf-8'`
+- Completion metadata na row COMPLETED:
+  - `artifactKey`, `artifactBytes`, `downloadUrl`, `expiresAt` (Date instance)
+  - `result.expiresAt` ISO ~TTL_DAYS no futuro (6.9-7.1d window)
+- Fetcher short-circuits:
+  - `Contact.phone = null` → no calls/chats query
+  - `User = null` → no aiSuggestions/notifications query
+  - `Contact.id = null` → no csatResponse query
+- Per-resource cap: `DSAR_MAX_ROWS_PER_RESOURCE = 5000` aplicado como `take` em
+  `calls.findMany` e `whatsappChat.findMany`
+- Email best-effort: `sendDsarReadyEmail` rejects → handler resolve COMPLETED
+  (void promise `.catch` swallows)
+- Failure handling additional:
+  - `company.findFirst` rejects mid-flow → FAILED flip + rethrow
+  - FAILED flip itself rejects → swallow secondary + rethrow original (R2 down)
+- Multi-tenant scoping: `findFirst` sempre filtra por `companyId` do job
+
+**Pre-push validation**: `jest --runInBand --bail` → 26 passed, 14.9s.
+**CI run #361**: todos 5 jobs verdes.
+
+### Lições novas (cumulative)
+
+- **#40**: Python heredoc preserva `\n` literal APENAS com raw `r'''...'''` string.
+  String normal `'''...'''` ou `"""..."""` interpreta `\n` como newline real ao
+  fazer string assignment. Para preservar `\n` 2-char literal em JS source quando
+  embed em Python heredoc, use:
+  - raw `r'''...'''` (preferido)
+  - OR placeholder token + substitute pós-parse
+  - OR concatenação explícita `'a' + '\\n' + 'b'`
+- **#41**: Regex sweep "fix all multiline string literals" é DESTRUTIVO. Diferenciar
+  literal multiline string (ERRO de escape, fix necessário) vs separadores JS
+  legítimos (`',\n  next:'`, NORMAL — não toca) requer parser AST, não regex.
+  NUNCA aplicar fix automático a TODOS os matches sem verificar contexto.
+  Working tree corruption #14 (S81-T4a sessão) foi AUTO-CAUSADA por essa sweep —
+  75 fixes aplicados, 74 quebraram código + 1 era o correto. Mitigation: ler cada
+  match antes de patchar, ou usar AST parser.
+
+### Carryover S82+
+
+- **T4c** (deferido): doc atomic — concluído nesta sessão via commit S81-doc
+- **T4d** (próxima sessão): amplificar mais services candidatos:
+  - `assignment-rules.service` (467/782 OK MAS ratio inflado por testes shallow)
+  - `csat-trends.service` (428/329 ratio 0.77 gap medium)
+  - `sla-escalation.service` (512/620 OK)
+  - `presence.service` (277/439 OK)
+  - `knowledge-base.service` (S79: 719/743 ratio OK mas 25 métodos com ~1.7 testes/método)
+- **T1/T2/T3** ainda blocked: Stripe CPF→CNPJ + Inter PJ + payout method.
+  Pré: Pedro instala Chrome extension Claude. Cowork guia via Chrome MCP.
+- **T10** ADR S82+ Bump SDK OTel 2.x completo (carryover S80-A): remove allowlist
+  1117942 + remove override `exporter-prometheus` + bump coordenado 13 pkgs
+  `@opentelemetry/*` para 0.217.x. Ajusta `instrumentation.ts` Resource API +
+  SpanProcessor + IMetricReader. Pré-req: T6 staging.
+
+### Métricas esperadas
+
+- `calls.service.ts`: coverage funções ~49.6% → 75%+ (9 métodos antes sem teste)
+- `dsar-extract.service.ts`: coverage funções ~22% → 60%+ (handleExtract
+  sub-branches + fetchers + audit lifecycle agora cobertos)
+- Global threshold mantido em 68/58/65/68. Ratchet defer S82+ após CI mensurar
+  delta real.
+
+### Workflow consolidado
+
+1. Sandbox bash: file edits via Python3 raw r-heredoc + Read source para
+   verificar signatures (lição #23)
+2. Sandbox cp para Windows mount (lição #4)
+3. Pedro local: `pnpm --filter @saas/backend exec jest <spec> --runInBand --bail`
+   → cola resultado (lição #24)
+4. Se PASS: PS1 wrapper via `.\scripts\<name>.bat` (commit + push)
+5. Sandbox curl GitHub API: monitor CI jobs até `success`
+6. CLAUDE.md + PROJECT_HISTORY.md atomic doc-only commit pós-CI verde (este commit)
+
+### Anterior: S80-A-2 `1ceeb7c` (CI advisory allowlist pivot)
