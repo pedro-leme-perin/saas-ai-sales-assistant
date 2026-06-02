@@ -307,6 +307,726 @@ describe('DsarExtractService', () => {
       expect(failed).toBeDefined();
     });
   });
+
+  // ============================================================
+  // handleExtract — ACCESS path with User match (employee)
+  // ============================================================
+
+  describe('handleExtract() — ACCESS type with User match (employee)', () => {
+    it('fetches aiSuggestions + notifications + auditLogs scoped by userId', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-emp',
+        companyId: 'c1',
+        type: DsarType.ACCESS,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'employee@theiadvisor.com',
+        requesterName: 'Employee',
+        cpf: null,
+      });
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'u-emp',
+        email: 'employee@theiadvisor.com',
+        name: 'Employee',
+        role: 'VENDOR',
+        phone: '+5511',
+        avatarUrl: null,
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      prisma.contact.findFirst.mockResolvedValue(null);
+      prisma.aISuggestion.count.mockResolvedValue(3);
+      prisma.aISuggestion.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }, { id: 's3' }]);
+      prisma.notification.count.mockResolvedValue(1);
+      prisma.notification.findMany.mockResolvedValue([{ id: 'n1' }]);
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-emp',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'employee@theiadvisor.com',
+          requesterName: 'Employee',
+          type: DsarType.ACCESS,
+        });
+
+      const result = await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-emp', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      expect(result.status).toBe('COMPLETED');
+      expect(prisma.aISuggestion.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'u-emp' } }),
+      );
+      expect(prisma.notification.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { companyId: 'c1', userId: 'u-emp' } }),
+      );
+    });
+
+    it('audit logs always include resourceId=dsarRequestId (even without user match)', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-audit',
+        companyId: 'c1',
+        type: DsarType.ACCESS,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'x@y.z',
+      });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.contact.findFirst.mockResolvedValue(null);
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-audit',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'x@y.z',
+          type: DsarType.ACCESS,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-audit', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      const auditFindMany = (prisma.auditLog as unknown as { findMany: jest.Mock }).findMany;
+      expect(auditFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            companyId: 'c1',
+            OR: expect.arrayContaining([{ resourceId: 'r-audit' }]),
+          }),
+        }),
+      );
+    });
+
+    it('audit logs OR-clause includes userId when User match exists', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-or',
+        companyId: 'c1',
+        type: DsarType.ACCESS,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'u@e.com',
+      });
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'u-or',
+        email: 'u@e.com',
+        name: 'U',
+        role: 'VENDOR',
+        phone: null,
+        avatarUrl: null,
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      prisma.contact.findFirst.mockResolvedValue(null);
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-or',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'u@e.com',
+          type: DsarType.ACCESS,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-or', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      const auditFindMany = (prisma.auditLog as unknown as { findMany: jest.Mock }).findMany;
+      const lastCall = auditFindMany.mock.calls[auditFindMany.mock.calls.length - 1][0];
+      expect(lastCall.where.OR).toEqual(
+        expect.arrayContaining([{ resourceId: 'r-or' }, { userId: 'u-or' }]),
+      );
+    });
+  });
+
+  // ============================================================
+  // handleExtract — PORTABILITY type
+  // ============================================================
+
+  describe('handleExtract() — PORTABILITY type', () => {
+    it('uses subject-data artefact path (NOT INFO metadata)', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-port',
+        companyId: 'c1',
+        type: DsarType.PORTABILITY,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'p@e.com',
+      });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.contact.findFirst.mockResolvedValue(null);
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-port',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'p@e.com',
+          type: DsarType.PORTABILITY,
+        });
+
+      const result = await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-port', type: DsarType.PORTABILITY } }),
+        ctx,
+      );
+
+      expect(result.status).toBe('COMPLETED');
+      // INFO path would NOT touch user / contact findFirst — PORTABILITY does.
+      expect(prisma.user.findFirst).toHaveBeenCalled();
+      expect(prisma.contact.findFirst).toHaveBeenCalled();
+      // company.findFirst is INFO-only
+      expect(prisma.company.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  // ============================================================
+  // handleExtract — progress milestones
+  // ============================================================
+
+  describe('handleExtract() — progress milestones', () => {
+    it('calls updateProgress at 10, 60, 85, 100 during successful run', async () => {
+      const progressCtx = { updateProgress: jest.fn().mockResolvedValue(undefined) };
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-p',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'p@e.com',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-p',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'p@e.com',
+          type: DsarType.INFO,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-p', type: DsarType.INFO } }),
+        progressCtx,
+      );
+
+      const pcts = progressCtx.updateProgress.mock.calls.map((c) => c[0]);
+      expect(pcts).toEqual([10, 60, 85, 100]);
+    });
+  });
+
+  // ============================================================
+  // handleExtract — audit log lifecycle
+  // ============================================================
+
+  describe('handleExtract() — audit lifecycle', () => {
+    it('creates PROCESSING audit + DSAR_COMPLETED audit on success', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-aud',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-aud',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.INFO,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-aud', type: DsarType.INFO } }),
+        ctx,
+      );
+
+      const auditCreate = prisma.auditLog.create as jest.Mock;
+      const actions = auditCreate.mock.calls.map(
+        (c) => (c[0] as { data?: { action?: string } })?.data?.action,
+      );
+      expect(actions).toContain('UPDATE');
+      expect(actions).toContain('DSAR_COMPLETED');
+    });
+  });
+
+  // ============================================================
+  // handleExtract — upload contract
+  // ============================================================
+
+  describe('handleExtract() — upload contract', () => {
+    it('passes downloadTtlSeconds capped at min(MAX_DOWNLOAD, TTL_DAYS*86400)', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-ttl',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-ttl',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.INFO,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-ttl', type: DsarType.INFO } }),
+        ctx,
+      );
+
+      expect(upload.putObject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          downloadTtlSeconds: 7 * 24 * 3600,
+        }),
+      );
+    });
+
+    it('builds artefact key in dsar/<companyId>/<yyyy>/<mm>/<id>.json layout', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-key',
+        companyId: 'tenant-xyz',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'tenant-xyz',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-key',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.INFO,
+        });
+
+      await service.handleExtract(
+        mkJob({
+          companyId: 'tenant-xyz',
+          payload: { dsarRequestId: 'r-key', type: DsarType.INFO },
+        }),
+        ctx,
+      );
+
+      const call = upload.putObject.mock.calls[0][0] as { key: string };
+      expect(call.key).toMatch(/^dsar\/tenant-xyz\/\d{4}\/\d{2}\/r-key\.json$/);
+    });
+
+    it('passes contentType application/json; charset=utf-8', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-ct',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-ct',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.INFO,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-ct', type: DsarType.INFO } }),
+        ctx,
+      );
+
+      expect(upload.putObject).toHaveBeenCalledWith(
+        expect.objectContaining({ contentType: 'application/json; charset=utf-8' }),
+      );
+    });
+  });
+
+  // ============================================================
+  // handleExtract — completion metadata
+  // ============================================================
+
+  describe('handleExtract() — completion metadata', () => {
+    it('writes artifactKey + artifactBytes + downloadUrl + expiresAt on COMPLETED row', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-meta',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      upload.putObject.mockResolvedValue({
+        key: 'dsar/c1/2026/06/r-meta.json',
+        downloadUrl: 'https://signed-url.io/abc',
+        bytes: 1024,
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-meta',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.INFO,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-meta', type: DsarType.INFO } }),
+        ctx,
+      );
+
+      const updateCalls = prisma.dsarRequest.update.mock.calls;
+      const completedCall = updateCalls.find(
+        (c) => (c[0] as { data?: { status?: string } })?.data?.status === DsarStatus.COMPLETED,
+      );
+      expect(completedCall).toBeDefined();
+      const completedData = (completedCall![0] as { data: Record<string, unknown> }).data;
+      expect(completedData.artifactKey).toBe('dsar/c1/2026/06/r-meta.json');
+      expect(completedData.artifactBytes).toBe(1024);
+      expect(completedData.downloadUrl).toBe('https://signed-url.io/abc');
+      expect(completedData.expiresAt).toBeInstanceOf(Date);
+    });
+
+    it('result.expiresAt is ISO string roughly TTL_DAYS in the future', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-exp',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-exp',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.INFO,
+        });
+
+      const before = Date.now();
+      const result = await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-exp', type: DsarType.INFO } }),
+        ctx,
+      );
+      const after = Date.now();
+
+      expect(result.expiresAt).toBeDefined();
+      const expiresAtMs = new Date(result.expiresAt!).getTime();
+      const expectedMin = before + 6.9 * 24 * 3600 * 1000;
+      const expectedMax = after + 7.1 * 24 * 3600 * 1000;
+      expect(expiresAtMs).toBeGreaterThanOrEqual(expectedMin);
+      expect(expiresAtMs).toBeLessThanOrEqual(expectedMax);
+    });
+  });
+
+  // ============================================================
+  // handleExtract — fetcher short-circuits
+  // ============================================================
+
+  describe('handleExtract() — fetcher short-circuits', () => {
+    it('does NOT query calls when Contact.phone is null', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-noph',
+        companyId: 'c1',
+        type: DsarType.ACCESS,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.contact.findFirst.mockResolvedValue({
+        id: 'ct',
+        email: 'a@b.c',
+        phone: null,
+        name: 'X',
+        timezone: 'UTC',
+        tags: [],
+        totalCalls: 0,
+        totalChats: 0,
+        lastInteractionAt: null,
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-noph',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.ACCESS,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-noph', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      expect(prisma.call.count).not.toHaveBeenCalled();
+      expect(prisma.call.findMany).not.toHaveBeenCalled();
+      expect(prisma.whatsappChat.count).not.toHaveBeenCalled();
+      expect(prisma.whatsappChat.findMany).not.toHaveBeenCalled();
+    });
+
+    it('does NOT query aiSuggestions when User match is null', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-nou',
+        companyId: 'c1',
+        type: DsarType.ACCESS,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.contact.findFirst.mockResolvedValue(null);
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-nou',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.ACCESS,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-nou', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      expect(prisma.aISuggestion.count).not.toHaveBeenCalled();
+      expect(prisma.aISuggestion.findMany).not.toHaveBeenCalled();
+      expect(prisma.notification.count).not.toHaveBeenCalled();
+      expect(prisma.notification.findMany).not.toHaveBeenCalled();
+    });
+
+    it('does NOT query csatResponse when Contact.id is null', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-noc',
+        companyId: 'c1',
+        type: DsarType.ACCESS,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.contact.findFirst.mockResolvedValue(null);
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-noc',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.ACCESS,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-noc', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      expect(prisma.csatResponse.count).not.toHaveBeenCalled();
+      expect(prisma.csatResponse.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  // ============================================================
+  // handleExtract — per-resource cap (DSAR_MAX_ROWS_PER_RESOURCE)
+  // ============================================================
+
+  describe('handleExtract() — per-resource cap', () => {
+    it('applies DSAR_MAX_ROWS_PER_RESOURCE=5000 as take on fetchCalls', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-cap',
+        companyId: 'c1',
+        type: DsarType.ACCESS,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.contact.findFirst.mockResolvedValue({
+        id: 'ct',
+        email: 'a@b.c',
+        phone: '+5511',
+        name: 'X',
+        timezone: 'UTC',
+        tags: [],
+        totalCalls: 0,
+        totalChats: 0,
+        lastInteractionAt: null,
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-cap',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.ACCESS,
+        });
+
+      await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-cap', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      expect(prisma.call.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5000 }));
+      expect(prisma.whatsappChat.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 5000 }),
+      );
+    });
+  });
+
+  // ============================================================
+  // handleExtract — email best-effort
+  // ============================================================
+
+  describe('handleExtract() — email best-effort', () => {
+    it('still COMPLETES when sendDsarReadyEmail rejects', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-em',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockResolvedValueOnce({
+          id: 'r-em',
+          status: DsarStatus.COMPLETED,
+          requesterEmail: 'a@b.c',
+          type: DsarType.INFO,
+        });
+      email.sendDsarReadyEmail.mockRejectedValue(new Error('smtp-down'));
+
+      const result = await service.handleExtract(
+        mkJob({ payload: { dsarRequestId: 'r-em', type: DsarType.INFO } }),
+        ctx,
+      );
+
+      // Drain microtask so void promise's .catch can fire (warning only)
+      await new Promise((r) => setImmediate(r));
+
+      expect(result.status).toBe('COMPLETED');
+    });
+  });
+
+  // ============================================================
+  // handleExtract — failure handling additional
+  // ============================================================
+
+  describe('handleExtract() — failure handling (additional)', () => {
+    it('flips FAILED + rethrows when buildArtifact-related fetch fails', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-fb',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockRejectedValue(new Error('db-down'));
+      prisma.dsarRequest.update.mockResolvedValueOnce({ status: DsarStatus.PROCESSING });
+
+      await expect(
+        service.handleExtract(
+          mkJob({ payload: { dsarRequestId: 'r-fb', type: DsarType.INFO } }),
+          ctx,
+        ),
+      ).rejects.toThrow('db-down');
+
+      const calls = prisma.dsarRequest.update.mock.calls;
+      const failed = calls.find(
+        (c) => (c[0] as { data?: { status?: string } })?.data?.status === DsarStatus.FAILED,
+      );
+      expect(failed).toBeDefined();
+    });
+
+    it('does NOT crash when FAILED flip itself rejects (catch swallows)', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue({
+        id: 'r-ff',
+        companyId: 'c1',
+        type: DsarType.INFO,
+        status: DsarStatus.APPROVED,
+        requesterEmail: 'a@b.c',
+      });
+      prisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'X',
+        plan: 'STARTER',
+        createdAt: new Date(),
+      });
+      upload.putObject.mockRejectedValue(new Error('R2 down'));
+      // First update succeeds (PROCESSING), second (FAILED) rejects — must be swallowed
+      prisma.dsarRequest.update
+        .mockResolvedValueOnce({ status: DsarStatus.PROCESSING })
+        .mockRejectedValueOnce(new Error('db-down-secondary'));
+
+      await expect(
+        service.handleExtract(
+          mkJob({ payload: { dsarRequestId: 'r-ff', type: DsarType.INFO } }),
+          ctx,
+        ),
+      ).rejects.toThrow('R2 down');
+    });
+  });
+
+  // ============================================================
+  // handleExtract — multi-tenant scoping
+  // ============================================================
+
+  describe('handleExtract() — multi-tenant scoping', () => {
+    it('findFirst always filters by companyId from job', async () => {
+      prisma.dsarRequest.findFirst.mockResolvedValue(null);
+
+      await service.handleExtract(
+        mkJob({ companyId: 'tenant-A', payload: { dsarRequestId: 'r-z', type: DsarType.ACCESS } }),
+        ctx,
+      );
+
+      expect(prisma.dsarRequest.findFirst).toHaveBeenCalledWith({
+        where: { id: 'r-z', companyId: 'tenant-A' },
+      });
+    });
+  });
 });
 
 function mkJob(
