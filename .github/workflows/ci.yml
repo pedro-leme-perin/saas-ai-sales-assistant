@@ -308,6 +308,30 @@ jobs:
         #   - CVE-2026-4800 lodash _.template RCE (S75-2 ^4.18.0)
         #   - GHSA-q4gf-8mx6-v5v3 next RSC DoS (S75-3 ~15.5.15)
         #   - GHSA-r4q5-vmmm-2653 follow-redirects header leak (S75-4 ~1.16.0)
+        #
+        # S80-A: Advisory allowlist introduced. See `ADVISORY_ALLOWLIST` env
+        # below + docs/adr/014-otel-prometheus-cve-2026-44902.md for the full
+        # rationale. Each entry MUST have: (a) ADR reference, (b) exposure
+        # analysis (call-graph vs dependency-graph), (c) removal trigger.
+        env:
+          # Advisory IDs allowlisted for HIGH-strict gate. Source of truth: ADRs.
+          # Format: comma-separated advisory IDs (pnpm audit advisory.id field).
+          # Each ID matched per-finding against advisories[].id.
+          #
+          #   1117942 — @opentelemetry/sdk-node@0.57.2 / CVE-2026-44902
+          #     ADR-014. Vulnerability: Prometheus exporter `URL()` crash on
+          #     malformed request → DoS. Backend uses ONLY OTLP HTTP exporters
+          #     (push to Axiom), NEVER instantiates PrometheusExporter, NEVER
+          #     binds port 9464. Runtime exposure = ZERO (call-graph confirmed
+          #     in apps/backend/src/infrastructure/telemetry/instrumentation.ts).
+          #     The transitive exporter-prometheus@0.57.2 is overridden to
+          #     ~0.217.0 via pnpm.overrides, but the sdk-node@0.57.2 package
+          #     itself remains flagged because GitHub Advisory range is
+          #     `<0.217.0`. Direct bump to sdk-node@0.217 breaks TypeScript
+          #     compile (types from sdk-metrics@2.x + resources@2.x diverge
+          #     from 1.x line used by current source). Removal trigger: SDK 2.x
+          #     migration (deferred ADR S82+, requires staging game-day).
+          ADVISORY_ALLOWLIST: '1117942'
         run: |
           set +e
           pnpm audit --prod --audit-level=high --json > /tmp/audit-high.json 2>/tmp/audit-stderr.log
@@ -321,41 +345,108 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          # Parse metadata.vulnerabilities.{high,critical} via Node —
-          # authoritative source even if exit code lies. exit 0 if sum=0.
-          VULN_COUNT=$(node -e "try { const a=require('/tmp/audit-high.json'); const m=a.metadata&&a.metadata.vulnerabilities?a.metadata.vulnerabilities:{}; console.log((m.high||0)+(m.critical||0)); } catch(e) { console.error(e.message); process.exit(2); }")
+          # S80-A: Count HIGH+CRITICAL advisories EXCLUDING those in
+          # $ADVISORY_ALLOWLIST. Parser iterates advisories[] (not metadata
+          # aggregate counts, which can't be allowlisted). Each advisory has
+          # `id`, `severity`, `module_name`. We exit non-zero only if a
+          # non-allowlisted HIGH or CRITICAL is present.
+          COUNT_JSON=$(node -e "
+            try {
+              const a = require('/tmp/audit-high.json');
+              const allowlist = new Set((process.env.ADVISORY_ALLOWLIST || '').split(',').map(s => s.trim()).filter(Boolean));
+              const advisories = a.advisories ? Object.values(a.advisories) : [];
+              const blocking = [];
+              const allowed = [];
+              let highTotal = 0, critTotal = 0;
+              for (const adv of advisories) {
+                const sev = (adv.severity || '').toLowerCase();
+                if (sev !== 'high' && sev !== 'critical') continue;
+                if (sev === 'high') highTotal++;
+                if (sev === 'critical') critTotal++;
+                const id = String(adv.id);
+                if (allowlist.has(id)) {
+                  allowed.push({ id, severity: sev, module: adv.module_name, title: adv.title });
+                } else {
+                  blocking.push({ id, severity: sev, module: adv.module_name, title: adv.title });
+                }
+              }
+              console.log(JSON.stringify({
+                blockingCount: blocking.length,
+                allowedCount: allowed.length,
+                highTotal, critTotal,
+                blocking, allowed
+              }));
+            } catch (e) {
+              console.error(e.message);
+              process.exit(2);
+            }
+          ")
           PARSE_EXIT=$?
           if [[ "$PARSE_EXIT" -ne 0 ]]; then
             echo "::error::failed to parse pnpm audit JSON output"
             exit 1
           fi
-          # Per-severity breakdown for summary
-          HIGH_N=$(node -e "try { const a=require('/tmp/audit-high.json'); const m=a.metadata&&a.metadata.vulnerabilities?a.metadata.vulnerabilities:{}; console.log(m.high||0); } catch(e) { console.log('?'); }")
-          CRIT_N=$(node -e "try { const a=require('/tmp/audit-high.json'); const m=a.metadata&&a.metadata.vulnerabilities?a.metadata.vulnerabilities:{}; console.log(m.critical||0); } catch(e) { console.log('?'); }")
-          if [[ "$VULN_COUNT" -eq 0 ]]; then
-            echo "::notice::pnpm audit clean (high=0 critical=0 in production deps; audit_exit=$AUDIT_EXIT)"
+          BLOCKING_COUNT=$(node -e "console.log(JSON.parse(process.argv[1]).blockingCount)" "$COUNT_JSON")
+          ALLOWED_COUNT=$(node -e "console.log(JSON.parse(process.argv[1]).allowedCount)" "$COUNT_JSON")
+          HIGH_N=$(node -e "console.log(JSON.parse(process.argv[1]).highTotal)" "$COUNT_JSON")
+          CRIT_N=$(node -e "console.log(JSON.parse(process.argv[1]).critTotal)" "$COUNT_JSON")
+          if [[ "$BLOCKING_COUNT" -eq 0 ]]; then
+            echo "::notice::pnpm audit clean (blocking=0; allowed=$ALLOWED_COUNT; high=$HIGH_N crit=$CRIT_N; audit_exit=$AUDIT_EXIT)"
             {
               echo "## Security Audit — Production Dependencies"
               echo ""
-              echo "Production deps: clean (high=0, critical=0)"
+              echo "Blocking HIGH/CRITICAL: **$BLOCKING_COUNT** (clean)"
               echo ""
-              echo "_pnpm audit exit code was $AUDIT_EXIT — JSON metadata.{high,critical} is authoritative._"
+              if [[ "$ALLOWED_COUNT" -gt 0 ]]; then
+                echo "### Allowlisted advisories ($ALLOWED_COUNT)"
+                echo ""
+                echo "These advisories are present but allowlisted per documented ADRs (zero runtime exposure):"
+                echo ""
+                echo "$COUNT_JSON" | node -e "
+                  const j = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+                  for (const a of j.allowed) {
+                    console.log(\`- **\${a.id}** [\${a.severity.toUpperCase()}] \\\`\${a.module}\\\` — \${a.title}\`);
+                  }
+                "
+                echo ""
+              fi
+              echo "_pnpm audit exit code: $AUDIT_EXIT — advisory-level allowlist is authoritative._"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           {
-            echo "## Security Audit — HIGH+CRITICAL Production Vulnerabilities ($VULN_COUNT total: high=$HIGH_N critical=$CRIT_N)"
+            echo "## Security Audit — Blocking HIGH+CRITICAL Production Vulnerabilities ($BLOCKING_COUNT)"
             echo ""
-            echo '<details><summary>Vulnerabilities found (raw JSON)</summary>'
-            echo ''
+            echo "### Blocking advisories"
+            echo ""
+            echo "$COUNT_JSON" | node -e "
+              const j = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+              for (const a of j.blocking) {
+                console.log(\`- **\${a.id}** [\${a.severity.toUpperCase()}] \\\`\${a.module}\\\` — \${a.title}\`);
+              }
+            "
+            echo ""
+            if [[ "$ALLOWED_COUNT" -gt 0 ]]; then
+              echo "### Allowlisted (not counted toward gate)"
+              echo ""
+              echo "$COUNT_JSON" | node -e "
+                const j = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+                for (const a of j.allowed) {
+                  console.log(\`- **\${a.id}** [\${a.severity.toUpperCase()}] \\\`\${a.module}\\\` — \${a.title}\`);
+                }
+              "
+              echo ""
+            fi
+            echo "<details><summary>Raw JSON (truncated)</summary>"
+            echo ""
             echo '```json'
             head -c 8000 /tmp/audit-high.json
             echo ''
             echo '```'
             echo ''
-            echo '</details>'
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::pnpm audit found $VULN_COUNT HIGH+CRITICAL vulnerabilities in production dependencies (high=$HIGH_N critical=$CRIT_N) — see job summary"
+          echo "::error::pnpm audit found $BLOCKING_COUNT blocking HIGH/CRITICAL vulnerabilities (allowed=$ALLOWED_COUNT total_high=$HIGH_N total_crit=$CRIT_N) — see job summary"
           exit 1
 
       - name: Audit all dependencies (moderate+ informational)
