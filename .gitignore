@@ -60,3 +60,5 @@ scripts/*.log
 /scripts/s82-hygiene-commit-msg.txt
 /scripts/s82-t4e-scheduled-exports-commit.*
 /scripts/s82-t4e-scheduled-exports-commit-msg.txt
+/scripts/s82-ratchet-commit.*
+/scripts/s82-ratchet-commit-msg.txt
