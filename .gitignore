@@ -58,3 +58,5 @@ scripts/*.log
 /scripts/s81-t4d-csat-trends-commit-msg.txt
 /scripts/s82-hygiene-commit.*
 /scripts/s82-hygiene-commit-msg.txt
+/scripts/s82-t4e-scheduled-exports-commit.*
+/scripts/s82-t4e-scheduled-exports-commit-msg.txt
