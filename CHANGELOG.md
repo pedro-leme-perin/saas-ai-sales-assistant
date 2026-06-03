@@ -18,6 +18,52 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.81.1] — S81-EOD: Operação comercial pós-CNPJ destravada (Google Workspace + Inter PJ + CCM) — 2026-06-03
+
+### Added
+
+- **Google Workspace ativado** para `theiadvisor.com` (escolha enterprise-grade, US$ 7/mês):
+  - Usuário principal: `pedro.perin@theiadvisor.com`
+  - Aliases gratuitos (mesma caixa): `team@theiadvisor.com` (LGPD controller público), `dpo@theiadvisor.com` (DPO LGPD declarado em Privacy Policy)
+  - Verificação domínio via OAuth Cloudflare manual + MX `smtp.google.com` priority 1 substituindo MX legacy
+  - Resend transacional preservado (DKIM `resend._domainkey` coexiste com `google._domainkey` — SPF NÃO foi modificado, autenticação Google Workspace mantida desativada para preservar transacionais)
+
+- **Inter PJ aberta** via app Inter Empresas (escolha banco PJ enterprise-grade):
+  - Conta corrente PJ aprovada (agência 0001 + conta + dígito anotados)
+  - Chave PIX CNPJ `67084607000178` cadastrada
+  - Capital social R$ 1.000 diferido até 12 meses (cláusula padrão SLU)
+  - Onboarding: CPF sócio + Contrato Social PDF + RG + selfie + comprovantes endereço
+
+- **CCM Ribeirão Preto homologada** 🎯: Inscrição Municipal `67084607000178` aprovada em 03/06/2026 15:15 BRT após Coleta Complementar JUCESP (Questão 1: DIA ÚTIL 08:00-18:00, opção 97 do questionário). Desbloqueia emissão NFS-e + venda PJ Enterprise sem fricção. Padrão Ribeirão Preto atribui IM igual ao CNPJ.
+
+- **Identidade jurídica S82** atualizada em `CLAUDE.md` §1: Inscrição Municipal aparece como `67084607000178` (homologada), versão bumped 7.9 → 7.10.
+
+- **`PROJECT_HISTORY.md`** ganha sessão dedicada S81-EOD (~150 linhas) documentando workflow Cowork-guided para sessões comerciais (Chrome MCP + screenshots + decisões estratégicas baseadas em histórico).
+
+- **`docs/operations/s82-next-session-prompt.md`** atualizado: CCM removido das pendências, Stripe Recovery passa a P0 único bloqueante, priorities reorganizadas (P1 Stripe recovery, P2 técnico autônomo, P3 deps moderates, P4 staging external).
+
+### Lições novas
+
+- **#43 Kaspersky Safe Money intercepta domínios bancários** → "Continuar sem proteção" para fluxos automatizados Chrome MCP, OU usar app móvel nativo. Aplicável a TODOS portais bancários + Stripe Dashboard.
+
+- **#44 Google Workspace MX é single record** `smtp.google.com` (não 5 ASPMX legacy). DKIM Google + DKIM Resend coexistem (selectors distintos). SPF é singular por domínio → autenticação Google Workspace SOBRESCREVE SPF Resend e quebra transacionais. **NÃO clicar "Autenticar e-mails enviados"** no Workspace sem merge SPF prévio.
+
+- **#45 Stripe 2FA passkey-only sem backup codes = trap silencioso** → conta original tinha apenas passkey cadastrada em dispositivo indisponível, sem TOTP/SMS/backup codes. Resultado: account locked. **Regra para todas contas críticas** (Stripe, Cloudflare, Vercel, Railway, GitHub, Clerk, Anthropic, OpenAI): SEMPRE habilitar 3 fatores simultâneos — passkey + TOTP authenticator + 10 backup codes salvos em 2+ locais.
+
+- **#46 Helper `arg.x ?? default` perde null silenciosamente** em production code (não só tests) — confirmação live de lição #42 S81-T4d em uso real. Padrão de detecção: qualquer função utilitária com defaults onde caller passa `null as unknown as T`.
+
+### Operação comercial — status pós-v0.81.1
+
+**80% pronta**. Único bloqueio restante: Stripe Account Recovery (passkey perdida). Caminho oficial: `support.stripe.com/questions/sign-in-to-your-stripe-account-without-a-2fa-device-and-or-backup-code`. Resposta 1-3 dias úteis Support. Plano B documentado: criar nova conta Stripe sob CNPJ direto (~1h retrabalho, zero impacto cliente — pre-launch).
+
+### Notes
+
+- Nenhuma alteração de runtime — release puramente operacional/documental.
+- 6 commits S81 técnicos já em produção (a700140/506ec4c/0c9f5f2/f755a83/8a34f7d/c403f1b, +100 testes). v0.81.1 é doc-only finalize.
+- Stripe identity migration (T1) e payout method (T3) movidos para v0.82.0 pós-recovery.
+
+---
+
 ## [v0.81.0] — Coverage 80% backend roadmap (S81 — T4a + T4b + T4d) — 2026-06-02
 
 ### Added

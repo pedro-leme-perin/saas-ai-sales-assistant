@@ -86,20 +86,54 @@ em CI run pós-T4d (run #363+). Ratchet ratchet conservador esperado: 68→70 st
 
 ## 🔴 PENDÊNCIAS BLOQUEANTES PRÉ-OPERAÇÃO COMERCIAL
 
-### P0 — Manual operacional (Pedro executa offline)
+### ✅ CONCLUÍDO 03/06 (S81-EOD)
 
-- **T1 Stripe CPF→CNPJ**: runbook em `docs/operations/s81/T1_STRIPE_MANUAL.md`.
-  Bloqueado por safety MCP (proteção financial Chrome). Tempo 10-15min + 2-3 dias revalidação.
-- **T2 Inter PJ**: runbook em `docs/operations/s81/T2_INTER_PJ_MANUAL.md`.
-  Bloqueado por Kaspersky Safe Money. Tempo 30-60min + 1-2 dias aprovação. Pré-req T3.
-- **T3 Stripe payout method Inter PJ**: pós T1+T2. ~5min. Pré-req: conta Inter PJ ativa
-  - Stripe Business identity validada.
-- **CCM Ribeirão Preto** (Inscrição Municipal): aguardar contador (ETA 3-7 dias úteis pós-CNPJ).
-  Bloqueia: emissão NFS-e.
+- **CCM Ribeirão Preto**: homologada `IM 67084607000178` em 15:15 BRT. Desbloqueia NFS-e.
+- **Google Workspace**: `pedro.perin@theiadvisor.com` + 2 aliases (`team@`, `dpo@`)
+- **Inter PJ**: conta corrente aberta + agência 0001 + chave PIX CNPJ cadastrada (capital R$1k diferido)
+
+### P0 — Stripe Recovery (BLOQUEANTE pra T1/T3)
+
+- **Stripe Account Recovery**: conta original tem passkey-only sem backup codes.
+  - Caminho: `support.stripe.com/questions/sign-in-to-your-stripe-account-without-a-2fa-device-and-or-backup-code`
+  - Submeter: foto RG + email/senha + descrição
+  - Resposta: 1-3 dias úteis Support
+  - Pedro pausou em 03/06 após cooldown IP (excesso tentativas)
+  - **Retomar 04/06+** (IP destravado + cooldown passou)
+- **Plano B** se recovery negada após 7 dias: criar nova conta Stripe sob CNPJ direto (~1h retrabalho, zero impacto cliente — pre-launch)
+
+### P0 — Pós Stripe destravado
+
+- **T1 Stripe CPF→CNPJ** (15min): runbook `docs/operations/s81/T1_STRIPE_MANUAL.md`
+- **T3 Stripe payout method Inter PJ** (10min + 1-2 dias micro-depósitos)
+- **Atualização Stripe Settings**: razão social, CNPJ, endereço PJ, representative Pedro 100%
+
+### P1 — Pós sincronização ISSnetOnline
+
+- **Login NFS-e no portal Prefeitura RP**: aguardar até 24h pós-aprovação CCM
+- **Configurar emissão NFS-e**: alíquota ISS + regime tributário (com contador, Anexo III Simples Nacional via Fator R)
+
+### P2 — Capital social (não urgente)
+
+- **Integralizar R$ 1.000**: PIX PF→PJ Inter quando tiver disponível. Cláusula padrão SLU permite 12 meses.
+
+### P3 — Externo aguardando
+
+- **Mensagem contador 04/06**: notificar CCM aprovada + pedir orientação NFS-e (Pedro mandará na manhã)
+- **Sincronização ISSnetOnline** (downstream da homologação CCM)
 
 ## PRÓXIMAS TASKS PRIORIZADAS PARA EXECUÇÃO COWORK-AUTÔNOMA
 
-### 🥇 PRIORIDADE 1 — Autônomo técnico (sessão presente, ~3-4h)
+### 🥇 PRIORIDADE 1 — Pós-Stripe Recovery (Pedro destrava externamente)
+
+**Quando Stripe responder com link de recovery**:
+
+1. Pedro completa recovery (clica link, define nova senha, desabilita 2FA passkey, configura TOTP + backup codes)
+2. T1 Stripe identity CPF→CNPJ (15min, runbook `docs/operations/s81/T1_STRIPE_MANUAL.md`)
+3. T3 Stripe payout Inter PJ (10min + 1-2 dias micro-depósitos verify)
+4. Migração comercial 100% completa
+
+### 🥈 PRIORIDADE 2 — Autônomo técnico (paralelo ao wait Stripe, ~3-4h)
 
 **T4e** — Amplify mais um service candidate (rumo 80% coverage):
 
@@ -116,7 +150,7 @@ Padrão T4a/T4b/T4d aplicado.
 
 **T-ratchet** — Coverage ratchet defensivo: medir CI delta pós-T4a+T4b+T4d, decidir floor.
 
-### 🥈 PRIORIDADE 2 — Autônomo téc + Pedro local
+### 🥉 PRIORIDADE 3 — Autônomo téc + Pedro local
 
 **T11** — Bump 1 moderate dep do audit (`audit-out.json` lista 14):
 
@@ -127,7 +161,7 @@ Padrão T4a/T4b/T4d aplicado.
 
 Padrão S80-A: pnpm.overrides + ADR-015 (S82 first ADR) + CI verify.
 
-### 🥉 PRIORIDADE 3 — Bloqueado externo
+### 🔴 PRIORIDADE 4 — Bloqueado credentials externos
 
 **T6 Staging provisioning** — Pedro fornece 6 GH Actions secrets:
 
