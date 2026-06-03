@@ -48,3 +48,13 @@ scripts/*.log
 /scripts/s81-t4b-dsar-extract-commit-msg.txt
 /scripts/s81-doc-commit.*
 /scripts/s81-doc-commit-msg.txt
+/scripts/s81-cleanup-commit.*
+/scripts/s81-cleanup-commit-msg.txt
+/scripts/s81-eod-commit.*
+/scripts/s81-eod-commit-msg.txt
+/scripts/s81-finalize-commit.*
+/scripts/s81-finalize-commit-msg.txt
+/scripts/s81-t4d-csat-trends-commit.*
+/scripts/s81-t4d-csat-trends-commit-msg.txt
+/scripts/s82-hygiene-commit.*
+/scripts/s82-hygiene-commit-msg.txt
