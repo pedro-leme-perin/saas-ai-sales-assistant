@@ -62,3 +62,5 @@ scripts/*.log
 /scripts/s82-t4e-scheduled-exports-commit-msg.txt
 /scripts/s82-ratchet-commit.*
 /scripts/s82-ratchet-commit-msg.txt
+/scripts/s82-t11-postcss-commit.*
+/scripts/s82-t11-postcss-commit-msg.txt
