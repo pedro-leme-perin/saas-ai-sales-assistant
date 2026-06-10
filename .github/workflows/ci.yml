@@ -331,7 +331,7 @@ jobs:
           #     compile (types from sdk-metrics@2.x + resources@2.x diverge
           #     from 1.x line used by current source). Removal trigger: SDK 2.x
           #     migration (deferred ADR S82+, requires staging game-day).
-          ADVISORY_ALLOWLIST: '1117942'
+          ADVISORY_ALLOWLIST: '1117942,1120252,GHSA-q7rr-3cgh-j5r3'
         run: |
           set +e
           pnpm audit --prod --audit-level=high --json > /tmp/audit-high.json 2>/tmp/audit-stderr.log
@@ -364,7 +364,13 @@ jobs:
                 if (sev === 'high') highTotal++;
                 if (sev === 'critical') critTotal++;
                 const id = String(adv.id);
-                if (allowlist.has(id)) {
+                const ghsa = String(adv.github_advisory_id || '');
+                // S82-finalize-restore: match either numeric id OR GHSA slug.
+                // Rationale: pnpm audit numeric IDs are NOT stable — pnpm/npm
+                // advisory database can reissue/renumber (observed S82->S83
+                // sdk-node Prometheus advisory: 1117942 → 1120252, same GHSA).
+                // GHSA slugs are stable across the npm advisory history.
+                if (allowlist.has(id) || (ghsa && allowlist.has(ghsa))) {
                   allowed.push({ id, severity: sev, module: adv.module_name, title: adv.title });
                 } else {
                   blocking.push({ id, severity: sev, module: adv.module_name, title: adv.title });

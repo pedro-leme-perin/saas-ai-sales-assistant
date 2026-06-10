@@ -66,3 +66,5 @@ scripts/*.log
 /scripts/s82-t11-postcss-commit-msg.txt
 /scripts/s82-finalize-commit.*
 /scripts/s82-finalize-commit-msg.txt
+/scripts/s82-restore-security-commit.*
+/scripts/s82-restore-security-commit-msg.txt
