@@ -7481,3 +7481,105 @@ Estabelece **modo Cowork-guided** para sessões comerciais:
 4. Documentação operacional inline (runbooks em `docs/operations/s81/`) + atualização CLAUDE.md/PROJECT_HISTORY pós-sessão
 
 ### Anterior: S81-finalize `c403f1b` (CHANGELOG + runbooks T1/T2 + S82 prompt)
+
+---
+
+## Sessão S82 — 2026-06-03 — Coverage 80% roadmap + dep hygiene autônoma
+
+**Objetivo**: continuação do roadmap coverage 80% backend (CLAUDE.md §9) + abertura da série T11 (moderates audit). Sessão Cowork-autônoma após Stripe recovery ficar pendente em externo (P0 bloqueante off-loop).
+
+**Status final**: 4 commits CI verde 5/5 jobs consecutivos. Working tree zombies persistentes (tsconfig.json + stripe-webhook-test.ps1 — Windows watcher race S81-residual) não bloquearam commits específicos.
+
+### Deliverables
+
+#### S82-hygiene `7a06d1d` (CI #26907098598 ✅)
+
+- Commit RESUMO_S81_FINAL.md (238L) — outstanding doc S81 referenciado pelo S82 prompt
+- .gitignore +10 patterns (s81-cleanup/eod/finalize/t4d + s82-hygiene preventivo)
+- Working tree CLAUDE.md/PROJECT_HISTORY.md restaurados via `git show HEAD: + cp` após corrupção silenciosa pós-S81-EOD (-6 / -14 lines truncate, lição #5 reforçada)
+
+#### S82-T4e `d6008fd` (CI #26907534215 ✅, +86 tests)
+
+- `apps/backend/test/unit/scheduled-exports.service.spec.ts` 344 → 1292 lines, 20 → 86 tests, 8 → 24 describes
+- Gaps cobertos (failure-modes): list/findById tenant guards, create defaults fallback, update partial paths, runNow NotFound, processTick query shape, executeExport (6 testes novo describe: email payload, JSON routing, cap 50k FAILED, fetchRows reject, windowStart logic, nextRunAt always-recompute), filename slug (4 novo), fetchRows dispatch 6 branches + default, rowsAnalytics rate math (0-denominator guards), rowsContacts/Calls/Chats/Csat shape, toCsv/toJson/escapeCsv RFC 4180, assertTenant indirect, audit fire-and-forget swallow
+- Pre-push Pedro local: `pnpm exec jest --testPathPattern="scheduled-exports.service.spec" --runInBand --bail` → **86 passed 13.9s** (lição #24)
+
+#### S82-ratchet `0ebba9d` (CI #26908262231 ✅)
+
+- `apps/backend/package.json` coverageThreshold global ratchet defensivo:
+  - statements 68 → **73** (real 76.77, headroom +3.77)
+  - branches 58 → **62** (real 66.13, headroom +4.13)
+  - functions 65 → **71** (real 74.81, headroom +3.81)
+  - lines 68 → **73** (real 77.32, headroom +4.32)
+- Coverage real medido Pedro local: `pnpm exec jest --coverage --silent --runInBand` post-T4e
+- Headroom mínimo 3.77pct atende lição #8 (~1pct flake CI tolerance + margem defensiva)
+- Per-path security/modules mantidos (S68 floor 60-75 já apropriado)
+
+#### S82-T11-postcss `50f97dd` (CI #26908466430 ✅, advisory cleared)
+
+- `package.json` pnpm.overrides += `"postcss": "~8.5.10"` (12 → 13 overrides)
+- GHSA-1117015 PostCSS XSS via unescaped `</style>` em CSS Stringify Output
+- Exposure runtime ZERO confirmado: build-time only via Tailwind/Next.js pipeline, sem user-supplied raw CSS em TheIAdvisor (todos os temas Tailwind utility classes)
+- Range `~` (same-minor) per lição #19 — evita silent major bump
+- Pedro local: `pnpm install` recompute pnpm-lock.yaml → wrapper stages + commits + push
+
+### Lições reforçadas (sem novas)
+
+- **#1 Edit tool unsafe** (.gitignore patch revertido na primeira tentativa Edit, fix via Python io.open). Aplicado consistentemente em todos os patches S82.
+- **#5 Working tree corruption** (CLAUDE.md/PROJECT_HISTORY.md +6/-14 lines truncate ao iniciar sessão, restored via `git show HEAD: + cp`).
+- **#8 Coverage threshold flake** ~1pct → headroom mínimo 3-4pct (aplicado 3.77pct stmt mínimo).
+- **#17 1 dep por commit** (T11-postcss isolated, próximos qs/uuid/ws aguardam commits separados).
+- **#19 Override range `~` ou `^`** (postcss `~8.5.10` evita silent major).
+- **#24 Sandbox sem jest** → Pedro local validation obrigatória pre-push.
+- **#42 `?? default` coerce null** confirmado em fixture helpers makeExport.
+
+### Workflow consolidado S82 (econômico)
+
+Após feedback Pedro "se atente para não gastar tokens desnecessários":
+
+1. **Cowork autônomo** prepara: file edits (Python io.open), commit msg .txt, .bat wrapper trio
+2. **Pedro local** executa via PowerShell single-line commands:
+   - `pnpm install` (T11 lock recompute)
+   - `pnpm exec jest --testPathPattern=... --runInBand --bail` (lição #24)
+   - `& "C:\...\s82-*-commit.bat"` (commit + push)
+3. **Cowork autônomo** monitora via `curl GitHub API`:
+   - `runs?branch=main&per_page=1` HEAD SHA check
+   - `runs/<id>/jobs` per-job status até 5/5 success
+4. **Zero screenshots desnecessários** (apenas se Pedro pedir visual)
+5. **Zero computer-use overhead** (Pedro tem terminal aberto, mais rápido digitar 1 linha que abrir File Explorer)
+
+### Estado pós-S82
+
+| Dimensão             | Status                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| HEAD origin/main     | `50f97dd` chore(s82-t11): override postcss ~8.5.10                                    |
+| Backend tests        | +50 (T4e), total ~80 suites + 86 tests scheduled-exports                              |
+| Coverage real        | 76.77 / 66.13 / 74.81 / 77.32 (vs floor 73/62/71/73)                                  |
+| Audit moderates      | 14 → 13 residuals (postcss cleared)                                                   |
+| Audit HIGH           | 1 (`@opentelemetry/sdk-node` — defer ADR major bump S82+, runtime exposure zero OTLP) |
+| Audit CRITICAL       | 0                                                                                     |
+| pnpm.overrides       | 13 (era 12 pré-S82)                                                                   |
+| Working tree zombies | tsconfig.json delete-readd + stripe-webhook .ps1 rename (S81 residual, não bloqueia)  |
+
+### Próximos passos S83+
+
+**Aguardando Pedro externo (P0 bloqueante)**:
+
+- Stripe Recovery via formulário oficial (1-3 dias úteis Support)
+- Sincronização ISSnetOnline → login NFS-e
+- Mensagem contador 04/06 (CCM aprovada)
+
+**Autônomo técnico (P1)**:
+
+- T4f: amplificar próximo service (coaching/csat/assignment-rules/sla-escalation)
+- T-ratchet S83: 73/62/71/73 → 75/64/73/75 (quando real ≥78/68/76/78)
+- T11 next: qs ~6.15.2 (DoS), uuid ~11.1.1 (buffer bounds), ws ~8.20.1 (uninitialized memory — runtime WebSocket prioritário)
+
+**Blocked credentials Pedro**:
+
+- T6 staging provisioning (6 secrets Railway/Neon/Upstash/R2/Vercel)
+- T7 k6 stress 1000VU + AI 40VU (post T6)
+- T8 WhatsApp Business API live (Meta verificação CNPJ)
+- T10 ADR Bump OTel SDK 2.x (post T6 staging game-day)
+
+### Anterior: S81-EOD `231fe1e` (Google Workspace + Inter PJ + CCM homologada)

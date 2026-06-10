@@ -1,7 +1,7 @@
 # SaaS AI Sales Assistant — Project Instructions
 
-**Versão:** 7.10
-**Atualização:** Junho 2026 (S81-EOD — CCM Ribeirão Preto homologada IM 67084607000178, Google Workspace ativado, Inter PJ aberta, Stripe em recovery)
+**Versão:** 7.11
+**Atualização:** Junho 2026 (S82 — T4e scheduled-exports +50 tests, coverage floor 73/62/71/73, postcss ~8.5.10 XSS mitigation; 4 commits CI verde)
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
 **Histórico detalhado de sessões:** ver `PROJECT_HISTORY.md`
 
@@ -31,7 +31,9 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 25/05/2026 (sessão S79 — RAG Knowledge Base: `KnowledgeChunk` + pgvector + `KnowledgeBaseModule` (9 endpoints CRUD + semantic search) + ingest CLI + RAG integrado em 4 providers AI + 42 testes unit.)
+> Última atualização: 03/06/2026 (sessão S82 — T4e scheduled-exports.service.spec amplificado +50 testes; coverage floor 68/58/65/68 -> 73/62/71/73 defensivo; postcss ~8.5.10 override GHSA-1117015 XSS cleared; 4 commits CI verde 7a06d1d/d6008fd/0ebba9d/50f97dd.)
+>
+> \_Anterior S79 25/05/2026 — RAG Knowledge Base: `KnowledgeChunk` + pgvector + `KnowledgeBaseModule` (9 endpoints CRUD + semantic search) + ingest CLI + RAG integrado em 4 providers AI + 42 testes unit.)
 
 ### 2.1 Status Geral
 

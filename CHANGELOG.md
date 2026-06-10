@@ -18,6 +18,62 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.82.0] — Coverage 80% backend roadmap (T4e + ratchet) + postcss XSS mitigation (S82) — 2026-06-03
+
+### Added
+
+- **T4e — `scheduled-exports.service.spec.ts` amplificado** (+50 testes / +948L, total 86 tests em 24 describes):
+  - list / findById tenant guards + NotFoundException (6 testes)
+  - create defaults fallback (format/timezone/isActive/filters) + audit fire-and-forget swallow (+4)
+  - update partial paths (dto.cron === existing no-op, partial DTO writes, oldValues/newValues audit shape) (+3)
+  - runNow NotFound delegate + audit `{ runNow: true }` (+2)
+  - processTick query shape (where/orderBy/take=EXPORT_BATCH_SIZE=5) + non-Error throw String() coerce (+2)
+  - executeExport novo describe (+6): email payload shape, JSON serializer routing, cap >50_000 → FAILED, fetchRows reject → FAILED, windowStart lastRunAt vs createdAt, nextRunAt always recomputed
+  - filename novo describe (+4): .csv/.json ext, slug normalize special chars, fallback 'export'
+  - fetchRows dispatch novo describe (+7): 6 resource branches + default
+  - rowsAnalytics rate math (+3): aiAdoptionRate=0 quando suggestions=0, conversionRate=0 quando calls=0, normal rates round 4 decimals
+  - rowsContacts (+4): tag join '|', non-array fallback '', lastInteractionAt null, take=50_000
+  - rowsCalls/Chats/Csat shape novos describes (+2+2+2): sentiment alias, null fallbacks
+  - toCsv extras (+4): single row, header order, missing keys empty cells, CRLF separator
+  - toJson novo describe (+2)
+  - escapeCsv via toCsv proxy novo describe (+7): null/undefined/number/comma/quote/CR/plain
+  - assertTenant indirect (+3) + audit failure-mode (+2)
+
+- **S82-T11 — `postcss ~8.5.10` override** (pnpm.overrides, 13 total). Mitiga GHSA-1117015 (XSS via unescaped `</style>` em CSS Stringify Output, CVSS moderate). Exposure runtime ZERO confirmado (build-time only via Tailwind/Next.js, sem user-supplied raw CSS). Range `~` (same-minor) per lição #19.
+
+- **`docs/operations/s81/RESUMO_S81_FINAL.md`** (238L) consolidação final S81 (técnico T4a/T4b/T4d + comercial CNPJ/CCM/Workspace/Inter/Stripe-recovery) — outstanding doc referenciado pelo S82 prompt.
+
+### Changed
+
+- **`apps/backend/package.json` coverageThreshold global** floor 68/58/65/68 → **73/62/71/73** (statements/branches/functions/lines). Coverage real medido Pedro local pós-T4e: 76.77/66.13/74.81/77.32. Headroom mínimo 3.77pct (statements) — defensivo per lição #8 (~1pct flake CI tolerance + margem). Per-path security paths (`src/common/{guards,filters,interceptors,resilience}/`) mantidos em 75/65/75/75 (real 97+/85+/93+/97+ headroom 17-22pct). Per-path modules (auth/billing/dsar/impersonation/api-keys/webhooks/infrastructure) mantidos em 60/50/60/60 (S68 floor anti-new-file-0%).
+
+- **`.gitignore`** (+10 entries S82 wrapper patterns): hygiene, T4e, ratchet, T11-postcss + 4 entries S81 follow-up (cleanup/eod/finalize/t4d).
+
+### Security
+
+- **GHSA-1117015 postcss XSS** moderate vulnerability **cleared** em audit. Build-time exposure only; nenhum impacto runtime production.
+
+### Métricas S82 (4 commits CI verde consecutivos)
+
+| Commit    | Subject                                                                          |
+| --------- | -------------------------------------------------------------------------------- |
+| `7a06d1d` | chore(s82-hygiene): commit RESUMO_S81_FINAL + extend .gitignore S81/S82 wrappers |
+| `d6008fd` | test(s82-t4e): amplify scheduled-exports.service.spec failure-modes (+50/+948L)  |
+| `0ebba9d` | test(s82-ratchet): coverage floor 68/58/65/68 -> 73/62/71/73 (defensivo)         |
+| `50f97dd` | chore(s82-t11): override postcss ~8.5.10 (GHSA-1117015 XSS mitigation)           |
+
+CI runs: #26907098598, #26907534215, #26908262231, #26908466430 — todos 5/5 jobs `success`.
+
+### Carryover S83+
+
+- T4e adicional (coaching/csat/assignment-rules/sla-escalation amplificações restantes)
+- T11 next (qs ~6.15.2 DoS, uuid ~11.1.1 buffer bounds, ws ~8.20.1 uninitialized memory — runtime WebSocket prioritário)
+- T-ratchet S83: subir global 73/62/71/73 → 75/64/73/75 quando próxima amplificação confirmar real 78+/68+/76+/78+ (target §9 80%)
+- Stripe Recovery (Pedro externo, P0 bloqueante T1/T3)
+- Staging provisioning (T6, 6 credenciais GH Actions)
+
+---
+
 ## [v0.81.1] — S81-EOD: Operação comercial pós-CNPJ destravada (Google Workspace + Inter PJ + CCM) — 2026-06-03
 
 ### Added

@@ -64,3 +64,5 @@ scripts/*.log
 /scripts/s82-ratchet-commit-msg.txt
 /scripts/s82-t11-postcss-commit.*
 /scripts/s82-t11-postcss-commit-msg.txt
+/scripts/s82-finalize-commit.*
+/scripts/s82-finalize-commit-msg.txt
