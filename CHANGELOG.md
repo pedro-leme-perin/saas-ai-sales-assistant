@@ -18,6 +18,50 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.83.0] — Migração para nova conta Stripe: registro e correção de drift (S83) — 2026-07-30
+
+Sessão doc-only. Zero mudanças em código de aplicação, schema, testes ou dependências.
+
+### Added
+
+- **`docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md`** (288L) — runbook da migração:
+  contexto da perda da conta original, racional da decisão, identidade da conta nova,
+  matriz de fases 0–5 com status, comandos executados com as armadilhas encontradas,
+  protocolo de segredos, estratégia de contenção e checklist consolidado.
+- **`CLAUDE.md` §2.3** — subseções TEST mode (products, prices, webhook) e LIVE mode
+  (pendências e critério de atualização), além do invariante de acoplamento por env var.
+- **`CLAUDE.md` §2.4** — pendências novas: 2FA hardening (P0), Identity verification PJ (P0),
+  ativação do LIVE mode.
+
+### Changed
+
+- **`CLAUDE.md`** 7.11 → 7.12; bloco "Última atualização" reescrito para S83.
+- **`CLAUDE.md` §2.1** — linha Stripe: `✅ Live mode` → `⚠️ Reconstrução (S83)`. O status
+  anterior era factualmente falso desde a perda da conta.
+- **`CLAUDE.md` §2.2** — infraestrutura Payments alinhada ao estado real.
+- **`CLAUDE.md` §2.4** — "Stripe Account Recovery (P0 bloqueante)" marcado como negado;
+  o antigo T1 (identity CPF→CNPJ) foi substituído por cadastro PJ direto, já que a conta
+  a que ele se referia não existe mais.
+
+### Removed
+
+- Os três price IDs da conta perdida (`price_1TGufH…`, `price_1TGuhy…`, `price_1TGuja…`)
+  deixam de ser apresentados como configuração vigente.
+
+### Notes
+
+- **Lição #48** — documentação que afirma um estado favorável e falso (`✅ Live mode`) é
+  pior que documentação ausente: convida decisões erradas. Drift de doc-vs-reality deve ser
+  corrigido na mesma sessão em que é detectado.
+- **Lição #49** — segredos de provedor (`sk_*`, `whsec_*`) são aplicados pelo operador
+  diretamente no painel do provedor. Não transitam por chat, arquivo ou commit. Apenas
+  identificadores opacos (`acct_*`, `prod_*`, `price_*`, `we_*`) são versionados.
+- **Lição #50** — a Stripe CLI só aceita parâmetros não-flag via `-d "chave=valor"`.
+  `--metadata[k]=v` falha, e sob `| ConvertFrom-Json` a falha é silenciosa: a variável
+  fica vazia e os comandos seguintes criam objetos órfãos sem erro aparente.
+
+---
+
 ## [v0.82.0] — Coverage 80% backend roadmap (T4e + ratchet) + postcss XSS mitigation (S82) — 2026-06-03
 
 ### Added

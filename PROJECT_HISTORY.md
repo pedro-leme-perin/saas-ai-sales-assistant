@@ -7583,3 +7583,112 @@ Após feedback Pedro "se atente para não gastar tokens desnecessários":
 - T10 ADR Bump OTel SDK 2.x (post T6 staging game-day)
 
 ### Anterior: S81-EOD `231fe1e` (Google Workspace + Inter PJ + CCM homologada)
+
+---
+
+## Sessão S83 — 2026-07-30 — Migração para nova conta Stripe: registro e correção de drift
+
+### Contexto de retomada
+
+Intervalo de ~7 semanas sem trabalho no projeto (último commit `79d189a`, 10/06). A sessão
+começou com verificação de identidade do working tree: havia dúvida legítima entre
+`C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL` e uma cópia em
+`OneDrive\Área de Trabalho\Cowork Claude\`. Resolvido pelo **reflog local** — os commits
+S81/S82 foram criados na pasta `Dev\`, e reflog não sobrevive a clone nem a sync. A cópia
+em OneDrive é resíduo de migração anterior (motivada pela corrupção recorrente de working
+tree, lição #5). Pasta canônica confirmada: `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL`.
+
+### Problema encontrado
+
+Auditoria de doc-vs-reality expôs três divergências, todas com origem na mesma causa: o
+trabalho de Stripe feito na sessão anterior nunca chegou ao repositório.
+
+| #   | Divergência                                                               | Gravidade                                                 |
+| --- | ------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | `CLAUDE.md` §2.1 declarava Stripe como `✅ Live mode`                     | Alta — afirmação falsa e favorável                        |
+| 2   | `CLAUDE.md` §2.3 listava 3 price IDs de uma conta perdida                 | Alta — configuração inexistente                           |
+| 3   | `CLAUDE.md` §2.4 mantinha "Stripe Account Recovery" como pendência aberta | Média — já resolvida por negativa                         |
+| 4   | `docs/operations/s83/` existia vazia; runbook prometido nunca criado      | Alta — conhecimento operacional só em transcrição de chat |
+
+A quarta é a mais séria: todo o estado da migração (account id, IDs criados, armadilhas de
+sintaxe da CLI) existia apenas no histórico de conversa. Uma sessão futura que lesse só o
+repositório concluiria que a conta antiga continua ativa.
+
+### Decisão registrada — recovery negada, plano B executado
+
+A recuperação da conta original foi negada pelo Stripe Support. O plano B previsto em
+S81-EOD foi executado: conta nova sob e-mail institucional, a ser verificada diretamente
+como pessoa jurídica.
+
+Custo real da migração, avaliado antes de decidir:
+
+| Fator                       | Avaliação                                  |
+| --------------------------- | ------------------------------------------ |
+| Subscriptions ativas        | Zero — produto pré-launch                  |
+| Invoices/customers a portar | Zero                                       |
+| Mudanças de código          | **Nenhuma** — acoplamento 100% por env var |
+| Retrabalho                  | ~1h de configuração                        |
+
+O invariante que torna isso barato foi decisão de S40: `BillingService` lê tudo de
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e os três `STRIPE_PRICE_*`; nenhum ID Stripe
+aparece hardcoded em produção. Trocar de conta é trocar 6 variáveis de ambiente.
+
+### Estado da migração no fim da sessão
+
+| Fase | Descrição                                       | Status                    |
+| ---- | ----------------------------------------------- | ------------------------- |
+| 0    | Stripe CLI 1.42.10 + `stripe login`             | ✅                        |
+| 1    | TEST: 3 products + 3 prices + webhook 6 eventos | 🟡 parcial — falta smoke  |
+| 2    | Identity verification PJ                        | ⬜ Pedro manual, 1-3 dias |
+| 3    | LIVE mode                                       | ⬜ blocked-by Fase 2      |
+| 4    | Payout Inter PJ                                 | ⬜ blocked-by Fase 2      |
+| 5    | Env vars produção + smoke E2E                   | ⬜ blocked-by Fase 3      |
+
+Conta ativa: `acct_1TgU9WRpJ3I7SP8K`. IDs TEST em `CLAUDE.md` §2.3 e no runbook.
+
+### Mudanças aplicadas
+
+| Arquivo                                               | Natureza                                                              |
+| ----------------------------------------------------- | --------------------------------------------------------------------- |
+| `docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md` | novo, 288L                                                            |
+| `CLAUDE.md`                                           | 6 patches — header 7.12, bloco de atualização, §2.1, §2.2, §2.3, §2.4 |
+| `CHANGELOG.md`                                        | v0.83.0                                                               |
+| `PROJECT_HISTORY.md`                                  | esta seção                                                            |
+| `.gitignore`                                          | artefatos `audit-s*.json`                                             |
+
+Zero mudanças em código, schema, testes ou dependências. Commit doc-only.
+
+### Lições novas
+
+- **#48 — Doc falsamente favorável é pior que doc ausente.** `✅ Live mode` em §2.1
+  sobreviveu a duas sessões após a conta ter sido perdida. Documentação ausente provoca
+  investigação; documentação errada e otimista provoca decisão errada. Corolário operacional:
+  drift detectado é corrigido na mesma sessão, antes de qualquer trabalho novo.
+- **#49 — Segredos não passam pelo canal de trabalho.** A sessão anterior encerrou em
+  bloqueio de política ao solicitar que chaves fossem coladas no chat. O procedimento
+  correto é o operador aplicá-las direto no painel do provedor. Só identificadores opacos
+  (`acct_*`, `prod_*`, `price_*`, `we_*`) são versionados — não carregam autorização.
+- **#50 — Stripe CLI: `-d "chave=valor"` para tudo que não é flag de primeira classe.**
+  `--metadata[k]=v` e `--description` não existem. Sob `| ConvertFrom-Json` a falha é
+  silenciosa: variável vazia, e os `prices create` seguintes produzem prices órfãos sem erro.
+- **#51 — Reflog identifica o working tree canônico.** Diante de cópias duplicadas do repo,
+  `git reflog` distingue o diretório onde os commits foram realmente criados; um clone ou
+  uma pasta sincronizada não reproduz esse histórico.
+
+### Próximos passos
+
+**Pedro, externo (P0):**
+
+- 2FA hardening na conta nova — passkey + TOTP + 10 backup codes em 2 locais (lição #45)
+- Identity verification PJ — CNPJ 67.084.607/0001-78, contrato social, RG, comprovante PJ
+
+**Autônomo, desbloqueado:**
+
+- Smoke TEST via `stripe listen --forward-to localhost` contra backend local
+- T4f: amplificar próximo service (coaching / csat / assignment-rules / sla-escalation)
+- T11: `ws ~8.20.1` (prioritário — WebSocket em runtime), depois `qs ~6.15.2`, `uuid ~11.1.1`
+- T-ratchet: 73/62/71/73 → 75/64/73/75 quando o real medido atingir ≥78/68/76/78
+
+**Bloqueado por credenciais:** T6 staging · T7 k6 stress · T8 WhatsApp Meta · T10 ADR OTel 2.x
+
+### Anterior: S82 `79d189a` (coverage T4e + ratchet + postcss + allowlist GHSA-slug)

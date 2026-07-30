@@ -33,6 +33,7 @@ Livros Para Conteúdo/
 chunks_*.json
 scripts/test-invoke.bat
 audit-out.json
+audit-s*.json
 
 # S81: per-session commit log artifacts (regenerated each run)
 scripts/*.log
@@ -68,3 +69,7 @@ scripts/*.log
 /scripts/s82-finalize-commit-msg.txt
 /scripts/s82-restore-security-commit.*
 /scripts/s82-restore-security-commit-msg.txt
+
+# S83 session wrappers (transient)
+/scripts/s83-doc-hygiene-commit.*
+/scripts/s83-doc-hygiene-commit-msg.txt
