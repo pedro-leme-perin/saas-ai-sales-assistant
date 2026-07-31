@@ -71,5 +71,6 @@ scripts/*.log
 /scripts/s82-restore-security-commit-msg.txt
 
 # S83 session wrappers (transient)
-/scripts/s83-doc-hygiene-commit.*
-/scripts/s83-doc-hygiene-commit-msg.txt
+/scripts/s83-*.bat
+/scripts/s83-*.ps1
+/scripts/s83-*-msg.txt

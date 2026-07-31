@@ -31,14 +31,60 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # S83: needed by the failure-alert step, which opens/updates a GitHub Issue.
+    # `contents: read` is the checkout minimum; `issues: write` is the alert channel.
+    # Declared explicitly so the workflow does not depend on the repository's
+    # default GITHUB_TOKEN permission setting, which can be tightened later.
+    permissions:
+      contents: read
+      issues: write
+
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install postgresql-client + awscli
+      # S83: rewritten. Previous version ran `apt-get install postgresql-client awscli`
+      # and broke on the ubuntu-latest image. Two independent problems:
+      #   (a) awscli — the runner image already ships AWS CLI v2 at /usr/local/bin/aws.
+      #       Installing the apt package (v1) is redundant and can conflict.
+      #   (b) postgresql-client — the distro package tracks the Ubuntu release, not the
+      #       server. pg_dump REFUSES to dump a server newer than itself ("aborting
+      #       because of server version mismatch"). Pinning to the PGDG repo and taking
+      #       the newest client is forward-compatible: a newer pg_dump handles older
+      #       servers, never the reverse.
+      - name: Install postgresql-client (PGDG) + verify awscli
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client awscli
+          set -euo pipefail
+
+          # awscli: use the preinstalled v2 when present; only install if genuinely absent.
+          if command -v aws >/dev/null 2>&1; then
+            echo "::notice::aws already present — $(aws --version 2>&1)"
+          else
+            echo "::warning::aws not found on runner image — installing v2 from upstream"
+            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -q /tmp/awscliv2.zip -d /tmp
+            sudo /tmp/aws/install
+          fi
+
+          # postgresql-client from PGDG (apt.postgresql.org), newest available client.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+
+          # Retry: apt mirrors on hosted runners fail transiently often enough to matter.
+          for attempt in 1 2 3; do
+            if sudo apt-get update -qq; then break; fi
+            echo "::warning::apt-get update failed (attempt $attempt/3) — retrying in 5s"
+            sleep 5
+          done
+
+          sudo apt-get install -y -qq postgresql-client-17
+
           pg_dump --version
+          pg_restore --version
           aws --version
 
       - name: Capture timestamp + git context
@@ -164,12 +210,56 @@ jobs:
             echo "| Trigger | ${{ github.event_name }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Sentry alert on failure
-        if: failure() && env.SENTRY_DSN != ''
-        env:
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-        run: |
-          curl -X POST "${SENTRY_DSN%%@*}@${SENTRY_DSN#*@}/store/" \
-            -H 'Content-Type: application/json' \
-            -d "{\"message\":\"Postgres nightly backup FAILED — workflow_run=${GITHUB_RUN_ID}\",\"level\":\"error\",\"tags\":{\"backup\":\"postgres\"}}" \
-            || echo "::warning::Sentry alert failed (non-fatal)"
+      # S83: rewritten. The previous guard was `if: failure() && env.SENTRY_DSN != ''`
+      # with SENTRY_DSN declared in the step's own `env:` block. A step's `if:` is
+      # evaluated BEFORE that block is applied, so the expression always saw an empty
+      # string, the condition was always false, and the alert NEVER fired — not once.
+      # The backup failed every night from ~2026-06 to 2026-07-30 in complete silence.
+      #
+      # Replacement uses a GitHub Issue as the alert channel: no external secret to
+      # misconfigure, visible in the repo, and deduplicated by the `backup-failure`
+      # label so a persistent failure produces one thread, not fifty.
+      - name: Open GitHub issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = 'backup-failure';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: label,
+            });
+
+            const body = [
+              '**O backup noturno do Postgres falhou.**',
+              '',
+              `- Run: ${runUrl}`,
+              `- Commit: \`${context.sha}\``,
+              `- Quando: ${new Date().toISOString()}`,
+              '',
+              'Enquanto isto estiver aberto, **não existe backup offsite do banco de producao**.',
+              'Procedimento de recuperacao: `docs/operations/runbooks/disaster-recovery.md`.',
+            ].join('\n');
+
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+              core.warning(`Backup failure appended to existing issue #${existing.data[0].number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'Backup noturno do Postgres esta falhando',
+                body,
+                labels: [label],
+              });
+              core.warning(`Backup failure issue opened: #${created.data.number}`);
+            }
