@@ -34,6 +34,8 @@ chunks_*.json
 scripts/test-invoke.bat
 audit-out.json
 audit-s*.json
+ci-fail.log
+ci-*.log
 
 # S81: per-session commit log artifacts (regenerated each run)
 scripts/*.log
