@@ -81,11 +81,59 @@ jobs:
             sleep 5
           done
 
-          sudo apt-get install -y -qq postgresql-client-17
+          # Meta-package from PGDG always resolves to the newest client available,
+          # so this does not need editing when Neon upgrades its server major.
+          sudo apt-get install -y -qq postgresql-client
 
+          # /usr/bin/pg_dump is NOT the real binary on Debian/Ubuntu — it is
+          # pg_wrapper, which picks a versioned binary from /usr/lib/postgresql/*/bin.
+          # The runner image ships postgresql-client-16, and the wrapper kept
+          # resolving to it even after 17 was installed, producing:
+          #   "aborting because of server version mismatch
+          #    server version: 17.10; pg_dump version: 16.14"
+          # Pin PATH to the highest versioned bindir so every later step gets the
+          # newest client. Sorting with `sort -V` keeps this correct past v9→v10.
+          PG_BIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)"
+          if [[ -z "$PG_BIN" ]]; then
+            echo "::error::no postgresql client bindir found under /usr/lib/postgresql"
+            exit 1
+          fi
+          echo "$PG_BIN" >> "$GITHUB_PATH"
+          export PATH="$PG_BIN:$PATH"
+
+          echo "::notice::using client from $PG_BIN"
           pg_dump --version
           pg_restore --version
           aws --version
+
+      # S83: fail fast with a readable message. Without this, a missing secret
+      # surfaces as `connection to server on socket "/var/run/postgresql/..."
+      # failed`, which points at a local Postgres that was never involved and
+      # sends the reader down the wrong path entirely.
+      - name: Verify required secrets are present
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_BACKUP_RO }}
+          R2_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          R2_SECRET: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          set -uo pipefail
+          MISSING=""
+          [[ -z "${DATABASE_URL:-}" ]] && MISSING="$MISSING DATABASE_URL_BACKUP_RO"
+          [[ -z "${R2_KEY_ID:-}"    ]] && MISSING="$MISSING R2_BACKUP_ACCESS_KEY_ID"
+          [[ -z "${R2_SECRET:-}"    ]] && MISSING="$MISSING R2_BACKUP_SECRET_ACCESS_KEY"
+          [[ -z "${R2_ACCOUNT:-}"   ]] && MISSING="$MISSING R2_ACCOUNT_ID"
+          if [[ -n "$MISSING" ]]; then
+            echo "::error::Missing repository secrets:$MISSING"
+            {
+              echo "## Backup aborted — secrets ausentes"
+              echo ""
+              echo "Configurar em Settings > Secrets and variables > Actions:"
+              for s in $MISSING; do echo "- \`$s\`"; done
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "::notice::all 4 required secrets present"
 
       - name: Capture timestamp + git context
         id: ctx
