@@ -39,7 +39,8 @@ export default () => ({
       maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '1000', 10),
     },
     anthropic: {
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      // S84: mesmo fallback do ai-manager.service.ts. Ver comentario la.
+      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.CLAUDE_API_KEY,
     },
   },
 

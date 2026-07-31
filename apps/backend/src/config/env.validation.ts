@@ -37,6 +37,9 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   OPENAI_MAX_TOKENS: z.coerce.number().int().positive().default(1000),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // S84: nome legado, ainda em uso na Railway. Remover quando a variavel for
+  // renomeada para ANTHROPIC_API_KEY no painel.
+  CLAUDE_API_KEY: z.string().min(1).optional(),
   // RAG Knowledge Base (uses OPENAI_API_KEY for embeddings — no extra key needed)
   // Optional tuning vars — safe defaults apply when absent.
   RAG_DEFAULT_TOP_K: z.coerce.number().int().min(1).max(20).default(5),

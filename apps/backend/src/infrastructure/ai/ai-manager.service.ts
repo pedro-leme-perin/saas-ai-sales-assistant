@@ -62,8 +62,17 @@ export class AIManagerService {
       this.logger.log('✅ OpenAI provider initialized');
     }
 
-    // Claude
-    const claudeKey = this.configService.get<string>('CLAUDE_API_KEY');
+    // Claude / Anthropic
+    // S84: aceita os dois nomes. O codigo estava dividido - este ponto lia
+    // CLAUDE_API_KEY (e e quem de fato instancia o provider), enquanto
+    // configuration.ts e env.validation.ts declaravam ANTHROPIC_API_KEY, que
+    // ninguem consumia. Trocar a variavel no painel sem esta ponte derrubaria
+    // o provider Claude sem erro visivel. ANTHROPIC_API_KEY e o nome canonico
+    // (convencao do @anthropic-ai/sdk); CLAUDE_API_KEY fica como fallback de
+    // compatibilidade ate a variavel ser renomeada na Railway.
+    const claudeKey =
+      this.configService.get<string>('ANTHROPIC_API_KEY') ??
+      this.configService.get<string>('CLAUDE_API_KEY');
     if (claudeKey) {
       this.providers.set('claude', new ClaudeProvider({ apiKey: claudeKey, timeout: 10000 }));
       this.logger.log('✅ Claude provider initialized');
