@@ -62,25 +62,25 @@ Falha aqui nao e recuperavel com dinheiro depois. Exige vigilancia ativa.
 
 ## 3. Detalhamento por fornecedor
 
-| #   | Fornecedor               | Plano                  | Custo               | Ciclo                   | Conta dona                       | Renovacao       | Status                                  |
-| --- | ------------------------ | ---------------------- | ------------------- | ----------------------- | -------------------------------- | --------------- | --------------------------------------- |
-| 1   | **Railway**              | Hobby                  | US$ 5/mes + uso     | mensal                  | `leme.baseapr@gmail.com` ⚠️      | 30 de cada mes  | ✅ ativo desde 2026-07-30               |
-| 2   | **Vercel**               | Hobby                  | US$ 0               | —                       | ?                                | —               | ✅ ativo                                |
-| 3   | **Neon**                 | ? (provavel Free)      | ?                   | ?                       | ?                                | —               | ✅ ativo — **PITR nao confirmado (A7)** |
-| 4   | **Upstash**              | Free / pay-per-request | ~US$ 0              | por uso                 | ?                                | —               | ✅ presumido                            |
-| 5   | **Cloudflare — DNS/CDN** | Free                   | US$ 0               | —                       | `leme.baseapr@gmail.com` ⚠️      | —               | ✅ ativo                                |
-| 6   | **Cloudflare — dominio** | Registrar at cost      | ~US$ 10/ano         | anual                   | `leme.baseapr@gmail.com` ⚠️      | **? verificar** | ✅ ativo                                |
-| 7   | **Cloudflare R2**        | pay-as-you-go          | centavos            | por uso                 | idem                             | —               | ✅ `uploads` proxied                    |
-| 8   | **Clerk**                | Free (≤10k MAU)        | US$ 0               | —                       | ?                                | —               | ✅ 5 registros DNS ok                   |
-| 9   | **Google Workspace**     | Business Starter       | ~R$ 35/usuario/mes  | mensal                  | ?                                | ?               | ✅ MX respondendo                       |
-| 10  | **Twilio**               | pay-as-you-go          | ~US$ 1,15/mes + uso | saldo                   | ?                                | —               | **? saldo nao verificado**              |
-| 11  | **OpenAI**               | creditos pre-pagos     | por uso             | creditos expiram em 12m | ?                                | —               | **? saldo nao verificado**              |
-| 12  | **Deepgram**             | creditos pre-pagos     | por uso             | creditos expiram        | ?                                | —               | **? saldo nao verificado**              |
-| 13  | **Resend**               | Free (3k e-mails/mes)  | US$ 0               | —                       | ?                                | —               | ✅ DKIM + SPF ok                        |
-| 14  | **Sentry**               | Developer (free)       | US$ 0               | —                       | ?                                | —               | ✅ presumido                            |
-| 15  | **Axiom**                | Free                   | US$ 0               | —                       | ?                                | —               | ✅ presumido                            |
-| 16  | **GitHub**               | Free                   | US$ 0               | —                       | `pedro-leme-perin`               | —               | ✅ ativo                                |
-| 17  | **Stripe**               | sem custo fixo         | % por transacao     | —                       | `pedro.perin@theiadvisor.com` ✅ | —               | ⚠️ LIVE pendente de Identity PJ         |
+| #   | Fornecedor               | Plano                            | Custo               | Ciclo                   | Conta dona                       | Renovacao       | Status                                                                                                               |
+| --- | ------------------------ | -------------------------------- | ------------------- | ----------------------- | -------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Railway**              | Hobby                            | US$ 5/mes + uso     | mensal                  | `leme.baseapr@gmail.com` ⚠️      | 30 de cada mes  | ✅ ativo desde 2026-07-30                                                                                            |
+| 2   | **Vercel**               | Hobby                            | US$ 0               | —                       | ?                                | —               | ✅ ativo                                                                                                             |
+| 3   | **Neon**                 | **Free** (confirmado 2026-07-31) | US$ 0               | —                       | ?                                | —               | ✅ ativo — projeto `sales-ai`, branches `production` + `development`. **Retencao de PITR ainda nao confirmada (A7)** |
+| 4   | **Upstash**              | Free / pay-per-request           | ~US$ 0              | por uso                 | ?                                | —               | ✅ presumido                                                                                                         |
+| 5   | **Cloudflare — DNS/CDN** | Free                             | US$ 0               | —                       | `leme.baseapr@gmail.com` ⚠️      | —               | ✅ ativo                                                                                                             |
+| 6   | **Cloudflare — dominio** | Registrar at cost                | ~US$ 10/ano         | anual                   | `leme.baseapr@gmail.com` ⚠️      | **? verificar** | ✅ ativo                                                                                                             |
+| 7   | **Cloudflare R2**        | pay-as-you-go                    | centavos            | por uso                 | idem                             | —               | ✅ `uploads` proxied                                                                                                 |
+| 8   | **Clerk**                | Free (≤10k MAU)                  | US$ 0               | —                       | ?                                | —               | ✅ 5 registros DNS ok                                                                                                |
+| 9   | **Google Workspace**     | Business Starter                 | ~R$ 35/usuario/mes  | mensal                  | ?                                | ?               | ✅ MX respondendo                                                                                                    |
+| 10  | **Twilio**               | pay-as-you-go                    | ~US$ 1,15/mes + uso | saldo                   | ?                                | —               | **? saldo nao verificado**                                                                                           |
+| 11  | **OpenAI**               | creditos pre-pagos               | por uso             | creditos expiram em 12m | ?                                | —               | **? saldo nao verificado**                                                                                           |
+| 12  | **Deepgram**             | creditos pre-pagos               | por uso             | creditos expiram        | ?                                | —               | **? saldo nao verificado**                                                                                           |
+| 13  | **Resend**               | Free (3k e-mails/mes)            | US$ 0               | —                       | ?                                | —               | ✅ DKIM + SPF ok                                                                                                     |
+| 14  | **Sentry**               | Developer (free)                 | US$ 0               | —                       | ?                                | —               | ✅ presumido                                                                                                         |
+| 15  | **Axiom**                | Free                             | US$ 0               | —                       | ?                                | —               | ✅ presumido                                                                                                         |
+| 16  | **GitHub**               | Free                             | US$ 0               | —                       | `pedro-leme-perin`               | —               | ✅ ativo                                                                                                             |
+| 17  | **Stripe**               | sem custo fixo                   | % por transacao     | —                       | `pedro.perin@theiadvisor.com` ✅ | —               | ⚠️ LIVE pendente de Identity PJ                                                                                      |
 
 ---
 
@@ -104,7 +104,36 @@ O recibo da Railway (`LV3KXVXW-0003`) e emitido para `leme.baseapr@gmail.com`. S
 despesas operacionais da THEIADVISOR SAAS TECNOLOGIA LTDA faturadas para PF. Nota em nome
 de PF nao compoe despesa dedutivel da PJ e complica a contabilidade.
 
-### 4.3 2FA sem redundancia
+### 4.3 Credenciais expostas no canal de trabalho — risco aceito
+
+**Data:** 2026-07-31 · **Decisao:** Pedro Leme Perin · **Status:** aceito, nao mitigado
+
+Durante a configuracao do backup, duas credenciais foram enviadas por captura de tela e
+texto no canal de trabalho, em vez de copiadas do painel de origem direto para o painel
+de destino:
+
+| Credencial                             | Alcance                                                                  | Rotacionada? |
+| -------------------------------------- | ------------------------------------------------------------------------ | ------------ |
+| Token R2 `github-actions-backup`       | Leitura e escrita **apenas** no bucket `theiadvisor-backups`             | Nao          |
+| `neondb_owner` do Postgres de producao | **Total** — leitura, escrita e DDL em todos os dados de todos os tenants | Nao          |
+
+A recomendacao tecnica foi rotacionar ambas. A decisao registrada foi manter, pelo custo
+de interrupcao envolvido — rotacionar a credencial do banco exige atualizar Railway e
+GitHub em sincronia, com janela de indisponibilidade.
+
+**Exposicao residual:** quem tiver acesso ao historico daquela conversa, aos arquivos de
+captura de tela na maquina local, ou a uma eventual exportacao desse historico, obtem
+acesso total ao banco de producao. Sob a LGPD, esse banco contem dados pessoais de
+titulares — contatos, transcricoes de ligacoes, mensagens.
+
+**Gatilho para revisao obrigatoria:** antes do primeiro cliente pagante. Operar com dados
+de titulares reais nesta condicao seria dificil de defender perante a ANPD.
+
+**Procedimento em vigor daqui em diante:** segredo vai do painel de origem direto para o
+painel de destino. Identificadores opacos (`acct_*`, `price_*`, `we_*`, account IDs) podem
+circular; qualquer valor rotulado _secret_, _token_ ou _password_, nao.
+
+### 4.4 2FA sem redundancia
 
 Confirmado apenas para a conta Stripe nova (e ainda pendente de hardening). Para os demais
 fornecedores, desconhecido. A licao #45 — passkey unica sem backup codes — ja custou uma
@@ -139,14 +168,14 @@ Deepgram, e a data do proximo ciclo na Railway.
 
 ## 6. Pendencias deste documento
 
-| ID  | O que falta                                   | Bloqueia                         |
-| --- | --------------------------------------------- | -------------------------------- |
-| P1  | Plano e retencao de PITR da Neon              | Saber o RPO real do banco        |
-| P2  | Saldo Twilio                                  | Risco Tier 1 — perda do numero   |
-| P3  | Saldo/validade dos creditos OpenAI e Deepgram | Funcionamento do produto         |
-| P4  | Conta dona de cada fornecedor (coluna `?`)    | Avaliacao de risco de governanca |
-| P5  | Data de renovacao do dominio                  | Risco Tier 1                     |
-| P6  | Estado do 2FA por fornecedor                  | Risco de perda de conta          |
+| ID  | O que falta                                         | Bloqueia                         |
+| --- | --------------------------------------------------- | -------------------------------- |
+| P1  | Retencao de PITR da Neon (plano Free ja confirmado) | Saber o RPO real do banco        |
+| P2  | Saldo Twilio                                        | Risco Tier 1 — perda do numero   |
+| P3  | Saldo/validade dos creditos OpenAI e Deepgram       | Funcionamento do produto         |
+| P4  | Conta dona de cada fornecedor (coluna `?`)          | Avaliacao de risco de governanca |
+| P5  | Data de renovacao do dominio                        | Risco Tier 1                     |
+| P6  | Estado do 2FA por fornecedor                        | Risco de perda de conta          |
 
 Preencher exige acesso autenticado a cada painel. Cada linha `?` e um risco nao medido —
 nao um risco ausente.

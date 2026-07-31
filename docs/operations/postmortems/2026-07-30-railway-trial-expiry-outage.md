@@ -103,6 +103,26 @@ deveria ter alertado. Nao alertou, por um bug proprio (ver abaixo).
 
 ## Fatores contribuintes
 
+### 0. O backup nunca funcionou — descoberto em 2026-07-31
+
+Correcao factual a este postmortem, feita no dia seguinte a redacao original.
+
+A primeira versao afirmava que o backup "falhava todas as noites". A investigacao
+posterior mostrou algo pior: **ele nunca rodou com sucesso uma unica vez desde que foi
+escrito em S71**. Os tres secrets que o workflow exige — `DATABASE_URL_BACKUP_RO`,
+`R2_BACKUP_ACCESS_KEY_ID` e `R2_BACKUP_SECRET_ACCESS_KEY` — nunca foram criados no
+repositorio. O `CLAUDE.md` registrava que eram "exigidos"; ninguem verificou que tinham
+sido de fato configurados.
+
+Consequencia para o RPO: o `disaster-recovery.md` descrevia o backup offsite como rede de
+seguranca de 24h complementando o PITR da Neon. Nao havia rede nenhuma. O unico ponto de
+recuperacao real, durante todo o periodo, foi o PITR — no plano **Free**, cuja janela e
+curta.
+
+O primeiro backup real do projeto foi produzido em **2026-07-31T03:53:39Z**:
+`postgres/2026-07-31/theiadvisor-prod-2026-07-31T03-53-39Z.dump`, 191.749 bytes,
+438 linhas de TOC, sha256 `b7d4d213d4db...`, com cliente PostgreSQL 18.
+
 ### 1. O alerta de falha do backup nunca funcionou
 
 ```yaml
@@ -175,9 +195,11 @@ que e a caixa efetivamente monitorada para assuntos da empresa.
 
 | ID  | Acao                                                                                                        | Owner  | Prazo      | Tipo        |
 | --- | ----------------------------------------------------------------------------------------------------------- | ------ | ---------- | ----------- |
-| A1  | Corrigir install do workflow de backup (PGDG + aws preinstalado)                                            | Cowork | 2026-07-30 | Mitigacao   |
-| A2  | Substituir alerta quebrado por GitHub Issue deduplicada por label                                           | Cowork | 2026-07-30 | Deteccao    |
-| A3  | Disparar backup manual e confirmar artefato no R2                                                           | Pedro  | 2026-07-31 | Verificacao |
+| A1  | ✅ Corrigir install do workflow de backup (PGDG + aws preinstalado)                                         | Cowork | 2026-07-30 | Mitigacao   |
+| A2  | ✅ Substituir alerta quebrado por GitHub Issue deduplicada por label                                        | Cowork | 2026-07-30 | Deteccao    |
+| A3  | ✅ Disparar backup manual e confirmar artefato no R2                                                        | Pedro  | 2026-07-31 | Verificacao |
+| A3b | ✅ Criar os 4 secrets ausentes no repositorio                                                               | Pedro  | 2026-07-31 | Mitigacao   |
+| A3c | ✅ Guard de secrets ausentes com mensagem legivel                                                           | Cowork | 2026-07-31 | Deteccao    |
 | A4  | Monitor de uptime externo em `/health` + apex, com alerta fora do canal da aplicacao                        | Pedro  | 2026-08-01 | Deteccao    |
 | A5  | Alerta de cobranca em Railway, Cloudflare, Neon, Upstash                                                    | Pedro  | 2026-08-01 | Prevencao   |
 | A6  | `docs/operations/INFRA_COST_INVENTORY.md` — 13 fornecedores, custo, ciclo, renovacao, dono                  | Cowork | 2026-08-01 | Prevencao   |
@@ -205,6 +227,17 @@ cobertura.
 76% de cobertura e circuit breakers em 7 integracoes ficou oito semanas fora do ar por
 uma fatura de US$5. Rigor em engenharia de software nao substitui rigor em engenharia de
 operacao — e a segunda estava ausente do repositorio inteiro.
+
+**#56 — `/usr/bin/pg_dump` nao e o binario, e o `pg_wrapper`.** Em Debian e Ubuntu ele
+seleciona uma versao entre `/usr/lib/postgresql/*/bin`. Instalar `postgresql-client-17`
+nao garante que o 17 sera usado: a imagem do runner ja trazia o 16 e o wrapper continuou
+apontando para ele, produzindo `aborting because of server version mismatch`. Fixar o
+PATH no bindir de maior versao (`ls -d ... | sort -V | tail -1`).
+
+**#57 — Infraestrutura declarada em codigo nao e infraestrutura existente.** O workflow de
+backup estava escrito, versionado e completamente inerte por falta de tres secrets que
+ninguem criou. Codigo de operacao so conta como cobertura depois de executar com sucesso
+ao menos uma vez. Antes disso e intencao, nao capacidade.
 
 **#55 — `if:` de step nao enxerga o `env:` do proprio step.** Para condicionar um step a
 um segredo, declare a variavel no nivel do **job**, ou faca a verificacao dentro do
