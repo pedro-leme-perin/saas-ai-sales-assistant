@@ -17,6 +17,31 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { ServerOptions } from 'socket.io';
 
+/**
+ * Estado observavel do adapter de WebSocket.
+ *
+ * S84: o fallback para adapter em memoria abaixo e correto (padrao Timeouts,
+ * Release It!), mas era MUDO. Em 2026-07-31 descobriu-se que os dois bancos
+ * Redis do Upstash estavam deletados havia tempo indeterminado: o backend
+ * degradou exatamente como projetado, escreveu o erro no log e ninguem viu,
+ * porque /health so verificava Postgres.
+ *
+ * Degradacao graciosa sem alarme nao e resiliencia - e uma falha que aprendeu
+ * a ficar quieta (licao #52: observabilidade interna nao detecta ausencia).
+ * Este objeto existe para que o health check possa reportar o estado real.
+ */
+export const redisAdapterStatus: {
+  mode: 'redis' | 'in-memory' | 'unknown';
+  connected: boolean;
+  lastError: string | null;
+  checkedAt: string | null;
+} = {
+  mode: 'unknown',
+  connected: false,
+  lastError: null,
+  checkedAt: null,
+};
+
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter> | null = null;
   private readonly logger = new Logger(RedisIoAdapter.name);
@@ -33,6 +58,10 @@ export class RedisIoAdapter extends IoAdapter {
 
     if (!redisUrl) {
       this.logger.warn('⚠️ No REDIS_URL — using in-memory adapter (single instance only)');
+      redisAdapterStatus.mode = 'in-memory';
+      redisAdapterStatus.connected = false;
+      redisAdapterStatus.lastError = 'REDIS_URL nao configurada';
+      redisAdapterStatus.checkedAt = new Date().toISOString();
       return;
     }
 
@@ -50,9 +79,17 @@ export class RedisIoAdapter extends IoAdapter {
 
       this.adapterConstructor = createAdapter(pubClient, subClient);
       this.logger.log('✅ Redis Adapter connected — WebSocket can scale horizontally');
+      redisAdapterStatus.mode = 'redis';
+      redisAdapterStatus.connected = true;
+      redisAdapterStatus.lastError = null;
+      redisAdapterStatus.checkedAt = new Date().toISOString();
     } catch (error) {
       this.logger.error('❌ Redis Adapter failed — falling back to in-memory adapter');
       this.logger.error(error instanceof Error ? error.message : String(error));
+      redisAdapterStatus.mode = 'in-memory';
+      redisAdapterStatus.connected = false;
+      redisAdapterStatus.lastError = error instanceof Error ? error.message : String(error);
+      redisAdapterStatus.checkedAt = new Date().toISOString();
       // Continue without Redis (single instance only)
     }
   }

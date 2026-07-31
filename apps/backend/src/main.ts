@@ -180,7 +180,7 @@ async function bootstrap() {
   // /api/health/ready 200. O smoke test de staging e o k6/load-test.js
   // apontavam para as rotas 404. Ver PROJECT_HISTORY S84.
   app.setGlobalPrefix('api', {
-    exclude: ['health', 'health/ready', 'health/live'],
+    exclude: ['health', 'health/ready', 'health/live', 'health/deps'],
   });
 
   const config = new DocumentBuilder()
