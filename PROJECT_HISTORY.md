@@ -7849,3 +7849,159 @@ check em `/api/health` · limpar raiz do repo
 floor 73/62/71/73) · moderates residuais (`qs`, `uuid`) · staging nunca provisionado
 
 ### Anterior: S83 `7ba63c9` (incidente SEV1 Railway + backup que nunca existiu)
+
+---
+
+## Sessao S84 (continuacao) — 2026-07-31 — Fechamento operacional pos-incidente
+
+A primeira metade da sessao zerou os 19 advisories HIGH. A segunda metade saiu
+do repositorio para o painel dos provedores, e foi la que apareceram os achados
+mais serios — nenhum deles estava no backlog.
+
+### Achado 1 — as correcoes de seguranca nao estavam em producao
+
+O `Watch Paths` do servico na Railway continha apenas:
+
+```
+/apps/backend/**
+/packages/shared/**
+```
+
+`pnpm-lock.yaml` e o `package.json` da raiz nao estavam na lista. Os quatro
+commits de dependencia de hoje apareceram no historico da Railway como
+`SKIPPED — No changes to watched files`. O deploy ativo era de 16 horas antes.
+
+Ou seja: CI verde, repositorio corrigido, **producao rodando as versoes
+vulneraveis**. Sem esse achado, todo o trabalho do P0.1 teria sido cosmetico, e
+o CI verde daria exatamente a impressao contraria.
+
+Corrigido: `/pnpm-lock.yaml` e `/package.json` adicionados ao Watch Paths.
+Redeploy manual levou as 16 correcoes ao runtime (verificado: uptime 297s).
+
+### Achado 2 — o outage de S83 destruiu o Redis por inatividade
+
+Os dois bancos Redis do Upstash estavam DELETED, com `REDIS_URL` ainda
+apontando para eles. O proprio console do Upstash explica:
+
+> Free databases are deleted by automation after 14 days of inactivity.
+
+O backend ficou ~8 semanas fora do ar. Sem backend, zero comandos no Redis. Aos
+14 dias, a automacao apagou os dois bancos.
+
+**O postmortem de S83 registrou "zero perda de dados".** Estava incompleto: a
+indisponibilidade prolongada destruiu um recurso de infraestrutura por
+consequencia, e a restauracao do servico principal nao o trouxe de volta. O
+dano sobreviveu ao incidente e ninguem soube por mais de um mes.
+
+### Achado 3 — a degradacao graciosa bem-feita foi o que escondeu a falha
+
+O `RedisIoAdapter` fazia tudo certo: timeout de 5s, try/catch, fallback para
+adapter em memoria — padrao Timeouts do Release It!, corretamente aplicado. O
+sistema sobreviveu exatamente como projetado.
+
+E foi justamente por isso que ninguem soube. O fallback so escrevia
+`logger.error`, e `/health` verificava apenas Postgres. A perda de capacidade
+ficou invisivel para todo mecanismo de deteccao existente.
+
+Impacto real: o ADR-004 (Redis adapter para escala horizontal de WebSocket) nao
+estava em vigor. Com 1 replica, inofensivo. Com 2+, eventos de WebSocket so
+alcancariam clientes da mesma instancia — intermitente e dificil de
+diagnosticar.
+
+Corrigido em `92b98f3`: `redisAdapterStatus` exportado pelo adapter, `/health`
+com status em tres niveis (ok / degraded / unhealthy) e novo `GET /health/deps`
+devolvendo 503 quando qualquer dependencia esta degradada. `/health/deps` e
+separado de proposito: `/health` e o healthcheck de deploy da Railway e o alvo
+do monitor de uptime, e uma queda de Redis nao pode bloquear deploy nem abrir
+incidente de "fora do ar".
+
+O ciclo fechou de forma verificavel: o monitor foi criado enquanto
+`/health/deps` retornava 503 com `getaddrinfo ENOTFOUND
+obliging-sole-64665.upstash.io`; o Redis foi recriado e a `REDIS_URL`
+atualizada; o endpoint virou 200 com `redis: ok, mode: redis` e o monitor ficou
+verde sozinho. O mecanismo provou que detecta os dois estados.
+
+### Achado 4 — o item 12 do backlog derrubaria o provider Claude
+
+O backlog pedia renomear `CLAUDE_API_KEY` para `ANTHROPIC_API_KEY` na Railway,
+alegando "provider Claude inativo hoje". A premissa estava errada:
+
+| Arquivo                    | Le                  | Efeito                          |
+| -------------------------- | ------------------- | ------------------------------- |
+| `ai-manager.service.ts:66` | `CLAUDE_API_KEY`    | instancia o provider de fato    |
+| `configuration.ts:42`      | `ANTHROPIC_API_KEY` | ninguem consumia — config morta |
+| `env.validation.ts:39`     | `ANTHROPIC_API_KEY` | validava var nunca definida     |
+
+A Railway define `CLAUDE_API_KEY`, entao o provider **esta** ativo. Renomear no
+painel sem tocar no codigo faria o `ai-manager` nao achar chave nenhuma: o
+provider deixaria de ser registrado, sem excecao e sem log de erro, e o fallback
+de IA passaria de 3 para 2 provedores silenciosamente.
+
+Corrigido: os tres pontos aceitam `ANTHROPIC_API_KEY ?? CLAUDE_API_KEY`. A
+variavel pode ser renomeada em qualquer ordem, sem janela de quebra.
+
+### Achado 5 — o dominio nao tem SPF nem DMARC
+
+Consultado direto na fonte, nao pelo painel:
+
+```
+TXT apex:  google-site-verification=... apenas  -> SPF nao existe
+DMARC:     NXDOMAIN                             -> nao existe
+MX:        1 smtp.google.com                    -> Google Workspace ativo
+```
+
+O dominio envia e-mail transacional (DKIM do Resend presente em
+`resend._domainkey`) sem nenhuma protecao contra falsificacao. Qualquer servidor
+pode enviar como `@theiadvisor.com` e o destinatario nao tem politica para
+consultar. Pendente de aplicacao — a extensao do navegador perdeu permissao de
+site no painel da Cloudflare.
+
+### Outros itens fechados
+
+- **Uptime externo** (P0.2): 3 monitores em `/health`, `/health/deps` e
+  `www.theiadvisor.com`, checagem a cada 5 min. Alerta de DOWN **comprovado com
+  incidente real** (monitor descartavel contra rota 404), nao apenas com o botao
+  de teste. Fecha a licao #53 com evidencia.
+- **Billing Railway** (P0.3): corte em $50, alerta por e-mail em $10. O compute
+  nao tinha limite nenhum antes.
+- **Healthcheck da Railway**: estava VAZIO. Qualquer deploy que subisse quebrado
+  seria marcado como bem-sucedido. Configurado para `/health` e ja exercitado.
+- **PITR da Neon** (P1.4): respondido por verificacao, nao por alteracao. Janela
+  em **6h**, teto do plano Free. RPO real = 6h, com o backup noturno em R2 como
+  segundo nivel. A hipotese inicial de que estaria em 0h estava errada.
+- **Limpeza da raiz** (P2.14): 17 arquivos nao rastreados movidos para
+  `_to_delete/`. Nenhum estava versionado.
+
+### Licoes novas
+
+- **#63 — Corrigir no repositorio nao e corrigir em producao.** Um filtro de
+  deploy (Watch Paths, path filters de CI, regra de monorepo) pode silenciar a
+  entrega inteira enquanto o CI verde afirma o contrario. Depois de qualquer
+  commit de seguranca, verificar no runtime, nao no pipeline.
+- **#64 — Servicos que dependem de atividade morrem durante o proprio
+  incidente.** Free tiers com politica de inatividade, tokens com expiracao por
+  desuso, filas que descartam por TTL. Restaurar o servico principal nao
+  restaura o que morreu por consequencia dele. Todo postmortem de
+  indisponibilidade longa precisa de um passo de reinventario.
+- **#65 — Degradacao graciosa sem alarme e uma falha que aprendeu a ficar
+  quieta.** O fallback correto e metade do padrao; a outra metade e tornar o
+  estado degradado observavel. Todo `catch` que continua a execucao com
+  capacidade reduzida precisa publicar esse estado em algum lugar que alguem
+  observe.
+- **#66 — Item de backlog carrega a premissa de quem o escreveu.** Dois itens de
+  hoje (12 e o de PITR) estavam factualmente errados sobre o estado do sistema.
+  Verificar o estado real antes de executar, sobretudo quando a acao proposta e
+  destrutiva ou irreversivel.
+
+### Pendencias
+
+**Bloqueadas por permissao da extensao no painel da Cloudflare:** SPF no apex,
+DMARC, alertas de billing.
+
+**Operacional, requer o Pedro:** criar `ANTHROPIC_API_KEY` na Railway e remover
+`CLAUDE_API_KEY`; apagar a pasta `_to_delete/`; migrar Railway, Cloudflare e
+Upstash para e-mail institucional (o UptimeRobot foi a primeira conta criada sob
+`pedro.perin@theiadvisor.com`).
+
+**Tecnico, desbloqueado:** 16 PRs do Dependabot, T4f coverage, moderates
+residuais (`qs`, `uuid`), staging nunca provisionado.

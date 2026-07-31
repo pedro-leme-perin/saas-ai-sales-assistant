@@ -1,7 +1,7 @@
 # SaaS AI Sales Assistant — Project Instructions
 
-**Versão:** 7.13
-**Atualização:** Julho 2026 (S84 — 19 advisories HIGH bloqueantes zerados em 4 commits; CI Security verde pela primeira vez desde 05/06; ADR-015 formaliza a allowlist de 3 advisories sem correção aplicável)
+**Versão:** 7.14
+**Atualização:** Julho 2026 (S84 — 19 advisories HIGH zerados + fechamento operacional: Watch Paths da Railway impedia que as correções chegassem a produção; Redis do Upstash apagado por inatividade durante o outage de S83; `/health/deps` torna degradação observável; SPF e DMARC ausentes)
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
 **Histórico detalhado de sessões:** ver `PROJECT_HISTORY.md`
 
@@ -31,7 +31,9 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 31/07/2026 (sessão S84 — CI Security destravado: `blocking=19` → `blocking=0`. 16 advisories corrigidos por versão (11 overrides + bump `next`), 3 allowlistados com ADR-015. Gate `--audit-level=high` strict preservado. CI verde nos 5 jobs em `1db7c62`.)
+> Última atualização: 31/07/2026 (sessão S84, 2ª metade — 3 monitores externos com alerta DOWN comprovado; Railway com Watch Paths corrigido (as correções de segurança NÃO estavam em produção), healthcheck `/health` e limite $50/$10; Redis recriado; RPO da Neon = 6h; `ANTHROPIC_API_KEY`/`CLAUDE_API_KEY` unificados; SPF e DMARC ausentes e pendentes. Lições #63-#66.)
+>
+> \_Anterior S84 1ª metade 31/07/2026 (CI Security destravado: `blocking=19` → `blocking=0`. 16 advisories corrigidos por versão (11 overrides + bump `next`), 3 allowlistados com ADR-015. Gate `--audit-level=high` strict preservado. CI verde nos 5 jobs em `1db7c62`.)
 >
 > \_Anterior S83 30/07/2026 (sessão S83 — doc hygiene: recovery da conta Stripe original NEGADA pelo Support, plano B executado (nova conta `acct_1TgU9WRpJ3I7SP8K` sob e-mail institucional). TEST mode provisionado via Stripe CLI (3 products + 3 prices + webhook 6 eventos). LIVE mode pendente de Identity PJ. Runbook completo em `docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md`.)
 >

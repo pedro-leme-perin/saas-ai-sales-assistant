@@ -18,6 +18,46 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.84.1] — Fechamento operacional pos-incidente (S84) — 2026-07-31
+
+Segunda metade de S84. Saiu do repositorio para o painel dos provedores.
+
+### Fixed
+
+- **`main.ts`** — `setGlobalPrefix` excluia apenas `health`, deixando
+  `/health/ready` e `/health/live` em 404 e o controller metade sob `/api`.
+  Quebrava o smoke de deploy do `staging.yml` e o `k6/load-test.js`.
+- **`ai-manager.service.ts` / `configuration.ts` / `env.validation.ts`** — o
+  codigo lia `CLAUDE_API_KEY` num ponto e `ANTHROPIC_API_KEY` em outros dois.
+  Agora aceita ambos via `??`, eliminando a janela de quebra do item 12.
+
+### Added
+
+- **`GET /health/deps`** — 503 quando qualquer dependencia esta degradada.
+  Separado de `/health` para nao bloquear deploy da Railway nem gerar falso
+  incidente de indisponibilidade.
+- **`redisAdapterStatus`** — estado observavel do adapter de WebSocket.
+- **`services.redis` em `/health`** — status agregado em ok / degraded /
+  unhealthy.
+
+### Infrastructure
+
+- Railway: `Watch Paths` += `/pnpm-lock.yaml`, `/package.json` — commits de
+  dependencia voltaram a disparar deploy. **As 16 correcoes de seguranca do
+  v0.84.0 nao estavam em producao ate este ajuste.**
+- Railway: `Healthcheck Path` = `/health` (estava vazio).
+- Railway: limite de compute — corte $50, alerta $10 (nao havia limite).
+- Upstash: Redis recriado (`sa-east-1`, eviction ligado). Os anteriores foram
+  apagados pela automacao de inatividade de 14 dias durante o outage de S83.
+- UptimeRobot: 3 monitores, alerta de DOWN comprovado com incidente real.
+- Neon: janela de PITR verificada em 6h (teto do plano Free). RPO real = 6h.
+
+### Security
+
+- Domino sem SPF e sem DMARC — confirmado por consulta DNS direta. Pendente.
+
+---
+
 ## [v0.84.0] — Zerar os 19 advisories HIGH bloqueantes do CI Security (S84) — 2026-07-31
 
 Primeira sessão após o incidente SEV1 de S83. Quatro commits, CI verde nos 5 jobs.
