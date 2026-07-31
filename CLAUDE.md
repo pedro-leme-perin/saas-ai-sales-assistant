@@ -1,7 +1,7 @@
 # SaaS AI Sales Assistant — Project Instructions
 
-**Versão:** 7.12
-**Atualização:** Julho 2026 (S83 — migração para nova conta Stripe registrada; drifts doc-vs-reality §2.1/§2.3/§2.4 corrigidos; runbook `docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md`)
+**Versão:** 7.13
+**Atualização:** Julho 2026 (S84 — 19 advisories HIGH bloqueantes zerados em 4 commits; CI Security verde pela primeira vez desde 05/06; ADR-015 formaliza a allowlist de 3 advisories sem correção aplicável)
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
 **Histórico detalhado de sessões:** ver `PROJECT_HISTORY.md`
 
@@ -31,7 +31,9 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 30/07/2026 (sessão S83 — doc hygiene: recovery da conta Stripe original NEGADA pelo Support, plano B executado (nova conta `acct_1TgU9WRpJ3I7SP8K` sob e-mail institucional). TEST mode provisionado via Stripe CLI (3 products + 3 prices + webhook 6 eventos). LIVE mode pendente de Identity PJ. Runbook completo em `docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md`.)
+> Última atualização: 31/07/2026 (sessão S84 — CI Security destravado: `blocking=19` → `blocking=0`. 16 advisories corrigidos por versão (11 overrides + bump `next`), 3 allowlistados com ADR-015. Gate `--audit-level=high` strict preservado. CI verde nos 5 jobs em `1db7c62`.)
+>
+> \_Anterior S83 30/07/2026 (sessão S83 — doc hygiene: recovery da conta Stripe original NEGADA pelo Support, plano B executado (nova conta `acct_1TgU9WRpJ3I7SP8K` sob e-mail institucional). TEST mode provisionado via Stripe CLI (3 products + 3 prices + webhook 6 eventos). LIVE mode pendente de Identity PJ. Runbook completo em `docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md`.)
 >
 > \_Anterior S82 03/06/2026 — T4e scheduled-exports.service.spec +50 testes; coverage floor 68/58/65/68 -> 73/62/71/73 defensivo; postcss ~8.5.10 override GHSA-1117015 XSS cleared; 6 commits CI verde 7a06d1d/d6008fd/0ebba9d/50f97dd/ec4d478/79d189a.)
 >

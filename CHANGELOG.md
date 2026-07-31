@@ -18,6 +18,45 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.84.0] — Zerar os 19 advisories HIGH bloqueantes do CI Security (S84) — 2026-07-31
+
+Primeira sessão após o incidente SEV1 de S83. Quatro commits, CI verde nos 5 jobs.
+Zero mudanças em código de aplicação, schema ou testes.
+
+### Changed
+
+- **`package.json` `pnpm.overrides`** — 11 entradas (5 novas, 6 elevadas), 13 → 19 overrides:
+  - novos: `@grpc/grpc-js ~1.14.4`, `engine.io ~6.6.9`, `form-data ~4.0.6`,
+    `js-yaml ~4.3.0`, `ws ~8.21.1`, `sharp ~0.35.3`
+  - elevados: `axios ~1.16.0 → ~1.18.1`, `fast-uri ~3.1.2 → ~3.1.5`,
+    `multer ~2.1.1 → ~2.2.0`, `postcss ~8.5.10 → ~8.5.25`,
+    `protobufjs >=7.5.5 → ^8.4.1`
+- **`apps/frontend/package.json`** — `next ~15.5.18 → ~15.5.22`, única dependência
+  direta entre os 19 advisories.
+- **`.github/workflows/ci.yml`** — `ADVISORY_ALLOWLIST` de 3 para 6 entradas
+  (1 → 4 slugs GHSA), cada uma com bloco de justificativa inline.
+
+### Added
+
+- **`docs/adr/015-advisory-allowlist-jaeger-brace-expansion.md`** (140L) — análise de
+  exposição e gatilho de remoção dos 3 advisories sem correção aplicável.
+
+### Security
+
+- CI Security: `blocking=19` → `blocking=0`. 16 advisories corrigidos por versão,
+  3 allowlistados com exposição de call-graph ZERO comprovada.
+- `ws` era o advisory de maior risco real: WebSocket em runtime, `GHSA-96hv-2xvq-fx4p`.
+- `sharp`: `next/image` com `remotePatterns` de terceiros processa imagem remota;
+  4 CVEs herdadas do libvips corrigidas em 0.35.x.
+
+### Notes
+
+- O gate `--audit-level=high` strict (S76) **não foi relaxado** em nenhum momento.
+- Os 16 PRs abertos do Dependabot não resolviam nenhum dos 19: 12 dos 14 pacotes
+  afetados eram transitivos puros, fora do alcance do Dependabot.
+
+---
+
 ## [v0.83.0] — Migração para nova conta Stripe: registro e correção de drift (S83) — 2026-07-30
 
 Sessão doc-only. Zero mudanças em código de aplicação, schema, testes ou dependências.

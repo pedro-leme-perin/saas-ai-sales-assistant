@@ -7692,3 +7692,160 @@ Zero mudanças em código, schema, testes ou dependências. Commit doc-only.
 **Bloqueado por credenciais:** T6 staging · T7 k6 stress · T8 WhatsApp Meta · T10 ADR OTel 2.x
 
 ### Anterior: S82 `79d189a` (coverage T4e + ratchet + postcss + allowlist GHSA-slug)
+
+---
+
+## Sessão S84 — 2026-07-31 — Zerar os 19 advisories HIGH bloqueantes do CI Security
+
+### Contexto de retomada
+
+Primeira sessão após o incidente SEV1 de S83 (8 semanas de backend fora do ar por trial
+da Railway expirado). HEAD `7ba63c9`, working tree limpo, `main` sincronizado. CI vermelho
+apenas em **Security** — os outros quatro jobs passavam.
+
+O handoff de S83 media `blocking=19, allowed=1, total_high=20, total_crit=0` e levantava a
+hipótese de que boa parte se resolveria mesclando os PRs do Dependabot pendentes.
+
+### Diagnóstico — a hipótese do handoff estava errada
+
+Enumeração via `pnpm audit --prod --audit-level=high --json` agrupada por pacote raiz:
+19 advisories bloqueantes distribuídos em **14 pacotes**. Cruzando com `gh pr list`:
+
+- são **16 PRs** do Dependabot abertos, não 10
+- os três agrupados relevantes (#39 root/53 updates, #38 backend/26, #31 frontend/29)
+  datam de 27/07 e 08/06, anteriores aos advisories de `next 15.5.21` e `postcss 8.5.18`
+- **12 dos 14 pacotes são transitivos puros** — fora do alcance do Dependabot, que só
+  propõe bump de dependência declarada em manifesto
+
+Conclusão: o caminho era `pnpm.overrides`, não merge de PR. Mesclar os 16 PRs teria
+custado mais tempo e destravado zero advisories. Eles permanecem abertos como item P4.
+
+### Estratégia — 4 tiers por risco, não 1 commit por dependência
+
+A lição #17 (1 dependência por commit) custaria 13 commits e ~13 ciclos de CI para um
+problema que é de volume, não de risco individual. Agrupamento adotado, com o critério
+de que cada commit isola uma **classe de risco** distinta e permanece bisectável:
+
+| Tier | Commit    | Escopo                                                  | Advisories |
+| ---- | --------- | ------------------------------------------------------- | ---------- |
+| 1    | `7018347` | 10 overrides transitivos, bump patch/minor, risco baixo | 12         |
+| 2    | `9adefa7` | `next` — única dependência direta                       | 3          |
+| 3    | `aa9505e` | `sharp` — override fora do range declarado por `next`   | 1          |
+| 4    | `1db7c62` | allowlist + ADR-015 — sem correção aplicável            | 3          |
+
+### Tier 1 — `7018347`
+
+Cinco overrides novos e cinco elevados. O caso instrutivo é `protobufjs`: o override de
+S71 era `>=7.5.5`, um range aberto que resolvia para 8.4.0 e portanto **não protegia**
+contra `GHSA-wcpc-wj8m-hjx6` (vulnerável `>=8.0.0 <=8.4.0`). Um override antigo com range
+frouxo dá aparência de proteção sem entregá-la — corrigido para `^8.4.1`.
+
+`ws ~8.21.1` é o item de maior risco real do tier: WebSocket em runtime, não build-time.
+Estava listado como P1 item 7 no handoff e foi resolvido aqui.
+
+### Tier 2 — `9adefa7`
+
+`next 15.5.18 → ~15.5.22`, três advisories HIGH (DoS em Server Actions, SSRF em Server
+Actions com custom server, SSRF em `rewrites()` com hostname dinâmico). O range antigo
+`~15.5.18` já admitia 15.5.22 — o lockfile é que estava pinado. Manifesto elevado para
+tornar o piso explícito.
+
+### Tier 3 — `aa9505e`
+
+`sharp ~0.35.3`, quatro CVEs herdadas do libvips. Isolado porque `next@15.5.22` declara
+`sharp: ^0.34.3` em `optionalDependencies` — o override ultrapassa o range do consumidor
+direto. Exposição confirmada por inspeção: `next/image` é usado em
+`settings/tabs/company-tab.tsx` e `next.config.js` habilita `remotePatterns` com
+`*.githubusercontent.com`, ou seja, imagem remota de terceiro passa pelo otimizador.
+Na Vercel a otimização roda na infra deles; a exposição efetiva é do build local e de
+qualquer execução self-hosted.
+
+### Tier 4 — `1db7c62` — os três sem correção
+
+**`GHSA-45rx-2jwx-cxfr` · `@opentelemetry/propagator-jaeger`.** `JaegerPropagator`
+decodifica `uber-trace-id` com `decodeURIComponent()` sem tratar erro; um `%` solitário
+derruba o processo. Exposição de call-graph ZERO: `NodeSDK` é instanciado sem
+`textMapPropagator`, `OTEL_PROPAGATORS` nunca é lida e não há ocorrência de `jaeger` em
+`apps/backend/src` — roda o propagador padrão W3C. O fix exige `propagator-jaeger@2.9.0`,
+que fixa `@opentelemetry/core@2.9.0` **exato** e colide com o pin 1.x do backend,
+reproduzindo a quebra de `tsc --noEmit` documentada no ADR-014. Mesmo gatilho de remoção.
+
+**`GHSA-3jxr-9vmj-r5cp` + `GHSA-mh99-v99m-4gvg` · `brace-expansion`.** O achado técnico
+da sessão: **não existe faixa de versão que corrija ambos sem quebrar a árvore.**
+
+- `>=2.1.2` corrige o primeiro e deixa o segundo aberto — o range dele é `<=5.0.7`, que
+  engloba 2.1.2. O piso real é 5.0.8.
+- `~5.0.9` quebra tudo. Inspeção do tarball publicado confirmou que a linha 5.x moveu o
+  entrypoint CommonJS de `module.exports = expand` para `exports.expand`. `minimatch`
+  3.x/5.x/9.x — presentes via `glob@7.2.3`, `glob@9.3.5` e `glob@10.4.5` — fazem
+  `require('brace-expansion')(pattern)` direto, o que vira `TypeError: expand is not a
+function` e derruba ESLint, Jest e o upload de source map do Sentry.
+
+Exposição de call-graph ZERO: o pacote chega em produção só via `@sentry/node` e
+`@sentry/nextjs` → `minimatch` → `glob`, sobre padrões de source map em build time e
+ignore versionado. Nenhum caminho passa entrada derivada de request para `expand()`.
+
+`ADVISORY_ALLOWLIST` cresceu de 3 para 6 entradas (1 → 4 slugs GHSA), cada uma com ADR,
+análise de exposição e gatilho verificável por comando — critério herdado do S80-A.
+**O gate `--audit-level=high` strict não foi relaxado em nenhum momento.**
+
+### Verificação
+
+CI run 30644021914 em `1db7c62` — Install ✓ 30s, Security ✓ 29s, Frontend ✓ 2m27s,
+Backend ✓ 2m41s, CI Gate ✓ 4s. Primeiro verde do job Security desde 2026-06-05.
+
+### Modo de operação — computer-use autônomo consolidado
+
+O mecanismo previsto no handoff funcionou: `computer_request_access` no Explorador de
+Arquivos, edição de arquivo por Python `io.open` no sandbox, geração de `.bat` (ASCII,
+CRLF) + `-msg.txt` (ASCII, LF), execução pela barra de endereço do Explorador
+(`Ctrl+L` → caminho do `.bat` → Enter), monitoramento por `gh run watch`. Quatro commits
+e quatro pushes sem o Pedro digitar comando.
+
+Atrito novo encontrado: o navegador Comet rouba o foreground e o bridge recusa enviar
+teclas quando um app fora da allowlist está em primeiro plano. Conceder o Comet em tier
+`read` não resolve — browser em modo leitura continua bloqueando input. A sequência que
+funciona é chamar `computer_open_application` no Explorador **imediatamente antes** de
+cada batch de teclas, sem screenshot no meio.
+
+### Lições novas
+
+- **#58 — Override com range aberto envelhece mal.** `protobufjs: ">=7.5.5"` (S71)
+  resolvia para 8.4.0 e não protegia contra um advisory publicado depois. Override é
+  declaração de piso mínimo, não de proteção permanente: precisa ser reauditado a cada
+  advisory novo do mesmo pacote. Ranges `~`/`^` (lição #19) já mitigam, mas `>=` sem teto
+  é o pior caso — parece atualizado e não está.
+- **#59 — Dependabot não alcança dependência transitiva.** Ele propõe bump do que está
+  declarado em manifesto. Em uma árvore onde 12 de 14 pacotes vulneráveis são transitivos,
+  contar com PRs do Dependabot para destravar o gate de segurança é diagnóstico errado.
+  `pnpm.overrides` é a ferramenta correta.
+- **#60 — Antes de forçar um major por override, inspecionar o entrypoint publicado.**
+  `npm pack <pkg>@<versão>` + leitura do `dist/commonjs/index.js` revelou em segundos que
+  `brace-expansion@5.x` deixou de exportar função callable no CJS. Sem essa checagem, o
+  override teria passado no `pnpm install` e quebrado ESLint/Jest só no CI.
+- **#61 — Advisory sem faixa de correção viável é decisão de arquitetura, não de
+  dependência.** Merece ADR com análise de call-graph e gatilho verificável, não um
+  `--audit-level` mais frouxo. Rebaixar o gate resolve o sintoma e cega o projeto para a
+  classe inteira.
+- **#62 — Um app não-allowlisted em foreground bloqueia todo o input do computer-use.**
+  Não é falha de permissão do app alvo. Conceder tier `read` ao intruso não destrava.
+  Reabrir o app alvo imediatamente antes de cada batch é o contorno.
+
+### Próximos passos
+
+**P0 restante (requer o Pedro, ambos são causa raiz do incidente de S83):**
+
+- Uptime check externo em `api.theiadvisor.com/health` e `theiadvisor.com`
+- Alertas de billing em Railway, Cloudflare, Neon e Upstash
+
+**P1:** retenção de PITR da Neon · teste de restore em branch descartável · rotação de
+credenciais expostas · migração de Railway e Cloudflare para e-mail institucional ·
+2FA com redundância · faturamento da Railway em nome da PJ
+
+**P2:** SPF no apex · DMARC · `CLAUDE_API_KEY` → `ANTHROPIC_API_KEY` · padronizar health
+check em `/api/health` · limpar raiz do repo
+
+**P4 técnico:** 16 PRs do Dependabot · T4f coverage (real 76.77/66.13/74.81/77.32 contra
+floor 73/62/71/73) · moderates residuais (`qs`, `uuid`) · staging nunca provisionado
+
+### Anterior: S83 `7ba63c9` (incidente SEV1 Railway + backup que nunca existiu)
