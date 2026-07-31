@@ -173,8 +173,14 @@ async function bootstrap() {
     }),
   );
 
+  // S84: `exclude` casa a rota EXATA, nao o prefixo. Com apenas 'health',
+  // @Get() saia do prefixo mas @Get('ready') e @Get('live') continuavam em
+  // /api/health/*, deixando o controller metade na raiz e metade sob prefixo.
+  // Consequencia medida em producao: /health 200, /health/ready 404,
+  // /api/health/ready 200. O smoke test de staging e o k6/load-test.js
+  // apontavam para as rotas 404. Ver PROJECT_HISTORY S84.
   app.setGlobalPrefix('api', {
-    exclude: ['health'],
+    exclude: ['health', 'health/ready', 'health/live'],
   });
 
   const config = new DocumentBuilder()

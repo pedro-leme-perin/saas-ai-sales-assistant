@@ -37,8 +37,8 @@ export const options = {
 
 const ENDPOINTS = [
   { name: 'health', path: '/health' },
-  { name: 'health_ready', path: '/api/health/ready' },
-  { name: 'health_live', path: '/api/health/live' },
+  { name: 'health_ready', path: '/health/ready' },
+  { name: 'health_live', path: '/health/live' },
   { name: 'ai_health', path: '/api/ai/health' },
   { name: 'ai_providers', path: '/api/ai/providers' },
   { name: 'api_docs', path: '/api/docs' },
