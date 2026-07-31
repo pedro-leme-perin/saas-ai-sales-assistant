@@ -331,7 +331,34 @@ jobs:
           #     compile (types from sdk-metrics@2.x + resources@2.x diverge
           #     from 1.x line used by current source). Removal trigger: SDK 2.x
           #     migration (deferred ADR S82+, requires staging game-day).
-          ADVISORY_ALLOWLIST: '1117942,1120252,GHSA-q7rr-3cgh-j5r3'
+          #
+          #   GHSA-45rx-2jwx-cxfr — @opentelemetry/propagator-jaeger / DoS
+          #     ADR-015. Vulnerability: JaegerPropagator decodes uber-trace-id
+          #     and uberctx-* headers with decodeURIComponent() without error
+          #     handling; a bare `%` throws an uncaught URIError and kills the
+          #     process. Runtime exposure = ZERO: NodeSDK is instantiated with
+          #     NO textMapPropagator option, OTEL_PROPAGATORS is never read,
+          #     and `jaeger` appears nowhere in apps/backend/src — the default
+          #     W3C TraceContext+Baggage propagator is what runs. Fix requires
+          #     propagator-jaeger@2.9.0, which pins @opentelemetry/core@2.9.0
+          #     exactly and collides with the 1.x line the backend is on.
+          #     Removal trigger: OTel SDK 2.x migration — SAME trigger as
+          #     GHSA-q7rr-3cgh-j5r3 above.
+          #
+          #   GHSA-3jxr-9vmj-r5cp + GHSA-mh99-v99m-4gvg — brace-expansion / DoS
+          #     ADR-015. Exponential-time expansion and uncatchable OOM in
+          #     expand(). Reaches prod deps only via @sentry/node and
+          #     @sentry/nextjs -> minimatch -> glob, where the patterns are
+          #     build-time source-map globs and versioned ignore patterns —
+          #     never request-derived input. Call-graph exposure = ZERO.
+          #     No fix range exists: >=2.1.2 leaves GHSA-mh99-v99m-4gvg open
+          #     (range <=5.0.7), and ~5.0.9 breaks the tree — brace-expansion
+          #     5.x moved the CJS entry from `module.exports = expand` to
+          #     `exports.expand`, so minimatch 3.x/5.x/9.x (glob@7, @9, @10)
+          #     hit `TypeError: expand is not a function`. Removal trigger:
+          #     Sentry ships a tree whose minimatch consumes >=5.0.8 natively
+          #     (verify with `pnpm why brace-expansion --prod`).
+          ADVISORY_ALLOWLIST: '1117942,1120252,GHSA-q7rr-3cgh-j5r3,GHSA-45rx-2jwx-cxfr,GHSA-3jxr-9vmj-r5cp,GHSA-mh99-v99m-4gvg'
         run: |
           set +e
           pnpm audit --prod --audit-level=high --json > /tmp/audit-high.json 2>/tmp/audit-stderr.log
