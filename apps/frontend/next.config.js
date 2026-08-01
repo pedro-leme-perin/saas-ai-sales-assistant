@@ -26,6 +26,23 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
+  // S85: elimina o codigo de debug do Sentry do bundle do cliente. A flag e lida
+  // pelo proprio SDK e substituida em tempo de build; com `false` literal o
+  // minificador remove os blocos inteiros. Sem mudanca de comportamento em
+  // producao -- o debug do Sentry ja estava desligado (`debug` nao e setado em
+  // instrumentation-client.ts, e withSentryConfig ja usa `disableLogger: true`).
+  //
+  // Medido: 3.057.257 -> 3.042.928 bytes de JS de cliente, -14,0 KB.
+  //
+  // Testado e REJEITADO na mesma sessao: acrescentar os 8 @radix-ui restantes a
+  // optimizePackageImports PIORA o total em 3,3 KB -- a opcao fragmenta os modulos
+  // e reduz a deduplicacao entre chunks. Nao repetir sem medir.
+  webpack: (config, { webpack, isServer }) => {
+    if (!isServer) {
+      config.plugins.push(new webpack.DefinePlugin({ __SENTRY_DEBUG__: false }));
+    }
+    return config;
+  },
   experimental: {
     optimizePackageImports: [
       'lucide-react',
