@@ -256,7 +256,12 @@ jobs:
       # A config dedicada test/jest-e2e.json ja existia e ja casava com o arquivo;
       # o que faltava era chamar. Usa o mesmo Postgres de servico dos passos acima.
       - name: E2E tests
-        run: pnpm test:e2e -- --runInBand --forceExit --passWithNoTests
+        # `pnpm test:e2e -- <flags>` repassa o `--` literalmente e o jest le as flags
+        # como padrao de caminho (0 testes casados, exit 1). Chamando o jest direto.
+        # Sem --passWithNoTests de proposito: se o arquivo deixar de casar de novo, o
+        # passo tem de falhar, nao passar em silencio -- foi assim que ele ficou meses
+        # sem rodar.
+        run: pnpm exec jest --config ./test/jest-e2e.json --runInBand --forceExit
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/saas_test
           NODE_ENV: test
