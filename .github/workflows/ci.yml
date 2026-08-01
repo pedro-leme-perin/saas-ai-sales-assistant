@@ -127,12 +127,18 @@ jobs:
             echo ""
             echo "| Scope | Size |"
             echo "|---|---:|"
-            echo "| Client JS (.next/static) | ${CLIENT_MB}MB |"
-            echo "| Total JS (incl. server) | ${TOTAL_MB}MB |"
+            echo "| Client JS (.next/static) | ${CLIENT_MB}MB (${CLIENT_SIZE} B) |"
+            echo "| Total JS (incl. server) | ${TOTAL_MB}MB (${TOTAL_SIZE} B) |"
+            echo "| Folga ate o limite duro | $(( HARD_LIMIT - CLIENT_SIZE )) B |"
             echo ""
             echo "_Soft limit: 2MB (warn) · Hard limit: 3MB (fail)._"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "Client JS bundle: ${CLIENT_MB}MB | Total (incl. server): ${TOTAL_MB}MB"
+          # S85: bytes exatos alem do MB. Com `scale=2` uma variacao de 14 KB some no
+          # arredondamento, e foi exatamente o que aconteceu ao medir a remocao do
+          # debug do Sentry: 2.96MB antes e depois. Sem byte, nao da para saber se uma
+          # otimizacao chegou a producao.
+          echo "Client JS bundle: ${CLIENT_MB}MB (${CLIENT_SIZE} B) | Total (incl. server): ${TOTAL_MB}MB (${TOTAL_SIZE} B)"
+          echo "Folga ate o limite duro: $(( HARD_LIMIT - CLIENT_SIZE )) B"
           if [ "$CLIENT_SIZE" -gt "$HARD_LIMIT" ]; then
             echo "::error::Client bundle (${CLIENT_MB}MB) exceeds 3MB HARD limit — regression must be addressed"
             exit 1
