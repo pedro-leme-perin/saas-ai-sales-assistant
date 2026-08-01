@@ -269,7 +269,7 @@ jobs:
       # label so a persistent failure produces one thread, not fifty.
       - name: Open GitHub issue on failure
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const label = 'backup-failure';

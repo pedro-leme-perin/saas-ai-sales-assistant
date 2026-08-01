@@ -189,7 +189,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Post deployment URLs
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const backendUrl = '${{ needs.deploy-backend.outputs.url }}';
