@@ -1,6 +1,6 @@
 'use client';
 
-import { onCLS, onFID, onLCP, onTTFB, onINP, type Metric } from 'web-vitals';
+import { onCLS, onLCP, onTTFB, onINP, type Metric } from 'web-vitals';
 import * as Sentry from '@sentry/nextjs';
 
 /**
@@ -34,7 +34,9 @@ function sendToSentry(metric: Metric): void {
  * - INP: Interaction to Next Paint
  * - LCP: Largest Contentful Paint
  * - TTFB: Time to First Byte
- * - FID: First Input Delay (legacy, replaced by INP in newer browsers)
+ *
+ * FID was dropped in web-vitals v5: the metric was retired by the Chrome team and
+ * fully replaced by INP, which is already reported below.
  */
 export function reportWebVitals(): void {
   // Cumulative Layout Shift: should be < 0.1
@@ -48,8 +50,4 @@ export function reportWebVitals(): void {
 
   // Time to First Byte: should be < 600ms
   onTTFB(sendToSentry);
-
-  // First Input Delay (legacy): should be < 100ms
-  // Included for browser compatibility, gradually being replaced by INP
-  onFID(sendToSentry);
 }
