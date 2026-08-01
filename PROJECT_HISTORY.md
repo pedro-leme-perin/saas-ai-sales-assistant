@@ -8330,3 +8330,98 @@ a correcao: o grupo do backend voltou com **17 pacotes em vez de 26**, sem nenhu
 `@opentelemetry/*`, sem `@anthropic-ai/sdk`, e com `class-validator` em `0.14.3 -> 0.14.4`
 (patch) em vez de `0.15.1`. Todos falham no `install` por lockfile defasado em relacao aos
 commits desta sessao — precisam de `@dependabot recreate` antes de qualquer merge.
+
+---
+
+## S85 (3a rodada) — 2026-08-01 · Numero WhatsApp do tenant, alcance do gate, e2e, divida de tipos, bundle
+
+### Commits
+
+| Commit                            | O que                                                                      |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `3792ea4`                         | Script de configuracao do numero WhatsApp do tenant, executado em producao |
+| `ea360c6`                         | Medicao do alcance do gate corrigido em `bc0f733`                          |
+| `a5a8cd3` + `8728f58`             | O unico e2e do backend passa a rodar, e a asercao errada corrigida         |
+| `6b8a735`                         | Classificacao dos 144 erros de tipo escondidos do CI                       |
+| `b3a3931`                         | Escopo 1 executado: 14 formas inventadas trocadas pelo contrato real       |
+| `c1b732d` + `04be292` + `4a153b1` | Bundle: -14 KB, bytes exatos no CI, e a correcao da folga                  |
+
+### O que o WhatsApp precisava
+
+`Company.whatsappPhoneNumberId` decide de qual tenant e uma mensagem entrante, e nao era
+escrito em lugar nenhum de `apps/` -- sem endpoint, DTO ou tela. `scripts/set-company-whatsapp-number.ts`
+fecha a lacuna com os 8 requisitos do handoff: resolucao automatica de tenant unico, E.164 com
+recusa explicita do prefixo `whatsapp:` (que `extractPhone` remove antes da busca, e gravar com
+ele faria toda mensagem errar o tenant em silencio), unicidade, idempotencia, `--dry-run`,
+`$transaction` com `AuditLog`. 31 testes.
+
+Executado em producao apos revisao do dry-run: `jjj` de `null` para `+14155238886`, AuditLog
+conferido no banco, re-execucao no-op. **Smoke do WhatsApp destravado.**
+
+### Alcance do gate: 44, nao 102
+
+Levantamento das 347 execucoes de `CI` em `main`. 44 commits passaram com o gate verde sobre
+validacao incompleta -- 41 por `install` falhado, 3 por cancelamento de concorrencia. Todos os
+44 tem execucao posterior plenamente verde: o conteudo foi validado depois, como parte de uma
+arvore posterior. Nada a reprocessar.
+
+A primeira passagem deu 102 porque comparava execucoes historicas contra a lista de jobs de
+hoje, e o job `security` so existe desde S70. Detalhe em `docs/operations/s85/CI_GATE_BLAST_RADIUS.md`.
+
+### O e2e nunca rodou -- e a causa nao era o testRegex
+
+Correcao de um diagnostico da rodada anterior. `test/jest-e2e.json` ja existia, ja casava com o
+arquivo, e o script `test:e2e` ja existia. **Nenhum passo do CI os invocava.** Mudar o padrao
+principal teria arrastado o e2e para a rodada de unit -- teria sido a correcao errada.
+
+O teste tambem estava errado: exigia `status === 'ok'`, inalcancavel sob
+`createNestApplication()`, porque `checkRedis()` le `redisAdapterStatus.connected` e esse
+sinalizador so vira `true` dentro de `RedisIoAdapter.connectToRedis()`, chamado por `main.ts` e
+por mais ninguem. Passa a travar o contrato real, incluindo o invariante de que degradacao de
+Redis nao vira erro HTTP. Roda em CI contra Postgres real: 4 de 4.
+
+Levou dois commits porque `pnpm test:e2e -- <flags>` repassa o `--` literal e o jest leu as
+flags como caminho. Removido o `--passWithNoTests`: era esse silencio que mantinha o arquivo
+sem rodar.
+
+### Os 144 erros de tipo, e os 9 que provavam algo falso
+
+135 sao ruido de tipagem. 9 eram defeitos: o mock inventava uma forma que o servico nunca
+devolve e a asercao conferia a invencao contra ela mesma. O mais claro:
+`CsatResponseStatus.PENDING` nao existe no enum -- em runtime valia `undefined`, o mock resolvia
+`status: undefined`, e a asercao comparava `undefined` com `undefined`.
+
+Corrigidos no mesmo dia (escopo 1). Foram 14 formas trocadas, nao 9: as outras 5 nao produziam
+erro de tipo nenhum, e apareceram ao ler o servico para corrigir as vizinhas. Conferido que
+nada vazava para producao -- no caso de `contacts`, o frontend sempre falou o contrato real.
+144 -> 132 erros; 12 -> 0 nos quatro arquivos; suite inteira verde.
+
+### Bundle
+
+`__SENTRY_DEBUG__: false` remove o codigo de debug do Sentry: -14 KB, zero mudanca de
+comportamento. Testado e rejeitado: ampliar `optimizePackageImports` para os 8 `@radix-ui`
+restantes PIORA 3,3 KB.
+
+Duas decisoes ficaram abertas e medidas: o Session Replay custa 232 KB no total e 38 kB no
+First Load compartilhado, e o gate soma o chunk de todas as 45 rotas -- numero que usuario
+nenhum baixa, e que cresce a cada tela nova.
+
+### Licoes
+
+**#75 — suite verde sobre mock inventado prova a existencia do mock, nao a do contrato.** Sem
+type-check nos testes, o mock devolve qualquer coisa e a asercao passa a descrever uma ficcao
+que combina com ela mesma. Aconteceu em oito endpoints, por dezenas de sessoes, com a suite
+verde o tempo todo. Corolario de metodo: contar erro de tipo subestima a ficcao, porque so
+acusa a que o compilador topa por acaso -- 9 viraram 14 ao ler os servicos.
+
+**#76 — otimizacao de bundle sem medicao e palpite, inclusive a recomendada pela documentacao.**
+`optimizePackageImports` e a recomendacao padrao do Next e aqui aumentou o total. Cada mudanca
+foi medida com build limpo; uma entrou, a outra foi descartada e documentada no proprio
+`next.config.js` para nao voltar por plausibilidade.
+
+**#77 — build local nao mede bundle de producao quando a config depende do ambiente.**
+`next.config.js` so aplica `withSentryConfig` se `SENTRY_ORG` e `SENTRY_PROJECT` existirem. O CI
+tem, a maquina local nao. Toda medicao local saia 60 KB otimista, sem nada no output que
+denunciasse. A folga real e 40 KB, nao 100 KB. Onde a config for condicional ao ambiente, o
+numero que vale e o do CI -- e o CI precisa imprimi-lo com precisao suficiente para ser
+comparavel, o que exigiu trocar MB arredondado por bytes.
