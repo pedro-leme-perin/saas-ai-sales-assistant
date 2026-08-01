@@ -512,8 +512,21 @@ jobs:
     steps:
       - name: Check results
         run: |
-          if [[ "${{ needs.frontend.result }}" == "failure" || "${{ needs.backend.result }}" == "failure" || "${{ needs.security.result }}" == "failure" ]]; then
-            echo "CI failed"
-            exit 1
-          fi
+          # S85: o gate exige success explicito em cada job. A versao anterior so
+          # falhava em `failure` literal, entao `skipped` e `cancelled` passavam --
+          # e é justamente o que acontece com os jobs a jusante quando o `install`
+          # quebra. O resultado era check obrigatorio verde sobre uma build que nao
+          # compilou, nao testou e nao passou pelo audit (visto nos PRs #45/#46).
+          for job in frontend backend security; do
+            case "$job" in
+              frontend) result="${{ needs.frontend.result }}" ;;
+              backend)  result="${{ needs.backend.result }}" ;;
+              security) result="${{ needs.security.result }}" ;;
+            esac
+            echo "$job: $result"
+            if [[ "$result" != "success" ]]; then
+              echo "::error::CI Gate: job '$job' terminou como '$result', nao 'success'"
+              exit 1
+            fi
+          done
           echo "All checks passed"
