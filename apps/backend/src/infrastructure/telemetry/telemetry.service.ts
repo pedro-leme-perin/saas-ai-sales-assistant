@@ -15,6 +15,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   metrics,
   trace,
+  isSpanContextValid,
   SpanKind,
   SpanStatusCode,
   type Span,
@@ -155,11 +156,23 @@ export class TelemetryService {
     );
   }
 
-  /** Get current trace context for log correlation */
+  /**
+   * Get current trace context for log correlation.
+   *
+   * Returns null when there is no active span OR when the active span carries an
+   * invalid span context (all-zero trace/span IDs). The invalid case is not an
+   * error: `instrumentation-http` suppresses tracing for the routes listed in
+   * `ignoreIncomingRequestHook` (`/health`, `/metrics`, `/favicon`), and every span
+   * started under a suppressed context is a NonRecordingSpan carrying
+   * INVALID_SPAN_CONTEXT. Emitting those zeros as a trace ID produced logs that
+   * looked like a broken tracing pipeline while tracing was in fact working
+   * (S85 / G3-07).
+   */
   getTraceContext(): { traceId: string; spanId: string } | null {
     const span = trace.getActiveSpan();
     if (!span) return null;
     const ctx = span.spanContext();
+    if (!isSpanContextValid(ctx)) return null;
     return { traceId: ctx.traceId, spanId: ctx.spanId };
   }
 }

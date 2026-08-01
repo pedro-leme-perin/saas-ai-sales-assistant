@@ -22,8 +22,17 @@ jest.mock('@opentelemetry/api', () => {
     setStatus: jest.fn(),
     recordException: jest.fn(),
     end: jest.fn(),
-    spanContext: jest.fn().mockReturnValue({ traceId: 'abc123', spanId: 'def456' }),
+    spanContext: jest.fn().mockReturnValue({
+      traceId: '0af7651916cd43dd8448eb211c80319c',
+      spanId: 'b7ad6b7169203331',
+    }),
   };
+
+  // Faithful port of the upstream guard: 32/16 lowercase hex, never all-zero.
+  const VALID_TRACE_ID = /^[0-9a-f]{32}$/i;
+  const VALID_SPAN_ID = /^[0-9a-f]{16}$/i;
+  const INVALID_TRACE_ID = '0'.repeat(32);
+  const INVALID_SPAN_ID = '0'.repeat(16);
 
   return {
     __mocks: { mockCounterAdd, mockHistogramRecord, mockUpDownCounterAdd, mockSpan },
@@ -44,6 +53,13 @@ jest.mock('@opentelemetry/api', () => {
       }),
       getActiveSpan: jest.fn().mockReturnValue(mockSpan),
     },
+    isSpanContextValid: jest.fn(
+      (ctx: { traceId: string; spanId: string }) =>
+        VALID_TRACE_ID.test(ctx.traceId) &&
+        ctx.traceId !== INVALID_TRACE_ID &&
+        VALID_SPAN_ID.test(ctx.spanId) &&
+        ctx.spanId !== INVALID_SPAN_ID,
+    ),
     SpanKind: { INTERNAL: 0 },
     SpanStatusCode: { OK: 1, ERROR: 2 },
   };
@@ -242,11 +258,37 @@ describe('TelemetryService', () => {
     it('should return trace and span IDs from active span', () => {
       const ctx = service.getTraceContext();
 
-      expect(ctx).toEqual({ traceId: 'abc123', spanId: 'def456' });
+      expect(ctx).toEqual({
+        traceId: '0af7651916cd43dd8448eb211c80319c',
+        spanId: 'b7ad6b7169203331',
+      });
     });
 
     it('should return null when no active span', () => {
       otelMock.trace.getActiveSpan.mockReturnValueOnce(null);
+
+      const ctx = service.getTraceContext();
+
+      expect(ctx).toBeNull();
+    });
+
+    // S85 / G3-07: routes matched by `ignoreIncomingRequestHook` (/health, /metrics,
+    // /favicon) run under a suppressed context, so every span started inside them is a
+    // NonRecordingSpan carrying INVALID_SPAN_CONTEXT. Logging those zeros made a
+    // working tracing pipeline look broken.
+    it('should return null when the active span carries an all-zero span context', () => {
+      mockSpan.spanContext.mockReturnValueOnce({
+        traceId: '00000000000000000000000000000000',
+        spanId: '0000000000000000',
+      });
+
+      const ctx = service.getTraceContext();
+
+      expect(ctx).toBeNull();
+    });
+
+    it('should return null when the span context is malformed', () => {
+      mockSpan.spanContext.mockReturnValueOnce({ traceId: 'abc123', spanId: 'def456' });
 
       const ctx = service.getTraceContext();
 
