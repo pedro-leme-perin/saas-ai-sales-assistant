@@ -87,7 +87,7 @@
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.0",
-    "stripe": "^17.0.0",
+    "stripe": "^22.3.2",
     "svix": "^1.84.1",
     "swagger-ui-express": "^5.0.1",
     "twilio": "^5.3.0",
