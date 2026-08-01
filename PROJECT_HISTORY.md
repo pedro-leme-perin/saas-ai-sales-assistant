@@ -7646,6 +7646,12 @@ aparece hardcoded em produção. Trocar de conta é trocar 6 variáveis de ambie
 
 Conta ativa: `acct_1TgU9WRpJ3I7SP8K`. IDs TEST em `CLAUDE.md` §2.3 e no runbook.
 
+> **[ERRATA S85 — 2026-08-01]** A afirmação acima está errada, e com ela toda a premissa
+> desta seção. A conta que a produção usa é `acct_1T6DHFJ1Cbnf5voG`, em LIVE mode, acessível.
+> `acct_1TgU9WRpJ3I7SP8K` existe apenas em TEST e não é referenciada por nenhuma variável de
+> produção. O que se perdeu em S83 foi um método de 2FA, não a conta — a chave `sk_live_*`
+> nunca parou de autenticar. Evidência: `docs/operations/s85/STRIPE_STATE_CORRECTION.md`.
+
 ### Mudanças aplicadas
 
 | Arquivo                                               | Natureza                                                              |
@@ -8005,3 +8011,131 @@ Upstash para e-mail institucional (o UptimeRobot foi a primeira conta criada sob
 
 **Tecnico, desbloqueado:** 16 PRs do Dependabot, T4f coverage, moderates
 residuais (`qs`, `uuid`), staging nunca provisionado.
+
+---
+
+## S85 — 2026-08-01 · Auditoria de estado: duas premissas de S83 revogadas
+
+**Ferramenta:** Cowork (painéis web + documentação). Commit e CI delegados ao Claude Code —
+o sandbox do Cowork não tem credencial de push, nem `pnpm`, nem `gh`.
+
+**Origem:** o prompt de abertura pedia a correção de um erro pontual de documentação (o
+account ID da Stripe). A verificação exigida pela lição #66 — conferir o estado real antes
+de executar — revelou que o erro não era pontual. Era a conclusão de uma cadeia inteira.
+
+### O que foi verificado
+
+| Fonte                                                             | Método                                                                        |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Railway, serviço `saas-ai-sales-assistant`, ambiente `production` | leitura das 42 variáveis; revelação seletiva apenas dos valores não sensíveis |
+| Dashboard da Stripe                                               | navegação direta; conta, status, entidade, repasses                           |
+| `apps/backend/src/modules/whatsapp/whatsapp.service.ts`           | leitura do construtor e do `processWebhook`                                   |
+| `apps/frontend/src/services/`                                     | busca por importadores de `analytics.service`                                 |
+
+### Achado 1 — a conta Stripe nunca foi perdida
+
+`STRIPE_PUBLISHABLE_KEY` na Railway é `pk_live_51T6DHFJ1Cbnf5…`. Chave publicável codifica
+o account ID depois do `51`, e o mesmo componente `J1Cbnf5voG` aparece nos três
+`STRIPE_PRICE_*` de produção. O dashboard confirmou: `acct_1T6DHFJ1Cbnf5voG`, "The
+IAdvisor", acesso completo, **"Nenhuma tarefa ativa para sua conta"**.
+
+Ou seja: a produção está em **LIVE mode**, na conta que S83 declarou perdida em definitivo,
+com os price IDs que S83 declarou mortos.
+
+O que de fato se perdeu em S83 foi um **método de 2FA**. A recuperação negada foi a
+recuperação por aquele formulário específico. A chave `sk_live_*` já emitida seguiu
+autenticando — acesso ao dashboard e acesso à API são planos independentes.
+
+`acct_1TgU9WRpJ3I7SP8K`, criada em S83 como plano B, existe apenas em TEST e **não é
+referenciada por nenhuma variável de produção**.
+
+Dois problemas reais que a narrativa errada escondia:
+
+1. A conta de produção está cadastrada como **pessoa física** (CPF), endereço residencial.
+2. **`Repasses: —`** — nenhuma conta bancária cadastrada. O checkout aprovaria e o dinheiro
+   ficaria retido no saldo da Stripe.
+
+Nenhum dos dois aparecia em lugar nenhum do roadmap, porque o roadmap tratava a conta como
+inexistente.
+
+### Achado 2 — o canal WhatsApp não usa a Meta
+
+`WhatsappService` instancia `twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)` e envia por
+`TWILIO_WHATSAPP_NUMBER`, com fallback para o sandbox `whatsapp:+14155238886`. O webhook
+processado é `TwilioWebhookPayload`. As variáveis `WHATSAPP_API_URL`,
+`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` e `WHATSAPP_WEBHOOK_SECRET` só aparecem
+em `configuration.ts` e `env.validation.ts` — nenhum serviço as consome, e das cinco só
+`WHATSAPP_VERIFY_TOKEN` existe na Railway.
+
+O item G1-01 do roadmap mandava criar um app no Meta Business Manager e obter
+`Phone Number ID` + `Access Token`: uma integração que o produto não implementa. O passo
+correto é habilitar o WhatsApp Sender no console da Twilio — e o **sandbox** da Twilio
+permite rodar o smoke E2E hoje, sem esperar verificação nenhuma.
+
+### Mudanças aplicadas
+
+| Arquivo                                                        | Natureza                                                                                                                 |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `docs/operations/s85/STRIPE_STATE_CORRECTION.md`               | novo — evidência, método, decisão em aberto, 3 lições                                                                    |
+| `CLAUDE.md`                                                    | header 7.15, bloco de atualização, §2.1 (2 linhas), §2.2, §2.3 reescrita, §2.4                                           |
+| `docs/operations/ROADMAP-ATE-LANCAMENTO.md`                    | caminho crítico refeito, GATE 1 e GATE 2 reescritos, G2-00 novo, G2-05 elevado a 🔴, definição de "pronto" com o repasse |
+| `docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md`          | errata no topo; §1.1, §2 e §8 anotadas. Documento mantido íntegro como registro forense                                  |
+| `PROJECT_HISTORY.md`                                           | errata na seção S83 + esta seção                                                                                         |
+| `apps/frontend/src/services/analytics.service.ts`              | removido (G1-04) — mock órfão, zero importadores                                                                         |
+| `scripts/s84-*` e `scripts/s85-*` (24 arquivos), `_to_delete/` | apagados; eram todos não rastreados, nada a commitar                                                                     |
+
+Zero mudanças em schema, dependências ou lógica de negócio.
+
+### Lições novas
+
+- **#67 — Perder um fator de autenticação não é perder a conta.** Acesso ao painel e acesso
+  à API são planos independentes. Uma chave secreta já emitida continua válida depois que o
+  dono perde o login. Antes de declarar um recurso perdido, testar o plano que interessa: se
+  a produção segue funcionando, a integração está viva. Custo do erro aqui: uma conta
+  paralela construída para um problema que não existia, e dois defeitos reais (cadastro PF,
+  repasse ausente) invisíveis por três sessões.
+- **#68 — Identificador opaco deixa de ser opaco quando carrega a chave estrangeira.**
+  Objetos da Stripe embutem o componente da conta no próprio ID: `pk_live_51<X>…`,
+  `price_1<Y><X>…`. Comparar dois IDs responde "mesma conta?" sem chamar API nenhuma.
+  Vale como verificação de custo zero em qualquer sistema com IDs prefixados.
+- **#69 — Variável de ambiente declarada não é integração existente.** Quatro variáveis
+  `WHATSAPP_*` viveram em `configuration.ts` e em `CLAUDE.md` §7 por dezenas de sessões sem
+  que uma linha de serviço as lesse. A documentação descrevia a integração pretendida; o
+  código implementava outra. Ao auditar um canal, começar pelo serviço que envia, não pela
+  tabela de configuração.
+
+Corolário das três: **a documentação herdou a interpretação de quem a escreveu, não o
+estado do sistema.** Seis afirmações em quatro documentos derivavam de um único
+mal-entendido de S83, nunca reconferido, e citadas depois como fato apurado.
+
+### Achado 3 — G5-03 já estava concluído havia 21 sessões
+
+`apps/backend/test/unit/api-key.guard.spec.ts` está rastreado desde o commit `b4f5fd1`
+(`test(s64-a): add dedicated unit spec for ApiKeyGuard`) — 468 linhas, 25 testes em 10
+describes. `CLAUDE.md` §2.4 e o roadmap G5-03 continuavam listando como pendente "commitar
+a spec, 486 linhas já escritas". Terceira instância do mesmo padrão na mesma sessão: a lista
+de pendências descrevia a intenção de quem a escreveu, não o estado do repositório.
+
+Custo do erro: baixo aqui — mas era um dos oito itens da ordem de trabalho desta sessão, e
+teria consumido uma rodada inteira de Claude Code para descobrir que não havia o que fazer.
+
+### Pendências
+
+**Decisão do Pedro, bloqueia o GATE 2 inteiro:** qual conta Stripe segue —
+`acct_1T6DHFJ1Cbnf5voG` (produção hoje, LIVE, cadastro PF) ou `acct_1TgU9WRpJ3I7SP8K`
+(TEST, login institucional). Trade-off em `docs/operations/s85/STRIPE_STATE_CORRECTION.md` §4.
+
+**Não verificado nesta sessão:** o console da Twilio exigiu login. O inventário real de
+números — e portanto o estado verdadeiro de G1-02 — continua desconhecido. `CLAUDE.md` §2.1
+registra +1 507 763 4719, um número americano.
+
+**Delegado ao Claude Code:** commit e push de tudo acima; G1-04 `tsc` + `build`; G5-01
+triagem dos 16 PRs do Dependabot; G3-07 OTel sem trace. Prompt pronto em
+`docs/operations/s85/CLAUDE_CODE_HANDOFF.md`.
+
+**Dívida adjacente registrada, não corrigida:** `CLAUDE.md` termina truncado na §15, no meio
+de uma linha de tabela (`| Qu`). A §16 "Checklist pré-merge", citada como invariante pelas
+instruções globais e por várias seções do próprio arquivo, **não existe**. Truncamento
+presente em `HEAD`, anterior a esta sessão. Aguardando decisão: reconstruir a §16 a partir do
+que o repositório de fato aplica (hooks, jobs do CI, thresholds de cobertura, gate de audit)
+ou remover as referências a ela.

@@ -1,6 +1,7 @@
 # Roadmap até o lançamento — TheIAdvisor
 
 **Criado:** 2026-07-31 (S84) · **Base:** auditoria de 46 módulos backend, 41 telas frontend, 92 suítes de teste, infraestrutura em 6 provedores
+**Revisado:** 2026-08-01 (S85) — GATE 1 e GATE 2 reescritos contra o estado real da Railway, da Stripe e do código. Duas premissas de S83 revogadas; caminho crítico refeito
 **Estado na criação:** 62/100 · CI verde · produção estável e monitorada · zero clientes
 
 ---
@@ -30,24 +31,38 @@ Código escrito, configuração declarada e documentação atualizada não conta
 
 ## Caminho crítico
 
-Os três itens que destravam tudo. Nenhum é código. Todos dependem do CNPJ
-67.084.607/0001-78, que já existe.
+**Reescrito em S85.** A versão anterior colocava "Stripe Identity PJ" e "verificação
+Meta" como as duas esperas dominantes. Nenhuma das duas era o gargalo real: a Stripe já
+está verificada (na entidade errada) e a Meta não participa do canal WhatsApp deste
+produto.
 
 ```
-G2-01 Stripe Identity PJ ──────┐  (1-3 dias úteis de análise)
-                                ├──→ receber pagamento
-G1-01 Verificação Meta ─────────┼──→ canal WhatsApp operacional
-      (CNPJ)                    │    (1-5 dias úteis de análise)
-                                │
-G1-02 Número Twilio BR ─────────┴──→ canal telefone operacional
-      (compra imediata)              │
-                                     ↓
-                          G3 → primeiro usuário real
+G2-00 Decidir a conta Stripe ──→ destrava TODO o portão 2
+      (decisão sua, minutos)     │
+                                 ├──→ G2-01 cadastro PJ  (1-3 dias de análise)
+                                 └──→ G2-05 conta de repasse  ← receita represada sem isto
+                                          │
+                                          ↓
+                                    receber pagamento
+
+G1-01 WhatsApp Sender Twilio ────────→ canal WhatsApp em produção
+      (1-5 dias de análise)              │
+      └─ sandbox Twilio ───────────────→ smoke E2E JÁ, sem espera
+                                         │
+G1-02 Número Twilio BR ──────────────→ canal telefone operacional
+      (verificar o que já existe)        │
+                                         ↓
+                              G3 → primeiro usuário real
 ```
 
-**Iniciar G2-01 e G1-01 no mesmo dia.** Ambos são análise de terceiro; rodam em
-paralelo e a espera é o custo dominante. G1-02 é compra instantânea — pode ficar
-por último sem penalidade.
+**Ordem:** G2-00 primeiro, porque é decisão sua e trava seis itens. Depois G2-01 e G1-01
+no mesmo dia — os dois são análise de terceiro e rodam em paralelo. G2-05 pode correr
+junto e é o mais subestimado da lista: sem conta de repasse, cobrar é acumular saldo que
+não sai.
+
+**O sandbox da Twilio desacopla G1-03 da espera.** O smoke E2E do WhatsApp exercita
+exatamente o mesmo caminho de código com sandbox ou com sender verificado. Não há razão
+para esperar a verificação antes de descobrir falhas de integração.
 
 ---
 
@@ -76,27 +91,52 @@ Registrado para rastreabilidade e para que uma sessão futura não refaça.
 > **Hoje o produto não funciona para ninguém** — o código dos dois canais está
 > pronto e testado, mas nenhum está conectado ao mundo real.
 
-### G1-01 · WhatsApp Business API 🔴
+> **Revisão S85 (2026-08-01).** Este portão foi reescrito depois de conferir as 42
+> variáveis da Railway e o código dos dois canais. G1-01 descrevia uma integração que o
+> produto **não implementa**. Detalhe e evidência:
+> [`docs/operations/s85/STRIPE_STATE_CORRECTION.md`](s85/STRIPE_STATE_CORRECTION.md) §2.3.
 
-- **Dono:** Pedro · **Latência:** 1–5 dias úteis (análise da Meta)
-- **Bloqueia:** canal WhatsApp inteiro, G3-01, lançamento
-- **Passos:** Meta Business Manager → verificar empresa com CNPJ → criar app
-  WhatsApp Business → obter `Phone Number ID` e `Access Token` permanente →
-  configurar webhook apontando para `https://api.theiadvisor.com/api/whatsapp/webhook`
-- **Aceite:** mensagem enviada de um celular real chega no dashboard e a IA
-  devolve sugestão
-- **Verificar:** enviar mensagem para o número e observar o registro em
-  `/dashboard/whatsapp`
-- **Nota:** o `WHATSAPP_VERIFY_TOKEN` você escolhe; os outros a Meta fornece.
-  Nunca colar valor no chat — aplicar direto no painel da Railway.
+### G1-01 · Habilitar WhatsApp Sender na Twilio 🔴
 
-### G1-02 · Número Twilio BR 🔴
+- **Dono:** Pedro · **Latência:** 1–5 dias úteis (a verificação de empresa da Meta
+  acontece **por dentro** do fluxo da Twilio, não antes dele)
+- **Bloqueia:** canal WhatsApp inteiro, G1-03, lançamento
+- **Correção S85:** o item anterior mandava criar um app no Meta Business Manager e
+  obter `Phone Number ID` + `Access Token`. **O código não usa nada disso.**
+  `WhatsappService` (`whatsapp.service.ts:103-114`) instancia o cliente Twilio e envia
+  por `TWILIO_WHATSAPP_NUMBER`, com fallback para o número de sandbox
+  `whatsapp:+14155238886`. O webhook recebido é `TwilioWebhookPayload`
+  (`From`/`To`/`Body`/`ProfileName`/`NumMedia`), formato Twilio. As variáveis
+  `WHATSAPP_API_URL`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` e
+  `WHATSAPP_WEBHOOK_SECRET` aparecem só em `configuration.ts` e `env.validation.ts` —
+  **nenhum serviço as lê**, e das cinco só `WHATSAPP_VERIFY_TOKEN` existe na Railway.
+- **Passos:** console Twilio → Messaging → WhatsApp senders → submeter o número com o
+  CNPJ 67.084.607/0001-78 → apontar o webhook de entrada para
+  `https://api.theiadvisor.com/api/whatsapp/webhook` → preencher `TWILIO_WHATSAPP_NUMBER`
+  na Railway no formato `whatsapp:+55…`
+- **Atalho para destravar G1-03 hoje:** o **sandbox** da Twilio funciona sem verificação
+  nenhuma. Basta parear o celular com o código do sandbox. Serve para provar a integração
+  ponta a ponta enquanto a verificação corre; **não** serve para atender cliente
+- **Aceite:** mensagem enviada de um celular real chega no dashboard e a IA devolve sugestão
+- **Verificar:** enviar mensagem para o número e observar o registro em `/dashboard/whatsapp`
+- **Armadilha no código:** `processWebhook` chama `findCompanyByWhatsAppNumber(toNumber)` e
+  **descarta a mensagem em silêncio** se nenhuma empresa tiver aquele número configurado.
+  Antes do smoke, garantir que a `Company` no banco tem o número do sender
+
+### G1-02 · Número Twilio de voz 🔴
 
 - **Dono:** Pedro · **Latência:** imediata (é compra)
 - **Bloqueia:** canal telefone, transcrição, coaching em ligação
-- **Passos:** comprar número +55 no console Twilio → configurar webhook de voz
-  para `https://api.theiadvisor.com/api/calls/webhook` → preencher
-  `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` na Railway
+- **Estado verificado em S85:** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+  `TWILIO_PHONE_NUMBER`, `TWILIO_WEBHOOK_URL` e `TWILIO_WHATSAPP_NUMBER` **existem** na
+  Railway. `CLAUDE.md` §2.1 registra o número **+1 507 763 4719** — americano. Ou seja:
+  um número existe e o canal pode já estar operante; o que falta é um número **BR**
+- **Não verificado:** o console da Twilio exigiu login e não foi acessado nesta sessão.
+  O inventário real de números continua desconhecido — **não marcar este item como
+  concluído com base na existência das variáveis** (lição #57)
+- **Passos:** console Twilio → conferir os números que já existem → comprar +55 se ainda
+  não houver → configurar webhook de voz para
+  `https://api.theiadvisor.com/api/calls/webhook` → atualizar `TWILIO_PHONE_NUMBER`
 - **Aceite:** ligação real transcrita e visível em `/dashboard/calls`
 - **Custo:** número BR ~US$ 1–2/mês + uso por minuto
 
@@ -108,13 +148,23 @@ Registrado para rastreabilidade e para que uma sessão futura não refaça.
   sugerida → envio; **(c)** ambas registradas em Analytics
 - **Por que importa:** teste unitário não pega falha de integração entre
   componentes (lição #26)
+- **Nota S85:** a metade WhatsApp deste item é executável **hoje** pelo sandbox da Twilio,
+  sem esperar verificação de empresa. Rodar assim antecipa a descoberta de falhas de
+  integração em dias, e o caminho de código exercitado é exatamente o mesmo
 
-### G1-04 · Remover mock órfão ⚪
+### G1-04 · Remover mock órfão ⚪ — **arquivo removido em S85, aguardando CI**
 
 - **Dono:** Claude Code · **Esforço:** 2 min
 - **Item:** `apps/frontend/src/services/analytics.service.ts` não é importado por
   ninguém — o dashboard usa o serviço real de `api.ts`
-- **Aceite:** arquivo removido, `pnpm build` do frontend passa
+- **Evidência da orfandade (S85):** o símbolo `analyticsService` é exportado em dois
+  lugares (`services/analytics.service.ts:4` e `services/api.ts:593`); os três
+  consumidores — `dashboard/page.tsx`, `dashboard/analytics/page.tsx`,
+  `dashboard/audit-logs/page.tsx` — importam todos de `@/services/api`. Não existe
+  `services/index.ts`, logo não há reexportação em barril. O conteúdo do arquivo era um
+  mock com números fixos (`totalCalls: 247`) e um `API_URL` declarado e nunca usado
+- **Aceite:** arquivo removido, `pnpm tsc --noEmit` e `pnpm build` do frontend passam
+- **Estado:** removido do working tree; falta `tsc`/`build`/commit no Claude Code
 
 ---
 
@@ -122,32 +172,64 @@ Registrado para rastreabilidade e para que uma sessão futura não refaça.
 
 > **Objetivo:** você pode cobrar e emitir nota fiscal legalmente.
 
-### G2-01 · Stripe Identity verification PJ 🔴
+> **Revisão S85 (2026-08-01).** Este portão inteiro estava construído sobre a premissa de
+> que a conta Stripe original fora perdida e que a produção rodava numa conta nova, em TEST.
+> **As duas coisas são falsas.** A produção está em LIVE, na conta original, que responde
+> normalmente. Ver [`s85/STRIPE_STATE_CORRECTION.md`](s85/STRIPE_STATE_CORRECTION.md).
+> Consequência: LIVE deixa de ser um portão a abrir e vira um estado a **regularizar**.
 
-- **Dono:** Pedro · **Latência:** 1–3 dias úteis · **INICIAR PRIMEIRO**
-- **Bloqueia:** G2-02, G2-03, G2-04 — e portanto toda receita
+### G2-00 · Decidir qual conta Stripe segue 🔴 · **NOVO, INICIAR PRIMEIRO**
+
+- **Dono:** Pedro · **Esforço:** decisão, não execução
+- **Bloqueia:** G2-01 a G2-05. Nada em Stripe avança antes disto
+- **Escolha:** manter `acct_1T6DHFJ1Cbnf5voG` (produção hoje, LIVE, cadastro **pessoa
+  física**, login `leme.baseapr@gmail.com`) ou migrar para `acct_1TgU9WRpJ3I7SP8K`
+  (só TEST, login institucional, cadastro PJ desde o início)
+- **Trade-off completo:** `s85/STRIPE_STATE_CORRECTION.md` §4. Recomendação técnica
+  registrada lá: **migrar**, pelo custo de troca ser mínimo agora e proibitivo depois do
+  primeiro pagamento — mas a escolha é sua e há contra-argumento legítimo
+- **Pré-requisito da opção "manter":** confirmar, numa janela anônima e com logout
+  completo, que o 2FA de `acct_1T6DHFJ1Cbnf5voG` é de fato utilizável. A sessão aberta
+  hoje pode ser apenas um cookie sobrevivente
+- **Aceite:** decisão registrada em `CLAUDE.md` §2.3 com uma linha de justificativa
+
+### G2-01 · Cadastro como pessoa jurídica 🔴
+
+- **Dono:** Pedro · **Latência:** 1–3 dias úteis · **Depende de:** G2-00
+- **Bloqueia:** G2-06 (NFS-e coerente com quem recebe), G2-05
+- **Contexto S85:** a conta de produção está cadastrada como **pessoa física** — "Outras
+  informações fornecidas: CPF, Telefone", endereço residencial tipo "Casa". Não há tarefa
+  de verificação pendente; o cadastro está completo, só que na entidade errada
 - **Documentos:** CNPJ 67.084.607/0001-78 · contrato social · RG · comprovante de
   endereço PJ
-- **Aceite:** conta `acct_1TgU9WRpJ3I7SP8K` aparece como verificada e habilitada
-  para LIVE no painel
-- **Runbook:** `docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md` (Fase 2)
+- **Aceite:** painel da conta exibindo a pessoa jurídica, sem tarefa pendente em
+  "Status da conta"
+- **Por que importa mesmo já cobrando:** receber como PF e emitir NFS-e como PJ são
+  fatos fiscais incompatíveis
 
 ### G2-02 · Stripe 2FA com redundância 🔴
 
-- **Dono:** Pedro · **Esforço:** 15 min
-- **Contexto:** a conta Stripe **anterior foi perdida em definitivo** por ter só
-  passkey, sem backup codes, e o Support negou a recuperação (lição #45). Não
-  repetir.
-- **Aceite:** passkey **e** TOTP **e** 10 backup codes guardados em 2 locais
-  distintos, um deles offline
+- **Dono:** Pedro · **Esforço:** 15 min · **Depende de:** G2-00
+- **Contexto corrigido em S85:** a conta anterior **não foi perdida**. O que se perdeu foi
+  um fator de autenticação — passkey sem TOTP e sem backup codes — e a recuperação por
+  aquele formulário específico foi negada. A chave `sk_live_*` seguiu autenticando o tempo
+  todo, e é por isso que a produção nunca parou (lições #45 e #67)
+- **Aceite:** na conta escolhida em G2-00: passkey **e** TOTP **e** 10 backup codes
+  guardados em 2 locais distintos, um deles offline. Critério: perder qualquer um dos três
+  não bloqueia o acesso
 
-### G2-03 · Stripe LIVE mode 🔴
+### G2-03 · Alinhar LIVE mode à conta escolhida 🔴
 
-- **Dono:** Cowork · **Depende de:** G2-01
-- **Passos:** recriar 3 products + 3 prices + webhook de 6 eventos com `--live` →
-  atualizar as 6 variáveis na Railway → atualizar `CLAUDE.md` §2.3
-- **Aceite:** `STRIPE_SECRET_KEY` começa com `sk_live_` e o webhook aparece como
-  ativo no painel
+- **Dono:** Cowork · **Depende de:** G2-00
+- **Se a decisão for manter:** nada a fazer. LIVE já está ativo com
+  `price_1TGufH…` / `price_1TGuhy…` / `price_1TGuja…` (ver `CLAUDE.md` §2.3)
+- **Se a decisão for migrar:** recriar 3 products + 3 prices + webhook de 6 eventos com
+  `--live` na conta nova → trocar as 6 variáveis (5 Railway + 1 Vercel) → atualizar
+  `CLAUDE.md` §2.3 no mesmo commit
+- **Aceite:** os 3 `STRIPE_PRICE_*` da Railway e a `STRIPE_PUBLISHABLE_KEY` compartilhando
+  o mesmo componente de conta, e o webhook ativo no painel
+- **Verificação barata (lição #68):** comparar os IDs. `pk_live_51<X>…` e `price_1<Y><X>…`
+  precisam ter o mesmo `<X>`. Se divergirem, a configuração está partida entre duas contas
 - **Armadilha (lição #50):** na CLI use `-d "chave=valor"`; `--metadata[k]=v` e
   `--description` não existem e falham em silêncio
 
@@ -157,11 +239,22 @@ Registrado para rastreabilidade e para que uma sessão futura não refaça.
 - **Aceite:** uma assinatura real comprada com cartão real, registro criado em
   `Subscription` no banco, webhook processado, acesso liberado ao plano
 - **Nota:** pode ser você mesmo comprando o plano mais barato e cancelando
+- **Nota S85:** o último precedente é a sessão A4 (abril/2026), que criou um
+  `cs_live_a1GgPI…` com sucesso. O caminho de checkout já funcionou em LIVE ao menos uma
+  vez — o que nunca foi exercitado é o pagamento consumado e o webhook de volta
 
-### G2-05 · Payout Inter PJ 🟠
+### G2-05 · Conta bancária de repasse 🔴 · **severidade elevada em S85**
 
-- **Dono:** Pedro · **Depende de:** G2-01
+- **Dono:** Pedro · **Depende de:** G2-00
+- **Achado S85:** o painel da conta de produção mostra **`Repasses: —`**. Não há conta
+  bancária cadastrada. Sem isso o checkout aprova, o dinheiro entra no saldo da Stripe e
+  **nunca sai**
+- **Era 🟠 e virou 🔴:** cobrar sem destino de repasse não é dívida operacional, é receita
+  represada — e com cliente pagante do outro lado, é obrigação assumida sem contrapartida
+- **Destino:** Inter PJ, agência 0001, chave PIX CNPJ já cadastrada (S81-EOD)
 - **Aceite:** transferência de teste da Stripe cai na conta Inter PJ
+- **Armadilha (lição #43):** o Kaspersky Safe Money intercepta domínios bancários —
+  escolher "Continuar sem proteção" em fluxos automatizados
 
 ### G2-06 · NFS-e operacional 🟠
 
@@ -297,14 +390,14 @@ Registrado para rastreabilidade e para que uma sessão futura não refaça.
 > **Objetivo:** o projeto não acumula dívida mais rápido do que a paga.
 > Roda em paralelo aos outros portões. Não bloqueia lançamento.
 
-| ID    | Item                                                                  | Dono        | Aceite                                         |
-| ----- | --------------------------------------------------------------------- | ----------- | ---------------------------------------------- |
-| G5-01 | Triar 16 PRs do Dependabot (abertos desde 28/04)                      | Claude Code | Nenhum PR com mais de 30 dias em aberto        |
-| G5-02 | Cobertura 77/66/75/77 → 80% (meta da §9)                              | Claude Code | `coverageThreshold` elevado com CI verde       |
-| G5-03 | Commitar spec do `api-key.guard` (486 linhas já escritas)             | Claude Code | Spec no repositório, cobertura de guards > 75% |
-| G5-04 | Vulnerabilidades médias `qs` e `uuid`                                 | Claude Code | 1 override por commit (lição #17)              |
-| G5-05 | Bundle 2,90 MB → ≤ 2 MB                                               | Claude Code | `pnpm run analyze` abaixo do limiar de aviso   |
-| G5-06 | Revisar allowlist de segurança a cada sessão que toque em dependência | Claude Code | Gatilhos do ADR-015 reavaliados                |
+| ID    | Item                                                                            | Dono        | Aceite                                                              |
+| ----- | ------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------- |
+| G5-01 | Triar 16 PRs do Dependabot (abertos desde 28/04)                                | Claude Code | Nenhum PR com mais de 30 dias em aberto                             |
+| G5-02 | Cobertura 77/66/75/77 → 80% (meta da §9)                                        | Claude Code | `coverageThreshold` elevado com CI verde                            |
+| G5-03 | ~~Commitar spec do `api-key.guard`~~ ✅ **já feito em S64-A**, commit `b4f5fd1` | —           | 468 linhas, 25 testes em 10 describes, rastreado. Verificado em S85 |
+| G5-04 | Vulnerabilidades médias `qs` e `uuid`                                           | Claude Code | 1 override por commit (lição #17)                                   |
+| G5-05 | Bundle 2,90 MB → ≤ 2 MB                                                         | Claude Code | `pnpm run analyze` abaixo do limiar de aviso                        |
+| G5-06 | Revisar allowlist de segurança a cada sessão que toque em dependência           | Claude Code | Gatilhos do ADR-015 reavaliados                                     |
 
 ---
 
@@ -316,10 +409,12 @@ tiverem sido **verificadas em produção**, não presumidas:
 1. Uma ligação real é recebida, transcrita, e a IA sugere resposta — G1
 2. Uma mensagem de WhatsApp real é recebida e respondida com apoio da IA — G1
 3. Um cartão real compra uma assinatura e libera acesso — G2
-4. Uma NFS-e é emitida para essa cobrança — G2
-5. As credenciais em uso hoje foram rotacionadas depois da última exposição — G3
-6. O backup foi restaurado ao menos uma vez com sucesso — G3
-7. Se qualquer um dos itens acima quebrar às 3h da manhã, chega alerta — G0 ✅
+4. **O dinheiro dessa cobrança chega na conta bancária** — G2-05 (acrescentado em S85:
+   até aqui a definição terminava no checkout, que é metade do circuito)
+5. Uma NFS-e é emitida para essa cobrança — G2
+6. As credenciais em uso hoje foram rotacionadas depois da última exposição — G3
+7. O backup foi restaurado ao menos uma vez com sucesso — G3
+8. Se qualquer um dos itens acima quebrar às 3h da manhã, chega alerta — G0 ✅
 
 **Portões mínimos para lançar: G0 ✅ · G1 · G2 · G3.**
 G4 e G5 podem correr depois, com clientes em produção.
@@ -356,7 +451,7 @@ improvisado depois.
 
 # Princípios que este projeto já aprendeu a respeitar
 
-Extraídos das 66 lições registradas em `PROJECT_HISTORY.md`. Valem como critério
+Extraídos das 69 lições registradas em `PROJECT_HISTORY.md`. Valem como critério
 de revisão para qualquer trabalho futuro.
 
 1. **Infraestrutura declarada não é infraestrutura existente** (#57). Só conta
@@ -370,11 +465,21 @@ de revisão para qualquer trabalho futuro.
 5. **Observabilidade interna não detecta ausência** (#52). Serviço desligado
    produz silêncio, e silêncio parece saúde.
 6. **Item de backlog carrega a premissa de quem o escreveu** (#66). Verificar o
-   estado real antes de executar — dois itens de S84 estavam factualmente errados.
+   estado real antes de executar — dois itens de S84 estavam factualmente errados,
+   e em S85 o portão 2 inteiro descansava sobre uma premissa falsa de S83.
 7. **Documentação falsamente favorável é pior que documentação ausente** (#48).
    Ausência provoca investigação; otimismo errado provoca decisão errada.
 8. **Contas e cobrança são parte da arquitetura** (#54). 79 suítes de teste não
    impediram 8 semanas de indisponibilidade por uma fatura de US$ 5.
+9. **Perder um fator de autenticação não é perder a conta** (#67). Acesso ao painel e
+   acesso à API são planos independentes. Testar o plano que interessa antes de declarar
+   qualquer coisa perdida.
+10. **Identificador opaco deixa de ser opaco quando carrega a chave estrangeira** (#68).
+    IDs prefixados da Stripe embutem o componente da conta — comparar dois IDs responde
+    "mesma conta?" sem chamar API nenhuma.
+11. **Variável de ambiente declarada não é integração existente** (#69). Quatro variáveis
+    `WHATSAPP_*` viveram na configuração e na documentação por dezenas de sessões sem que
+    uma linha de serviço as lesse. Auditar canal começando pelo código que envia.
 
 ---
 

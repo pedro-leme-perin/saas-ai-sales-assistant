@@ -18,6 +18,53 @@ Migration to pure SemVer 2.0 (`vMAJOR.MINOR.PATCH`) ocorrerá no primeiro releas
 
 ---
 
+## [v0.85.0] — Correcao factual de estado: Stripe e canal WhatsApp (S85) — 2026-08-01
+
+Auditoria das 42 variaveis da Railway contra a documentacao. Duas premissas de S83
+revogadas contra evidencia de painel e de codigo. Commit doc-only, exceto pela remocao
+de um mock orfao.
+
+### Fixed
+
+- **`CLAUDE.md` §2.1, §2.2, §2.3, §2.4** — a documentacao afirmava que a conta Stripe
+  original fora perdida em definitivo, que a conta ativa era `acct_1TgU9WRpJ3I7SP8K` e
+  que o LIVE mode estava bloqueado por Identity PJ. A producao usa
+  `acct_1T6DHFJ1Cbnf5voG`, em LIVE mode, com dashboard acessivel e sem tarefas de
+  verificacao pendentes. Prova: `STRIPE_PUBLISHABLE_KEY = pk_live_51T6DHFJ1Cbnf5...` e
+  os tres `STRIPE_PRICE_*` compartilhando o componente de conta `J1Cbnf5voG`.
+- **`CLAUDE.md` §2.1, §2.4 e roadmap G1-01** — o canal WhatsApp roda sobre Twilio, nao
+  sobre a Graph API da Meta. `WhatsappService` instancia o cliente Twilio e envia por
+  `TWILIO_WHATSAPP_NUMBER`. As variaveis `WHATSAPP_API_URL`, `WHATSAPP_PHONE_NUMBER_ID`,
+  `WHATSAPP_ACCESS_TOKEN` e `WHATSAPP_WEBHOOK_SECRET` so aparecem em `configuration.ts` e
+  `env.validation.ts`; nenhum servico as consome.
+- **`CLAUDE.md` §2.4 e roadmap G5-03** — a spec do `api-key.guard` constava como pendente
+  havia 21 sessoes. Esta rastreada desde o commit `b4f5fd1` (S64-A).
+- **`docs/operations/s83/STRIPE_NEW_ACCOUNT_MIGRATION.md`** — errata no topo; §1.1, §2 e
+  §8 anotadas. Documento mantido integro como registro forense.
+- **`PROJECT_HISTORY.md`** — errata na secao S83.
+
+### Added
+
+- **`docs/operations/s85/STRIPE_STATE_CORRECTION.md`** — evidencia, metodo de verificacao,
+  correcao afirmacao por afirmacao, trade-off das duas contas Stripe e 3 licoes novas.
+- **`docs/operations/s85/CLAUDE_CODE_HANDOFF.md`** — prompt de continuacao com as tarefas
+  que exigem `pnpm` e `git push`.
+- **`docs/operations/ROADMAP-ATE-LANCAMENTO.md`** — item `G2-00` (decidir qual conta
+  Stripe segue), que bloqueia os seis itens seguintes do portao.
+
+### Changed
+
+- **Roadmap** — caminho critico refeito; GATE 1 e GATE 2 reescritos; `G2-05` (conta
+  bancaria de repasse) elevado de 🟠 para 🔴 apos o painel mostrar `Repasses: --`;
+  definicao de "pronto para lancar" ganha o item do dinheiro chegando na conta.
+
+### Removed
+
+- **`apps/frontend/src/services/analytics.service.ts`** — mock orfao com numeros fixos,
+  zero importadores. Os tres consumidores usam `analyticsService` de `@/services/api`.
+
+---
+
 ## [v0.84.1] — Fechamento operacional pos-incidente (S84) — 2026-07-31
 
 Segunda metade de S84. Saiu do repositorio para o painel dos provedores.

@@ -1,6 +1,28 @@
 # Runbook — Migração para nova conta Stripe (S83)
 
-**Status:** EM ANDAMENTO — Fase 1 parcial
+> # ⚠️ ERRATA — S85, 2026-08-01
+>
+> **A premissa central deste runbook é falsa. Não execute as fases 2 a 5 sem antes ler
+> [`docs/operations/s85/STRIPE_STATE_CORRECTION.md`](../s85/STRIPE_STATE_CORRECTION.md).**
+>
+> Verificado em 01/08/2026 nos painéis Railway e Stripe:
+>
+> | Este runbook diz                                   | Realidade                                            |
+> | -------------------------------------------------- | ---------------------------------------------------- |
+> | Conta original inacessível, sem retorno (§1.1, §8) | Dashboard acessível, permissões completas            |
+> | A produção migrou para `acct_1TgU9WRpJ3I7SP8K`     | A produção **nunca saiu** de `acct_1T6DHFJ1Cbnf5voG` |
+> | Price IDs antigos mortos                           | São os três em uso, em LIVE mode                     |
+> | LIVE bloqueado por Identity PJ                     | LIVE ativo, sem tarefa de verificação pendente       |
+>
+> O que se perdeu em S83 foi **um método de 2FA**, não a conta. Chave `sk_live_*` já emitida
+> continua autenticando independentemente do acesso ao dashboard — e continuou o tempo todo.
+>
+> **O documento é mantido íntegro abaixo como registro forense**, não como instrução. As
+> partes ainda válidas: §5.1 e §5.2 (armadilhas reais da Stripe CLI), §7 (protocolo de
+> segredos) e a identidade da conta secundária em §2. Tudo que dependa da premissa de perda
+> está anulado.
+
+**Status:** ~~EM ANDAMENTO — Fase 1 parcial~~ → **SUPERSEDIDO por S85** (premissa revogada)
 **Sessão:** S83 (2026-07-30)
 **Anterior:** S81-EOD documentou o bloqueio; S82 não tocou em Stripe.
 **Owner:** Pedro Leme Perin
@@ -12,12 +34,20 @@
 
 ### 1.1 O que aconteceu
 
+> **[S85] Esta subseção está errada.** Ver errata no topo. A conta não foi perdida.
+
 A conta Stripe original (usada de S40 até S81) ficou inacessível:
 
 - 2FA configurado **apenas** com passkey, sem TOTP e sem backup codes (lição #45 do S81-EOD)
 - Dispositivo portador da passkey indisponível
 - Formulário oficial de recuperação submetido ao Stripe Support
 - **Resultado: recuperação negada.** Não há caminho de retorno à conta antiga.
+
+> **[S85] Correção:** o que foi negado foi a recuperação **por aquele formulário específico**,
+> destinado a quem não tem dispositivo de 2FA nem backup code. A conclusão "não há caminho de
+> retorno" foi extrapolação. Em 01/08/2026 o dashboard de `acct_1T6DHFJ1Cbnf5voG` respondeu
+> com acesso completo às configurações, e a conta está sem nenhuma tarefa de verificação
+> pendente.
 
 ### 1.2 Decisão
 
@@ -51,6 +81,11 @@ preços em BRL de forma estática (mirror de `BillingService.getPlans()`). Os **
 ---
 
 ## 2. Identidade da conta nova
+
+> **[S85]** Esta é a conta **secundária**, provisionada apenas em TEST mode. Nenhuma
+> variável de produção aponta para ela. A conta que a produção usa é
+> `acct_1T6DHFJ1Cbnf5voG`. Se a decisão de §4 da correção S85 for migrar, esta tabela volta
+> a valer; até lá, é referência de um ativo criado e não utilizado.
 
 | Campo                  | Valor                                                               |
 | ---------------------- | ------------------------------------------------------------------- |
@@ -242,7 +277,11 @@ diretamente no painel do provedor, sem intermediação.
 
 ## 8. Rollback
 
-Não existe rollback para a conta antiga: o acesso foi perdido de forma definitiva.
+> **[S85] Esta seção está errada e o erro é o mais consequente do documento.** Não houve
+> migração a reverter: a produção nunca deixou `acct_1T6DHFJ1Cbnf5voG`. E o rollback que se
+> julgava impossível é o estado atual do sistema.
+
+~~Não existe rollback para a conta antiga: o acesso foi perdido de forma definitiva.~~
 
 O que existe é **contenção**, caso a conta nova apresente problema antes do go-live:
 

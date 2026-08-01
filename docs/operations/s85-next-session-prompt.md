@@ -1,5 +1,11 @@
 # S85 — Prompt de proxima sessao
 
+> **ERRATA S85 (2026-08-01).** Este documento afirma que a conta Stripe ativa e
+> `acct_1TgU9WRpJ3I7SP8K` e que o LIVE mode esta bloqueado por Identity PJ. **As duas
+> afirmacoes sao falsas.** A producao usa `acct_1T6DHFJ1Cbnf5voG`, em LIVE mode. Ver
+> `docs/operations/s85/STRIPE_STATE_CORRECTION.md`. Documento mantido como registro
+> historico; nao reaproveitar o texto sobre Stripe nem sobre WhatsApp.
+
 **Sessao anterior:** S84 (2026-07-31) — 19 advisories HIGH zerados + fechamento operacional pos-incidente.
 **HEAD esperado:** `7886ce1` (`docs(s84-final)`), `main` sincronizado com `origin/main`.
 **Pasta canonica:** `C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL`
