@@ -46,8 +46,19 @@ describe('ImpersonationController', () => {
 
   beforeEach(async () => {
     service = {
-      start: jest.fn().mockResolvedValue({ ...mockSession, plaintextToken: 'imp_REDACTED' }),
-      end: jest.fn().mockResolvedValue({ endedAt: new Date() }),
+      // S85: espelha StartImpersonationResult. O mock antigo devolvia `id` e
+      // `plaintextToken`, campos que o servico nao tem — a asercao de `result.id`
+      // conferia a invencao contra ela mesma. O contrato real emite `sessionId` e
+      // `token` (plaintext, uma unica vez na emissao).
+      start: jest.fn().mockResolvedValue({
+        sessionId: SESSION_ID,
+        token: 'imp_REDACTED',
+        targetUserId: TARGET_USER_ID,
+        targetUserName: 'Target User',
+        targetUserEmail: 'target@tenant.com',
+        expiresAt: new Date('2026-12-31'),
+      }),
+      end: jest.fn().mockResolvedValue({ ended: true }),
       listActive: jest.fn().mockResolvedValue([mockSession]),
       findById: jest.fn().mockResolvedValue(mockSession),
     };
@@ -73,7 +84,9 @@ describe('ImpersonationController', () => {
         dto as unknown as StartImpersonationDto,
         req,
       );
-      expect(result.id).toBe(SESSION_ID);
+      expect(result.sessionId).toBe(SESSION_ID);
+      expect(result.token).toBe('imp_REDACTED');
+      expect(result.targetUserId).toBe(TARGET_USER_ID);
       expect(service.start).toHaveBeenCalledWith(
         COMPANY_ID,
         { id: USER_ID, role: UserRole.ADMIN },
@@ -116,7 +129,9 @@ describe('ImpersonationController', () => {
       const dto = { targetUserId: TARGET_USER_ID };
 
       await controller.start(COMPANY_ID, mockUser, dto as unknown as StartImpersonationDto, req);
-      const call = service.start!.mock.calls[0];
+      // `jest.Mocked<Partial<T>>` tipa o membro com a assinatura do metodo, nao com
+      // jest.Mock — `.mock` so existe apos o cast.
+      const call = (service.start as unknown as jest.Mock).mock.calls[0];
       expect((call[3] as { userAgent?: string }).userAgent).toHaveLength(500);
     });
   });
@@ -124,7 +139,7 @@ describe('ImpersonationController', () => {
   describe('end', () => {
     it('ends session with reason', async () => {
       const result = await controller.end(COMPANY_ID, mockUser, SESSION_ID, 'investigation done');
-      expect(result.endedAt).toBeInstanceOf(Date);
+      expect(result).toEqual({ ended: true });
       expect(service.end).toHaveBeenCalledWith(
         COMPANY_ID,
         USER_ID,

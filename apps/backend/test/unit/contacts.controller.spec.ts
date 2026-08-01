@@ -17,6 +17,7 @@ describe('ContactsController', () => {
   const USER_ID = '660e8400-e29b-41d4-a716-446655440031';
   const CONTACT_ID = '770e8400-e29b-41d4-a716-446655440032';
   const NOTE_ID = '880e8400-e29b-41d4-a716-446655440033';
+  const OTHER_ID = '990e8400-e29b-41d4-a716-446655440034';
 
   const mockUser: AuthenticatedUser = {
     id: USER_ID,
@@ -40,14 +41,20 @@ describe('ContactsController', () => {
 
   beforeEach(async () => {
     service = {
-      list: jest.fn().mockResolvedValue({ items: [mockContact], nextCursor: null, total: 1 }),
-      merge: jest.fn().mockResolvedValue({ merged: true, primary: CONTACT_ID }),
+      // S85: list devolve { data, nextCursor } — nao { items, total }; merge devolve
+      // { success, mergedId, removedId }; removeNote devolve { success: true }. Os
+      // mocks antigos inventavam as tres formas, e o frontend sempre falou o contrato
+      // real (contacts.service.ts:53 consome nextCursor) — quem estava errado era o teste.
+      list: jest.fn().mockResolvedValue({ data: [mockContact], nextCursor: null }),
+      merge: jest
+        .fn()
+        .mockResolvedValue({ success: true, mergedId: CONTACT_ID, removedId: OTHER_ID }),
       findById: jest.fn().mockResolvedValue(mockContact),
       update: jest.fn().mockResolvedValue({ ...mockContact, name: 'Jane Doe' }),
       timeline: jest.fn().mockResolvedValue([{ kind: 'CALL', at: new Date('2026-04-01') }]),
       listNotes: jest.fn().mockResolvedValue([{ id: NOTE_ID, content: 'VIP customer' }]),
       addNote: jest.fn().mockResolvedValue({ id: NOTE_ID, content: 'New note' }),
-      removeNote: jest.fn().mockResolvedValue({ deleted: true }),
+      removeNote: jest.fn().mockResolvedValue({ success: true }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -61,7 +68,8 @@ describe('ContactsController', () => {
   describe('list', () => {
     it('parses limit and cursor', async () => {
       const result = await controller.list(COMPANY_ID, 'john', '50', 'cursor-x');
-      expect(result.items).toEqual([mockContact]);
+      expect(result.data).toEqual([mockContact]);
+      expect(result.nextCursor).toBeNull();
       expect(service.list).toHaveBeenCalledWith(COMPANY_ID, {
         q: 'john',
         limit: 50,
@@ -90,13 +98,13 @@ describe('ContactsController', () => {
 
   describe('merge', () => {
     it('passes tenant + actor + dto', async () => {
-      const dto = { primaryId: CONTACT_ID, secondaryId: 'other-id' };
+      const dto = { primaryId: CONTACT_ID, secondaryId: OTHER_ID };
       const result = await controller.merge(
         COMPANY_ID,
         mockUser,
         dto as unknown as MergeContactsDto,
       );
-      expect(result).toEqual({ merged: true, primary: CONTACT_ID });
+      expect(result).toEqual({ success: true, mergedId: CONTACT_ID, removedId: OTHER_ID });
       expect(service.merge).toHaveBeenCalledWith(COMPANY_ID, USER_ID, dto);
     });
   });
@@ -161,7 +169,7 @@ describe('ContactsController', () => {
   describe('removeNote', () => {
     it('deletes specific note by id', async () => {
       const result = await controller.removeNote(COMPANY_ID, mockUser, CONTACT_ID, NOTE_ID);
-      expect(result).toEqual({ deleted: true });
+      expect(result).toEqual({ success: true });
       expect(service.removeNote).toHaveBeenCalledWith(COMPANY_ID, USER_ID, CONTACT_ID, NOTE_ID);
     });
   });

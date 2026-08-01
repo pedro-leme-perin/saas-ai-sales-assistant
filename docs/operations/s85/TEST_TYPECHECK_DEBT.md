@@ -120,3 +120,48 @@ o mock for obrigado a ter o tipo do serviço real. Sem type-check nos testes, o 
 devolver qualquer coisa, e a asserção passa a descrever uma ficção que combina com ela mesma.
 Foi o que aconteceu em oito endpoints aqui, por dezenas de sessões, com a suíte verde o tempo
 todo.
+
+---
+
+## Execução — escopo 1 (grupo D)
+
+Feito na mesma sessão, depois da decisão. Quatro arquivos, 14 formas inventadas trocadas pelo
+contrato real:
+
+| Arquivo                            | Correções                                                                                                                                                                                                                                                                                |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `csat.controller.spec.ts`          | `removeConfig` e `submitPublic` → `{ success: true }`; `listResponses` → `{ data, nextCursor }`; `analytics` → `{ total, responded, responseRate, avgScore, distribution, promoters, passives, detractors }`; `lookupPublicByToken` → sem `token`; `CsatResponseStatus.PENDING` → `SENT` |
+| `announcements.controller.spec.ts` | `markRead`, `dismiss` e `remove` → `{ success: true }`                                                                                                                                                                                                                                   |
+| `contacts.controller.spec.ts`      | `list` → `{ data, nextCursor }`; `merge` → `{ success, mergedId, removedId }`; `removeNote` → `{ success: true }`                                                                                                                                                                        |
+| `impersonation.controller.spec.ts` | `start` → `StartImpersonationResult` (`sessionId`/`token`, não `id`/`plaintextToken`); `end` → `{ ended: true }`                                                                                                                                                                         |
+
+Nove dessas eram os erros de tipo contados no grupo D. As outras cinco não produziam erro —
+`removeConfig`, `announcements.remove`, `contacts.merge`, `contacts.removeNote` e o mock de
+`listResponses` inventavam a forma sem que nenhuma asserção tropeçasse no tipo. Foram
+encontradas ao ler o serviço para corrigir as vizinhas, o que diz algo sobre o método: **a
+contagem de erros de tipo subestima a quantidade de ficção, porque só acusa a ficção que o
+compilador topa por acaso.**
+
+Duas asserções ganharam conteúdo em vez de só deixar de mentir:
+
+- `publicLookup` passa a exigir `expect(result).not.toHaveProperty('token')` — o endpoint é
+  público e sem autenticação, e ecoar o token ampliaria a superfície. Antes o teste exigia o
+  oposto (`result.token === TOKEN`), contra um mock que o inventava.
+- `start` (impersonation) confere `sessionId`, `token` e `targetUserId` do contrato real, em
+  vez de um `id` que o tipo não tem.
+
+### Resultado
+
+| Medida                          |                    Antes |                           Depois |
+| ------------------------------- | -----------------------: | -------------------------------: |
+| Erros de tipo em `test/**`      |                      144 |                          **132** |
+| Erros nos 4 arquivos corrigidos |                       12 |                            **0** |
+| Suíte unitária                  | 91 suites / 1.990 testes | 91 suites / 1.990 testes, verdes |
+
+O 12º erro dos quatro arquivos era ruído (`service.start!.mock` — `jest.Mocked<Partial<T>>`
+tipa o membro com a assinatura do método, não com `jest.Mock`); corrigido junto para zerar
+os arquivos.
+
+**Pendente:** os 132 restantes e o gate. Escopos 2 e 3 do capítulo anterior seguem válidos,
+com o grupo D já descontado — restam ~7h a 8h para zerar e poder incluir `test/**` no
+`tsconfig.check.json`.

@@ -42,20 +42,30 @@ describe('CsatController', () => {
     service = {
       listConfigs: jest.fn().mockResolvedValue([mockConfig]),
       upsertConfig: jest.fn().mockResolvedValue(mockConfig),
-      removeConfig: jest.fn().mockResolvedValue({ deleted: true }),
-      listResponses: jest.fn().mockResolvedValue({ items: [], nextCursor: null, total: 0 }),
+      // S85: os mocks abaixo espelham o retorno real do CsatService. Antes inventavam
+      // formas que o servico nunca devolve ({ deleted }, { items }, totalSent, token,
+      // status), e as asercoes conferiam a invencao contra ela mesma — passavam sempre,
+      // inclusive se o endpoint estivesse quebrado.
+      removeConfig: jest.fn().mockResolvedValue({ success: true }),
+      listResponses: jest.fn().mockResolvedValue({ data: [], nextCursor: null }),
       analytics: jest.fn().mockResolvedValue({
-        totalSent: 100,
-        totalResponded: 60,
+        total: 100,
+        responded: 60,
+        responseRate: 0.6,
         avgScore: 4.2,
-        nps: 45,
+        distribution: { 1: 2, 2: 3, 3: 5, 4: 20, 5: 30 },
+        promoters: 50,
+        passives: 5,
+        detractors: 5,
       }),
       lookupPublicByToken: jest.fn().mockResolvedValue({
-        token: TOKEN,
-        status: CsatResponseStatus.PENDING,
-        expiresAt: new Date('2026-12-31'),
+        status: CsatResponseStatus.SENT,
+        companyName: 'ACME',
+        trigger: CsatTrigger.CALL_END,
+        score: null,
+        comment: null,
       }),
-      submitPublic: jest.fn().mockResolvedValue({ status: CsatResponseStatus.RESPONDED }),
+      submitPublic: jest.fn().mockResolvedValue({ success: true }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -96,16 +106,16 @@ describe('CsatController', () => {
   describe('removeConfig', () => {
     it('forwards tenant + user + id', async () => {
       const result = await controller.removeConfig(COMPANY_ID, mockUser, CONFIG_ID);
-      expect(result).toEqual({ deleted: true });
+      expect(result).toEqual({ success: true });
       expect(service.removeConfig).toHaveBeenCalledWith(COMPANY_ID, USER_ID, CONFIG_ID);
     });
   });
 
   describe('listResponses', () => {
     it('parses limit string to number when valid', async () => {
-      await controller.listResponses(COMPANY_ID, CsatResponseStatus.PENDING, '50', 'cursor-x');
+      await controller.listResponses(COMPANY_ID, CsatResponseStatus.SENT, '50', 'cursor-x');
       expect(service.listResponses).toHaveBeenCalledWith(COMPANY_ID, {
-        status: CsatResponseStatus.PENDING,
+        status: CsatResponseStatus.SENT,
         limit: 50,
         cursor: 'cursor-x',
       });
@@ -138,7 +148,9 @@ describe('CsatController', () => {
         '2026-01-01T00:00:00Z',
         '2026-12-31T23:59:59Z',
       );
-      expect(result.totalSent).toBe(100);
+      expect(result.total).toBe(100);
+      expect(result.responded).toBe(60);
+      expect(result.avgScore).toBe(4.2);
       expect(service.analytics).toHaveBeenCalledWith(COMPANY_ID, {
         since: new Date('2026-01-01T00:00:00Z'),
         until: new Date('2026-12-31T23:59:59Z'),
@@ -169,7 +181,11 @@ describe('CsatController', () => {
   describe('publicLookup', () => {
     it('looks up survey by token without auth context', async () => {
       const result = await controller.publicLookup(TOKEN);
-      expect(result.token).toBe(TOKEN);
+      // O retorno publico NAO expoe o token: quem chama ja o tem na URL, e ecoa-lo
+      // ampliaria a superficie de um endpoint sem autenticacao.
+      expect(result).not.toHaveProperty('token');
+      expect(result.status).toBe(CsatResponseStatus.SENT);
+      expect(result.companyName).toBe('ACME');
       expect(service.lookupPublicByToken).toHaveBeenCalledWith(TOKEN);
     });
   });
@@ -178,7 +194,7 @@ describe('CsatController', () => {
     it('submits score with optional comment', async () => {
       const dto = { score: 5, comment: 'Excellent service' };
       const result = await controller.publicSubmit(TOKEN, dto as unknown as SubmitCsatDto);
-      expect(result.status).toBe(CsatResponseStatus.RESPONDED);
+      expect(result).toEqual({ success: true });
       expect(service.submitPublic).toHaveBeenCalledWith(TOKEN, dto);
     });
 

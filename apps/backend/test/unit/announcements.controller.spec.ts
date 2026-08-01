@@ -40,13 +40,16 @@ describe('AnnouncementsController', () => {
   beforeEach(async () => {
     service = {
       listActive: jest.fn().mockResolvedValue([mockAnn]),
-      markRead: jest.fn().mockResolvedValue({ readAt: new Date() }),
-      dismiss: jest.fn().mockResolvedValue({ dismissedAt: new Date() }),
+      // S85: markRead, dismiss e remove devolvem { success: true }. Os mocks antigos
+      // inventavam readAt / dismissedAt / deleted, e as asercoes conferiam a invencao
+      // contra ela mesma — passariam com o endpoint quebrado.
+      markRead: jest.fn().mockResolvedValue({ success: true }),
+      dismiss: jest.fn().mockResolvedValue({ success: true }),
       list: jest.fn().mockResolvedValue([mockAnn]),
       findById: jest.fn().mockResolvedValue(mockAnn),
       create: jest.fn().mockResolvedValue(mockAnn),
       update: jest.fn().mockResolvedValue({ ...mockAnn, level: AnnouncementLevel.URGENT }),
-      remove: jest.fn().mockResolvedValue({ deleted: true }),
+      remove: jest.fn().mockResolvedValue({ success: true }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -68,7 +71,7 @@ describe('AnnouncementsController', () => {
   describe('markRead', () => {
     it('marks announcement as read for user', async () => {
       const result = await controller.markRead(COMPANY_ID, mockUser, ANN_ID);
-      expect(result.readAt).toBeInstanceOf(Date);
+      expect(result).toEqual({ success: true });
       expect(service.markRead).toHaveBeenCalledWith(COMPANY_ID, USER_ID, ANN_ID);
     });
   });
@@ -76,7 +79,7 @@ describe('AnnouncementsController', () => {
   describe('dismiss', () => {
     it('dismisses announcement for user', async () => {
       const result = await controller.dismiss(COMPANY_ID, mockUser, ANN_ID);
-      expect(result.dismissedAt).toBeInstanceOf(Date);
+      expect(result).toEqual({ success: true });
       expect(service.dismiss).toHaveBeenCalledWith(COMPANY_ID, USER_ID, ANN_ID);
     });
   });
@@ -132,7 +135,7 @@ describe('AnnouncementsController', () => {
   describe('remove', () => {
     it('deletes announcement', async () => {
       const result = await controller.remove(COMPANY_ID, mockUser, ANN_ID);
-      expect(result).toEqual({ deleted: true });
+      expect(result).toEqual({ success: true });
       expect(service.remove).toHaveBeenCalledWith(COMPANY_ID, USER_ID, ANN_ID);
     });
   });
