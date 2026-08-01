@@ -8300,3 +8300,33 @@ rotulo de manutencao. Auditar o conteudo de PR agrupado pelo diff, nunca pelo ti
 literal e conclusao falsa: em pre-lancamento o healthcheck e quase todo o trafego, e ele e
 justamente a rota excluida do trace. Antes de generalizar de log de producao, perguntar de
 que requests a amostra e feita.
+
+### Adendo — o gate do CI aprovava build que nunca rodou (`bc0f733`)
+
+Achado no fim da triagem, ao investigar por que os PRs novos do Dependabot apareciam como
+`UNSTABLE`. A run 30712787436 terminou com Install, Frontend, Backend e Security **todos
+`cancelled`** e **"CI Gate: success"**.
+
+O passo comparava cada `needs.<job>.result` com a string `failure` e so entao saia com codigo
+
+1. Como o job roda sob `if: always()`, os estados `skipped` e `cancelled` caiam no caminho de
+   sucesso — e sao justamente os estados que os jobs a jusante assumem quando o `install` quebra.
+   O gate que protege todo o resto aprovava build que nao compilou, nao rodou teste e nao passou
+   pelo audit.
+
+Nao era hipotetico: os PRs #45 e #46 falham em `pnpm install --frozen-lockfile` e exibiam CI
+Gate verde. O gate agora percorre os tres jobs e exige `success` em cada um.
+
+**Licao #74 — negar o estado ruim nao e o mesmo que exigir o bom.** Um gate escrito como
+"falhe se deu failure" tem tantos caminhos de aprovacao quanto estados existirem, e sistemas de
+CI tem mais que dois: `success`, `failure`, `cancelled`, `skipped`, `neutral`. A unica forma
+segura de escrever gate e enumerar o que aprova, nunca o que reprova.
+
+### Estado dos PRs ao fim da sessao
+
+Os 16 originais estao resolvidos. A propria mudanca no `dependabot.yml` disparou reavaliacao e
+abriu 5 PRs novos (#42-#46), que pertencem ao proximo ciclo. O #45 vale registro porque valida
+a correcao: o grupo do backend voltou com **17 pacotes em vez de 26**, sem nenhum
+`@opentelemetry/*`, sem `@anthropic-ai/sdk`, e com `class-validator` em `0.14.3 -> 0.14.4`
+(patch) em vez de `0.15.1`. Todos falham no `install` por lockfile defasado em relacao aos
+commits desta sessao — precisam de `@dependabot recreate` antes de qualquer merge.
