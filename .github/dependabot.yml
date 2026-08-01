@@ -48,6 +48,24 @@ updates:
       # ESLint v8 stays pinned (S67 monorepo dual-version constraint — see ADR-012)
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+      # ── Pacotes 0.x: "minor" nao e compativel ──────────────────────────
+      # Em versoes 0.x o semver nao promete compatibilidade em minor, mas o
+      # Dependabot classifica 0.57 -> 0.221 como minor e o joga no grupo
+      # minor-and-patch. Foi assim que os PRs #38 e #41 acabaram carregando a
+      # migracao inteira do OpenTelemetry para a linha 2.x -- exatamente o que
+      # o ADR-014 difere ate haver game-day em staging, e o que quebrou o
+      # type-check em S80-A-2 (licao #39: 0.x publica em lock-step; subir um
+      # arrasta a cadeia toda).
+      #
+      # Com o ignore abaixo esses pacotes so entram no grupo por patch. As
+      # migracoes de linha continuam possiveis -- por ADR e commit proprio,
+      # que e onde elas pertencem.
+      - dependency-name: '@opentelemetry/*'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: '@anthropic-ai/sdk'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: 'class-validator'
+        update-types: ['version-update:semver-minor']
 
   # ──────────────────────────────────────────────
   # Frontend (apps/frontend) — pnpm
@@ -150,6 +168,25 @@ updates:
           - 'patch'
           - 'major'
 
+    ignore:
+      # ── Pacotes 0.x: "minor" nao e compativel ──────────────────────────
+      # Em versoes 0.x o semver nao promete compatibilidade em minor, mas o
+      # Dependabot classifica 0.57 -> 0.221 como minor e o joga no grupo
+      # minor-and-patch. Foi assim que os PRs #38 e #41 acabaram carregando a
+      # migracao inteira do OpenTelemetry para a linha 2.x -- exatamente o que
+      # o ADR-014 difere ate haver game-day em staging, e o que quebrou o
+      # type-check em S80-A-2 (licao #39: 0.x publica em lock-step; subir um
+      # arrasta a cadeia toda).
+      #
+      # Com o ignore abaixo esses pacotes so entram no grupo por patch. As
+      # migracoes de linha continuam possiveis -- por ADR e commit proprio,
+      # que e onde elas pertencem.
+      - dependency-name: '@opentelemetry/*'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: '@anthropic-ai/sdk'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: 'class-validator'
+        update-types: ['version-update:semver-minor']
   # ──────────────────────────────────────────────
   # GitHub Actions (.github/workflows)
   # ──────────────────────────────────────────────
