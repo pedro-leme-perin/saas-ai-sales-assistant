@@ -93,3 +93,34 @@ o número estar perto do limite, mereceria ser feita à luz do dia e não de pas
 total. As duas mudanças desta sessão foram testadas com build limpo e comparadas em bytes; uma
 entrou, a outra foi descartada e documentada no arquivo de config para não voltar por
 plausibilidade.
+
+---
+
+## Correção — a medição local subestimava a folga
+
+Os números acima são de build local, e **o CI é a medida que vale**. Depois de fazer o passo
+imprimir bytes exatos (`04be292`), o valor autoritativo apareceu:
+
+| Origem                |   JS de cliente | Folga até o limite duro |
+| --------------------- | --------------: | ----------------------: |
+| Build local           |     3.042.913 B |                  100 KB |
+| **CI (autoritativo)** | **3.104.517 B** |    **41.211 B ≈ 40 KB** |
+
+Diferença de 61.604 B, e ela tem causa conhecida: `withSentryConfig` só é aplicado quando
+`SENTRY_ORG` e `SENTRY_PROJECT` existem no ambiente. O CI tem os dois; a máquina local não.
+Localmente o wrapper do Sentry nem roda, então o build local **sempre** sai menor que o de
+produção e não serve para saber a distância até o limite.
+
+O ganho de 14 KB continua real — foi medido comparando dois builds locais entre si, com a
+mesma configuração, e a flag `__SENTRY_DEBUG__` independe do wrapper. O que estava errado era
+o **absoluto**: onde este documento dizia 100 KB de folga, leia 40 KB.
+
+Isso aperta a decisão 1. Com 40 KB, o limite não está a algumas telas de distância — está a
+uma. Os 232 KB do Session Replay deixam de ser folga confortável e passam a ser a diferença
+entre ter margem e não ter.
+
+**#77 — build local não mede bundle de produção quando a config depende do ambiente.**
+O `next.config.js` aplica `withSentryConfig` sob `if (process.env.SENTRY_ORG && ...)`. Toda
+medição local herdava esse `if` e saía 60 KB otimista, sem nada no output que denunciasse a
+diferença. Onde a config for condicional ao ambiente, o número que vale é o do CI — e o CI
+precisa imprimi-lo com precisão suficiente para ser comparável.
