@@ -115,13 +115,26 @@ Registrado para rastreabilidade e para que uma sessão futura não refaça.
   `https://api.theiadvisor.com/api/whatsapp/webhook` → preencher `TWILIO_WHATSAPP_NUMBER`
   na Railway no formato `whatsapp:+55…`
 - **Atalho para destravar G1-03 hoje:** o **sandbox** da Twilio funciona sem verificação
-  nenhuma. Basta parear o celular com o código do sandbox. Serve para provar a integração
-  ponta a ponta enquanto a verificação corre; **não** serve para atender cliente
+  nenhuma. Número `+1 415 523 8886`, código de pareamento `join activity-surprise`. Serve
+  para provar a integração ponta a ponta enquanto a verificação corre; **não** serve para
+  atender cliente
+- **✅ Feito em S85 — webhooks do sandbox corrigidos.** Estavam apontando para um túnel
+  ngrok morto, sobra de desenvolvimento local: `callback_url` em
+  `https://unfrank-felecia-effectually.ngrok-free.dev/api/whatsapp/webhook` e
+  `status_callback_url` em `…ngrok-free.app/api/whatsapp/webhook/status` — note que nem os
+  domínios batiam entre si. Trocados para `https://api.theiadvisor.com/api/whatsapp/webhook`
+  e `…/webhook/status`, salvos e confirmados após recarregar a página. **Enquanto isso
+  esteve assim, nenhuma mensagem do sandbox jamais chegou ao backend**
 - **Aceite:** mensagem enviada de um celular real chega no dashboard e a IA devolve sugestão
 - **Verificar:** enviar mensagem para o número e observar o registro em `/dashboard/whatsapp`
-- **Armadilha no código:** `processWebhook` chama `findCompanyByWhatsAppNumber(toNumber)` e
-  **descarta a mensagem em silêncio** se nenhuma empresa tiver aquele número configurado.
-  Antes do smoke, garantir que a `Company` no banco tem o número do sender
+- **🔴 Bloqueio remanescente — `Company.whatsappPhoneNumberId`.** `processWebhook` chama
+  `findCompanyByWhatsAppNumber(toNumber)` e **descarta a mensagem em silêncio** se nenhuma
+  empresa tiver aquele número. Busca em `apps/` inteira: o campo é **lido** em
+  `onboarding.service.ts` e consultado em `whatsapp.service.ts:454`, mas **nunca escrito** —
+  não há endpoint, DTO nem tela que o defina. Hoje só se popula por SQL direto no Neon.
+  Para o smoke pelo sandbox, a `Company` de produção precisa de
+  `whatsapp_phone_number_id = '+14155238886'`. Dívida associada: expor o campo em
+  `/dashboard/settings` (Claude Code)
 
 ### G1-02 · Número Twilio de voz 🔴
 
@@ -131,12 +144,19 @@ Registrado para rastreabilidade e para que uma sessão futura não refaça.
   `TWILIO_PHONE_NUMBER`, `TWILIO_WEBHOOK_URL` e `TWILIO_WHATSAPP_NUMBER` **existem** na
   Railway. `CLAUDE.md` §2.1 registra o número **+1 507 763 4719** — americano. Ou seja:
   um número existe e o canal pode já estar operante; o que falta é um número **BR**
-- **Não verificado:** o console da Twilio exigiu login e não foi acessado nesta sessão.
-  O inventário real de números continua desconhecido — **não marcar este item como
-  concluído com base na existência das variáveis** (lição #57)
-- **Passos:** console Twilio → conferir os números que já existem → comprar +55 se ainda
-  não houver → configurar webhook de voz para
-  `https://api.theiadvisor.com/api/calls/webhook` → atualizar `TWILIO_PHONE_NUMBER`
+- **Inventário conferido no console em S85:** a conta ("My first Twilio account") tem
+  **exatamente um número ativo — `+1 507 763 4719`**, com capacidade de voz, SMS, MMS e
+  fax. **Nenhum `+55`.** SID `PNe732708ff1c66c1589097c42235005b4`
+- **✅ Feito em S85 — webhooks de voz repontados para o domínio próprio.** Estavam em
+  `https://saas-ai-sales-assistant-production.up.railway.app/api/calls/webhook/voice` e
+  `…/status`, o domínio gerado pela Railway. Trocados para `https://api.theiadvisor.com/…`,
+  salvos e confirmados após recarregar. O domínio gerado muda se o serviço for recriado;
+  o domínio próprio é o contrato estável
+- **Dívida menor registrada:** a `Messaging URL` desse número aponta para
+  `https://demo.twilio.com/welcome/sms/reply`, o padrão de demonstração da Twilio — nunca
+  configurado. Sem efeito hoje, porque o produto não trata SMS. Corrigir junto com a compra
+  do número BR, ou deixar em branco
+- **Falta:** comprar o número `+55` e apontar os mesmos dois webhooks nele
 - **Aceite:** ligação real transcrita e visível em `/dashboard/calls`
 - **Custo:** número BR ~US$ 1–2/mês + uso por minuto
 

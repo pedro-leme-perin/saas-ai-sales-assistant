@@ -204,3 +204,96 @@ Corolário das três, e reforço da #66: **a documentação herdou a interpreta�
 escreveu, não o estado do sistema.** Todas as seis afirmações do §1 são deriváveis de um
 único mal-entendido de S83, nunca reconferido, e citado por quatro documentos como se fosse
 fato apurado.
+
+---
+
+## 7. Adendo — console da Twilio, verificado depois (mesma sessão)
+
+O §2.3 concluiu, pelo código, que o canal WhatsApp roda sobre Twilio. O console foi acessado
+em seguida, com o Pedro fazendo login, e mostrou três coisas que o código não podia revelar.
+
+### 7.1 Inventário de números
+
+Conta "My first Twilio account". **Um único número ativo: `+1 507 763 4719`** (voz, SMS, MMS,
+fax), SID `PNe732708ff1c66c1589097c42235005b4`. **Nenhum `+55`.** Confirma o registro de
+`CLAUDE.md` §2.1 e mantém o G1-02 aberto.
+
+### 7.2 Webhooks do sandbox WhatsApp apontavam para um túnel ngrok morto
+
+| Campo                 | Antes                                                                            | Depois                                                    |
+| --------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `callback_url`        | `https://unfrank-felecia-effectually.ngrok-free.dev/api/whatsapp/webhook`        | `https://api.theiadvisor.com/api/whatsapp/webhook`        |
+| `status_callback_url` | `https://unfrank-felecia-effectually.ngrok-free.app/api/whatsapp/webhook/status` | `https://api.theiadvisor.com/api/whatsapp/webhook/status` |
+
+Sobra de desenvolvimento local. Túnel ngrok gratuito é efêmero — aquele endereço não existe
+há muito tempo. Os dois campos nem sequer concordavam entre si no TLD (`.dev` contra `.app`),
+sinal de que foram colados em momentos diferentes e nunca revisados.
+
+**Consequência:** durante todo o período em que essa configuração esteve de pé, qualquer
+mensagem enviada ao sandbox foi entregue a um endereço inexistente. Nenhum teste de WhatsApp
+jamais poderia ter passado, e o sintoma seria silêncio — não erro.
+
+Corrigido nesta sessão, com autorização explícita do Pedro. Persistência confirmada por
+recarga completa da página.
+
+### 7.3 Webhooks de voz apontavam para o domínio gerado pela Railway
+
+| Campo               | Antes                                                                               | Depois                                                 |
+| ------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| A call comes in     | `https://saas-ai-sales-assistant-production.up.railway.app/api/calls/webhook/voice` | `https://api.theiadvisor.com/api/calls/webhook/voice`  |
+| Call status changes | `…up.railway.app/api/calls/webhook/status`                                          | `https://api.theiadvisor.com/api/calls/webhook/status` |
+
+Funcionava, mas o domínio gerado pela Railway não é contrato: muda se o serviço for
+recriado — exatamente o tipo de evento que já aconteceu com o Redis em S84. O domínio
+próprio já resolve para o mesmo serviço.
+
+Rotas conferidas em `calls.controller.ts`: `@Post('webhook/voice')` e `@Post('webhook/status')`
+sob `@Controller('calls')`, com prefixo global `api`.
+
+Registrado e **não** alterado: a `Messaging URL` do mesmo número aponta para
+`https://demo.twilio.com/welcome/sms/reply`, o padrão de demonstração da Twilio. Sem efeito
+hoje — o produto não trata SMS.
+
+### 7.4 Defeito de produto: `Company.whatsappPhoneNumberId` não tem como ser preenchido
+
+`processWebhook` resolve o tenant por `findCompanyByWhatsAppNumber(toNumber)`
+(`whatsapp.service.ts:452-461`), que consulta `Company.whatsappPhoneNumberId`. Sem
+correspondência, a mensagem é **descartada em silêncio** — só um `logger.warn`.
+
+Busca por `whatsappPhoneNumberId` em `apps/` inteira retorna:
+
+- `prisma/schema.prisma:51` — declaração do campo
+- `whatsapp.service.ts:454` — leitura no `where`
+- `onboarding.service.ts:47,60` — leitura, para o checklist (`whatsappConfigured`)
+- cinco ocorrências em `onboarding.service.spec.ts`, todas `null`
+
+**Nenhuma escrita.** Não existe endpoint, DTO ou tela que defina o valor. O campo que
+determina se uma mensagem entrante encontra seu tenant só pode ser populado por SQL direto.
+
+Consequências:
+
+1. O smoke E2E do WhatsApp está bloqueado até a `Company` de produção receber
+   `whatsapp_phone_number_id = '+14155238886'` (o número do sandbox).
+2. O checklist de onboarding tem um item — `whatsappConfigured` — que nenhum usuário
+   consegue satisfazer pela interface.
+3. Quando houver mais de um tenant, cada um precisará do seu número, e não há caminho de
+   produto para isso.
+
+Correção sugerida: expor o campo em `/dashboard/settings` com validação E.164 e unicidade
+por tenant, e incluí-lo no fluxo de onboarding. Tarefa de Claude Code, não urgente para o
+smoke — para o smoke basta o `UPDATE`.
+
+### 7.5 O que isto acrescenta às lições
+
+Reforça a **#69** por outro ângulo. O §2.3 mostrou configuração declarada que nenhum código
+lê; o §7.4 mostra o inverso — um campo que o código lê e que **nenhuma configuração
+consegue escrever**. As duas falhas têm a mesma assinatura: ninguém percorreu o caminho
+inteiro, da interface até o efeito.
+
+E acrescenta uma quarta:
+
+**#70 — Integração apontando para um endereço morto falha em silêncio.** Um webhook mal
+configurado não gera erro do lado de quem espera: gera ausência. `ngrok-free.dev` respondeu
+com nada durante meses, e o sintoma foi indistinguível de "ninguém mandou mensagem". Toda
+configuração de webhook precisa de uma verificação ativa — um envio de teste que se prove
+ter chegado — e não da suposição de que está certa porque um dia foi digitada.

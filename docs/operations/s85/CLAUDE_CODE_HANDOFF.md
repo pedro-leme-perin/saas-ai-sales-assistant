@@ -167,3 +167,104 @@ Quando terminar, cole aqui:
 2. Saída de `gh run list --limit 3`
 3. Quais PRs do Dependabot foram fechados e quais ficaram, com o motivo
 4. Se o OTel foi resolvido: o `traceId` de um log de produção
+
+---
+
+# Rodada 2 — depois da auditoria do console da Twilio
+
+A rodada 1 foi executada: `05df15e`, `cb82002`, `55818f2` estão em `origin/main`.
+O Cowork então acessou o console da Twilio com o Pedro logado, corrigiu dois webhooks
+quebrados e encontrou um defeito de produto. Três arquivos de documentação ficaram
+modificados e não commitados.
+
+## Tarefa 1 — commitar a documentação da auditoria da Twilio
+
+Arquivos: `PROJECT_HISTORY.md`, `docs/operations/ROADMAP-ATE-LANCAMENTO.md`,
+`docs/operations/s85/STRIPE_STATE_CORRECTION.md`. Doc-only, nada a validar com `tsc`.
+
+```
+docs(s85): auditoria do console Twilio, dois webhooks corrigidos
+```
+
+Corpo (use `git commit -F`, nunca `-m` multi-linha):
+
+```
+Console da Twilio auditado com o operador logado. Tres achados.
+
+1. Sandbox do WhatsApp apontava para um tunel ngrok morto:
+   callback_url em unfrank-felecia-effectually.ngrok-free.dev e
+   status_callback_url em ...ngrok-free.app -- os dois nem concordavam no TLD.
+   Sobra de desenvolvimento local. Enquanto esteve assim, nenhuma mensagem do
+   sandbox chegou ao backend, e o sintoma era silencio, nao erro.
+   Corrigidos para api.theiadvisor.com com autorizacao explicita.
+
+2. Webhooks de voz apontavam para o dominio gerado pela Railway. Funcionava,
+   mas dominio gerado nao e contrato: muda se o servico for recriado, que foi o
+   que aconteceu com o Redis em S84. Repontados para api.theiadvisor.com.
+
+3. Um unico numero ativo na conta: +1 507 763 4719. Nenhum +55. G1-02 aberto.
+
+Licao #70.
+```
+
+## Tarefa 2 — script de configuração do número WhatsApp do tenant
+
+**Contexto do defeito.** `WhatsappService.processWebhook` resolve o tenant por
+`findCompanyByWhatsAppNumber(toNumber)` (`whatsapp.service.ts:452-461`), que consulta
+`Company.whatsappPhoneNumberId`. Sem correspondência, **a mensagem é descartada em silêncio**
+— só um `logger.warn`.
+
+Busca por `whatsappPhoneNumberId` em `apps/` inteira: declaração no schema, leitura em
+`whatsapp.service.ts:454`, leitura em `onboarding.service.ts:47,60`, cinco fixtures de teste
+com `null`. **Nenhuma escrita.** Não há endpoint, DTO nem tela.
+
+Crie `scripts/set-company-whatsapp-number.ts`, executável por `tsx`/`ts-node`, seguindo as
+regras de código do projeto — tipagem completa, erros tipados, logs estruturados, sem `any`.
+
+Requisitos funcionais, todos obrigatórios:
+
+1. Aceita `--company-id` e `--number` por argumento. Se `--company-id` for omitido, resolve
+   sozinho **apenas se existir exatamente uma** `Company` não deletada; com duas ou mais,
+   falha e lista os ids.
+2. Valida o número em E.164 (`^\+[1-9]\d{7,14}$`). Rejeita com mensagem explícita caso
+   contrário — inclusive rejeita o formato `whatsapp:+…`, que é o da variável de ambiente e
+   **não** o que o serviço compara (`extractPhone` remove o prefixo antes da busca; confirme
+   lendo o método antes de escrever o script).
+3. Imprime a linha **antes**: `id`, `name`, `whatsappPhoneNumberId` atual.
+4. Recusa sobrescrever um valor já preenchido e **diferente** do solicitado, a menos que
+   receba `--force`. Se já for igual, encerra como no-op bem-sucedido (idempotente).
+5. Verifica unicidade: nenhuma outra `Company` pode ter o mesmo número. Se houver, aborta.
+6. Suporta `--dry-run`, que executa todas as validações e não escreve.
+7. Escreve dentro de `$transaction` e grava `AuditLog` com `action: UPDATE`,
+   `resource: 'COMPANY'`, `oldValues`/`newValues`, conforme o padrão já usado no projeto.
+8. Imprime a linha **depois** e sai com código 0 em sucesso, 1 em qualquer falha.
+
+Execução pedida pelo Pedro (número do sandbox da Twilio):
+
+```
+pnpm --filter @saas/backend exec tsx scripts/set-company-whatsapp-number.ts \
+  --number "+14155238886" --dry-run
+```
+
+Revise a saída do `--dry-run`, e só então rode sem a flag. **É gravação no banco de
+produção** — se qualquer validação reclamar, pare e relate em vez de forçar.
+
+Teste unitário do validador de E.164 e da regra de unicidade antes do commit.
+
+```
+feat(scripts): script para configurar numero WhatsApp do tenant
+```
+
+## Tarefa 3 — dívida registrada, decidir com o Pedro antes de fazer
+
+Expor `whatsappPhoneNumberId` em `/dashboard/settings`, com validação E.164 e unicidade por
+tenant, e incluir no fluxo de onboarding. Hoje o checklist mostra `whatsappConfigured`, um
+item que nenhum usuário consegue satisfazer pela interface. **Não implemente sem confirmar
+prioridade** — não bloqueia o smoke, que a tarefa 2 resolve.
+
+## Depois disto, o smoke do WhatsApp está destravado
+
+O Pedro envia `join activity-surprise` por WhatsApp para `+1 415 523 8886`, depois manda uma
+mensagem qualquer. Esperado: registro em `/dashboard/whatsapp` e sugestão da IA. Se não
+aparecer, o primeiro lugar a olhar é o log da Railway procurando
+`No company found for WhatsApp number`.

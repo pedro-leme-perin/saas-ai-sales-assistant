@@ -8119,15 +8119,43 @@ de pendências descrevia a intenção de quem a escreveu, não o estado do repos
 Custo do erro: baixo aqui — mas era um dos oito itens da ordem de trabalho desta sessão, e
 teria consumido uma rodada inteira de Claude Code para descobrir que não havia o que fazer.
 
+### Achado 4 — console da Twilio: dois webhooks quebrados e um campo sem caminho de escrita
+
+Verificado depois, na mesma sessão, com o Pedro fazendo login. Detalhe completo em
+`docs/operations/s85/STRIPE_STATE_CORRECTION.md` §7.
+
+**Um único número ativo:** `+1 507 763 4719`. Nenhum `+55`. G1-02 segue aberto.
+
+**Sandbox WhatsApp apontava para um túnel ngrok morto** — `ngrok-free.dev` no
+`callback_url`, `ngrok-free.app` no `status_callback_url`, sobra de desenvolvimento local
+que nem concordava consigo mesma no TLD. Enquanto esteve assim, nenhuma mensagem do sandbox
+chegou ao backend, e o sintoma era silêncio, não erro. Corrigido com autorização explícita,
+persistência confirmada por recarga.
+
+**Webhooks de voz apontavam para o domínio gerado pela Railway** em vez de
+`api.theiadvisor.com`. Funcionava, mas o domínio gerado não é contrato — muda se o serviço
+for recriado, que é precisamente o que aconteceu com o Redis em S84. Repontados.
+
+**Defeito de produto:** `Company.whatsappPhoneNumberId` é lido por `whatsapp.service.ts:454`
+e por `onboarding.service.ts`, mas **nunca escrito** em lugar nenhum de `apps/`. Não há
+endpoint, DTO nem tela. O campo que decide se uma mensagem entrante encontra seu tenant só
+pode ser populado por SQL direto. O checklist de onboarding exibe `whatsappConfigured`, um
+item que nenhum usuário consegue satisfazer.
+
 ### Pendências
 
 **Decisão do Pedro, bloqueia o GATE 2 inteiro:** qual conta Stripe segue —
 `acct_1T6DHFJ1Cbnf5voG` (produção hoje, LIVE, cadastro PF) ou `acct_1TgU9WRpJ3I7SP8K`
 (TEST, login institucional). Trade-off em `docs/operations/s85/STRIPE_STATE_CORRECTION.md` §4.
 
-**Não verificado nesta sessão:** o console da Twilio exigiu login. O inventário real de
-números — e portanto o estado verdadeiro de G1-02 — continua desconhecido. `CLAUDE.md` §2.1
-registra +1 507 763 4719, um número americano.
+**Bloqueia o smoke E2E do WhatsApp:** a `Company` de produção precisa de
+`whatsapp_phone_number_id = '+14155238886'`. Só por SQL — ver achado 4. Depois disso, parear
+o celular enviando `join activity-surprise` para `+1 415 523 8886`.
+
+**Licao #70 — integração apontando para endereço morto falha em silêncio.** Webhook mal
+configurado não produz erro de quem espera: produz ausência, indistinguível de "ninguém
+mandou mensagem". Configuração de webhook exige verificação ativa — um envio de teste que se
+prove ter chegado — nunca a suposição de que está certa porque um dia foi digitada.
 
 **Delegado ao Claude Code:** commit e push de tudo acima; G1-04 `tsc` + `build`; G5-01
 triagem dos 16 PRs do Dependabot; G3-07 OTel sem trace. Prompt pronto em
@@ -8139,3 +8167,136 @@ instruções globais e por várias seções do próprio arquivo, **não existe**
 presente em `HEAD`, anterior a esta sessão. Aguardando decisão: reconstruir a §16 a partir do
 que o repositório de fato aplica (hooks, jobs do CI, thresholds de cobertura, gate de audit)
 ou remover as referências a ela.
+
+---
+
+## S85 (continuacao) — 2026-08-01 · Execucao no Claude Code: G1-04, G3-07 e triagem do Dependabot
+
+Continuacao da mesma sessao, do lado que exigia `pnpm`, `gh` e credencial de push. Entrada:
+`docs/operations/s85/CLAUDE_CODE_HANDOFF.md`.
+
+### Commits
+
+| Commit    | O que                                                            |
+| --------- | ---------------------------------------------------------------- |
+| `05df15e` | G1-04 — remove o mock orfao `analytics.service.ts`               |
+| `cb82002` | Correcao factual da documentacao (Stripe + WhatsApp), 9 arquivos |
+| `55818f2` | G3-07 — para de logar `traceId` zerado                           |
+| `9435614` | `web-vitals` 4.2.4 -> 5.3.0, remove FID                          |
+| `0773143` | `@types/supertest` 6.0.3 -> 7.2.0                                |
+| `971a580` | `actions/upload-artifact` v6 -> v7                               |
+| `840b6b8` | `pnpm/action-setup` v4 -> v6                                     |
+| `d5d9783` | `actions/github-script` v7 -> v9                                 |
+| `0b33436` | `dependabot.yml` — barra salto 0.x no grupo automatico           |
+
+CI verde nos 5 jobs em `cb82002`, `55818f2` e `0b33436` (este ultimo cobre os cinco commits
+de dependencia, que a regra de cancel-in-progress agrupou).
+
+### G3-07 — o trace nunca esteve quebrado
+
+O sintoma registrado era "todo request loga `traceId` 00000000000000000000000000000000", lido
+como spans nao registrados. As tres hipoteses do handoff foram descartadas por evidencia:
+`instrumentation.ts` ja e o primeiro import de `main.ts`, `sdk.start()` executa (o log de boot
+sai), e o contexto ativo chega intacto ao interceptor.
+
+Reproducao isolada, com o `instrumentation.ts` e o `LoggingInterceptor` compilados, um modulo
+Nest minimo e nenhum banco:
+
+```
+GET /api/probe -> traceId 597db304ea25a629a1098a242456bede
+GET /health    -> traceId 00000000000000000000000000000000
+GET /api/probe -> traceId 08daaf1f6303217ac219eb53a4ac800b
+GET /health    -> traceId 00000000000000000000000000000000
+```
+
+O zero e exclusivo das rotas casadas por `ignoreIncomingRequestHook` — `/health`, `/metrics`,
+`/favicon`. Nelas o `instrumentation-http` aplica `suppressTracing`, e sob contexto suprimido
+todo span iniciado depois e um `NonRecordingSpan` com `INVALID_SPAN_CONTEXT`, cujos IDs sao
+zeros por definicao. `getTraceContext()` devolvia esses zeros como se fossem identificadores.
+
+Por que parecia "todo request": em pre-lancamento, sem clientes, o healthcheck que a Railway
+passou a bater em S84 e praticamente o unico trafego que existe. A amostra observada era
+inteira de health check.
+
+Correcao: `getTraceContext()` valida com `isSpanContextValid` e devolve `null` quando o
+contexto e invalido — o log passa a omitir o campo em rota nao tracejada, em vez de publicar
+zeros. Dois testes novos em `telemetry.service.spec` (contexto zerado e contexto malformado);
+o mock do `@opentelemetry/api` ganhou `isSpanContextValid` com a regra do upstream, e as
+fixtures antigas (`'abc123'`/`'def456'`) foram trocadas por IDs de tamanho real, porque nao
+passariam pela validacao. 18 testes verdes.
+
+**Nao verificado, e nao sera daqui:** se os traces chegam ao Axiom. Nao ha `AXIOM_API_TOKEN`
+no `.env` local, entao a perna de exportacao nao foi exercitada — licao #63 vale integralmente:
+corrigir no repositorio nao e corrigir em producao. Conferir apos o deploy, na Railway e no
+dashboard do Axiom.
+
+### G5-01 — 16 PRs do Dependabot, todos resolvidos
+
+Cinco aplicados direto (um commit cada, licao #17), os PRs fechados como superseded. Dez
+fechados com justificativa e divida registrada. Um, o #31 do frontend, ficou aberto: e o unico
+cujo conteudo corresponde ao rotulo, e estava em conflito — rebase solicitado ao Dependabot.
+
+| Fechado                                        | Motivo                                                          |
+| ---------------------------------------------- | --------------------------------------------------------------- |
+| #36 `typescript` 5.9 -> 7.0                    | duas majors no compilador que valida os dois apps sob `strict`  |
+| #18 `@nestjs/config`, #19 `@nestjs/schematics` | satelite subindo sem o core em 10.4.22                          |
+| #10 `@opentelemetry/sdk-metrics` 1.30 -> 2.7   | ADR-014 difere ate haver game-day em staging                    |
+| #9 `@sentry/node` 9 -> 10                      | v8+ e construido sobre OTel; migrar depois do proprio OTel      |
+| #8 `redis` 4 -> 5                              | sessao, rate limit, idempotencia, WS adapter — sem staging, nao |
+| #4 `tailwind-merge` 2 -> 3                     | a linha 3 e do Tailwind v4; o app esta no v3                    |
+| #6 `@next/bundle-analyzer` 15 -> 16            | lock-step com a major do Next                                   |
+| #41, #38 grupos "minor-and-patch"              | ver abaixo                                                      |
+
+**O achado da triagem.** Os PRs #41 (50 atualizacoes) e #38 (26) vinham rotulados
+`minor-and-patch group` e carregavam dentro deles `@opentelemetry/*` de `0.57.2` para
+`0.221.0` (9 pacotes), `@anthropic-ai/sdk` de `0.72.1` para `0.115.0` e `class-validator` de
+`0.14.3` para `0.15.1`. Em `0.x` o semver nao promete compatibilidade em minor, mas o
+Dependabot classifica pelo numero e agrupa. O PR rotulado como rotina **era** a migracao do
+OpenTelemetry para a linha 2.x — a mesma diferida pelo ADR-014, a que quebrou o type-check em
+S80-A-2, e a razao de o #10 ter sido fechado no mesmo dia.
+
+Corrigido na causa, nao so no sintoma: `0b33436` limita esses pacotes a patch dentro do grupo,
+nas secoes `/apps/backend` e `/` (a raiz varre o workspace inteiro). O proximo PR agrupado
+deve ser aceitavel de uma vez.
+
+`pnpm audit --prod --audit-level=high` sem mudanca ao fim: 4 HIGH, as quatro no
+`ADVISORY_ALLOWLIST` com ADR-015, exposicao de call-graph zero e gatilho de remocao escrito.
+`blocking=0`.
+
+### Achados adjacentes, registrados e nao corrigidos
+
+**Os testes do backend nao passam por type-check no CI.** O gate roda com
+`tsconfig.check.json`, que exclui `test/**`. Rodando `tsc -p tsconfig.json`, que os inclui,
+saem **144 erros pre-existentes**. Nenhum deles vem do bump de `@types/supertest` — foi
+verificado por busca no proprio output.
+
+**O unico arquivo E2E do backend nunca roda.** `test/e2e/health.e2e-spec.ts` nao casa com o
+`testRegex` do jest (`.*\.spec\.ts$` nao pega o sufixo `-spec.ts`). Existe, nao e
+type-checado e nao e executado.
+
+**Bundle do frontend em 2.96MB**, contra limite brando de 2MB e duro de 3MB (S62). Faltam 40KB
+para o CI passar a falhar por isso. O item de cortar bundle ja esta na §2.4 do `CLAUDE.md`;
+o que muda e a urgencia.
+
+**Lixo de brace expansion removido:** `apps/backend/src/{common/...`, arvore de diretorios
+vazios criada por um `mkdir -p` com chaves que o PowerShell nao expande. Nao rastreada, zero
+arquivos.
+
+### Licoes
+
+**#71 — traceId zerado nao e trace ausente; e trace suprimido.** Span sem contexto devolve
+`undefined`; span com contexto todo-zero e um `NonRecordingSpan` vivo, criado sob
+`suppressTracing`. Sao diagnosticos opostos: o primeiro e pipeline quebrado, o segundo e a
+configuracao funcionando como escrita. Quem loga contexto de trace deve validar com
+`isSpanContextValid` antes de publicar o campo — caso contrario a propria exclusao deliberada
+de rota vira evidencia falsa de defeito.
+
+**#72 — em pacote 0.x, "minor" do Dependabot e major de verdade.** O agrupamento por tipo de
+atualizacao pressupoe a garantia do semver, que a linha `0.x` explicitamente nao da. Sem
+`ignore` de minor para esses pacotes, um PR de rotina carrega migracao de arquitetura com
+rotulo de manutencao. Auditar o conteudo de PR agrupado pelo diff, nunca pelo titulo.
+
+**#73 — amostra enviesada vira diagnostico errado.** "Todo request loga zero" era verdade
+literal e conclusao falsa: em pre-lancamento o healthcheck e quase todo o trafego, e ele e
+justamente a rota excluida do trace. Antes de generalizar de log de producao, perguntar de
+que requests a amostra e feita.
