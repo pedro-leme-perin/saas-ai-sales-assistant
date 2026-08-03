@@ -201,7 +201,21 @@ o e-mail **é** o login — trocar muda a identidade de acesso, não só o desti
 Peso do que está atrás dessa conta: DNS de `theiadvisor.com` (incluindo os MX do Google
 Workspace) e o bucket R2.
 
-**5c — Upstash.** Ainda não inspecionado. Fica para depois que 5b fechar.
+**5c — Upstash.** Inspecionado em 03/08, em `console.upstash.com/account/settings`:
+
+| Campo                       | Valor                                               |
+| --------------------------- | --------------------------------------------------- |
+| Account Email Address       | `leme.baseapr@gmail.com`, com botão `Change Email`  |
+| Multi-Factor Authentication | **desligado**                                       |
+| Transactional Emails        | ligado ("usage limit exceeds and team invitations") |
+| Marketing Emails            | ligado                                              |
+
+Não há campo de cobrança separado como na Cloudflare: o `Account Email Address` é o
+endereço único, então trocá-lo resolve identidade e avisos de uma vez. O assistente clicou
+em `Change Email` três vezes e o diálogo não abriu — o console entrou em estado
+inconsistente (tela em branco, renderizador travando o CDP). Sem diagnóstico conclusivo se
+é bug do console ou artefato da automação. Passa para o Pedro, que executa no navegador
+dele sem intermediação.
 
 ### Tarefa 6 — Rotacionar as credenciais expostas
 
