@@ -11,13 +11,13 @@ a tarefa marcada como `▶ ATIVA`, e ao concluí-la move a marca para a seguinte
 
 ## Concluídas em 01/08/2026
 
-| # | Tarefa | Evidência |
-| - | ------ | --------- |
-| ✅ | **Decidir qual conta Stripe segue** | Fica `acct_1T6DHFJ1Cbnf5voG`. Acesso confirmado em sessão anônima; login já é `pedro.perin@theiadvisor.com`; conta em LIVE sem pendência de verificação |
-| ✅ | **Blindar o 2FA da Stripe** | Aplicativo autenticador + chave de segurança + código de backup de 24 caracteres guardado em 2 locais + e-mail de backup + telefone de contato |
-| ✅ | **Pagar o Google Workspace** | Confirmado pelo Pedro em 01/08. **Não verificado no painel** — o `admin.google.com` pediu login na sessão do assistente. Reconferir na próxima vez que ele estiver logado |
-| ✅ | **Ativar a conta nova da Stripe como PJ** | `acct_1TgU9JRufXYWW9J9` saiu do modo de teste e entrou em produção em 03/08. Preenchido no onboarding: Pessoa Jurídica · Sociedade Limitada Unipessoal (SLU) · CNPJ 67.084.607/0001-78 · categoria Software · descrição do produto reescrita (a que veio preenchida descrevia outro negócio) · descrição no extrato `THEIADVISOR` · documento com foto + selfie enviados · Radar no plano **Lite** |
-| ✅ | **Cadastrar a conta bancária de repasse** | Inter PJ, agência 0001, mesmo CNPJ da conta. Feito dentro do próprio fluxo de ativação — a tarefa 3 da fila saiu junto com a 2 |
+| #   | Tarefa                                    | Evidência                                                                                                                                                                                                                                                                                                                                                                                          |
+| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✅  | **Decidir qual conta Stripe segue**       | Fica `acct_1T6DHFJ1Cbnf5voG`. Acesso confirmado em sessão anônima; login já é `pedro.perin@theiadvisor.com`; conta em LIVE sem pendência de verificação                                                                                                                                                                                                                                            |
+| ✅  | **Blindar o 2FA da Stripe**               | Aplicativo autenticador + chave de segurança + código de backup de 24 caracteres guardado em 2 locais + e-mail de backup + telefone de contato                                                                                                                                                                                                                                                     |
+| ✅  | **Pagar o Google Workspace**              | Confirmado pelo Pedro em 01/08. **Não verificado no painel** — o `admin.google.com` pediu login na sessão do assistente. Reconferir na próxima vez que ele estiver logado                                                                                                                                                                                                                          |
+| ✅  | **Ativar a conta nova da Stripe como PJ** | `acct_1TgU9JRufXYWW9J9` saiu do modo de teste e entrou em produção em 03/08. Preenchido no onboarding: Pessoa Jurídica · Sociedade Limitada Unipessoal (SLU) · CNPJ 67.084.607/0001-78 · categoria Software · descrição do produto reescrita (a que veio preenchida descrevia outro negócio) · descrição no extrato `THEIADVISOR` · documento com foto + selfie enviados · Radar no plano **Lite** |
+| ✅  | **Cadastrar a conta bancária de repasse** | Inter PJ, agência 0001, mesmo CNPJ da conta. Feito dentro do próprio fluxo de ativação — a tarefa 3 da fila saiu junto com a 2                                                                                                                                                                                                                                                                     |
 
 ---
 
@@ -51,8 +51,8 @@ ativa.
 > **A decisão G2-00 foi revertida em 02/08, por fato novo.** Ver o bloco de achado abaixo.
 
 **O achado.** A aba "Dados fiscais" de `acct_1T6DHFJ1Cbnf5voG` diz, textualmente:
-*"Seus dados fiscais já foram verificados. Se seu ID fiscal mudou, você precisará criar outra
-conta."* Não há caminho de auto-atendimento nem de suporte: conta com identificação fiscal
+_"Seus dados fiscais já foram verificados. Se seu ID fiscal mudou, você precisará criar outra
+conta."_ Não há caminho de auto-atendimento nem de suporte: conta com identificação fiscal
 verificada **não troca de titular fiscal** na Stripe. O formulário de "Dados comerciais" só
 expõe Setor, Site e Descrição do produto.
 
@@ -65,10 +65,10 @@ e nota saindo da jurídica. Logo, migrar deixou de ser preferência e virou requ
 > **Correção de identificador (02/08).** S83 registrou `acct_1TgU9WRpJ3I7SP8K` como "a conta
 > nova". **É o sandbox dela**, não a conta. A estrutura real são três identificadores:
 >
-> | ID | O que é |
-> | -- | ------- |
-> | `acct_1T6DHFJ1Cbnf5voG` | conta de produção atual — LIVE, cadastro CPF |
-> | `acct_1TgU9JRufXYWW9J9` | **conta nova, pendente de ativação** — o destino |
+> | ID                      | O que é                                                                       |
+> | ----------------------- | ----------------------------------------------------------------------------- |
+> | `acct_1T6DHFJ1Cbnf5voG` | conta de produção atual — LIVE, cadastro CPF                                  |
+> | `acct_1TgU9JRufXYWW9J9` | **conta nova, pendente de ativação** — o destino                              |
 > | `acct_1TgU9WRpJ3I7SP8K` | sandbox da conta nova — onde estão os 3 products, 3 prices e o webhook de S83 |
 >
 > Os dois últimos compartilham o prefixo `1TgU9`, criados no mesmo momento. Navegar para
@@ -191,11 +191,11 @@ Runbook: `docs/operations/s61/STAGING_SETUP_RUNBOOK.md`.
 
 ## Bloqueadas — não são suas ainda
 
-| Tarefa | Bloqueada por |
-| ------ | ------------- |
-| Smoke E2E do WhatsApp | diagnóstico do dashboard, em aberto no Claude Code |
-| Compra real de uma assinatura (checkout ponta a ponta) | tarefas 2 e 3 desta fila |
-| Confirmar traces no Axiom | Claude Code precisa confirmar o deploy primeiro |
+| Tarefa                                                 | Bloqueada por                                      |
+| ------------------------------------------------------ | -------------------------------------------------- |
+| Smoke E2E do WhatsApp                                  | diagnóstico do dashboard, em aberto no Claude Code |
+| Compra real de uma assinatura (checkout ponta a ponta) | tarefas 2 e 3 desta fila                           |
+| Confirmar traces no Axiom                              | Claude Code precisa confirmar o deploy primeiro    |
 
 ---
 

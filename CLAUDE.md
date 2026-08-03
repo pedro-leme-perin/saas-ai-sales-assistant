@@ -191,11 +191,11 @@ volume bruto R$ 0,00, **repasses não configurados** (`Repasses: —`), entidade
 > `/test/settings/account` — sandbox não tem modo de produção. O botão "Alternar para conta
 > de produção" leva a `acct_1TgU9JRufXYWW9J9`, título "Ative sua conta".
 
-| ID | O que é | Estado |
-| -- | ------- | ------ |
-| `acct_1T6DHFJ1Cbnf5voG` | conta de produção | LIVE, cadastro **CPF**, sem payout |
-| `acct_1TgU9JRufXYWW9J9` | **conta nova — destino da migração** | pendente de ativação |
-| `acct_1TgU9WRpJ3I7SP8K` | sandbox da conta nova | TEST; contém os objetos de S83 |
+| ID                      | O que é                              | Estado                             |
+| ----------------------- | ------------------------------------ | ---------------------------------- |
+| `acct_1T6DHFJ1Cbnf5voG` | conta de produção                    | LIVE, cadastro **CPF**, sem payout |
+| `acct_1TgU9JRufXYWW9J9` | **conta nova — destino da migração** | pendente de ativação               |
+| `acct_1TgU9WRpJ3I7SP8K` | sandbox da conta nova                | TEST; contém os objetos de S83     |
 
 Os objetos provisionados em S83 (3 products + 3 prices + 1 webhook) vivem no **sandbox**, e
 por isso terão de ser recriados em LIVE após a ativação. **Nenhuma variável de produção

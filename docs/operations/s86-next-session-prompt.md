@@ -80,15 +80,15 @@ Detalhe em `CLAUDE.md` §0.
 - **Conta bancária de repasse** cadastrada — Inter PJ, agência 0001, mesmo CNPJ.
 - **2FA da Stripe blindado** na conta de produção antiga: app autenticador + chave de
   segurança + código de backup de 24 caracteres guardado em dois locais + e-mail de backup
-  + telefone.
+  - telefone.
 
 ### Três identificadores Stripe — não confunda de novo
 
-| ID | O que é | Estado |
-| -- | ------- | ------ |
-| `acct_1T6DHFJ1Cbnf5voG` | conta de produção **em uso hoje** | LIVE, cadastro CPF, sem payout |
-| `acct_1TgU9JRufXYWW9J9` | conta nova — destino da migração | ativada, verificação em análise |
-| `acct_1TgU9WRpJ3I7SP8K` | **sandbox** da conta nova | TEST; contém os objetos de S83 |
+| ID                      | O que é                           | Estado                          |
+| ----------------------- | --------------------------------- | ------------------------------- |
+| `acct_1T6DHFJ1Cbnf5voG` | conta de produção **em uso hoje** | LIVE, cadastro CPF, sem payout  |
+| `acct_1TgU9JRufXYWW9J9` | conta nova — destino da migração  | ativada, verificação em análise |
+| `acct_1TgU9WRpJ3I7SP8K` | **sandbox** da conta nova         | TEST; contém os objetos de S83  |
 
 A produção **continua na conta antiga** até a migração terminar. Não a encerre.
 

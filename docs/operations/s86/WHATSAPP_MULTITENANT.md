@@ -51,17 +51,17 @@ desativa o aplicativo naquele número.
 
 ## 3. O recurso que atende: coexistência
 
-A Meta lançou **coexistência** (*coexistence*) em maio de 2025 — o aplicativo WhatsApp
+A Meta lançou **coexistência** (_coexistence_) em maio de 2025 — o aplicativo WhatsApp
 Business e a Cloud API operando no mesmo número, com sincronização bidirecional em tempo
-real via *Messaging Echoes*.
+real via _Messaging Echoes_.
 
 ### Restrições que mudam a promessa de venda
 
-| Restrição | Impacto comercial |
-| --------- | ----------------- |
-| Exige o app **WhatsApp Business**, não o WhatsApp comum | Cliente precisa migrar de app. Gratuito, mas é fricção no onboarding |
+| Restrição                                                | Impacto comercial                                                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Exige o app **WhatsApp Business**, não o WhatsApp comum  | Cliente precisa migrar de app. Gratuito, mas é fricção no onboarding                                         |
 | **14 dias sem abrir o app derrubam a conexão com a API** | O funcionamento do produto passa a depender de um hábito do cliente. Vendedor de férias derruba a integração |
-| Algumas funções do app mudam de comportamento | Precisa ser documentado antes da venda, não depois |
+| Algumas funções do app mudam de comportamento            | Precisa ser documentado antes da venda, não depois                                                           |
 
 A segunda é a mais séria. Um SaaS cuja disponibilidade depende de o usuário abrir um
 aplicativo no celular tem uma dependência que ele não controla nem monitora. No mínimo, o
@@ -78,7 +78,7 @@ o que é viés evidente. A documentação oficial da Twilio consultada em 03/08 
 recurso — nem para confirmar, nem para negar. Ausência de menção não é negação.
 
 O que a documentação da Twilio **confirma** existir é o **Tech Provider Program** com
-*Embedded Signup*: o cliente conecta a própria conta Meta pelo painel do produto, em poucos
+_Embedded Signup_: o cliente conecta a própria conta Meta pelo painel do produto, em poucos
 cliques. Resolve a exigência 1 (o número é dele) mas, até onde se sabe, não a exigência 2.
 
 Um detalhe adicional da documentação da Twilio que importa para multi-inquilino:
@@ -89,12 +89,12 @@ de um número por cliente — provavelmente via subcontas ou via o próprio Tech
 
 ## 5. As saídas possíveis
 
-| Caminho | Atende o requisito? | Custo |
-| ------- | ------------------- | ----- |
-| Continuar na Twilio com Embedded Signup | Parcialmente — o número é do cliente, mas ele perde o app | Médio: conexão por tenant, envio por número do tenant, tela de conexão |
-| Migrar para a Cloud API da Meta direto | Sim, se a coexistência estiver disponível | Alto: troca a fundação do canal |
-| Trocar por um provedor que suporte coexistência | Sim | Alto: troca a fundação e adiciona um fornecedor |
-| Rever o requisito com o Pedro | — | Nenhum, mas muda a promessa comercial |
+| Caminho                                         | Atende o requisito?                                       | Custo                                                                  |
+| ----------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Continuar na Twilio com Embedded Signup         | Parcialmente — o número é do cliente, mas ele perde o app | Médio: conexão por tenant, envio por número do tenant, tela de conexão |
+| Migrar para a Cloud API da Meta direto          | Sim, se a coexistência estiver disponível                 | Alto: troca a fundação do canal                                        |
+| Trocar por um provedor que suporte coexistência | Sim                                                       | Alto: troca a fundação e adiciona um fornecedor                        |
+| Rever o requisito com o Pedro                   | —                                                         | Nenhum, mas muda a promessa comercial                                  |
 
 ---
 
