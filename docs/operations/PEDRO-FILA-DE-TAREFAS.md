@@ -169,9 +169,22 @@ Decisão do Pedro em 03/08: **convidar primeiro, trocar depois.**
 - **5b-i — convite enviado** (assistente, 03/08). `pedro.perin@theiadvisor.com` convidado
   como Super Administrator, escopo Entire account. Painel: status `Pending`. Convite expira
   em 06/08. Cria a segunda via de acesso antes de mexer em qualquer credencial.
-- **5b-ii — aceitar o convite** (Pedro). Exige login/criação de conta, então é dele.
-- **5b-iii — "Esqueci a senha", definir senha e trocar o e-mail do dono** (Pedro), só depois
-  que 5b-ii estiver `Active`.
+- **5b-ii — convite aceito** (Pedro, 03/08). Painel de Members mostra
+  `pedro.perin@theiadvisor.com` · Super admin ✓ · status `Active`. A segunda via de acesso
+  existe.
+- **5b-iii — CANCELADA por consequência de 5b-i.** O plano era renomear o e-mail do dono
+  para `pedro.perin@theiadvisor.com`. Isso deixou de ser possível: esse endereço agora
+  pertence ao segundo membro, e a Cloudflare exige e-mail único por usuário. O convite
+  resolveu o acesso e fechou essa porta ao mesmo tempo. Trade-off aceito conscientemente —
+  acesso institucional vale mais do que o rótulo do dono.
+- **5b-iv — trocar o `Billing email`** (Pedro). Rota melhor, descoberta em 03/08 ao
+  procurar a saída de 5b-iii. Em `Manage account → Billing` existe um cartão
+  **Billing email** hoje em `leme.baseapr@gmail.com`, com diálogo próprio
+  ("Billing email preferences": New email / Confirm new email / Receive PDF invoices /
+  Invoice language) e **sem exigência de senha**. É esse campo que recebe cobrança e
+  renovação — exatamente a classe de aviso que se perdeu em junho. O assistente tentou
+  preencher e foi bloqueado pelo classificador de segurança em formulário de cobrança,
+  então o preenchimento é do Pedro.
 
 Registro do desenho anterior, mantido porque a análise continua válida: o diálogo
 "Change Email Address" exige o campo
