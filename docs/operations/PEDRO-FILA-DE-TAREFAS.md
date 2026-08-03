@@ -217,6 +217,23 @@ inconsistente (tela em branco, renderizador travando o CDP). Sem diagnóstico co
 é bug do console ou artefato da automação. Passa para o Pedro, que executa no navegador
 dele sem intermediação.
 
+**5c concluída em 03/08.** Pedro trocou o `Account Email Address` para
+`pedro.perin@theiadvisor.com` e confirmou pelo código enviado por e-mail (Upstash usa
+código de verificação, não link). A troca **derruba a sessão** — comportamento esperado,
+não falha.
+
+**Forma correta de entrar nessa conta, a partir de agora:** `Continue with Google` com
+`pedro.perin@theiadvisor.com`. Verificado no painel: é a **mesma** conta, não uma nova.
+Evidência: `saas-ai-sales-cache` (`casual-meerkat`, AWS SA-EAST-1, Free Tier) presente e
+ativo, mais o `huge-turkey` marcado `DELETED` — o banco antigo, de antes da recriação de
+S84.
+
+A produção nunca dependeu disso: o backend fala com o Redis por `REDIS_URL` e token, não
+pela sessão do console.
+
+**Aberto, e agora com dois casos:** MFA desligada na Upstash e 2FA `Inactive` na
+Cloudflare. Ambos caem na tarefa 7.
+
 ### Tarefa 6 — Rotacionar as credenciais expostas
 
 O token do R2 (escopo: bucket de backups) e o usuário `neondb_owner` (escopo: **total sobre
