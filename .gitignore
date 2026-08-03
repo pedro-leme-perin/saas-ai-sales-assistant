@@ -72,6 +72,13 @@ scripts/*.log
 /scripts/s82-restore-security-commit.*
 /scripts/s82-restore-security-commit-msg.txt
 
+# S86: credencial git do sandbox Cowork (token em texto puro — NUNCA versionar)
+/.git-credentials
+/.git-credentials.*
+TOKEN*.txt
+*token*.txt
+*TOKEN*.txt
+
 # S83 session wrappers (transient)
 /scripts/s83-*.bat
 /scripts/s83-*.ps1

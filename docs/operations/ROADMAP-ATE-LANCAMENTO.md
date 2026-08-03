@@ -27,6 +27,12 @@ Cada item tem:
 concluído depois de **executar com sucesso ao menos uma vez em produção**.
 Código escrito, configuração declarada e documentação atualizada não contam.
 
+**Regra de entrega ao Pedro (S85):** este documento organiza o trabalho por dependência, não
+por ordem de execução dele. **Nunca entregue mais de uma tarefa ao Pedro por vez.** A
+sequência que ele deve seguir, uma de cada vez, está em
+[`PEDRO-FILA-DE-TAREFAS.md`](PEDRO-FILA-DE-TAREFAS.md) — é essa fila que vale ao falar com
+ele, não a ordem dos portões. Ver `CLAUDE.md` §0.
+
 ---
 
 ## Caminho crítico

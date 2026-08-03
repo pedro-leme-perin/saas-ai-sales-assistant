@@ -7,6 +7,38 @@
 
 ---
 
+## 0. COMO ENTREGAR TAREFAS AO PEDRO — REGRA DURA
+
+> Estabelecida em 01/08/2026 (S85), por pedido explícito dele. Vale para Cowork e para
+> Claude Code, em toda sessão, sem exceção.
+
+**Uma tarefa por vez. Nunca duas.**
+
+O Pedro não é operador nem programador. Receber várias ações simultâneas o deixa confuso e
+perdido, e o resultado prático é que nenhuma delas é concluída. A regra:
+
+1. Entregue **uma única** ação por vez — a próxima da fila, e só ela.
+2. Espere ele confirmar que concluiu.
+3. **Verifique** o resultado, quando for verificável (painel, API, log).
+4. Só então apresente a próxima.
+
+**Proibido:**
+
+- listar duas ou mais ações e pedir que ele "faça também" ou "em paralelo";
+- terminar uma resposta com "e enquanto isso, faça X";
+- dar uma tarefa principal e um "bônus se sobrar tempo";
+- misturar uma ação dele com uma pergunta de decisão na mesma mensagem.
+
+**Permitido, e é diferente:** uma tarefa com vários passos numerados **dentro dela**, desde
+que os passos sejam sequenciais e pertençam ao mesmo objetivo (por exemplo: abrir o painel →
+clicar em X → preencher Y → salvar). Isso é uma tarefa, não três.
+
+**Fila canônica:** [`docs/operations/PEDRO-FILA-DE-TAREFAS.md`](docs/operations/PEDRO-FILA-DE-TAREFAS.md).
+Sempre consultar antes de propor qualquer coisa a ele, e marcar o avanço ali. A fila tem
+exatamente **uma** tarefa marcada como ativa por vez.
+
+---
+
 ## 1. VISÃO DO PRODUTO
 
 SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
@@ -151,11 +183,23 @@ volume bruto R$ 0,00, **repasses não configurados** (`Repasses: —`), entidade
 **pessoa física (CPF)** com endereço residencial, e-mail do representante
 `leme.baseapr@gmail.com`.
 
-#### Conta secundária `acct_1TgU9WRpJ3I7SP8K` — TEST only, desconectada da produção
+#### Conta nova `acct_1TgU9JRufXYWW9J9` e seu sandbox `acct_1TgU9WRpJ3I7SP8K`
 
-Criada em S83 sob a premissa (errada) de que a original estava perdida. Existe, tem 3
-products + 3 prices + 1 webhook em **TEST mode**, e **nenhuma variável de produção aponta
-para ela**.
+> **Correção de identificador (02/08/2026).** S83 registrou `acct_1TgU9WRpJ3I7SP8K` como "a
+> conta nova". **É o sandbox dela.** Provado por redirect: navegar para
+> `dashboard.stripe.com/acct_1TgU9WRpJ3I7SP8K/settings/account` força
+> `/test/settings/account` — sandbox não tem modo de produção. O botão "Alternar para conta
+> de produção" leva a `acct_1TgU9JRufXYWW9J9`, título "Ative sua conta".
+
+| ID | O que é | Estado |
+| -- | ------- | ------ |
+| `acct_1T6DHFJ1Cbnf5voG` | conta de produção | LIVE, cadastro **CPF**, sem payout |
+| `acct_1TgU9JRufXYWW9J9` | **conta nova — destino da migração** | pendente de ativação |
+| `acct_1TgU9WRpJ3I7SP8K` | sandbox da conta nova | TEST; contém os objetos de S83 |
+
+Os objetos provisionados em S83 (3 products + 3 prices + 1 webhook) vivem no **sandbox**, e
+por isso terão de ser recriados em LIVE após a ativação. **Nenhuma variável de produção
+aponta para qualquer um dos dois.**
 
 | Plano        | Product ID            | Price ID (TEST)                  |
 | ------------ | --------------------- | -------------------------------- |
@@ -165,9 +209,21 @@ para ela**.
 
 Webhook TEST: `we_1TgqcSRpJ3I7SP8KEtmGXXQW` → `https://api.theiadvisor.com/api/billing/webhook`
 
-**Decisão em aberto (Pedro):** manter `acct_1T6DHFJ1Cbnf5voG` e converter CPF→CNPJ nela, ou
-migrar para `acct_1TgU9WRpJ3I7SP8K` cadastrando PJ do zero. Enquanto não houver decisão,
-a produção continua na primeira. Trade-off em `docs/operations/s85/STRIPE_STATE_CORRECTION.md` §4.
+**DECISÃO FECHADA (02/08/2026): migrar para `acct_1TgU9WRpJ3I7SP8K`.** Não por preferência —
+por impossibilidade técnica. A aba "Dados fiscais" de `acct_1T6DHFJ1Cbnf5voG` afirma:
+_"Seus dados fiscais já foram verificados. Se seu ID fiscal mudou, você precisará criar outra
+conta."_ Conta com identificação fiscal verificada não troca CPF por CNPJ na Stripe, nem por
+auto-atendimento nem por suporte. Como o produto emite NFS-e pelo CNPJ, receber no CPF é
+incoerência fiscal — logo, migrar virou requisito.
+
+Em 01/08 a decisão havia sido a oposta (manter a conta atual), com base em três fatos que
+continuam verdadeiros: ela está em LIVE, sem pendência de verificação, e o login já é
+institucional. O que faltava era este quarto fato, descoberto ao tentar executar.
+
+`acct_1T6DHFJ1Cbnf5voG` **continua sendo a conta de produção** até a migração terminar, e o
+2FA blindado nela em 01/08 (autenticador + chave de segurança + código de backup) segue
+necessário. Sequência da migração e estado atual em
+`docs/operations/PEDRO-FILA-DE-TAREFAS.md`.
 
 **Eventos do webhook (6, invariante em ambos os modos):** `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.trial_will_end`
 
