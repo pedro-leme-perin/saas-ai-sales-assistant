@@ -231,8 +231,12 @@ S84.
 A produção nunca dependeu disso: o backend fala com o Redis por `REDIS_URL` e token, não
 pela sessão do console.
 
-**Aberto, e agora com dois casos:** MFA desligada na Upstash e 2FA `Inactive` na
-Cloudflare. Ambos caem na tarefa 7.
+**5c-iii — MFA da Upstash ligada** (Pedro, 03/08). Puxada da tarefa 7 para aproveitar a
+sessão aberta. Painel confirma o interruptor verde e
+`Account Email Address: pedro.perin@theiadvisor.com`. Código de backup exibido e guardado.
+
+**Continua aberto:** 2FA `Inactive` na Cloudflare — mas ver a ressalva sobre SSO na
+tarefa 7.
 
 ### Tarefa 6 — Rotacionar as credenciais expostas
 
@@ -245,6 +249,24 @@ com acesso ao projeto lê o valor. **Atenção:** rotacionar a chave do Clerk se
 derruba o login do site. Essa parte precisa ser feita junto com o Claude Code.
 
 ### Tarefa 7 — 2FA com redundância nas demais contas
+
+> **Reformulada em 03/08, por levantamento no painel.** A pergunta certa não é "essa conta
+> tem 2FA?", e sim "**quem autentica essa conta?**". Metade da infraestrutura entra por SSO,
+> e nesses casos o segundo fator que importa é o do provedor de identidade, não o do serviço.
+
+| Conta      | Como se entra                         | Onde o 2FA precisa estar | Estado em 03/08                                                      |
+| ---------- | ------------------------------------- | ------------------------ | -------------------------------------------------------------------- |
+| Upstash    | e-mail + Google                       | na própria Upstash       | ✅ MFA ligada, backup guardado                                       |
+| Cloudflare | Google SSO (`leme.baseapr@gmail.com`) | **na conta Google**      | 2FA da Cloudflare `Inactive`, mas a conta Google tem chave de acesso |
+| Railway    | OAuth do GitHub                       | **no GitHub**            | 🔴 ver abaixo                                                        |
+| GitHub     | senha + Google                        | no GitHub                | 🔴 **`Two-factor authentication is not enabled yet`**                |
+| Stripe     | e-mail institucional                  | na Stripe                | ✅ blindado em 01/08                                                 |
+
+**O elo mais fraco é o GitHub, e por margem larga.** Ele acumula três papéis: guarda o
+código-fonte, é o provedor de identidade da Railway (portanto do backend em produção), e a
+partir de S86 guarda o token de push do sandbox do Cowork. Hoje tem senha, **nenhuma
+passkey** e **nenhum segundo fator**. Quem obtiver essa senha obtém o repositório e a
+infraestrutura de uma vez.
 
 Railway, Cloudflare, Neon, Upstash, GitHub, Google Workspace. Mesmo padrão da Stripe: dois
 fatores independentes mais código de recuperação guardado fora do computador.
