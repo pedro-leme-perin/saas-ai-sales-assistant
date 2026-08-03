@@ -271,10 +271,31 @@ infraestrutura de uma vez.
 **Fechado em 03/08.** App autenticador como método preferido, códigos de recuperação
 exibidos e guardados.
 
-**Resta da tarefa 7:** o segundo fator das duas contas Google, que autenticam metade do
-resto. `leme.baseapr@gmail.com` (autentica a Cloudflare) tem chave de acesso, mas a
-redundância não foi verificada. `pedro.perin@theiadvisor.com` (autentica Upstash e Stripe)
-não foi inspecionado.
+**As duas contas Google, inspecionadas em 03/08 — e o resultado é o inverso do esperado.**
+
+|                            | `leme.baseapr@gmail.com` (pessoal) | `pedro.perin@theiadvisor.com` (institucional) |
+| -------------------------- | ---------------------------------- | --------------------------------------------- |
+| Verificação em duas etapas | **Ativada desde 06/07/2022**       | 🔴 **"está desativada"**                      |
+| Chaves de acesso           | 2                                  | nenhuma                                       |
+| Telefone de recuperação    | (16) 98858-3222                    | (16) 98858-3222                               |
+| E-mail de recuperação      | `pedroperin@yahoo.com.br`          | `leme.baseapr@gmail.com`                      |
+| Códigos de backup          | não configurados                   | não configurados                              |
+| Senha alterada em          | 11/05/2021                         | 02/06/2026                                    |
+
+**A conta pessoal está bem protegida. A conta que carrega o negócio, não.**
+
+`pedro.perin@theiadvisor.com` é hoje: o login da Stripe (as duas contas), o login da Upstash
+via Google, um Super Administrator da Cloudflare, e o destinatário de toda a cobrança e
+renovação que acabamos de migrar para lá. Os apps vinculados confirmam: `Cloudflare
+Dashboard`, `Upstash`, `Claude for Gmail`.
+
+Consequência que anula trabalho anterior: o 2FA da Stripe blindado em 01/08 tem como flanco
+a redefinição de senha por e-mail — e esse e-mail chega numa caixa sem segundo fator. O
+alerta de 01/08 registrado na tarefa 1 ("o problema seria o e-mail, não o fator de
+autenticação") estava certo, e continuou verdadeiro por mais dois dias sem ninguém olhar.
+
+Único atenuante real: a MFA própria da Upstash, ligada hoje, bloqueia o caminho por lá
+mesmo se o Google cair.
 
 > **Risco operacional recorrente, registrado em 03/08.** Duas vezes no mesmo dia um segredo
 > foi salvo em texto puro **dentro da pasta do projeto** — `TOKEN GITHUB COWORK-SANDBOX.txt`
