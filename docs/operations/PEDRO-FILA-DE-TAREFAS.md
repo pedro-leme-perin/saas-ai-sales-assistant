@@ -248,6 +248,60 @@ Inclui também marcar `CLERK_SECRET_KEY` como "Sensitive" na Vercel — hoje qua
 com acesso ao projeto lê o valor. **Atenção:** rotacionar a chave do Clerk sem coordenar
 derruba o login do site. Essa parte precisa ser feita junto com o Claude Code.
 
+#### 6a — Token do R2 ✅ CONCLUÍDA 03/08 (S87)
+
+Token novo criado no Cloudflare com o mesmo escopo (`theiadvisor-backups`, Object Read &
+Write), segredos `R2_BACKUP_ACCESS_KEY_ID` e `R2_BACKUP_SECRET_ACCESS_KEY` atualizados no
+GitHub Actions, e só então o token `github-actions-backup` de 31/07 revogado — nessa ordem,
+nunca a inversa.
+
+**Evidência:** backup run #101 passou com os segredos novos e o token antigo ainda vivo;
+run #102 passou **depois** da revogação (`Uploaded postgres/2026-08-03/...T20-11-18Z.dump`,
+`toc_rows=438`). Só a credencial nova explica o segundo.
+
+**Conta correta do Cloudflare**, para não se perder de novo: `Leme.baseapr@gmail.com's
+Account`, ID `790e7ded8031bec32fb92bbce27fa76e` — é a que tem os dois buckets e o domínio. A
+entrada `Pedro.perin@theiadvisor.com's Account` é uma conta vazia que a Cloudflare criou
+sozinha quando o convite de S86 foi aceito. O rótulo da conta é cosmético; o `Billing email`
+já é institucional desde 5b-iv.
+
+#### 6b — `neondb_owner` ✅ CONCLUÍDA 03/08 (S87), com retrabalho
+
+Senha resetada no Neon (projeto `sales-ai`, branch `production` `br-steep-glade-acqrg6s5`),
+e a connection string nova aplicada em **dois** consumidores: `DATABASE_URL` na Railway e
+`DATABASE_URL_BACKUP_RO` no GitHub Actions.
+
+**Evidência final:** `/health` com `status: ok` + `database: ok` e uptime baixo (réplica
+nova); backup run #104 `success` (`toc_rows=438`,
+`Uploaded postgres/2026-08-03/...T21-28-09Z.dump`).
+
+**Três achados desta tarefa, todos registrados como lição:**
+
+1. **A Railway não aplica variável ao salvar.** A mudança fica em rascunho, com um aviso
+   `Apply 1 change` / `Deploy` no topo. Salvar sem clicar em `Deploy` deixa o processo
+   antigo rodando com a credencial morta — foi o que tirou a API do ar por ~13 minutos, com
+   `Can't reach database server` no `/health` enquanto o `uptime` seguia crescendo (sinal
+   de que **não houve** restart). `uptime` alto + erro de banco = variável não aplicada.
+2. **`DATABASE_URL_BACKUP_RO` é o mesmo `neondb_owner`.** O painel do Neon lista **um único
+   role** na branch. O sufixo `_RO` é ficção: o backup noturno roda com privilégio total
+   sobre a produção. Dívida registrada — criar um role realmente somente-leitura para o
+   `pg_dump` é tarefa própria, não foi feita aqui.
+3. **A rotação precisou ser feita duas vezes.** Na primeira, o assistente leu o texto da
+   página do Neon para checar o `/health` depois de uma navegação que caiu na aba errada; o
+   botão `Show password` estava ligado e a senha em claro entrou na conversa. Mesma classe
+   de exposição que esta tarefa existe para eliminar, logo a única saída coerente era
+   repetir o ciclo. **Regra que fica:** não ler página de painel que possa conter segredo —
+   nem por texto, nem por captura — e conferir a aba antes de extrair conteúdo.
+
+#### 6c — `CLERK_SECRET_KEY` como "Sensitive" na Vercel ▶ ATIVA
+
+A Vercel já sinaliza sozinha: a variável aparece com o selo laranja **`Needs Attention`** em
+`Settings → Environment Variables` do projeto `saas-ai-sales-assistant-oc6b`. É o único item
+da lista com esse selo.
+
+Escopo desta parte: apenas **ocultar o valor** de quem tem acesso ao projeto. **Não** é
+rotação de chave do Clerk — isso derruba o login e é operação à parte.
+
 ### Tarefa 7 — 2FA com redundância nas demais contas
 
 > **Reformulada em 03/08, por levantamento no painel.** A pergunta certa não é "essa conta
