@@ -156,7 +156,25 @@ A tarefa se divide em três, porque os três provedores têm mecanismos diferent
 confirmação com validade de 20 minutos; o link foi aberto e o painel recarregado já exibe o
 endereço novo. Sem risco de perda de acesso porque o login é OAuth do GitHub, não o e-mail.
 
-**5b — Cloudflare, é do Pedro.** O diálogo "Change Email Address" exige o campo
+**5b — Cloudflare: fato novo em 03/08, a conta é SSO puro pelo Google.** Não existe senha
+da Cloudflare para preencher, e o diálogo "Change Password" exige `Old password` — logo, não
+há como criar uma pela tela de perfil. Achado colateral: **a 2FA da Cloudflare está
+`Inactive`**, nenhum segundo fator na conta que controla o DNS de `theiadvisor.com` e o R2.
+
+A página de Notifications também não resolve: ela configura alertas de evento (DDoS, health
+check), não avisos de cobrança e renovação, que vão para o e-mail do dono.
+
+Decisão do Pedro em 03/08: **convidar primeiro, trocar depois.**
+
+- **5b-i — convite enviado** (assistente, 03/08). `pedro.perin@theiadvisor.com` convidado
+  como Super Administrator, escopo Entire account. Painel: status `Pending`. Convite expira
+  em 06/08. Cria a segunda via de acesso antes de mexer em qualquer credencial.
+- **5b-ii — aceitar o convite** (Pedro). Exige login/criação de conta, então é dele.
+- **5b-iii — "Esqueci a senha", definir senha e trocar o e-mail do dono** (Pedro), só depois
+  que 5b-ii estiver `Active`.
+
+Registro do desenho anterior, mantido porque a análise continua válida: o diálogo
+"Change Email Address" exige o campo
 `Enter password`. Senha é segredo, logo não passa pelo assistente. Além disso, na Cloudflare
 o e-mail **é** o login — trocar muda a identidade de acesso, não só o destino dos avisos.
 Peso do que está atrás dessa conta: DNS de `theiadvisor.com` (incluindo os MX do Google
