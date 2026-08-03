@@ -1,7 +1,9 @@
 # Roadmap até o lançamento — TheIAdvisor
 
 **Criado:** 2026-07-31 (S84) · **Base:** auditoria de 46 módulos backend, 41 telas frontend, 92 suítes de teste, infraestrutura em 6 provedores
-**Revisado:** 2026-08-01 (S85) — GATE 1 e GATE 2 reescritos contra o estado real da Railway, da Stripe e do código. Duas premissas de S83 revogadas; caminho crítico refeito
+**Revisado:** 2026-08-03 (S86) — identidade da infraestrutura e 2FA fechadas; o portão de
+segurança operacional deixou de depender de contas pessoais. Repositório identificado como
+**público**, decisão pendente do Pedro. **Anterior:** 2026-08-01 (S85) — GATE 1 e GATE 2 reescritos contra o estado real da Railway, da Stripe e do código. Duas premissas de S83 revogadas; caminho crítico refeito
 **Estado na criação:** 62/100 · CI verde · produção estável e monitorada · zero clientes
 
 ---

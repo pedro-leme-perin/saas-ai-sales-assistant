@@ -3,8 +3,8 @@
 **Documento:** Registro detalhado de todas as sessões de desenvolvimento
 **Projeto:** SaaS AI Sales Assistant (TheIAdvisor)
 **Início:** 13/03/2026
-**Última atualização:** 06/05/2026 (S78 — apiClient envelope unwrap + ESLint v9 + Pricing)
-**Total de sessões:** 78
+**Última atualização:** 03/08/2026 (S86 — sandbox com push próprio; identidade da infraestrutura migrada; 2FA fechada em 4 contas)
+**Total de sessões:** 86
 
 ---
 
@@ -8425,3 +8425,133 @@ tem, a maquina local nao. Toda medicao local saia 60 KB otimista, sem nada no ou
 denunciasse. A folga real e 40 KB, nao 100 KB. Onde a config for condicional ao ambiente, o
 numero que vale e o do CI -- e o CI precisa imprimi-lo com precisao suficiente para ser
 comparavel, o que exigiu trocar MB arredondado por bytes.
+
+
+---
+
+# Sessao S86 — 03/08/2026 (Cowork)
+
+**Foco:** desbloquear o push do sandbox e executar a fila do Pedro. Nada de codigo de
+aplicacao: 10 commits, todos de operacao e documentacao.
+
+## O bloqueio do sandbox eram dois bloqueios
+
+S85 registrou "nao consigo dar push: could not read Username". Verdade, e incompleto. Havia
+**duas** causas independentes, e resolver so a primeira nao teria produzido commit nenhum:
+
+1. **Sem credencial.** Resolvido com um PAT fine-grained (Contents/Workflows/Pull requests
+   RW, Actions RO, 90 dias) guardado em `.git-credentials` no proprio mount, lido por
+   `credential.helper store`. O Pedro nunca colou o token no chat e o assistente nunca leu o
+   valor. O caminho do sandbox muda a cada sessao, entao o helper e reapontado no inicio de
+   cada uma.
+2. **`.git/index.lock` orfao, 0 bytes.** Travava `commit`, `add`, tudo. O sandbox nao tinha
+   permissao de unlink no mount montado do Windows; foi preciso pedir a permissao de delete.
+
+Efeito colateral do mesmo diagnostico: **11 arquivos rastreados estavam ausentes da arvore
+de trabalho**, incluindo `pnpm-lock.yaml`, `k6/load-test.js` e 4 specs. Restaurados com
+`git checkout`.
+
+## Limites reais do sandbox, medidos
+
+`pnpm@9.15.0` instalado num prefixo do usuario (nao ha root). Clone do repositorio dentro do
+sandbox com `pnpm install --node-linker=hoisted` — os symlinks do pnpm no mount do Windows
+nao resolvem pelo Linux.
+
+O que **nao** roda, e nao vai rodar: `tsc --noEmit` do backend e `jest`. O ambiente tem
+**895 MB de RAM** e **teto de 45 s por comando**, e nenhum processo sobrevive ao fim da
+chamada (`bwrap --die-with-parent`). O type-check e morto por tempo, o jest pelo OOM killer.
+O CI segue como unico portao de validacao de codigo.
+
+O que roda e passou a substituir o hook: os dois guards de pre-commit (Node puro, zero deps)
+e o `prettier` do clone apontado contra os arquivos do mount.
+
+## Estado confirmado no inicio, contra painel
+
+- **Stripe `acct_1TgU9JRufXYWW9J9`**: duas tarefas "Dados sob analise" — identidade do
+  representante e atualizacao do representante. Pagamentos e repasses suspensos ate liberar.
+- **Google Workspace**: regularizado. Pagamento de R$ 58,80 recebido em 01/08, nota emitida
+  em 02/08; os avisos de falha pararam em 27/07.
+- **CI de `main`**: verde. CI #429 em `31ebc6b`; a ultima falha foi #423.
+- **Repositorio**: `"private": false`. Publico, com licenca proprietaria. Registrado como
+  decisao pendente, com o custo de fecha-lo (cota de minutos do Actions) levantado.
+
+## Tarefa 5 — identidade da infraestrutura
+
+| Provedor | Mecanismo | Quem executou |
+| -------- | --------- | ------------- |
+| Railway | campo `Email`, login e OAuth do GitHub | assistente |
+| Cloudflare | convite de Super Administrator + `Billing email` | assistente (convite) + Pedro (billing) |
+| Upstash | `Account Email Address` unico | Pedro |
+
+**Cloudflare foi o caso interessante.** A conta e SSO puro pelo Google: nao existe senha, e
+o dialogo `Change Password` exige `Old password` — nao ha como criar uma pela tela de perfil.
+O plano aprovado era convidar o e-mail institucional e depois renomear o dono. **O convite
+tornou o segundo passo impossivel:** o endereco passou a pertencer ao convidado e a
+Cloudflare exige e-mail unico por usuario.
+
+A saida foi melhor que o plano original: o cartao **`Billing email`**, em Manage account →
+Billing, tem dialogo proprio e **nao pede senha**. E ele que recebe cobranca e renovacao — a
+classe exata de aviso que se perdeu em junho. Verificado tambem que o registrador esta com
+`Auto-renew` ligado e vence em 24/03/2027.
+
+Upstash: a troca derruba a sessao (comportamento esperado, nao falha) e usa codigo de
+verificacao, nao link. Confirmado no painel que continua sendo a **mesma** conta —
+`saas-ai-sales-cache` (`casual-meerkat`) presente e ativo.
+
+## Tarefa 7 — 2FA, reformulada no meio do caminho
+
+A pergunta util nao e "essa conta tem 2FA?", e sim **"quem autentica essa conta?"**. Metade
+da infraestrutura entra por SSO, e nesses casos o fator precisa estar no provedor de
+identidade.
+
+| Conta | Autenticador | Antes | Depois |
+| ----- | ------------ | ----- | ------ |
+| GitHub | proprio | sem 2FA, sem passkey | app autenticador + codigos de recuperacao |
+| Railway | GitHub | herdava o vazio | herda o fator do GitHub |
+| Upstash | Google + MFA propria | MFA desligada | MFA ligada + backup |
+| Cloudflare | Google (`leme.baseapr@`) | — | protegida pelo fator do Google pessoal |
+| Google institucional | proprio | 🔴 **desativada** | 2FA + passkey + Authenticator + 10 codigos |
+
+**O achado grave veio por ultimo.** `pedro.perin@theiadvisor.com` — login da Stripe, login da
+Upstash, Super Administrator da Cloudflare e destinatario de toda a cobranca migrada durante
+o dia — estava com a verificacao em duas etapas **desativada**. A conta pessoal, que nao
+carrega nada critico, tinha 2FA desde 2022 e duas chaves de acesso.
+
+## Higiene
+
+Duas vezes no mesmo dia um segredo foi salvo em texto puro dentro da pasta do projeto, que e
+um repositorio publico: `TOKEN GITHUB COWORK-SANDBOX.txt` e `CÓDIGO DE BACKUP UPSTASH.txt`.
+Verificado com `git log --diff-filter=A` em todo o historico: **nenhum dos dois jamais foi
+versionado**. Ambos no `.gitignore`, junto com padroes defensivos amplos.
+
+## Licoes
+
+**#78 — sintoma unico nao implica causa unica.** O sandbox tinha dois bloqueios empilhados,
+credencial ausente e lock orfao, e o segundo so apareceu depois de resolver o primeiro. O
+diagnostico de S85 parou no primeiro erro que a ferramenta imprimiu e deu o problema por
+compreendido. Um bloqueio resolvido nao prova que era o bloqueio.
+
+**#79 — a acao corretiva pode consumir a opcao que ela pretendia habilitar.** Convidar
+`pedro.perin@` como membro da Cloudflare resolveu o acesso e, no mesmo ato, tornou impossivel
+renomear o dono para aquele endereco. Antes de criar uma identidade, verificar quais campos
+passam a ser exclusivos por causa dela.
+
+**#80 — a pergunta de 2FA e "quem autentica", nao "isso tem 2FA".** Ligar o segundo fator da
+Cloudflare seria teatro: quem decide o login e o Google. Inversamente, o GitHub sem fator
+expunha a Railway inteira sem que a Railway tivesse defeito nenhum. Autenticacao federada
+move o perimetro, e o inventario precisa seguir a aresta, nao o servico.
+
+**#81 — protecao aplicada na conta errada nao e protecao.** O 2FA da Stripe foi blindado em
+01/08 com cuidado. O flanco continuava aberto pelo e-mail, numa caixa sem segundo fator, e a
+propria fila registrava esse risco por escrito desde 01/08. Passamos S86 inteira migrando
+cobranca e acesso *para dentro* dessa caixa antes de verificar se ela aguentava. Ao mover
+responsabilidade para um recurso, medir esse recurso **antes** da mudanca, nao depois.
+
+**#82 — `.gitignore` e rede, nao solucao.** Ele protege contra o commit distraido. Nao
+protege contra backup de pasta, sincronizacao de nuvem, extensao de editor, nem contra o
+proximo arquivo cujo nome nao casa com padrao nenhum. Segredo nao mora em pasta versionada.
+
+**#83 — o sandbox do Cowork tem teto duro, e o teto define o processo.** 895 MB e 45 s por
+comando, sem processo sobrevivente. `pnpm install` cabe; `tsc` e `jest` nao. Nao adianta
+tentar de novo com outra flag: o CI e o portao de validacao de codigo, e o sandbox serve
+para git, prettier e os guards.

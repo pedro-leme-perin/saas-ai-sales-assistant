@@ -297,6 +297,23 @@ autenticação") estava certo, e continuou verdadeiro por mais dois dias sem nin
 Único atenuante real: a MFA própria da Upstash, ligada hoje, bloqueia o caminho por lá
 mesmo se o Google cair.
 
+**Fechado em 03/08, 16h00 BRT.** Painel de `pedro.perin@theiadvisor.com` agora exibe:
+`Verificação em duas etapas — Ativada desde 16:00`, `1 chave de acesso`,
+`Google Authenticator — Adicionado: 15:59`, `Códigos de backup — 10 códigos disponíveis`,
+e-mail de recuperação `leme.baseapr@gmail.com`. O banner voltou a
+"Sua conta está protegida — nenhuma ação recomendada".
+
+Nota, em pt-BR o Google chama os códigos de backup de **"Códigos alternativos"** na tela de
+verificação em duas etapas, e de "Códigos de backup" na tela de segurança. Os dois nomes, o
+mesmo recurso — foi o que travou a execução por uma rodada.
+
+### ✅ Tarefa 7 — CONCLUÍDA em 03/08
+
+Resíduo consciente, não bloqueante: `leme.baseapr@gmail.com` continua sem códigos de backup.
+Ela tem 2FA desde 2022, duas chaves de acesso, telefone e e-mail de recuperação próprios, e
+não autentica nada crítico além da Cloudflare — que agora tem uma segunda via institucional.
+Fica registrado, sem virar tarefa.
+
 > **Risco operacional recorrente, registrado em 03/08.** Duas vezes no mesmo dia um segredo
 > foi salvo em texto puro **dentro da pasta do projeto** — `TOKEN GITHUB COWORK-SANDBOX.txt`
 > e `CÓDIGO DE BACKUP UPSTASH.txt`. O repositório é **público**. Nenhum dos dois chegou a

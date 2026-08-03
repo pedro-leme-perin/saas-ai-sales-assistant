@@ -63,7 +63,14 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 ## 2. ESTADO ATUAL DO PROJETO
 
 > **ATUALIZAR ESTA SEÇÃO A CADA SESSÃO DE TRABALHO**
-> Última atualização: 01/08/2026 (sessão S85 — auditoria das 42 variáveis da Railway contra a documentação. Dois achados que invalidam decisões registradas: (1) a produção fala com `acct_1T6DHFJ1Cbnf5voG` em LIVE mode, a mesma conta que S83 declarou perdida — o que se perdeu foi um fator de 2FA, não a conta; (2) `WhatsappService` usa Twilio, e as 4 variáveis `WHATSAPP_*` da Meta são configuração morta. Lições #67-#69. Correção completa em `docs/operations/s85/STRIPE_STATE_CORRECTION.md`.)
+> Última atualização: 03/08/2026 (sessão S86 — sandbox do Cowork ganhou push próprio (PAT
+> fine-grained + `credential.helper store`); a identidade de Railway, Cloudflare e Upstash
+> saiu do gmail pessoal; 2FA fechada em GitHub, Upstash e na conta Google institucional —
+> esta última estava **sem segundo fator** enquanto era o login da Stripe, da Upstash e um
+> Super Administrator da Cloudflare. Lições #78-#83. Repositório descoberto **público**,
+> decisão pendente. Nenhuma linha de código de aplicação tocada.)
+>
+> \_Anterior S85 01/08/2026 (sessão S85 — auditoria das 42 variáveis da Railway contra a documentação. Dois achados que invalidam decisões registradas: (1) a produção fala com `acct_1T6DHFJ1Cbnf5voG` em LIVE mode, a mesma conta que S83 declarou perdida — o que se perdeu foi um fator de 2FA, não a conta; (2) `WhatsappService` usa Twilio, e as 4 variáveis `WHATSAPP_*` da Meta são configuração morta. Lições #67-#69. Correção completa em `docs/operations/s85/STRIPE_STATE_CORRECTION.md`.)
 >
 > \_S85 2ª metade 01/08/2026 (execução no Claude Code — G3-07 resolvido: o `traceId` zerado não era trace quebrado, e sim `suppressTracing` nas rotas de `ignoreIncomingRequestHook`; em pré-lançamento o healthcheck é quase todo o tráfego, daí o "todo request". G5-01: os 16 PRs do Dependabot resolvidos — 5 aplicados, 10 fechados com dívida registrada, 1 em rebase. Os grupos "minor-and-patch" #38/#41 carregavam o salto OTel 0.57→0.221; causa corrigida em `dependabot.yml`. G1-04 concluído. Lições #71-#73. Achados abertos: 144 erros de tipo nos testes do backend invisíveis ao CI, o único E2E do backend nunca roda, bundle em 2.96MB contra limite duro de 3MB.)
 >
