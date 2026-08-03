@@ -184,7 +184,15 @@ Decisão do Pedro em 03/08: **convidar primeiro, trocar depois.**
   Invoice language) e **sem exigência de senha**. É esse campo que recebe cobrança e
   renovação — exatamente a classe de aviso que se perdeu em junho. O assistente tentou
   preencher e foi bloqueado pelo classificador de segurança em formulário de cobrança,
-  então o preenchimento é do Pedro.
+  então o preenchimento coube ao Pedro. **Concluída em 03/08** — o cartão exibe
+  `pedro.perin@theiadvisor.com`.
+- **5b-v — verificação do registrador** (assistente, 03/08). `theiadvisor.com`: status
+  `Active`, **`Auto-renew` ligado**, expira em 24/03/2027. O domínio não depende de alguém
+  ler um aviso a tempo. O contato WHOIS padrão continua redigido pela Cloudflare.
+
+**Saldo de 5b:** a causa raiz de junho está fechada pelo lado da Cloudflare — cobrança e
+renovação agora chegam na caixa institucional, e a renovação do domínio é automática.
+Permanece em aberto, na tarefa 7: **2FA `Inactive`** nos dois membros.
 
 Registro do desenho anterior, mantido porque a análise continua válida: o diálogo
 "Change Email Address" exige o campo
