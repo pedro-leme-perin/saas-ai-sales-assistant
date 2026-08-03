@@ -442,6 +442,45 @@ endereço da empresa.
 **Primeiro passo, e só ele:** entrar em `https://business.facebook.com/` e reportar o que
 aparece. O assistente conduz os passos seguintes um a um.
 
+#### Andamento em 03/08 (S88)
+
+| Passo                          | Estado                                                                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Portfólio empresarial existe   | ✅ **The IAdvisor**, ID `1593609525024955`, criado em 26/02/2026                                                        |
+| Dados da empresa preenchidos   | ✅ razão social, endereço com CEP, telefone e site — conferidos no painel                                               |
+| E-mail de contato do portfólio | ✅ era `pedro.perin@hotmail.com` **com confirmação pendente** → trocado para `pedro.perin@theiadvisor.com` e confirmado |
+| Verificação de empresa         | ⛔ **não disponível ainda** — ver achado abaixo                                                                         |
+| Conta de desenvolvedor da Meta | ⛔ **travada no SMS** — ver bloqueio abaixo                                                                             |
+
+**Achado que inverte a ordem prevista.** A Central de Segurança do portfólio diz, textualmente:
+_"Verificação para The IAdvisor — Sua organização não precisa ser verificada."_ A verificação
+de empresa **não abre com o portfólio sozinho**; ela fica disponível depois que existe um app
+da Meta com o produto WhatsApp vinculado. O FAQ do Tech Provider Program da Twilio descreve o
+mesmo caso e dá a mesma saída: _"Create a Meta app, add the WhatsApp product, and submit
+business verification."_
+
+Ordem correta, portanto: **conta de desenvolvedor → app → produto WhatsApp → verificação**.
+
+**Bloqueio ativo (03/08, 20h30 BRT):** o cadastro de conta de desenvolvedor
+(`developers.facebook.com`) exige confirmação por SMS e o código **não chega** em
+`+55 16 98858-3222`. Reenvio tentado. O diálogo só oferece "Enviar SMS novamente" e "Atualizar
+número de celular" — não há verificação por ligação nem por e-mail. Pedro não tem segundo
+número. Causa provável: filtro de operadora brasileira sobre o remetente da Meta, que costuma
+soltar sozinho em algumas horas.
+
+**Plano de retomada:** fechar o diálogo, refazer o cadastro em outro momento do dia seguinte,
+de preferência em rede móvel e não em Wi-Fi. Se persistir por 2 tentativas em dias diferentes,
+o caminho vira o formulário de suporte da Meta para confirmação de identidade.
+
+#### Segurança do portfólio — registrado, sem virar tarefa ainda
+
+Levantado na Central de Segurança em 03/08, para tratar depois da verificação:
+
+- Exigência de autenticação de dois fatores no portfólio: **"Ninguém"**.
+- Exigência de passkey: **"Ninguém"**, com alerta `1 usuário without passkey enabled`.
+- **Pedro é o único administrador** — a própria Meta recomenda um segundo.
+- Nenhum domínio confiável cadastrado.
+
 ### Tarefa 8 — Twilio, comprar um número brasileiro
 
 A conta tem exatamente um número ativo, `+1 507 763 4719`, americano.
