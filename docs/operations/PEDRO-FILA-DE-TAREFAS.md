@@ -100,12 +100,18 @@ entraria no saldo da Stripe e **nunca sairia de lá**.
 
 Destino: Inter PJ, agência 0001, com a chave PIX do CNPJ que já foi cadastrada.
 
-### ⏸ SUSPENSA — Tarefa 4: Twilio, habilitar o WhatsApp Sender
+### ❌ CANCELADA — Tarefa 4: Twilio, habilitar o WhatsApp Sender
 
-> **Suspensa em 03/08 por achado de arquitetura.** Não execute esta tarefa antes de resolver
-> a decisão registrada em `docs/operations/s86/WHATSAPP_MULTITENANT.md`. Habilitar um sender
-> agora não é errado — serve de ambiente de teste e conta de demonstração — mas **não é o que
-> os clientes vão usar**, e o modelo ainda não está definido.
+> **Cancelada em 03/08 (S88), não desbloqueada.** A investigação terminou e o caminho deixou
+> de existir: a Twilio não suporta coexistência, e o requisito do Pedro exige coexistência.
+> Substituída pela **tarefa 13**. Evidência em `docs/operations/s86/WHATSAPP_MULTITENANT.md`
+> §7 e decisão formal em [`docs/adr/016-whatsapp-cloud-api-coexistence.md`](../adr/016-whatsapp-cloud-api-coexistence.md).
+>
+> Resumo do porquê: a documentação da Twilio manda **apagar a conta do WhatsApp** do número
+> antes de registrá-lo como sender. O cliente perderia o número no celular — exatamente o que
+> o requisito proíbe.
+>
+> O texto original fica abaixo como registro histórico.
 
 **O achado.** O canal WhatsApp é meio multi-inquilino e meio single-tenant:
 
@@ -419,10 +425,35 @@ Fica registrado, sem virar tarefa.
 Railway, Cloudflare, Neon, Upstash, GitHub, Google Workspace. Mesmo padrão da Stripe: dois
 fatores independentes mais código de recuperação guardado fora do computador.
 
-### ▶ ATIVA — Tarefa 8: Twilio, comprar um número brasileiro
+### ▶ ATIVA — Tarefa 13: Meta, criar o portfólio empresarial e verificar a empresa
 
-A conta tem exatamente um número ativo, `+1 507 763 4719`, americano. Custo estimado de
-US$ 1 a 2 por mês mais uso.
+**Criada em 03/08 (S88), pela decisão do ADR-016.** Substitui a tarefa 4.
+
+**Por que está à frente da 8:** a verificação de empresa na Meta leva **semanas**. É o item
+de maior latência do projeto depois da Stripe, e as duas correm em paralelo. Tudo do canal
+WhatsApp — Tech Provider Program, Embedded Signup, coexistência — depende dela.
+
+**Documentos:** os mesmos já usados na Stripe — cartão CNPJ, contrato social, comprovante de
+endereço da empresa.
+
+**Pré-requisito que não é óbvio:** o portfólio empresarial da Meta se cria a partir de uma
+**conta pessoal do Facebook**. Não existe cadastro empresarial independente.
+
+**Primeiro passo, e só ele:** entrar em `https://business.facebook.com/` e reportar o que
+aparece. O assistente conduz os passos seguintes um a um.
+
+### Tarefa 8 — Twilio, comprar um número brasileiro
+
+A conta tem exatamente um número ativo, `+1 507 763 4719`, americano.
+
+**Desbloqueada em 03/08 (S88).** A ressalva de escopo caiu: o número é do canal de **voz**,
+que continua na Twilio independentemente da decisão do WhatsApp (ADR-016). Não há retrabalho
+a temer.
+
+**Fato novo levantado em S88, que muda a estimativa:** número local brasileiro na Twilio não
+é compra de um clique. Exige **regulatory bundle** — CNPJ mais comprovante de endereço no
+Brasil — com análise de até 2 dias úteis. Pessoa física não pode adquirir número local no
+Brasil; a PJ pode. Custo de assinatura segue baixo (ordem de US$ 1 a 2/mês mais uso).
 
 ### Tarefa 9 — NFS-e com o contador
 

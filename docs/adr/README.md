@@ -23,6 +23,7 @@ Title → Status → Context → Decision → Consequences → Compliance → No
 | 013 | [Conventional Commits enforcement (commitlint)](./013-conventional-commits.md)                                                 | Aceito | this dir                  |
 | 014 | [CVE-2026-44902 mitigation via exporter-prometheus override](./014-otel-prometheus-cve-2026-44902.md)                          | Aceito | this dir                  |
 | 015 | [Allowlist de advisories sem correção aplicável (jaeger, brace-expansion)](./015-advisory-allowlist-jaeger-brace-expansion.md) | Aceito | this dir                  |
+| 016 | [Canal WhatsApp migra da Twilio para a Cloud API da Meta (coexistência)](./016-whatsapp-cloud-api-coexistence.md)              | Aceito | this dir                  |
 
 ## When to create an ADR
 
