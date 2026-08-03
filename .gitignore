@@ -98,6 +98,20 @@ TOKEN*.txt
 *.key
 *.pem
 
+# S87: terceira ocorrência, e desta vez uma captura de tela — "tokens
+# cloudflare.png" na raiz, contendo as credenciais R2 ativas. Os padrões de
+# S86 só cobriam .txt, e o segredo entrou por imagem. Captura de painel é o
+# formato mais provável de vazamento aqui, porque é o gesto natural de quem
+# não é operador. Imagem solta na RAIZ é sempre acidente; imagem dentro de
+# apps/*/public ou docs/ continua versionável normalmente.
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.gif
+/*.bmp
+/*.pdf
+
 # S83 session wrappers (transient)
 /scripts/s83-*.bat
 /scripts/s83-*.ps1
