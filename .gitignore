@@ -79,6 +79,25 @@ TOKEN*.txt
 *token*.txt
 *TOKEN*.txt
 
+# S86: rede de segurança contra credenciais salvas soltas na pasta do projeto.
+# O repositório é PÚBLICO. Nada aqui deve conter segredo — estes padrões existem
+# porque já aconteceu duas vezes em 03/08, não como convite para continuar.
+*BACKUP*.txt
+*backup*.txt
+*Backup*.txt
+*CÓDIGO*.txt
+*CODIGO*.txt
+*SENHA*.txt
+*senha*.txt
+*RECOVERY*.txt
+*recovery*.txt
+*CREDENCIA*.txt
+*credencia*.txt
+*SECRET*.txt
+*secret*.txt
+*.key
+*.pem
+
 # S83 session wrappers (transient)
 /scripts/s83-*.bat
 /scripts/s83-*.ps1
