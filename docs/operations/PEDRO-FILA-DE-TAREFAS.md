@@ -139,9 +139,30 @@ Latência de 1 a 5 dias úteis, então vale começar cedo.
 
 ### Tarefa 5 — Migrar as contas de infraestrutura para o e-mail institucional
 
-Railway, Cloudflare e Upstash estão sob `leme.baseapr@gmail.com`. É a única causa raiz do
+Railway, Cloudflare e Upstash estavam sob `leme.baseapr@gmail.com`. É a única causa raiz do
 incidente de junho que continua de pé: o aviso de expiração foi para uma caixa que não é
 canal operacional.
+
+A tarefa se divide em três, porque os três provedores têm mecanismos diferentes:
+
+| #   | Provedor   | Login é o e-mail?      | Exige senha para trocar? | De quem é   | Estado   |
+| --- | ---------- | ---------------------- | ------------------------ | ----------- | -------- |
+| 5a  | Railway    | Não (login via GitHub) | Não                      | assistente  | ✅ 03/08 |
+| 5b  | Cloudflare | **Sim**                | **Sim**                  | Pedro       | ▶ ATIVA  |
+| 5c  | Upstash    | a verificar            | a verificar              | a verificar | pendente |
+
+**5a — Railway, concluída em 03/08.** Campo `Email` em `railway.com/account` trocado de
+`leme.baseapr@gmail.com` para `pedro.perin@theiadvisor.com`. A Railway manda um e-mail de
+confirmação com validade de 20 minutos; o link foi aberto e o painel recarregado já exibe o
+endereço novo. Sem risco de perda de acesso porque o login é OAuth do GitHub, não o e-mail.
+
+**5b — Cloudflare, é do Pedro.** O diálogo "Change Email Address" exige o campo
+`Enter password`. Senha é segredo, logo não passa pelo assistente. Além disso, na Cloudflare
+o e-mail **é** o login — trocar muda a identidade de acesso, não só o destino dos avisos.
+Peso do que está atrás dessa conta: DNS de `theiadvisor.com` (incluindo os MX do Google
+Workspace) e o bucket R2.
+
+**5c — Upstash.** Ainda não inspecionado. Fica para depois que 5b fechar.
 
 ### Tarefa 6 — Rotacionar as credenciais expostas
 
