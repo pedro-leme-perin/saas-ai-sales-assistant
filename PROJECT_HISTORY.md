@@ -5770,12 +5770,12 @@ echo "[husky] pre-push: OK (type-check passed; CI will run full test suite)"
 
 **Decisões D5:**
 
-| #   | Decisão                       | Justificativa                                                                                                       |
+| # | Decisão | Justificativa |
 | --- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------ | -------------------------------------------------------- |
-| 1   | Type-check apenas (não tests) | Tests podem demorar 2-3min; PR review impatience risk. Type-check ~30s. CI cobre tests full.                        |
-| 2   | Skip em CI/Dependabot context | `GITHUB_ACTIONS` env detect: evita double-running em PR runner. `DEPENDABOT_AUTO` env detect: defer dep bumps a CI. |
-| 3   | Bypass `HUSKY=0` documented   | Emergency hotfixes onde TS error em arquivo não-tocado bloqueia push legítimo.                                      |
-| 4   | `set -e` + explicit `         |                                                                                                                     | { exit 1; }` | Fail-fast com mensagem clara em vez de silenciosa abort. |
+| 1 | Type-check apenas (não tests) | Tests podem demorar 2-3min; PR review impatience risk. Type-check ~30s. CI cobre tests full. |
+| 2 | Skip em CI/Dependabot context | `GITHUB_ACTIONS` env detect: evita double-running em PR runner. `DEPENDABOT_AUTO` env detect: defer dep bumps a CI. |
+| 3 | Bypass `HUSKY=0` documented | Emergency hotfixes onde TS error em arquivo não-tocado bloqueia push legítimo. |
+| 4 | `set -e` + explicit `         |                                                                                                                     | { exit 1; }` | Fail-fast com mensagem clara em vez de silenciosa abort. |
 
 **Hook chain pós-S73:**
 
@@ -8426,7 +8426,6 @@ denunciasse. A folga real e 40 KB, nao 100 KB. Onde a config for condicional ao 
 numero que vale e o do CI -- e o CI precisa imprimi-lo com precisao suficiente para ser
 comparavel, o que exigiu trocar MB arredondado por bytes.
 
-
 ---
 
 # Sessao S86 — 03/08/2026 (Cowork)
@@ -8477,11 +8476,11 @@ e o `prettier` do clone apontado contra os arquivos do mount.
 
 ## Tarefa 5 — identidade da infraestrutura
 
-| Provedor | Mecanismo | Quem executou |
-| -------- | --------- | ------------- |
-| Railway | campo `Email`, login e OAuth do GitHub | assistente |
+| Provedor   | Mecanismo                                        | Quem executou                          |
+| ---------- | ------------------------------------------------ | -------------------------------------- |
+| Railway    | campo `Email`, login e OAuth do GitHub           | assistente                             |
 | Cloudflare | convite de Super Administrator + `Billing email` | assistente (convite) + Pedro (billing) |
-| Upstash | `Account Email Address` unico | Pedro |
+| Upstash    | `Account Email Address` unico                    | Pedro                                  |
 
 **Cloudflare foi o caso interessante.** A conta e SSO puro pelo Google: nao existe senha, e
 o dialogo `Change Password` exige `Old password` — nao ha como criar uma pela tela de perfil.
@@ -8504,13 +8503,13 @@ A pergunta util nao e "essa conta tem 2FA?", e sim **"quem autentica essa conta?
 da infraestrutura entra por SSO, e nesses casos o fator precisa estar no provedor de
 identidade.
 
-| Conta | Autenticador | Antes | Depois |
-| ----- | ------------ | ----- | ------ |
-| GitHub | proprio | sem 2FA, sem passkey | app autenticador + codigos de recuperacao |
-| Railway | GitHub | herdava o vazio | herda o fator do GitHub |
-| Upstash | Google + MFA propria | MFA desligada | MFA ligada + backup |
-| Cloudflare | Google (`leme.baseapr@`) | — | protegida pelo fator do Google pessoal |
-| Google institucional | proprio | 🔴 **desativada** | 2FA + passkey + Authenticator + 10 codigos |
+| Conta                | Autenticador             | Antes                | Depois                                     |
+| -------------------- | ------------------------ | -------------------- | ------------------------------------------ |
+| GitHub               | proprio                  | sem 2FA, sem passkey | app autenticador + codigos de recuperacao  |
+| Railway              | GitHub                   | herdava o vazio      | herda o fator do GitHub                    |
+| Upstash              | Google + MFA propria     | MFA desligada        | MFA ligada + backup                        |
+| Cloudflare           | Google (`leme.baseapr@`) | —                    | protegida pelo fator do Google pessoal     |
+| Google institucional | proprio                  | 🔴 **desativada**    | 2FA + passkey + Authenticator + 10 codigos |
 
 **O achado grave veio por ultimo.** `pedro.perin@theiadvisor.com` — login da Stripe, login da
 Upstash, Super Administrator da Cloudflare e destinatario de toda a cobranca migrada durante
@@ -8544,7 +8543,7 @@ move o perimetro, e o inventario precisa seguir a aresta, nao o servico.
 **#81 — protecao aplicada na conta errada nao e protecao.** O 2FA da Stripe foi blindado em
 01/08 com cuidado. O flanco continuava aberto pelo e-mail, numa caixa sem segundo fator, e a
 propria fila registrava esse risco por escrito desde 01/08. Passamos S86 inteira migrando
-cobranca e acesso *para dentro* dessa caixa antes de verificar se ela aguentava. Ao mover
+cobranca e acesso _para dentro_ dessa caixa antes de verificar se ela aguentava. Ao mover
 responsabilidade para um recurso, medir esse recurso **antes** da mudanca, nao depois.
 
 **#82 — `.gitignore` e rede, nao solucao.** Ele protege contra o commit distraido. Nao
@@ -8555,3 +8554,126 @@ proximo arquivo cujo nome nao casa com padrao nenhum. Segredo nao mora em pasta 
 comando, sem processo sobrevivente. `pnpm install` cabe; `tsc` e `jest` nao. Nao adianta
 tentar de novo com outra flag: o CI e o portao de validacao de codigo, e o sandbox serve
 para git, prettier e os guards.
+
+---
+
+## S87 — 03/08/2026 (Cowork)
+
+**Objetivo:** confirmar estado real (Stripe + CI), fechar a tarefa 6 da fila do Pedro
+(rotação das credenciais expostas), e destravar o que aparecesse no caminho.
+
+### Estado confirmado no início
+
+| Item                             | Esperado pelo prompt de S87 | Real                                                                     |
+| -------------------------------- | --------------------------- | ------------------------------------------------------------------------ |
+| Verificação Stripe `1TgU9JRufXY` | podia ter saído             | **ainda em análise** — 2 tarefas `Dados sob análise`, repasses suspensos |
+| CI de `main`                     | verde                       | **vermelho** — Security com `blocking=1`, depois `blocking=2`            |
+
+O prompt de S87 estava correto quando foi escrito e envelheceu em horas. Lição operacional:
+"CI verde" é afirmação com prazo de validade; reconferir sempre, nunca herdar.
+
+### Commits
+
+| Commit    | O quê                                                                |
+| --------- | -------------------------------------------------------------------- |
+| `c707bc7` | override `socket.io-parser ~4.2.7` — GHSA-2m8v-j782-fhvr             |
+| `a6b405c` | `.gitignore` contra imagem solta na raiz                             |
+| `0d2215f` | override `brace-expansion@2 ~2.1.4` + allowlist de 6 entradas para 4 |
+| `3d5209b` | fila: rotação do R2 e do `neondb_owner` registrada                   |
+
+CI verde nos 5 jobs em `0d2215f`.
+
+### Segurança de dependências
+
+Dois advisories HIGH bloqueantes, ambos com exposição real e ambos corrigidos por versão —
+nenhum entrou na allowlist:
+
+- **`socket.io-parser <4.2.7`** (GHSA-2m8v-j782-fhvr): exaustão de memória por anexo
+  anunciado e nunca enviado. O produto expõe dois gateways Socket.io em
+  `wss://api.theiadvisor.com`. Caminho vulnerável = caminho de produção.
+- **`brace-expansion` 2.0.3** (GHSA-rgw5-rvv9-x895, terceiro da família): bypass da
+  mitigação anterior.
+
+**Achado que revoga a Decisão 2 do ADR-015:** os ranges dos advisories _mudaram_ desde 31/07.
+`GHSA-mh99-v99m-4gvg` saiu de `<=5.0.7` para `>=2.0.0 <2.1.3` — o upstream backportou a
+correção para a linha 2.x. A premissa do ADR ("não há faixa que corrija sem quebrar
+`minimatch`") deixou de valer, e `2.1.4` resolve os três mantendo o entrypoint CJS. Allowlist
+encolheu de 6 entradas para 4, todas OTel, todas sob o mesmo gatilho.
+
+**Lição #84 — range de advisory não é fato estável.** O database renumera IDs (já visto em
+S82→S83) e estreita ranges quando há backport. Gatilho de remoção escrito como caminho
+específico ("quando o Sentry migrar para minimatch@10") envelhece mal. A condição real é
+sempre "existe faixa que satisfaz sem quebrar consumidor?" — e se responde reconsultando o
+database, não relendo o ADR.
+
+### Tarefa 6 — rotação das credenciais expostas, fechada por inteiro
+
+| Parte                 | Evidência                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| 6a token R2           | run #101 (antigo vivo) e #102 (após revogação) — só a credencial nova explica o 2º |
+| 6b `neondb_owner`     | `/health` `database: ok` + backup run #104 verde                                   |
+| 6c `CLERK_SECRET_KEY` | tipo `Sensitive` na Vercel, selo `Needs Attention` removido, login intacto         |
+
+Detalhe completo em `docs/operations/PEDRO-FILA-DE-TAREFAS.md`.
+
+**Lição #85 — a Railway não aplica variável ao salvar.** Fica em rascunho atrás de um botão
+`Deploy` no topo. Salvar sem clicar deixou a API com `Can't reach database server` por ~13
+minutos. **Sinal diagnóstico:** `uptime` alto no `/health` _junto com_ erro de banco significa
+que o processo nunca reiniciou — logo a variável não entrou. `uptime` baixo + erro seria outra
+coisa.
+
+**Lição #86 — `DATABASE_URL_BACKUP_RO` é o mesmo `neondb_owner`.** O Neon lista **um único
+role** na branch `production`. O sufixo `_RO` é ficção: o backup noturno roda com privilégio
+total sobre a produção. Dívida aberta — criar role realmente somente-leitura para o `pg_dump`.
+
+**Lição #87 — a Vercel recusa marcar como Sensitive variável que valha para Development.**
+Foi preciso desmarcar `Development` e manter `Production` + `Preview`. E o selo
+`Needs Attention` abre um balão cujo único botão é `Rotate Variable` — que troca a chave do
+Clerk, não marca como Sensitive. O caminho certo é `...` → `Edit`.
+
+### O problema central desta sessão: três segredos vazaram em um dia
+
+Não foram três descuidos. Foram três formatos diferentes do **mesmo** fluxo de trabalho:
+
+| #   | Segredo                   | Formato do vazamento                                                |
+| --- | ------------------------- | ------------------------------------------------------------------- |
+| 1   | token R2 (ativo na hora)  | arquivo `tokens cloudflare.png` na raiz do repositório **público**  |
+| 2   | senha `neondb_owner` nova | assistente leu o texto da página do Neon com `Show password` ligado |
+| 3   | `CLERK_SECRET_KEY` live   | captura de tela enviada ao chat, do campo `Value` da Vercel         |
+
+O #1 nunca foi versionado (verificado com `git log --all --diff-filter=A` em todo o histórico)
+e ganhou rede em `a6b405c`. O #2 forçou refazer a rotação inteira do banco. O #3 foi **aceito
+sem mitigação** pelo Pedro, com gatilho antes do primeiro cliente pagante — mesma forma da
+decisão de 31/07 em `CLAUDE.md` §4.3, aplicada a um segredo de classe maior.
+
+**Causa raiz: o método, não o operador.** A sessão inteira funcionou pedindo ao Pedro que
+mostrasse telas de painel. Ele fez exatamente o que foi pedido, em telas que o assistente
+mandou abrir. Os três vazamentos são o fluxo funcionando como desenhado.
+
+**Lição #88, e é a mais importante desta sessão — o assistente não pede captura de tela de
+painel.** Quando precisar saber o que a tela mostra: abre pelo navegador e lê sozinho,
+evitando campos de valor, ou pede **descrição em palavras**. Telas com segredo visível —
+`Value` da Vercel, `Connect` do Neon com `Show password`, tela de criação de token do
+Cloudflare — não são lidas nem capturadas em hipótese alguma. Vale também para `get_page_text`:
+conferir a aba antes de extrair, porque foi uma navegação que caiu na aba errada que causou o
+vazamento #2.
+
+### Ambiente do sandbox
+
+- **`pnpm install --lockfile-only` funciona**, contra o que S86 registrou — mas não no mount
+  Windows (`EPERM` ao remover temporários) e não com cache frio (estoura os 45s). Receita:
+  copiar manifestos + lockfile para `$HOME`, rodar uma vez para aquecer o cache, rodar de novo.
+  A segunda passada leva ~20-30s.
+- **Processos não sobrevivem ao fim da chamada bash.** `setsid nohup` não ajuda; confirma #83.
+- **`.git/index.lock` e `.git/HEAD.lock` não podem ser removidos** no mount (`EPERM` no
+  unlink), mas **`mv` funciona**. Renomear antes de cada operação de escrita destrava. Havia
+  60+ locks renomeados de sessões anteriores acumulados em `.git/`.
+- Token de push do sandbox **não tem escopo de Actions** — `workflow_dispatch` pela API devolve 403. Disparar workflow tem de ser pelo navegador.
+
+### Aberto ao fim de S87
+
+- Verificação da Stripe em `acct_1TgU9JRufXYWW9J9` ainda em análise
+- `CLERK_SECRET_KEY` exposta, rotação recusada conscientemente
+- Repositório público com licença proprietária — decisão do Pedro, sem prazo
+- Tarefa 4 (WhatsApp) suspensa até confirmar coexistência com a Twilio
+- Role somente-leitura para o backup (lição #86)

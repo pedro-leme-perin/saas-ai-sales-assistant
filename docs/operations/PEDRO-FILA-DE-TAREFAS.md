@@ -145,11 +145,11 @@ canal operacional.
 
 A tarefa se divide em três, porque os três provedores têm mecanismos diferentes:
 
-| #   | Provedor   | Login é o e-mail?      | Exige senha para trocar? | De quem é   | Estado   |
-| --- | ---------- | ---------------------- | ------------------------ | ----------- | -------- |
-| 5a  | Railway    | Não (login via GitHub) | Não                      | assistente  | ✅ 03/08 |
-| 5b  | Cloudflare | **Sim**                | **Sim**                  | Pedro       | ▶ ATIVA  |
-| 5c  | Upstash    | a verificar            | a verificar              | a verificar | pendente |
+| #   | Provedor   | Login é o e-mail?      | Exige senha para trocar? | De quem é  | Estado   |
+| --- | ---------- | ---------------------- | ------------------------ | ---------- | -------- |
+| 5a  | Railway    | Não (login via GitHub) | Não                      | assistente | ✅ 03/08 |
+| 5b  | Cloudflare | **Sim**                | **Sim**                  | Pedro      | ✅ 03/08 |
+| 5c  | Upstash    | sim                    | não (código por e-mail)  | Pedro      | ✅ 03/08 |
 
 **5a — Railway, concluída em 03/08.** Campo `Email` em `railway.com/account` trocado de
 `leme.baseapr@gmail.com` para `pedro.perin@theiadvisor.com`. A Railway manda um e-mail de
@@ -238,7 +238,7 @@ sessão aberta. Painel confirma o interruptor verde e
 **Continua aberto:** 2FA `Inactive` na Cloudflare — mas ver a ressalva sobre SSO na
 tarefa 7.
 
-### Tarefa 6 — Rotacionar as credenciais expostas
+### ✅ Tarefa 6 — Rotacionar as credenciais expostas — CONCLUÍDA 03/08 (S87)
 
 O token do R2 (escopo: bucket de backups) e o usuário `neondb_owner` (escopo: **total sobre
 o banco de produção**) trafegaram por captura de tela em sessão anterior. O risco foi aceito
@@ -293,14 +293,53 @@ nova); backup run #104 `success` (`toc_rows=438`,
    repetir o ciclo. **Regra que fica:** não ler página de painel que possa conter segredo —
    nem por texto, nem por captura — e conferir a aba antes de extrair conteúdo.
 
-#### 6c — `CLERK_SECRET_KEY` como "Sensitive" na Vercel ▶ ATIVA
+#### 6c — `CLERK_SECRET_KEY` como "Sensitive" na Vercel ✅ CONCLUÍDA 03/08 (S87)
 
-A Vercel já sinaliza sozinha: a variável aparece com o selo laranja **`Needs Attention`** em
-`Settings → Environment Variables` do projeto `saas-ai-sales-assistant-oc6b`. É o único item
-da lista com esse selo.
+**Evidência:** a lista em `Settings → Environment Variables` do projeto
+`saas-ai-sales-assistant-oc6b` mostra `CLERK_SECRET_KEY` com tipo **`Sensitive`**, o selo
+`Needs Attention` sumiu, e o valor deixou de ser exibido. `theiadvisor.com/sign-in` renderiza
+o widget do Clerk normalmente depois do redeploy — login intacto.
 
-Escopo desta parte: apenas **ocultar o valor** de quem tem acesso ao projeto. **Não** é
-rotação de chave do Clerk — isso derruba o login e é operação à parte.
+**Pré-condição que não era óbvia:** a Vercel recusa marcar como Sensitive qualquer variável
+que valha para o ambiente **Development** ("Sensitive variables cannot target Development").
+Foi preciso desmarcar `Development` e manter `Production` + `Preview`. Perda operacional
+nenhuma: `Development` só alimenta `vercel dev`, que este projeto não usa.
+
+**Armadilha, registrada para não cair de novo:** o selo `Needs Attention` abre um balão cujo
+único botão é **`Rotate Variable`** — que inicia a troca da chave do Clerk, não a marcação
+como Sensitive. Clicar ali sem coordenar derruba o login. O caminho certo é `...` → `Edit`.
+
+##### Risco aceito — chave do Clerk exposta em canal de trabalho
+
+**Data:** 2026-08-03 (S87) · **Decisão:** Pedro Leme Perin · **Status:** aceito, não mitigado
+
+Durante esta tarefa o valor de `CLERK_SECRET_KEY` (chave `sk_live_`) apareceu por inteiro numa
+captura de tela enviada ao canal de trabalho — o campo Value da tela de edição da Vercel mostra
+o segredo em texto limpo, e a instrução do assistente foi justamente abrir essa tela.
+
+| Credencial                | Alcance                                                                                           | Rotacionada? |
+| ------------------------- | ------------------------------------------------------------------------------------------------- | ------------ |
+| `CLERK_SECRET_KEY` (live) | Autenticação do produto — API de servidor do Clerk, emissão de sessão em nome de qualquer usuário | Não          |
+
+Recomendação técnica: rotacionar. Decisão registrada: **manter**, pelo custo de interrupção —
+a troca derruba o login enquanto não estiver aplicada em Vercel **e** Railway, e não há cliente
+ainda. Mesma forma da decisão de 31/07 em `CLAUDE.md` §4.3, aplicada a um segredo de classe
+maior.
+
+**Gatilho para revisão obrigatória:** antes do primeiro cliente pagante — junto com as demais
+credenciais sob o mesmo gatilho.
+
+**Causa raiz, e ela é do método, não do Pedro:** a sessão inteira operou pedindo que ele
+mostrasse telas de painel. Três segredos vazaram em um dia por três formatos diferentes
+(arquivo `.png` na pasta, texto de página lido pelo assistente, captura de tela enviada ao
+chat). Nenhum deles foi descuido isolado — todos foram o fluxo de trabalho funcionando como
+desenhado.
+
+**Regra que passa a valer:** o assistente não pede captura de tela de painel. Quando precisar
+saber o que a tela mostra, abre pelo navegador e lê sozinho, evitando campos de valor, ou pede
+**descrição em palavras**. Telas com campo de segredo visível — `Value` da Vercel, `Connect` do
+Neon com `Show password`, tela de criação de token — não são lidas nem capturadas em hipótese
+alguma.
 
 ### Tarefa 7 — 2FA com redundância nas demais contas
 
@@ -380,7 +419,7 @@ Fica registrado, sem virar tarefa.
 Railway, Cloudflare, Neon, Upstash, GitHub, Google Workspace. Mesmo padrão da Stripe: dois
 fatores independentes mais código de recuperação guardado fora do computador.
 
-### Tarefa 8 — Twilio: comprar um número brasileiro
+### ▶ ATIVA — Tarefa 8: Twilio, comprar um número brasileiro
 
 A conta tem exatamente um número ativo, `+1 507 763 4719`, americano. Custo estimado de
 US$ 1 a 2 por mês mais uso.
