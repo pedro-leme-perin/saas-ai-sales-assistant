@@ -65,6 +65,17 @@ Reavaliação obrigatória **antes** do deploy caso o projeto passe a definir `O
 
 ## Decisão 2 — `GHSA-3jxr-9vmj-r5cp` e `GHSA-mh99-v99m-4gvg` · `brace-expansion`
 
+> **REVOGADA em 2026-08-03 (S87). O gatilho de remoção disparou.** As duas entradas saíram da
+> `ADVISORY_ALLOWLIST` e foram substituídas pelo override `brace-expansion@2: ~2.1.4`. A seção
+> abaixo fica como registro do raciocínio original, que estava correto para o estado do
+> advisory database em 31/07 e deixou de estar. Detalhe em [Revisão S87](#revisão-s87--decisão-2-revogada).
+>
+> **O que mudou:** o upstream **backportou** a correção para a linha 2.x. A premissa central da
+> decisão — "não há faixa de versão que corrija ambos os advisories sem quebrar consumidores" —
+> era verdadeira quando `GHSA-mh99-v99m-4gvg` declarava range `<=5.0.7`, o que forçava o piso a
+> 5.0.8 e, com ele, a quebra do entrypoint CJS. O advisory foi reemitido com range
+> `>=2.0.0 <2.1.3`. O piso caiu para dentro da própria linha 2.x, e a quebra deixou de existir.
+
 ### Vulnerabilidades
 
 Ambas são DoS na função `expand()`:
@@ -138,3 +149,76 @@ Revisar este ADR **em toda sessão que toque em dependências**. Se o gatilho de
 | Override `brace-expansion >=2.1.2`                 | Não satisfaz `GHSA-mh99-v99m-4gvg` (`<=5.0.7`); mexe na árvore sem destravar o gate                                    |
 | Override `@opentelemetry/propagator-jaeger ~2.9.0` | Arrasta `@opentelemetry/core@2.9.0` exato para uma árvore fixada em 1.x; quebra `tsc --noEmit` (mesmo modo do ADR-014) |
 | Migrar OTel para 2.x agora                         | Exige staging provisionado e game-day de observabilidade; itens 24 e 27 do backlog, ambos bloqueados                   |
+
+---
+
+## Revisão S87 — Decisão 2 revogada
+
+- **Data:** 2026-08-03 (S87)
+- **Mudança:** override `brace-expansion@2: ~2.1.4` + remoção de 2 slugs da `ADVISORY_ALLOWLIST`
+- **Referência nova:** [GHSA-rgw5-rvv9-x895](https://github.com/advisories/GHSA-rgw5-rvv9-x895) — terceiro advisory da família, publicado depois de S84
+
+### O que forçou a revisão
+
+O CI Security de `main` passou a falhar com `blocking=1` no run `30844564971`, e `blocking=2` na
+reprodução local horas depois. Um dos bloqueantes era `GHSA-rgw5-rvv9-x895`, advisory **novo** em
+`brace-expansion`: DoS por arrays intermediários sem limite, descrito pelo upstream como _bypass_
+da mitigação de `CVE-2026-14257`. A correção anterior era incompleta, e veio uma terceira rodada.
+
+Ao reconsultar o advisory database, os ranges dos dois advisories antigos **não eram mais os
+registrados neste ADR**:
+
+| Advisory              | Range em S84 (31/07) | Range em S87 (03/08) | Piso seguro |
+| --------------------- | -------------------- | -------------------- | ----------- |
+| `GHSA-3jxr-9vmj-r5cp` | `>=2.0.0 <2.1.2`     | `>=2.0.0 <2.1.2`     | 2.1.2       |
+| `GHSA-mh99-v99m-4gvg` | `<=5.0.7`            | `>=2.0.0 <2.1.3`     | **2.1.3**   |
+| `GHSA-rgw5-rvv9-x895` | — (não existia)      | `>=2.0.0 <2.1.4`     | **2.1.4**   |
+
+`2.1.4` satisfaz os três.
+
+### Por que agora não quebra
+
+A objeção original era o entrypoint CJS: `brace-expansion@5.x` trocou `module.exports = expand`
+por `exports.expand = expand`, e `minimatch` 3.x/5.x/9.x faz `const expand = require(...)`
+seguido de chamada direta — com 5.x isso vira `TypeError: expand is not a function`.
+
+`2.1.4` continua na linha 2.x. Verificado no registry antes de aplicar:
+
+```
+brace-expansion@2.0.3 → main: index.js, deps: { balanced-match: ^1.0.0 }
+brace-expansion@2.1.4 → main: index.js, deps: { balanced-match: ^1.0.0 }
+```
+
+Mesmo entrypoint, mesmo grafo de dependência. `minimatch` não enxerga diferença.
+
+O seletor `brace-expansion@2` escopa o override à major 2 e deixa intactas as ocorrências de
+`1.1.13` e `5.0.5` já resolvidas na árvore — mesma técnica dos seletores `@clerk/shared@2` e
+`@clerk/shared@3` (S74). Diff do lockfile conferido: 11 linhas, todas de `brace-expansion`.
+
+### Lição registrada
+
+Este ADR fixou o range do advisory como se fosse fato estável. **Não é.** O advisory database
+reemite entradas: renumera IDs (já observado em S82→S83, `1117942` → `1120252`, mesmo GHSA) e
+também **estreita ranges quando o upstream backporta**.
+
+Um gatilho de remoção redigido como "quando o Sentry migrar para minimatch@10" descreve um
+caminho possível, não a condição real. A condição real é sempre a mesma — **existe faixa que
+satisfaz o advisory sem quebrar consumidor?** — e se responde reconsultando o database, não
+relendo o ADR.
+
+Consequência operacional: em toda sessão que toque em dependências, revalidar os ranges das
+entradas da allowlist antes de assumir que continuam necessárias. As duas entradas restantes
+(`GHSA-q7rr-3cgh-j5r3` e `GHSA-45rx-2jwx-cxfr`, ambas OTel) foram reconferidas em 03/08 e seguem
+sem correção na linha 1.x — o gatilho delas, migração para OTel 2.x, continua de pé.
+
+### Estado da allowlist após esta revisão
+
+| Slug                  | Pacote                             | ADR | Gatilho de remoção |
+| --------------------- | ---------------------------------- | --- | ------------------ |
+| `1117942` / `1120252` | `@opentelemetry/sdk-node`          | 014 | migração OTel 2.x  |
+| `GHSA-q7rr-3cgh-j5r3` | `@opentelemetry/sdk-node`          | 014 | migração OTel 2.x  |
+| `GHSA-45rx-2jwx-cxfr` | `@opentelemetry/propagator-jaeger` | 015 | migração OTel 2.x  |
+
+De 6 entradas para 4, e de 2 pacotes-alvo para 1. **Todas as entradas restantes compartilham um
+único gatilho.** O risco de inércia apontado em "Consequências → Negativas" concentrou-se:
+destravar staging e fazer a migração OTel 2.x zera a allowlist inteira.

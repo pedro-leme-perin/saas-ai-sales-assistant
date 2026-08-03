@@ -68,6 +68,7 @@
       "@grpc/grpc-js": "~1.14.4",
       "@opentelemetry/exporter-prometheus": "~0.217.0",
       "axios": "~1.18.1",
+      "brace-expansion@2": "~2.1.4",
       "engine.io": "~6.6.9",
       "fast-uri": "~3.1.5",
       "follow-redirects": "~1.16.0",

@@ -379,7 +379,13 @@ jobs:
           #     hit `TypeError: expand is not a function`. Removal trigger:
           #     Sentry ships a tree whose minimatch consumes >=5.0.8 natively
           #     (verify with `pnpm why brace-expansion --prod`).
-          ADVISORY_ALLOWLIST: '1117942,1120252,GHSA-q7rr-3cgh-j5r3,GHSA-45rx-2jwx-cxfr,GHSA-3jxr-9vmj-r5cp,GHSA-mh99-v99m-4gvg'
+          # S87: as duas entradas de `brace-expansion` (GHSA-3jxr-9vmj-r5cp,
+          # GHSA-mh99-v99m-4gvg) saíram daqui. O gatilho de remoção do ADR-015
+          # disparou por caminho diferente do previsto: o upstream backportou a
+          # correção para a linha 2.x (2.1.3, depois 2.1.4), em vez de o Sentry
+          # migrar para minimatch@10. Override `brace-expansion@2: ~2.1.4`
+          # resolve os três advisories da família sem trocar o entrypoint CJS.
+          ADVISORY_ALLOWLIST: '1117942,1120252,GHSA-q7rr-3cgh-j5r3,GHSA-45rx-2jwx-cxfr'
         run: |
           set +e
           pnpm audit --prod --audit-level=high --json > /tmp/audit-high.json 2>/tmp/audit-stderr.log
