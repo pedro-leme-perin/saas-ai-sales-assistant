@@ -258,15 +258,32 @@ derruba o login do site. Essa parte precisa ser feita junto com o Claude Code.
 | ---------- | ------------------------------------- | ------------------------ | -------------------------------------------------------------------- |
 | Upstash    | e-mail + Google                       | na própria Upstash       | ✅ MFA ligada, backup guardado                                       |
 | Cloudflare | Google SSO (`leme.baseapr@gmail.com`) | **na conta Google**      | 2FA da Cloudflare `Inactive`, mas a conta Google tem chave de acesso |
-| Railway    | OAuth do GitHub                       | **no GitHub**            | 🔴 ver abaixo                                                        |
-| GitHub     | senha + Google                        | no GitHub                | 🔴 **`Two-factor authentication is not enabled yet`**                |
+| Railway    | OAuth do GitHub                       | **no GitHub**            | ✅ herda o 2FA do GitHub, ligado em 03/08                            |
+| GitHub     | senha + Google                        | no GitHub                | ✅ 03/08 — app autenticador `Configured` + códigos de recuperação    |
 | Stripe     | e-mail institucional                  | na Stripe                | ✅ blindado em 01/08                                                 |
 
 **O elo mais fraco é o GitHub, e por margem larga.** Ele acumula três papéis: guarda o
 código-fonte, é o provedor de identidade da Railway (portanto do backend em produção), e a
 partir de S86 guarda o token de push do sandbox do Cowork. Hoje tem senha, **nenhuma
-passkey** e **nenhum segundo fator**. Quem obtiver essa senha obtém o repositório e a
+passkey** e **nenhum segundo fator**. Quem obtivesse essa senha levaria o repositório e a
 infraestrutura de uma vez.
+
+**Fechado em 03/08.** App autenticador como método preferido, códigos de recuperação
+exibidos e guardados.
+
+**Resta da tarefa 7:** o segundo fator das duas contas Google, que autenticam metade do
+resto. `leme.baseapr@gmail.com` (autentica a Cloudflare) tem chave de acesso, mas a
+redundância não foi verificada. `pedro.perin@theiadvisor.com` (autentica Upstash e Stripe)
+não foi inspecionado.
+
+> **Risco operacional recorrente, registrado em 03/08.** Duas vezes no mesmo dia um segredo
+> foi salvo em texto puro **dentro da pasta do projeto** — `TOKEN GITHUB COWORK-SANDBOX.txt`
+> e `CÓDIGO DE BACKUP UPSTASH.txt`. O repositório é **público**. Nenhum dos dois chegou a
+> ser versionado (verificado com `git log --diff-filter=A` em todo o histórico), e ambos
+> estão no `.gitignore`, junto com padrões defensivos amplos (`*BACKUP*.txt`, `*CÓDIGO*.txt`,
+> `*SENHA*.txt`, `*RECOVERY*.txt`, `*.key`, `*.pem`).
+> O `.gitignore` é rede, não solução: o lugar de um código de recuperação é o gerenciador de
+> senhas, ou papel, fora de qualquer pasta versionada.
 
 Railway, Cloudflare, Neon, Upstash, GitHub, Google Workspace. Mesmo padrão da Stripe: dois
 fatores independentes mais código de recuperação guardado fora do computador.
