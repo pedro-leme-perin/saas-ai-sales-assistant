@@ -51,7 +51,7 @@ SaaS enterprise-grade de assistência de vendas com IA. Dois canais:
 **Nome comercial:** TheIAdvisor
 **Razão social:** THEIADVISOR SAAS TECNOLOGIA LTDA (Sociedade Limitada Unipessoal — SLU, Natureza 206-2, Porte ME)
 **CNPJ:** 67.084.607/0001-78 (ativo desde 01/06/2026, protocolo REDESIM SPP2630711235)
-**Inscrição Municipal (CCM Ribeirão Preto):** **67084607000178** (homologada 03/06/2026 15:15 BRT — desbloqueia NFS-e; portal ISSnetOnline sincroniza login em até 24h)
+**Inscrição Municipal (CCM Ribeirão Preto):** **20948168** (homologada 03/06/2026; lida no painel do ISSnetOnline em 03/08/2026 — S89). ⚠️ **Correção:** S81 registrou `67084607000178`, que é o CNPJ sem pontuação, anotado por suposição de "padrão Ribeirão Preto". A prefeitura atribui número próprio. O valor errado se propagou por CHANGELOG, PROJECT_HISTORY e docs de S81, mantidos como registro histórico
 **Sede:** Rua Guilherme Faim, 20 — Ribeirão Preto/SP
 **CNAE principal:** 6203-1/00 (SaaS); CNAEs secundários: 6202-3/00, 6201-5/01, 6311-9/00, 6204-0/00
 **Regime tributário:** Simples Nacional (opção em 01/06/2026), Anexo III via Fator R (cláusula Pró-labore habilita)
@@ -244,7 +244,7 @@ trocar 6 variáveis de ambiente (5 na Railway, 1 na Vercel) — ver §7.
 **Requer ação do Pedro:**
 
 - [x] ~~Abrir MEI (CNAE 6201-5/01)~~ ✅ S79-PostCNPJ — SLU aberta (CNPJ 67.084.607/0001-78)
-- [x] ~~CCM Ribeirão Preto~~ ✅ S81-EOD (IM 67084607000178 homologada 03/06/2026)
+- [x] ~~CCM Ribeirão Preto~~ ✅ S81-EOD (IM **20948168** — valor corrigido em S89 contra o painel; ver §1)
 - [x] ~~Google Workspace + emails institucionais~~ ✅ S81-EOD (pedro.perin@ + team@ + dpo@)
 - [x] ~~Conta PJ aberta~~ ✅ S81-EOD (Inter PJ)
 - [x] ~~**Stripe Account Recovery**~~ ⚠️ **PREMISSA REVOGADA em S85** — a conta original `acct_1T6DHFJ1Cbnf5voG` está acessível e é a que a produção usa, em LIVE mode. O que se perdeu em S83 foi um método de 2FA, não a conta. Ver §2.3 e `docs/operations/s85/STRIPE_STATE_CORRECTION.md`.

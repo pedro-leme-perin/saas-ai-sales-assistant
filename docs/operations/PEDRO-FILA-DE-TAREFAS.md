@@ -565,10 +565,40 @@ Brasil; a PJ pode. Custo de assinatura segue baixo (ordem de US$ 1 a 2/mês mais
 
 ### Tarefa 9 — NFS-e com o contador
 
-Sincronização do ISSnetOnline (o login libera em até 24h após a CCM, que já foi homologada)
-e configuração da emissão junto ao contador.
+**Passo zero concluído em 03/08 (S89): o portal está liberado e a empresa pode emitir.**
+Verificado por leitura direta do painel, não por suposição.
+
+| Item                       | Estado no painel em 03/08/2026 22h                                         |
+| -------------------------- | -------------------------------------------------------------------------- |
+| Acesso ao ISSnetOnline     | ✅ senha inicial trocada, login funcionando                                |
+| Status do contribuinte     | **Ativo**                                                                  |
+| Regime                     | **Optante pelo Simples Nacional**                                          |
+| Competência corrente       | Julho 2026                                                                 |
+| DTE (Domicílio Tributário) | ✅ credenciado — contatos: `pedro.perin@theiadvisor.com` + (16) 98858-3222 |
+| Caixa de entrada do DTE    | **vazia** — nenhuma intimação pendente                                     |
+| Menu de emissão            | ✅ **Nova Nota Eletrônica** disponível                                     |
+| Pendências / débitos       | **nenhuma** listada                                                        |
+
+> ⚠️ **Correção de fato.** O painel mostra **Inscrição Municipal `20948168`**. A documentação
+> registrava `67084607000178` desde S81 — que é o CNPJ sem pontuação, anotado com a
+> justificativa "padrão Ribeirão Preto atribui IM igual ao CNPJ". Era suposição, nunca lida
+> na fonte, e se propagou por `CLAUDE.md`, `CHANGELOG.md`, `PROJECT_HISTORY.md` e os docs de
+> S81. Corrigido em `CLAUDE.md`; os históricos ficam como registro.
+
+**O que resta, e agora é só isso:** falar com o contador para definir o enquadramento do
+serviço na emissão — código de atividade municipal, alíquota de ISS, e o novo par exigido
+pela atualização de 2026 (Código Tributário Nacional + NBS, Nomenclatura Brasileira de
+Serviços). Errar o código na primeira nota é retrabalho com a prefeitura.
 
 **Risco se ignorado:** cobrar sem emitir nota é irregularidade fiscal.
+
+**Endereço do portal:** `https://www.issnetonline.com.br/ribeiraopreto/online/login/login.aspx`
+**Suporte do sistema:** `suporte.ribeiraopreto@notacontrol.com.br`
+
+> **Consequência do DTE que vale lembrar:** a partir de 03/08 a prefeitura notifica por meio
+> eletrônico **com efeito legal** (LC 3.059/2021, IN 3/2023-FAZ-S). Prazo de intimação corre
+> a partir da entrega, lida ou não. A caixa a acompanhar é a do DTE dentro do portal, não o
+> e-mail — o e-mail é só o aviso.
 
 ### Tarefa 10 — Integralizar o capital social
 
