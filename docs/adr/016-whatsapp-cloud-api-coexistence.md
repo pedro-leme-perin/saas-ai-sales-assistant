@@ -38,12 +38,12 @@ WhatsApp.
 
 ## 3. Alternativas consideradas
 
-| Alternativa                               | Atende o requisito | Por que não foi escolhida                                         |
-| ----------------------------------------- | ------------------ | ----------------------------------------------------------------- |
-| Manter a Twilio com Embedded Signup (ISV) | **Não**            | A Twilio exige apagar a conta do WhatsApp no número — ver §4.1    |
-| Número dedicado por cliente, na Twilio    | Parcialmente       | Rejeitada pelo Pedro: o cliente perderia o número no celular      |
-| Terceiro BSP com suporte a coexistência   | Sim                | Custo igual ao da Cloud API direta, mais um fornecedor no caminho |
-| Rever o requisito de produto              | —                  | Rejeitada pelo Pedro em 03/08, com o requisito reafirmado         |
+| Alternativa                               | Atende o requisito | Por que não foi escolhida                                      |
+| ----------------------------------------- | ------------------ | -------------------------------------------------------------- |
+| Manter a Twilio com Embedded Signup (ISV) | **Não**            | A Twilio exige apagar a conta do WhatsApp no número — ver §4.1 |
+| Número dedicado por cliente, na Twilio    | Parcialmente       | Rejeitada pelo Pedro: o cliente perderia o número no celular   |
+| Terceiro BSP com suporte a coexistência   | Sim                | ⚠️ **Justificativa refutada em S89 — ver §8**                  |
+| Rever o requisito de produto              | —                  | Rejeitada pelo Pedro em 03/08, com o requisito reafirmado      |
 
 ## 4. Evidência
 
@@ -142,3 +142,31 @@ coexistência, ou a Meta descontinuar o recurso. Insatisfação com o custo de i
   fornecedor segue o requisito, não o conforto da integração existente.
 - _Release It!_ Stability Patterns — circuit breaker e timeout na nova integração.
 - _DDIA_ Cap. 2 — credenciais por inquilino no modelo de dados, isolamento por `companyId`.
+
+---
+
+## 8. Adendo S89 (2026-08-04) — a linha do BSP estava errada
+
+**A decisão deste ADR permanece de pé.** Sair da Twilio para a Cloud API com coexistência
+continua correto e comprovado por §4. O que este adendo corrige é a **§3, linha "Terceiro BSP
+com suporte a coexistência"**.
+
+Ela dizia: _"Custo igual ao da Cloud API direta, mais um fornecedor no caminho."_ **Os dois
+membros da frase estão errados.**
+
+1. **O custo não é igual.** A 360dialog cobra €250 a €1.000/mês de licença de plataforma além
+   das tarifas da Meta. A alternativa foi descartada sem que a tabela de preços fosse
+   consultada — a afirmação de custo era inferência, apresentada como fato.
+2. **O que não foi avaliado é o que decidia.** A documentação de parceiro da 360dialog permite
+   integrar **até 3 números de cliente sem registro no Tech Provider Program** — logo, sem a
+   conta de desenvolvedor da Meta que travou a execução deste ADR na mesma noite em que ele foi
+   escrito. A §4.3 concluiu que "o Tech Provider Program é piso dos dois lados". Para volume de
+   produção, sim. **Para os 3 primeiros clientes, não** — e é exatamente aí que o projeto está.
+
+**Lição de método, e é a que importa:** a alternativa foi eliminada por um custo que ninguém
+mediu, e o pré-requisito que a diferenciava nunca foi lido. Uma tabela de alternativas em ADR
+só descarta uma linha com evidência da mesma qualidade que sustenta a linha escolhida.
+
+Consequência: [ADR-017](./017-whatsapp-via-360dialog-solution-partner.md) fixa o **como** —
+Cloud API através da 360dialog. As consequências técnicas de §5.2 deste ADR seguem válidas item
+por item.

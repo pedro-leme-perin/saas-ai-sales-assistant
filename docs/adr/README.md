@@ -24,6 +24,7 @@ Title → Status → Context → Decision → Consequences → Compliance → No
 | 014 | [CVE-2026-44902 mitigation via exporter-prometheus override](./014-otel-prometheus-cve-2026-44902.md)                          | Aceito | this dir                  |
 | 015 | [Allowlist de advisories sem correção aplicável (jaeger, brace-expansion)](./015-advisory-allowlist-jaeger-brace-expansion.md) | Aceito | this dir                  |
 | 016 | [Canal WhatsApp migra da Twilio para a Cloud API da Meta (coexistência)](./016-whatsapp-cloud-api-coexistence.md)              | Aceito | this dir                  |
+| 017 | [WhatsApp vai à Cloud API através da 360dialog, não direto na Meta](./017-whatsapp-via-360dialog-solution-partner.md)          | Aceito | this dir                  |
 
 ## When to create an ADR
 

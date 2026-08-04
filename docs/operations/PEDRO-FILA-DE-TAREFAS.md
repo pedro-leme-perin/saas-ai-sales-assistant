@@ -425,7 +425,63 @@ Fica registrado, sem virar tarefa.
 Railway, Cloudflare, Neon, Upstash, GitHub, Google Workspace. Mesmo padrão da Stripe: dois
 fatores independentes mais código de recuperação guardado fora do computador.
 
-### ▶ ATIVA — Tarefa 13: Meta, criar o portfólio empresarial e verificar a empresa
+### ▶ ATIVA — Tarefa 14: falar com a 360dialog (comercial)
+
+**Criada em 04/08 (S89), pela decisão do ADR-017.** Assume a frente da fila; a tarefa 13 sai
+do caminho crítico.
+
+**O que decidiu isso.** A investigação de S89 achou o que o ADR-016 não tinha custeado: um
+Solution Partner da Meta permite integrar **até 3 números de cliente sem conta de
+desenvolvedor da Meta** — sem App Review, sem verificação de empresa da TheIAdvisor, sem o
+antifraude que travou ontem. Custo: €250/mês, sem fidelidade. Análise completa em
+[`docs/operations/s89/WHATSAPP_BSP_COST_ANALYSIS.md`](s89/WHATSAPP_BSP_COST_ANALYSIS.md).
+
+**O que esta tarefa NÃO é:** não é abrir conta, não é pagar, não é cadastrar cartão. É uma
+conversa comercial, de graça, para responder uma pergunta antes de qualquer dinheiro sair.
+
+**Por que a pergunta importa:** a documentação da 360dialog se contradiz. Duas páginas dizem
+que o registro como Meta Tech Provider só é exigido acima de 3 números; uma terceira lista o
+registro entre os pré-requisitos de abertura de conta. Se a terceira estiver certa, a
+vantagem inteira desta rota some e a decisão volta à mesa.
+
+**Passos, nesta ordem:**
+
+1. Abrir `https://start.360dialog.com/connect`
+2. Preencher com os dados da TheIAdvisor (CNPJ 67.084.607/0001-78, site
+   `https://theiadvisor.com`, e-mail `pedro.perin@theiadvisor.com`)
+3. No campo de mensagem, colar exatamente:
+
+   > We are a Brazilian SaaS (sales assistant with AI) preparing to add WhatsApp for our
+   > customers. Our product requirement is Coexistence: the customer keeps using their own
+   > number on the WhatsApp Business app while our platform sends and receives via Cloud API.
+   >
+   > Three questions before we sign up:
+   >
+   > 1. Is Meta Tech Provider registration required to open a Partner Hub account, or only to
+   >    onboard more than 3 numbers? Your documentation is contradictory on this point.
+   > 2. Is Coexistence onboarding available for Brazilian phone numbers today?
+   > 3. On the Starter plan, is the per-channel licence fee €25 or €49?
+
+4. Enviar e reportar a resposta
+
+**Como saber que terminou:** a 360dialog responde as três perguntas. Aí eu decido se a rota
+se confirma ou se volta à mesa.
+
+**Não faça ainda:** abrir a conta de parceiro. Ativar o Partner Hub inicia a cobrança no ato,
+e não há o que testar antes de eu implementar. Isso vira tarefa própria.
+
+### Tarefa 13 — Meta, conta de desenvolvedor — ⏸️ ADIADA em 04/08 (S89)
+
+> **Sai do caminho crítico pelo ADR-017.** Não está cancelada: o registro no Tech Provider
+> Program volta a ser exigido no **4º cliente**. Até lá, a 360dialog cobre.
+>
+> Efeito colateral desejado: a conta do Facebook ganha o descanso que o antifraude pedia
+> (lição #91), e quando o cadastro for retomado haverá receita entrando e um canal de
+> escalonamento com a Meta via 360dialog — nenhum dos dois existe hoje.
+>
+> O registro histórico e o andamento de 03/08 ficam abaixo, intactos.
+
+#### Registro histórico — Tarefa 13: Meta, criar o portfólio empresarial e verificar a empresa
 
 **Criada em 03/08 (S88), pela decisão do ADR-016.** Substitui a tarefa 4.
 
