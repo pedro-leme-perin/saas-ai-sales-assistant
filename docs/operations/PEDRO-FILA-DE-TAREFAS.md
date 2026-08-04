@@ -573,7 +573,41 @@ A produção nunca dependeu disso — o backend fala com a Twilio por `TWILIO_AC
 > Resend, Deepgram, OpenAI e Anthropic **não foram verificados** — a tarefa 5 tratou três
 > provedores e a lista nunca foi fechada. Vale uma varredura antes do primeiro cliente.
 
-### Tarefa 8 — Twilio, comprar um número brasileiro
+### 🕐 Tarefa 8 — Twilio, número brasileiro — BUNDLE ENVIADO 03/08 (S89), aguardando análise
+
+**Estado verificado no painel, não inferido:**
+
+| Campo   | Valor                                |
+| ------- | ------------------------------------ |
+| Nome    | `TheIAdvisor - BR Local - Voz`       |
+| SID     | `BU610d433afc68938b42d7d06b29de2bdb` |
+| País    | Brazil                               |
+| Tipo    | Local - Business                     |
+| Status  | **Sent for review**                  |
+| Enviado | 03/08/2026 ~23h30 BRT                |
+
+**Prazo:** até 3 dias úteis. Resposta esperada entre 05 e 06/08.
+**Aviso chega em:** `pedro.perin@theiadvisor.com` (por isso a tarefa 15 veio antes).
+
+**Escolhas feitas, e por quê:**
+
+- **Direct Customer**, não ISV. Hoje o número é da TheIAdvisor — testes, demonstração e o
+  primeiro piloto operado pelo próprio Pedro. Quando o produto passar a provisionar um número
+  por cliente, vira ISV e o bundle será refeito — mas nesse momento a arquitetura de números
+  por inquilino também muda, então o retrabalho aconteceria de qualquer forma.
+- **CNPJ Certificate nos dois campos** (identidade e endereço). Resolveu o risco previsto de o
+  comprovante de endereço estar no CPF do Pedro e ser recusado: o cartão CNPJ é documento
+  oficial da Receita, no nome da empresa, e traz o endereço. Emitido novo na hora, para não
+  entregar documento antigo à análise de compliance.
+- **Status callback URL vazio.** É webhook para a aplicação receber o resultado. Não há
+  endpoint e não vale construir por um bundle só.
+
+**Depois da aprovação:** aí sim comprar o número. Comprar antes trava.
+
+> **Achado colateral, sem urgência:** a conta da Twilio se chama **"My first Twilio account"**,
+> o nome padrão nunca trocado. Cosmético, mas aparece em faturas e comunicações.
+
+### Registro original da tarefa 8
 
 A conta tem exatamente um número ativo, `+1 507 763 4719`, americano.
 
