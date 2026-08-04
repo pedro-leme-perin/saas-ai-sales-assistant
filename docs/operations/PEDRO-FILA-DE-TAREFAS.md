@@ -468,9 +468,22 @@ número de celular" — não há verificação por ligação nem por e-mail. Ped
 número. Causa provável: filtro de operadora brasileira sobre o remetente da Meta, que costuma
 soltar sozinho em algumas horas.
 
-**Plano de retomada:** fechar o diálogo, refazer o cadastro em outro momento do dia seguinte,
-de preferência em rede móvel e não em Wi-Fi. Se persistir por 2 tentativas em dias diferentes,
-o caminho vira o formulário de suporte da Meta para confirmação de identidade.
+**Desdobramento no fim da noite de 03/08 — o bloqueio tem três camadas, não uma:**
+
+1. O SMS **chegou**; estava na pasta de spam do aparelho. Código aceito.
+2. Em seguida a Meta recusou por outro motivo: o dispositivo/conta "precisa ser mais
+   utilizado". É o portão antifraude sobre conta de Facebook com pouco histórico — não tem
+   relação com o aparelho nem com o navegador.
+3. Tentativas seguintes passaram a devolver **"ocorreu um erro, tente novamente" em laço**,
+   inclusive ao tentar ligar a verificação em duas etapas pelo app. Comportamento típico de
+   escalonamento do antifraude depois de várias tentativas seguidas na mesma conta.
+
+**Sessão encerrada nesse ponto, por decisão do assistente.** Insistir reforça o bloqueio.
+
+**Plano de retomada:** deixar a conta em paz por pelo menos um dia. Antes de tentar de novo,
+a próxima sessão precisa resolver uma pergunta que pode tornar este cadastro **desnecessário**
+— contratar um BSP que já seja Solution Partner da Meta com coexistência elimina a exigência
+de conta de desenvolvedor. Ver `docs/operations/s89-next-session-prompt.md`.
 
 #### Segurança do portfólio — registrado, sem virar tarefa ainda
 

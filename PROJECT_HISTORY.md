@@ -8677,3 +8677,124 @@ vazamento #2.
 - Repositório público com licença proprietária — decisão do Pedro, sem prazo
 - Tarefa 4 (WhatsApp) suspensa até confirmar coexistência com a Twilio
 - Role somente-leitura para o backup (lição #86)
+
+---
+
+## S88 — 03/08/2026 (Cowork)
+
+**Objetivo:** confirmar o estado real de abertura, resolver a decisão mais cara em aberto
+(coexistência do WhatsApp) e avançar a fila do Pedro.
+
+### Estado confirmado no início — o método de S87 funcionou
+
+| Item                             | O que o prompt de S88 dizia | Real, verificado na fonte                   |
+| -------------------------------- | --------------------------- | ------------------------------------------- |
+| CI de `main`                     | verde em `0d2215f`          | **verde em `7b76762`** — 5/5 jobs, CI #449  |
+| Verificação Stripe `1TgU9JRufXY` | em análise                  | **ainda em análise** (informado pelo Pedro) |
+
+CI conferido pela API de check-runs do GitHub, não pelo documento. O painel da Stripe **não
+renderiza** no navegador automatizado ("Navegador incompatível" + página de erro), em duas
+rotas distintas — a verificação coube ao Pedro, em palavras, conforme a regra nova de S88.
+
+### Deliverable principal — a coexistência foi resolvida, e sem abrir chamado
+
+A pendência nº 1 do projeto, parada havia 2 sessões, fechou por leitura de fonte primária.
+
+**A Twilio não suporta coexistência.** `docs/whatsapp/self-sign-up`, seção de solução de
+problemas: _"If registered with WhatsApp or WhatsApp Business app: **Delete the WhatsApp
+account** to make the phone number available for the WhatsApp Business Platform with Twilio."_
+O termo `coexistence` não ocorre em nenhuma página do domínio da Twilio.
+
+**A Meta suporta**, via Embedded Signup com `featureType: whatsapp_business_app_onboarding`,
+restrito a Solution Partner ou Tech Provider.
+
+A confiança do achado subiu de **baixa** (S86, fonte única de concorrente) para **alta**
+(fonte primária dos dois fornecedores).
+
+**Decisão do Pedro:** o cliente conecta um número existente e **continua atendendo pelo
+celular**. Formalizada em `docs/adr/016-whatsapp-cloud-api-coexistence.md`.
+
+**Achados que mudaram a conta do custo:**
+
+1. O **Tech Provider Program da Meta é piso dos dois lados** — a própria Twilio exige que ISVs
+   entrem nele. Não é custo diferencial entre as alternativas.
+2. A coexistência **altera o WhatsApp do cliente**: mensagens temporárias, "ver uma vez" e
+   localização ao vivo são desligadas; grupos, chamadas e catálogo ficam fora da API;
+   aparelhos vinculados são desvinculados no onboarding. Vira cláusula de contrato.
+3. `PRIMARY_INACTIVITY` (~14 dias) confirmado, e chega por webhook `account_update` — logo é
+   **detectável**, o que torna o alerta de queda uma obrigação de produto, não um desejo.
+4. **A tarefa 8 não dependia desta decisão.** O número brasileiro é do canal de voz, que segue
+   na Twilio. A ressalva de escopo do prompt de S88 estava errada e foi desfeita.
+
+### Tarefa 13 — Meta, do zero ao bloqueio
+
+Criada para substituir a tarefa 4, cancelada.
+
+| Passo                          | Resultado                                                                              |
+| ------------------------------ | -------------------------------------------------------------------------------------- |
+| Portfólio empresarial          | já existia: **The IAdvisor**, `1593609525024955`, criado em 26/02/2026                 |
+| Dados da empresa               | preenchidos e conferidos no painel — razão social, endereço com CEP, telefone, site    |
+| E-mail de contato do portfólio | era `pedro.perin@hotmail.com` **com confirmação pendente** → institucional, confirmado |
+| Verificação de empresa         | **indisponível** — "Sua organização não precisa ser verificada"                        |
+| Conta de desenvolvedor         | **bloqueada** — ver abaixo                                                             |
+
+**Achado que inverte a ordem prevista.** A verificação de empresa não abre com o portfólio
+sozinho; ela aparece depois que existe um app com o produto WhatsApp. O FAQ do Tech Provider
+Program da Twilio descreve o mesmo caso e dá a mesma saída. Ordem correta:
+**conta de desenvolvedor → app → produto WhatsApp → verificação**.
+
+**Bloqueio ao fim da sessão, em três camadas sucessivas:**
+
+1. SMS de confirmação não chegava — estava na pasta de spam do aparelho.
+2. Com o código aceito, a Meta recusou: o dispositivo/conta "precisa ser mais utilizado".
+   É o portão antifraude sobre conta de Facebook com pouco histórico.
+3. Tentativas seguintes passaram a devolver "ocorreu um erro, tente novamente" em laço —
+   comportamento típico de escalonamento do antifraude após tentativas repetidas.
+
+Sessão encerrada nesse ponto, por decisão do assistente: insistir reforça o bloqueio.
+
+### Lacuna honesta, para a próxima sessão decidir
+
+O ADR-016 comparou **Twilio-ISV** contra **Meta-direto** e concluiu que o Tech Provider Program
+é piso dos dois. **Uma terceira via não foi custeada:** contratar um BSP que já seja Solution
+Partner com suporte a coexistência. Nesse desenho o parceiro absorve App Review, Access
+Verification e o Embedded Signup — e o bloqueio de conta de desenvolvedor que travou a sessão
+**deixaria de existir**. Não é motivo para reabrir a decisão (sair da Twilio continua correto),
+mas é motivo para revisar o **como** antes de investir semanas no caminho direto.
+
+### Commits
+
+| Commit    | O quê                                                                 |
+| --------- | --------------------------------------------------------------------- |
+| `07e662c` | coexistência confirmada na fonte — §7 de `WHATSAPP_MULTITENANT.md`    |
+| `f8ffe11` | ADR-016 + fila: tarefa 4 cancelada, 13 criada e ativa, 8 desbloqueada |
+| `5867b80` | andamento da tarefa 13 e o achado da ordem invertida                  |
+
+### Lições
+
+- **#89 — Ausência de menção na documentação vira negação quando há instrução contrária.**
+  A Twilio nunca escreveu "não suportamos coexistência". Escreveu "apague a conta do WhatsApp
+  do número". Bastou, e economizou o chamado no suporte que S86 julgava obrigatório.
+- **#90 — Pré-requisito de painel não se infere pela ordem lógica.** Parecia óbvio que a
+  verificação de empresa viesse antes do app. É o contrário. Custou uma tarefa entregue ao
+  Pedro na ordem errada, corrigida na mesma sessão.
+- **#91 — O antifraude da Meta escalona com a insistência.** Três tentativas seguidas na mesma
+  conta transformaram uma recusa específica ("conta pouco utilizada") em erro genérico em laço.
+  Regra: parar na segunda recusa da mesma natureza.
+- **#92 — Caixa de contato pendente é falha silenciosa.** O portfólio da empresa apontava para
+  um e-mail que nem confirmado estava. Mesma classe de causa raiz do incidente de junho,
+  encontrada por acaso ao conferir outra coisa. Conferir destinatário de aviso é item de
+  checklist, não achado de sorte.
+- **#93 — O painel da Stripe não renderiza sob automação.** "Navegador incompatível" em duas
+  rotas. Combinado com a regra de não pedir captura de tela, a Stripe passa a ser verificável
+  **apenas** por descrição em palavras do Pedro, ou por API.
+
+### Aberto ao fim de S88
+
+- Cadastro de desenvolvedor da Meta bloqueado pelo antifraude — retomar em outro dia
+- Verificação da Stripe em `acct_1TgU9JRufXYWW9J9` ainda em análise
+- A terceira via do WhatsApp (BSP parceiro) não custeada — ver lacuna acima
+- Portfólio da Meta sem 2FA exigida, sem passkey, com um único administrador
+- `CLERK_SECRET_KEY` exposta, rotação recusada conscientemente
+- Repositório público com licença proprietária
+- Role somente-leitura para o backup (lição #86)
