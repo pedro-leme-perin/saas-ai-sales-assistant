@@ -10,7 +10,7 @@ Você é o engenheiro responsável pelo TheIAdvisor. Esta é a **sessão S90**, 
 
 1. `docs/operations/PEDRO-FILA-DE-TAREFAS.md` ← a fila, uma tarefa por vez
 2. `CLAUDE.md` §0 (regra de entrega)
-3. Seção **S89** no fim de `PROJECT_HISTORY.md` — lições #94 a #97
+3. Seção **S89** no fim de `PROJECT_HISTORY.md` — lições **#94 a #101**
 4. `docs/adr/017-whatsapp-via-360dialog-solution-partner.md` ← a decisão de S89
 5. `docs/operations/s89/WHATSAPP_BSP_COST_ANALYSIS.md` ← o custeio que a sustenta
 6. `docs/adr/016-whatsapp-cloud-api-coexistence.md` **§8** — o adendo que corrige a §3 dele
@@ -69,7 +69,7 @@ com citação e fontes. O `web_fetch` rejeita URL longa; use `curl` com `--data-
 
 ### Verificado, não inferido
 
-- **CI de `main`** — verde nos 5 jobs em `ef6ae7d` (run #453). Commit de S89: `a87f57b`.
+- **CI de `main`** — verde nos 5 jobs em `3ae9c43` (run #455). Último commit de S89 mais abaixo.
   **Reconfira na API**, não no documento.
 - **Rota do WhatsApp decidida** — Cloud API **através da 360dialog** (ADR-017). O ADR-016 segue
   válido; mudou o **como**, não o **quê**.
@@ -91,11 +91,25 @@ Se a resposta vier negativa, o ADR-017 volta à mesa — o gatilho está na §8 
 
 ---
 
-## Fila do Pedro
+## Fila do Pedro — atualizada no fim da noite de 03/08
 
-Concluídas: 1, 2, 3, 5, 6, 7. Cancelada: 4. Adiada: **13** (Meta, ao 4º cliente).
-Ativa: **14** (falar com a 360dialog). Disponível depois: **8** (número brasileiro na Twilio —
-exige regulatory bundle com CNPJ, análise de até 2 dias úteis).
+Concluídas: 1, 2, 3, 5, 6, 7, **15** (Twilio migrada para o e-mail institucional).
+Cancelada: 4. Adiada: **13** (Meta, ao 4º cliente).
+
+| #      | Estado                                                                                |
+| ------ | ------------------------------------------------------------------------------------- |
+| **14** | 360dialog — e-mail enviado a `info@360dialog.com`, **aguardando resposta**            |
+| **8**  | Twilio BR — bundle `BU610d433afc68938b42d7d06b29de2bdb` **Sent for review**, 05-06/08 |
+| **9**  | NFS-e — portal **liberado e pronto para emitir**; falta enviar o pedido ao contador   |
+| **16** | Auditoria de identidade — Neon parou pela metade; 6 provedores nem começaram          |
+
+**A única com relógio correndo é a 9.** Ele não tem contador, e a empresa existe desde
+01/06/2026 sem nenhuma obrigação acessória entregue. O documento está pronto em
+`docs/operations/s89/PEDIDO-AO-CONTADOR.md` — a primeira ação da sessão é confirmar se ele
+enviou.
+
+**Não retome o Neon sem antes confirmar que a senha nova foi guardada.** Ela foi criada durante
+a tentativa falha e pode estar só na cabeça dele.
 
 ---
 
@@ -129,6 +143,25 @@ exige regulatory bundle com CNPJ, análise de até 2 dias úteis).
 
 **Sugestão de prioridade, se ele deixar você escolher:** o item 2 é o único da lista que
 avança o WhatsApp sem depender da 360dialog, e é obrigação contratual, não polimento.
+
+---
+
+## Como ele trabalha, observado em S89
+
+Ele **não para quando você propõe parar** — pediu para seguir três vezes depois do
+encerramento previsto, e a sessão rendeu por isso. Trate "boa noite" como sugestão, não como
+fato, até ele dizer.
+
+Ele **manda captura de tela por conta própria** e pede que você leia. Isso é diferente de você
+pedir captura, que continua proibido. Quando a tela puder conter segredo, avise antes.
+
+Ele **pergunta pelo cliente final** quando você apresenta trade-off de custo. Foi a pergunta
+dele — "qual a melhor opção para facilitar o usuário?" — que corrigiu a comparação do WhatsApp.
+Monte comparações separando quem paga de quem usa, desde o começo.
+
+Ele **pede que você navegue e verifique sozinho** em vez de descrever. Faça — mas confira a aba
+antes de extrair, e não chute URL: em S89 uma URL inventada derrubou a sessão dele no portal da
+prefeitura.
 
 ---
 

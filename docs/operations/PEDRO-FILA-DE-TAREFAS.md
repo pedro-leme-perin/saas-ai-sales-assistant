@@ -620,6 +620,58 @@ a temer.
 Brasil — com análise de até 2 dias úteis. Pessoa física não pode adquirir número local no
 Brasil; a PJ pode. Custo de assinatura segue baixo (ordem de US$ 1 a 2/mês mais uso).
 
+### ⏸️ Tarefa 16 — Auditoria de identidade dos provedores restantes — INICIADA 03/08 (S89)
+
+**Origem:** lacuna descoberta na tarefa 15. A tarefa 5 tratou três provedores (Railway,
+Cloudflare, Upstash) e **a lista nunca foi fechada**. A Twilio ficou dois meses de fora sendo
+o canal de voz em produção. Restam sete.
+
+| Provedor  | O que está atrás dele               | Auditado? | E-mail             |
+| --------- | ----------------------------------- | --------- | ------------------ |
+| Neon      | **banco de produção**               | ✅ 03/08  | ⛔ ainda o pessoal |
+| Vercel    | frontend em produção                | ❌        | —                  |
+| Resend    | remetente de todo e-mail do produto | ❌        | —                  |
+| Sentry    | telemetria de erro                  | ❌        | —                  |
+| Deepgram  | transcrição                         | ❌        | —                  |
+| OpenAI    | sugestões de IA                     | ❌        | —                  |
+| Anthropic | provider de fallback                | ❌        | —                  |
+
+#### 16a — Neon: **tentativa falhou, parada por decisão do assistente**
+
+**Estado levantado (03/08, ~23h40):**
+
+| Campo            | Valor                                               |
+| ---------------- | --------------------------------------------------- |
+| E-mail da conta  | `leme.baseapr@gmail.com` — **não mudou**            |
+| Formas de entrar | Google (pessoal) **e** GitHub (`@pedro-leme-perin`) |
+| Senha            | **criada nesta sessão** — antes a conta era só SSO  |
+| Two-factor auth  | existe na interface, **não verificado**             |
+
+**O que aconteceu:** `Change email` preenchido com o endereço institucional → o Neon pediu
+criação de senha → mandou link de confirmação → **o link expirou antes do clique**.
+
+**Efeito observado enquanto a troca fica pendente:** a barra lateral perde `Password`,
+`Two-factor auth` e `Passkeys`, e o campo de e-mail fica somente-leitura sem o link
+`Change email`. Comparação entre duas leituras do painel na mesma sessão. Não é falha — é o
+console travando alterações de identidade enquanto há confirmação em aberto. **Confiança
+média**, inferido do comportamento, não documentado.
+
+**Por que parou aqui, e a decisão foi do assistente:** é o banco de produção, o único ativo
+cujo acesso perdido não tem volta; a sessão já durava horas; o painel estava em estado não
+compreendido por inteiro; e **não há urgência** — a conta é Free Tier, sem cobrança nem
+renovação a vencer. Aplicação da lição #91 a outro fornecedor: insistir sobre estado que não
+se entende piora a posição.
+
+**Produção nunca esteve em risco:** o backend fala com o banco por `DATABASE_URL`, não pela
+sessão do console.
+
+**Como retomar, em dois minutos:** pedir a troca de e-mail e **clicar no link imediatamente**,
+sem intervalo. O erro foi o tempo entre pedir e clicar.
+
+**Pendência do Pedro antes de qualquer retomada:** a senha nova do Neon precisa estar no
+gerenciador de senhas, junto da nota de que o login também funciona por Google pessoal e por
+GitHub.
+
 ### Tarefa 9 — NFS-e com o contador
 
 **Passo zero concluído em 03/08 (S89): o portal está liberado e a empresa pode emitir.**

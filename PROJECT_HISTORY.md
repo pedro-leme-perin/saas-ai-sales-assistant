@@ -8897,10 +8897,120 @@ por escrito virou pré-condição para ativar a conta (ADR-017 §7).
   Afirmei que a assinatura esperava o primeiro cliente. A documentação dizia o oposto na
   página de onboarding, não na de preços. Custo tem duas dimensões: quanto, e a partir de
   quando.
+- **#98 — Tarefa de varredura sem lista fechada volta como incidente.** A tarefa 5 migrou três
+  provedores e foi dada por concluída. A Twilio ficou dois meses sob o gmail pessoal sendo o
+  canal de voz em produção, e só apareceu por acaso, ao abrir o console para outra coisa.
+  Sobraram seis sem auditoria. Varredura precisa enumerar o universo **antes** de começar, e o
+  que sobrou fica visível — não some junto com o "concluída".
+- **#99 — Ordem entre migrar identidade e submeter processo não é indiferente.** O bundle da
+  Twilio avisa aprovação e recusa por e-mail. Migrar depois do envio arriscava perder o aviso
+  na transição. Regra: trocar o destinatário **antes** de iniciar qualquer processo que
+  responda por e-mail.
+- **#100 — Link de confirmação com validade curta exige clicar no ato.** No Neon, o intervalo
+  entre pedir a troca e abrir a caixa bastou para expirar. E, enquanto a confirmação fica
+  pendente, o console **esconde** as opções de identidade — o que se parece com bug e não é.
+  Pedir e clicar sem intervalo.
+- **#101 — Parar é uma decisão técnica, e às vezes contraria o pedido.** O Pedro queria seguir;
+  a recomendação foi parar. Critérios que decidiram: ativo irrecuperável (banco de produção),
+  sessão longa, estado de painel não compreendido, e ausência de prazo real. Os mesmos
+  critérios da lição #91, aplicados a outro fornecedor. Discordar uma vez, explicar o porquê, e
+  deixar a escolha com ele.
+- **#98 — Tarefa de varredura sem lista fechada volta como incidente.** A tarefa 5 migrou três
+  provedores e foi dada por concluída. A Twilio ficou dois meses sob o gmail pessoal sendo o
+  canal de voz em produção, e só apareceu por acaso, ao abrir o console para outra coisa.
+  Sobraram seis sem auditoria. Varredura precisa enumerar o universo **antes** de começar, e
+  o que sobrou fica visível — não some junto com o "concluída".
+- **#99 — Ordem entre migrar identidade e submeter processo não é indiferente.** O bundle da
+  Twilio avisa aprovação e recusa por e-mail. Migrar depois do envio arriscava perder o aviso
+  na transição. Regra: trocar o destinatário **antes** de iniciar qualquer processo que
+  responda por e-mail.
+- **#100 — Link de confirmação com validade curta exige clicar no ato.** No Neon, o intervalo
+  entre pedir a troca e abrir a caixa foi suficiente para expirar. E, enquanto a confirmação
+  fica pendente, o console **esconde** as opções de identidade — o que se parece com bug e não
+  é. Pedir e clicar sem intervalo.
+- **#101 — Parar é uma decisão técnica, e às vezes contraria o pedido.** O Pedro queria seguir;
+  a recomendação foi parar. Critérios que decidiram: ativo irrecuperável (banco de produção),
+  sessão longa, estado de painel não compreendido, e ausência de prazo real. Os mesmos
+  critérios da lição #91, aplicados a um fornecedor diferente. Discordar uma vez, explicar o
+  porquê, e deixar a escolha com ele.
+
+### Segunda metade da sessão — execução operacional com o Pedro
+
+Ele pediu para continuar depois do encerramento previsto. Quatro frentes andaram:
+
+**NFS-e (tarefa 9) — destravada.** O portal do ISSnetOnline foi aberto pela primeira vez:
+senha inicial trocada, DTE credenciado com contatos institucionais, caixa de entrada vazia,
+menu `Nova Nota Eletrônica` disponível, zero pendências. A empresa **pode emitir**. Restou só
+o contador — e aí veio o fato que mudou o escopo: **ele não tem contador**, sempre foi o
+assistente orientando. Entregue `docs/operations/s89/PEDIDO-AO-CONTADOR.md`, com ficha da
+empresa e 16 perguntas em 5 blocos, o primeiro sendo o passivo provável de PGDAS-D desde
+junho.
+
+**Correção de fato — Inscrição Municipal.** O painel mostra **20948168**. A documentação
+registrava `67084607000178` desde S81, que é o CNPJ sem pontuação, anotado com a justificativa
+"padrão Ribeirão Preto atribui IM igual ao CNPJ". Suposição, nunca lida na fonte, propagada
+por cinco arquivos. Corrigida nos dois pontos vivos do `CLAUDE.md`.
+
+**Twilio — duas coisas.** Ao abrir o console para a tarefa 8, descobriu-se que **a conta nunca
+foi migrada na tarefa 5** e seguia sob o gmail pessoal, sendo o canal de voz em produção.
+Migrada (tarefa 15), e **de propósito antes** de submeter o bundle regulatório, porque a Twilio
+avisa aprovação e recusa por e-mail. Em seguida o bundle brasileiro foi enviado:
+`BU610d433afc68938b42d7d06b29de2bdb`, Local - Business, **Sent for review**, verificado no
+painel. O risco previsto do comprovante de endereço no CPF não se materializou — a Twilio
+aceita `CNPJ Certificate` nos dois campos.
+
+**Neon — tentativa falhou e foi interrompida.** Auditoria de identidade dos sete provedores
+nunca verificados começou pelo pior: o banco de produção. E-mail confirmado como o pessoal;
+login por Google **e** GitHub. A troca pediu criação de senha e mandou link de confirmação, que
+**expirou antes do clique**. Parada por decisão do assistente, contra a vontade inicial do
+Pedro de continuar: banco de produção, sessão longa, painel em estado não compreendido, e
+nenhuma urgência (Free Tier, sem cobrança a vencer). Registrado como tarefa 16 com o caminho
+de retomada.
+
+### Segunda metade da sessão — execução operacional com o Pedro
+
+Ele pediu para continuar depois do encerramento previsto. Quatro frentes andaram:
+
+**NFS-e (tarefa 9) — destravada.** O portal do ISSnetOnline foi aberto pela primeira vez:
+senha inicial trocada, DTE credenciado com contatos institucionais, caixa de entrada vazia,
+menu `Nova Nota Eletrônica` disponível, zero pendências. A empresa **pode emitir**. Restou só
+o contador — e aí veio o fato que mudou o escopo: **ele não tem contador**, sempre foi o
+assistente orientando. Entregue `docs/operations/s89/PEDIDO-AO-CONTADOR.md`, com ficha da
+empresa e 16 perguntas em 5 blocos, o primeiro sendo o passivo provável de PGDAS-D desde
+junho.
+
+**Correção de fato — Inscrição Municipal.** O painel mostra **20948168**. A documentação
+registrava `67084607000178` desde S81, que é o CNPJ sem pontuação, anotado com a justificativa
+"padrão Ribeirão Preto atribui IM igual ao CNPJ". Suposição, nunca lida na fonte, propagada
+por cinco arquivos. Corrigida nos dois pontos vivos do `CLAUDE.md`.
+
+**Twilio — duas coisas.** Ao abrir o console para a tarefa 8, descobriu-se que **a conta nunca
+foi migrada na tarefa 5** e seguia sob o gmail pessoal, sendo o canal de voz em produção.
+Migrada (tarefa 15), e **de propósito antes** de submeter o bundle regulatório, porque a Twilio
+avisa aprovação e recusa por e-mail. Em seguida o bundle brasileiro foi enviado:
+`BU610d433afc68938b42d7d06b29de2bdb`, Local - Business, **Sent for review**, verificado no
+painel. O risco previsto do comprovante de endereço no CPF não se materializou — a Twilio
+aceita `CNPJ Certificate` nos dois campos.
+
+**Neon — tentativa falhou e foi interrompida.** Auditoria de identidade dos sete provedores
+nunca verificados começou pelo pior: o banco de produção. E-mail confirmado como o pessoal;
+login por Google **e** GitHub. A troca pediu criação de senha e mandou link de confirmação, que
+**expirou antes do clique**. Parada por decisão do assistente, contra a vontade inicial do
+Pedro de continuar: banco de produção, sessão longa, painel em estado não compreendido, e
+nenhuma urgência (Free Tier, sem cobrança a vencer). Registrado como tarefa 16 com o caminho
+de retomada.
 
 ### Aberto ao fim de S89
 
 - Resposta da 360dialog às 3 perguntas comerciais (tarefa 14, ativa)
+- Enviar `PEDIDO-AO-CONTADOR.md` ao contador, pedindo o bloco 1 primeiro
+- Bundle regulatório da Twilio em análise — resposta esperada entre 05 e 06/08
+- Tarefa 16: Neon a retomar; Vercel, Resend, Sentry, Deepgram, OpenAI e Anthropic sem auditoria
+- Senha nova do Neon precisa ir para o gerenciador de senhas
+- Enviar `PEDIDO-AO-CONTADOR.md` ao contador, pedindo o bloco 1 primeiro
+- Bundle regulatório da Twilio em análise — resposta esperada entre 05 e 06/08
+- Tarefa 16: Neon a retomar; Vercel, Resend, Sentry, Deepgram, OpenAI e Anthropic sem auditoria
+- Senha nova do Neon precisa ir para o gerenciador de senhas
 - Implementação do ADR-016 §5.2 + ADR-017 §6.1 — não começar antes da resposta
 - Termos de Uso: efeitos da coexistência no WhatsApp do cliente, antes do consentimento
 - Verificação da Stripe em `acct_1TgU9JRufXYWW9J9` ainda em análise
