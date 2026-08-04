@@ -8798,3 +8798,117 @@ mas é motivo para revisar o **como** antes de investir semanas no caminho diret
 - `CLERK_SECRET_KEY` exposta, rotação recusada conscientemente
 - Repositório público com licença proprietária
 - Role somente-leitura para o backup (lição #86)
+
+---
+
+## S89 — 2026-08-04 · A terceira via, custeada (Cowork)
+
+**Objetivo:** responder a pergunta que S88 deixou aberta — contratar um BSP Solution Partner da
+Meta com coexistência dispensa o cadastro de desenvolvedor que travou no antifraude? Trazer o
+custo e deixar a decisão com o Pedro.
+
+**Nenhuma linha de código de aplicação tocada.** Sessão de decisão e documentação.
+
+### Verificação de entrada
+
+CI de `main` verde nos 5 jobs em `ef6ae7d` (run #453) — conferido pela API do GitHub, não pelo
+documento, conforme a regra 1 do prompt de abertura.
+
+### O achado
+
+**Não dispensa. Adia — e o adiamento muda a ordem do projeto.**
+
+A documentação de parceiro da 360dialog enuncia, em duas páginas independentes, que um parceiro
+pode integrar **até 3 números de cliente sem registro no Tech Provider Program**. Logo: sem
+conta de desenvolvedor da Meta, sem app, sem App Review, sem Access Verification, sem
+verificação de empresa da TheIAdvisor. Acima de 3, a exigência volta inteira.
+
+O bloqueio não desaparece. Sai do caminho crítico — do ponto entre o projeto e o primeiro
+cliente, para o ponto entre o terceiro e o quarto, onde haverá receita, histórico de conta e
+um canal de escalonamento à Meta que hoje não existe.
+
+### O erro do ADR-016, e ele é de método
+
+A tabela de alternativas descartou a terceira via com "custo igual ao da Cloud API direta".
+**Os dois membros da frase estavam errados.** O custo é €250–1.000/mês de licença — nunca foi
+consultado. E o pré-requisito que diferenciava a alternativa (os 3 números sem Tech Provider)
+nunca foi lido. Uma inferência foi registrada em ADR com a mesma tipografia de um fato.
+
+Registrado como adendo §8 no ADR-016, sem tocar a decisão dele — sair da Twilio segue correto
+e comprovado.
+
+### Decisão do Pedro
+
+**360dialog.** Perguntou primeiro qual opção facilitava mais o **cliente final** — pergunta
+melhor que a que eu havia feito. Resposta: nas duas o cliente faz o mesmo (Embedded Signup da
+Meta + QR no WhatsApp Business, mesmos efeitos no aparelho). A 360dialog ganha onde dói —
+verificação da empresa do cliente em até 48h por PLBV, contra semanas do processo clássico — e
+perde só na estética, uma tela com marca de terceiro que some quando virarmos Tech Provider.
+
+Formalizada em **ADR-017**.
+
+### Custo aceito
+
+€250/mês (5 canais), sem fidelidade, tarifa da Meta repassada sem markup. Sobe a €500/mês
+quando a verificação dos clientes entrar — coexistência não aceita Standard Business
+Verification, e PLBV só existe a partir do plano Growth. Mais 4% de processamento de cartão
+sobre pagamentos de uso. Só cartão de crédito.
+
+### Correção feita dentro da própria sessão
+
+Afirmei ao Pedro que "a assinatura só começa quando houver o primeiro cliente". Falso. A
+documentação diz "billable immediately upon Partner Hub activation", pro-rata no mês. O que é
+adiável é a **ativação**, não a cobrança. Corrigido no documento de custeio antes de qualquer
+ação dele.
+
+### Pendência que virou pré-condição
+
+A documentação da 360dialog se contradiz: `get-started-as-a-partner` lista Tech Provider entre
+os pré-requisitos de abertura de conta, contra `tech-provider-program` e
+`quickstarts/add-a-whatsapp-number`, que dizem que só vale acima de 3 números. Placar 2 a 1 a
+favor de "não é pré-requisito", e as duas majoritárias enunciam regra enquanto a minoritária é
+item de checklist. Confiança alta, não absoluta — e como dinheiro depende disso, confirmação
+por escrito virou pré-condição para ativar a conta (ADR-017 §7).
+
+### Commits
+
+| Commit    | Conteúdo                                                        |
+| --------- | --------------------------------------------------------------- |
+| `a87f57b` | ADR-017 + adendo §8 no ADR-016 + custeio S89 + fila (tarefa 14) |
+
+### Lições
+
+- **#94 — Uma linha de tabela de alternativas em ADR precisa da mesma evidência que a linha
+  escolhida.** O ADR-016 mediu a opção vencedora com citação textual da documentação e
+  descartou a terceira via com um palpite de custo. O palpite estava errado, e custou uma
+  sessão inteira de bloqueio antes de alguém verificar. Descartar exige prova; não basta
+  escolher com prova.
+- **#95 — Documentação de fornecedor se contradiz, e o gênero do texto desempata.** Duas
+  páginas enunciando uma regra ("acima de 3 números") valem mais que um item solto em lista de
+  pré-requisitos, que é o formato que mais envelhece sem manutenção. Desempate registrado como
+  confiança alta, não como certeza — e transformado em pergunta comercial antes de virar
+  dinheiro.
+- **#96 — "Facilita para quem?" é a pergunta que faltava.** A comparação foi montada em torno
+  do custo e do desbloqueio do desenvolvedor. O Pedro perguntou pelo cliente final, e o eixo
+  mudou: PLBV em 48h contra semanas é benefício **do cliente dele**, não nosso, e não estava
+  na tabela. Comparar opções sem separar "quem paga" de "quem usa" esconde o critério que
+  decide.
+- **#97 — Verificar quando a cobrança começa é parte do custeio, não detalhe de contrato.**
+  Afirmei que a assinatura esperava o primeiro cliente. A documentação dizia o oposto na
+  página de onboarding, não na de preços. Custo tem duas dimensões: quanto, e a partir de
+  quando.
+
+### Aberto ao fim de S89
+
+- Resposta da 360dialog às 3 perguntas comerciais (tarefa 14, ativa)
+- Implementação do ADR-016 §5.2 + ADR-017 §6.1 — não começar antes da resposta
+- Termos de Uso: efeitos da coexistência no WhatsApp do cliente, antes do consentimento
+- Verificação da Stripe em `acct_1TgU9JRufXYWW9J9` ainda em análise
+- Cadastro de desenvolvedor da Meta — adiado ao 4º cliente, conta descansando do antifraude
+- Role somente-leitura para o backup (lição #86)
+- Dashboard em produção: `/api/backend/api/*` responde 404
+- ~132 erros de tipo nos testes do backend, invisíveis ao CI
+- Bundle perto do limite duro de 3 MB
+- `CLAUDE.md` termina truncado na §15 — a §16 citada como invariante não existe
+- Repositório público com licença proprietária
+- `CLERK_SECRET_KEY` exposta, rotação recusada conscientemente
