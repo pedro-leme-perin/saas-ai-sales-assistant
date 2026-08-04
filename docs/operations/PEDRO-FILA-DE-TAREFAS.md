@@ -550,6 +550,29 @@ Levantado na Central de Segurança em 03/08, para tratar depois da verificação
 - **Pedro é o único administrador** — a própria Meta recomenda um segundo.
 - Nenhum domínio confiável cadastrado.
 
+### ✅ Tarefa 15 — Twilio: migrar o login para o e-mail institucional — CONCLUÍDA 03/08 (S89)
+
+**Lacuna descoberta por acaso**, ao abrir o console para a tarefa 8. A tarefa 5 migrou
+Railway, Cloudflare e Upstash — **a Twilio nunca entrou na lista**. Continuava sob
+`leme.baseapr@gmail.com`, sendo o canal de **voz em produção**. Mesma causa raiz do incidente
+de junho, viva por mais dois meses depois de a tarefa 5 ter sido dada por concluída.
+
+Trocado para `pedro.perin@theiadvisor.com` em `User Settings → Personal information →
+Edit email address`, com código de verificação enviado ao endereço novo.
+
+**Ordem importou:** feito **antes** de submeter o bundle regulatório, porque a Twilio avisa
+aprovação e recusa por e-mail. Trocar depois do envio arriscava perder o aviso na transição.
+
+**Consequência:** o login da Twilio agora **é** `pedro.perin@theiadvisor.com`. O e-mail
+pessoal deixou de funcionar como usuário.
+
+A produção nunca dependeu disso — o backend fala com a Twilio por `TWILIO_ACCOUNT_SID` e
+`TWILIO_AUTH_TOKEN`, não pela sessão do console.
+
+> **Ainda em aberto, e não virou tarefa:** ninguém auditou o resto. Neon, Vercel, Sentry,
+> Resend, Deepgram, OpenAI e Anthropic **não foram verificados** — a tarefa 5 tratou três
+> provedores e a lista nunca foi fechada. Vale uma varredura antes do primeiro cliente.
+
 ### Tarefa 8 — Twilio, comprar um número brasileiro
 
 A conta tem exatamente um número ativo, `+1 507 763 4719`, americano.
