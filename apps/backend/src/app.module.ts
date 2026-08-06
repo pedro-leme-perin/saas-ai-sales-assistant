@@ -13,6 +13,7 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { CallsModule } from './modules/calls/calls.module';
+import { VoiceNumbersModule } from './modules/voice-numbers/voice-numbers.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { AiModule } from './modules/ai/ai.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -93,6 +94,7 @@ import configuration from './config/configuration';
     UsersModule,
     CompaniesModule,
     CallsModule,
+    VoiceNumbersModule,
     WhatsappModule,
     AiModule,
     BillingModule,

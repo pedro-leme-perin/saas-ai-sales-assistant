@@ -49,8 +49,14 @@ const envSchema = z.object({
   // ── Twilio ──
   TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
   TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
+  // ADR-018 — no longer the operational caller ID, which is now per-tenant on
+  // `Company.voicePhoneNumber`. Kept only as the TheIAdvisor demo line.
   TWILIO_PHONE_NUMBER: z.string().min(1).optional(),
   TWILIO_WEBHOOK_URL: z.string().url().optional(),
+  // Anatel regulatory bundle, required to buy Brazilian local numbers. Optional because
+  // environments that never provision BR numbers must still boot.
+  TWILIO_BR_REGULATORY_BUNDLE_SID: z.string().startsWith('BU').optional(),
+  TWILIO_BR_ADDRESS_SID: z.string().startsWith('AD').optional(),
 
   // ── Deepgram ──
   DEEPGRAM_API_KEY: z.string().min(1).optional(),
