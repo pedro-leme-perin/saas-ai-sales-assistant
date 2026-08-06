@@ -220,14 +220,34 @@ export class CallsController {
     @Body() body: { CallSid: string; From: string; To: string },
     @Res() res: Response,
   ) {
-    this.logger.log(`Inbound voice webhook: CallSid=${body.CallSid} From=${body.From}`);
-    try {
-      await this.callsService.findOrCreateByCallSid(body.CallSid, body.From);
-    } catch (error) {
-      this.logger.error(`Failed to find/create call for SID ${body.CallSid}: ${error}`);
-    }
+    this.logger.log(
+      `Inbound voice webhook: CallSid=${body.CallSid} From=${body.From} To=${body.To}`,
+    );
 
     const VoiceResponse = twilio.twiml.VoiceResponse;
+
+    // ADR-018 §3.1 — tenant resolution is a precondition for answering, not a side effect of
+    // it. Previously this catch swallowed the error and the call was answered and streamed
+    // anyway, on behalf of whichever company happened to be oldest. If we cannot say which
+    // tenant owns the dialled number, we do not answer: recording and transcribing a
+    // conversation we cannot attribute is the worst possible outcome under LGPD.
+    try {
+      await this.callsService.findOrCreateByCallSid(body.CallSid, body.From, body.To);
+    } catch (error) {
+      this.logger.error(
+        `Rejecting inbound call ${body.CallSid} to ${body.To} — could not resolve owning tenant: ${error}`,
+      );
+      const rejection = new VoiceResponse();
+      rejection.say(
+        { language: 'pt-BR', voice: 'Polly.Camila' },
+        'Este número não está disponível no momento.',
+      );
+      rejection.hangup();
+      res.type('text/xml');
+      res.send(rejection.toString());
+      return;
+    }
+
     const response = new VoiceResponse();
     const backendUrl = process.env.NGROK_URL || process.env.BACKEND_URL;
     if (!backendUrl) {

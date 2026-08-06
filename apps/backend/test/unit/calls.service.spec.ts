@@ -356,6 +356,12 @@ describe('CallsService', () => {
 
   // initiateCall
   describe('initiateCall', () => {
+    // ADR-018 §4.1 — initiateCall now resolves the tenant's own caller ID before dialling.
+    // Every happy path below must therefore stub company.findFirst with a provisioned number;
+    // omitting it is itself a valid failure case, covered explicitly further down.
+    const stubProvisionedNumber = (voicePhoneNumber: string | null = '+5516239801550') =>
+      mockPrismaService.company.findFirst.mockResolvedValue({ voicePhoneNumber });
+
     it('throws ServiceUnavailableException when Twilio not configured', async () => {
       await expect(
         service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
@@ -367,6 +373,7 @@ describe('CallsService', () => {
       (service as unknown as { twilioClient: unknown }).twilioClient = {
         calls: { create: twilioCallsCreate },
       };
+      stubProvisionedNumber('+5516239801550');
       mockPrismaService.call.create.mockResolvedValue({ ...mockCall, id: 'new-call' });
       mockPrismaService.call.update.mockResolvedValue({
         ...mockCall,
@@ -385,6 +392,8 @@ describe('CallsService', () => {
       expect(twilioCallsCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           to: '+5511',
+          // The caller ID is the TENANT's number, never the global TWILIO_PHONE_NUMBER.
+          from: '+5516239801550',
           statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
           record: true,
         }),
@@ -400,6 +409,7 @@ describe('CallsService', () => {
       (service as unknown as { twilioClient: unknown }).twilioClient = {
         calls: { create: twilioCallsCreate },
       };
+      stubProvisionedNumber();
       mockPrismaService.call.create.mockResolvedValue({ ...mockCall, id: 'new-call' });
       mockPrismaService.call.update.mockResolvedValue({});
 
@@ -417,11 +427,74 @@ describe('CallsService', () => {
       (service as unknown as { twilioClient: unknown }).twilioClient = {
         calls: { create: jest.fn() },
       };
+      stubProvisionedNumber();
       mockPrismaService.call.create.mockRejectedValue(new Error('db-create-fail'));
 
       await expect(
         service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
       ).rejects.toThrow('db-create-fail');
+    });
+
+    // --- ADR-018 §4.1: caller ID resolution ---
+
+    it('throws BadRequestException when the tenant has no voice number provisioned', async () => {
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: { create: jest.fn() },
+      };
+      stubProvisionedNumber(null);
+
+      await expect(
+        service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
+      ).rejects.toThrow(BadRequestException);
+
+      // No Call row is created for a tenant that cannot dial — fail before touching the DB.
+      expect(mockPrismaService.call.create).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the company is missing or inactive', async () => {
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: { create: jest.fn() },
+      };
+      mockPrismaService.company.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('never falls back to the global TWILIO_PHONE_NUMBER when the tenant has none', async () => {
+      const twilioCallsCreate = jest.fn();
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: { create: twilioCallsCreate },
+      };
+      // The global number is set on the service, exactly as in production...
+      (service as unknown as { twilioPhoneNumber: string }).twilioPhoneNumber = '+15077634719';
+      stubProvisionedNumber(null);
+
+      await expect(
+        service.initiateCall('company-123', 'user-123', '+5511', 'https://hook'),
+      ).rejects.toThrow(BadRequestException);
+
+      // ...and is still never used. Dialling a lead from another tenant's line is the bug.
+      expect(twilioCallsCreate).not.toHaveBeenCalled();
+    });
+
+    it('scopes the caller-ID lookup to the company, active and not soft-deleted', async () => {
+      const twilioCallsCreate = jest.fn().mockResolvedValue({ sid: 'CA-SID' });
+      (service as unknown as { twilioClient: unknown }).twilioClient = {
+        calls: { create: twilioCallsCreate },
+      };
+      stubProvisionedNumber('+5516239801550');
+      mockPrismaService.call.create.mockResolvedValue({ ...mockCall, id: 'new-call' });
+      mockPrismaService.call.update.mockResolvedValue({ ...mockCall, twilioCallSid: 'CA-SID' });
+
+      await service.initiateCall('company-abc', 'user-123', '+5511', 'https://hook');
+
+      expect(mockPrismaService.company.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'company-abc', isActive: true, deletedAt: null },
+        }),
+      );
     });
   });
 
@@ -475,43 +548,171 @@ describe('CallsService', () => {
     });
   });
 
-  // findOrCreateByCallSid
+  // findOrCreateByCallSid — ADR-018 §2.2 / §3.1
+  //
+  // The bug this replaces: the tenant used to be resolved by
+  //   company.findFirst({ where: { isActive: true }, orderBy: { createdAt: 'asc' } })
+  // so every inbound call landed on the OLDEST company, whatever number was dialled. These
+  // tests pin the new contract: resolve by the dialled number, or refuse to record the call.
   describe('findOrCreateByCallSid', () => {
+    const TENANT_NUMBER = '+5516239801550';
+
     it('returns existing call without upserting when SID already known', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue({
         ...mockCall,
         twilioCallSid: 'CA-EXISTING',
       });
 
-      const result = await service.findOrCreateByCallSid('CA-EXISTING', '+5511');
+      const result = await service.findOrCreateByCallSid('CA-EXISTING', '+5511', TENANT_NUMBER);
 
       expect(result).toBeDefined();
       expect(mockPrismaService.call.upsert).not.toHaveBeenCalled();
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+      // Idempotency short-circuits before any tenant lookup.
+      expect(mockPrismaService.company.findFirst).not.toHaveBeenCalled();
     });
 
-    it('throws NotFoundException when no active company exists', async () => {
+    it('resolves the tenant by the DIALLED number, not by insertion order', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(null);
-      mockPrismaService.company.findFirst.mockResolvedValue(null);
+      mockPrismaService.company.findFirst.mockResolvedValue({
+        id: 'company-123',
+        voiceDefaultUserId: null,
+      });
+      mockPrismaService.user.findFirst.mockResolvedValue({ id: 'owner-1' });
+      mockPrismaService.call.upsert.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA-NEW',
+        direction: 'INBOUND',
+      });
 
-      await expect(service.findOrCreateByCallSid('CA-NEW', '+5511')).rejects.toThrow(
-        NotFoundException,
+      await service.findOrCreateByCallSid('CA-NEW', '+5511', TENANT_NUMBER);
+
+      expect(mockPrismaService.company.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            voicePhoneNumber: TENANT_NUMBER,
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+      );
+      // The old ordering heuristic must be gone for good.
+      expect(mockPrismaService.company.findFirst).not.toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { createdAt: 'asc' } }),
       );
     });
 
-    it('throws NotFoundException when company has no users', async () => {
+    it('rejects the call when no tenant owns the dialled number', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(null);
-      mockPrismaService.company.findFirst.mockResolvedValue({ id: 'company-123' });
+      mockPrismaService.company.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findOrCreateByCallSid('CA-NEW', '+5511', '+5511999999999'),
+      ).rejects.toThrow(NotFoundException);
+
+      // Critical: nothing is recorded for a call we cannot attribute.
+      expect(mockPrismaService.call.upsert).not.toHaveBeenCalled();
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('rejects the call when the destination number is empty', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOrCreateByCallSid('CA-NEW', '+5511', '')).rejects.toThrow(
+        NotFoundException,
+      );
+
+      // An empty `To` must never degrade into "pick some tenant".
+      expect(mockPrismaService.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrismaService.call.upsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects the call when the owning tenant has no assignable user', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+      mockPrismaService.company.findFirst.mockResolvedValue({
+        id: 'company-123',
+        voiceDefaultUserId: null,
+      });
       mockPrismaService.user.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOrCreateByCallSid('CA-NEW', '+5511')).rejects.toThrow(
+      await expect(service.findOrCreateByCallSid('CA-NEW', '+5511', TENANT_NUMBER)).rejects.toThrow(
         NotFoundException,
+      );
+
+      expect(mockPrismaService.call.upsert).not.toHaveBeenCalled();
+    });
+
+    it('prefers voiceDefaultUserId and scopes the lookup to the tenant', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+      mockPrismaService.company.findFirst.mockResolvedValue({
+        id: 'company-123',
+        voiceDefaultUserId: 'preferred-user',
+      });
+      mockPrismaService.user.findFirst.mockResolvedValue({ id: 'preferred-user' });
+      mockPrismaService.call.upsert.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA-NEW',
+        direction: 'INBOUND',
+      });
+
+      await service.findOrCreateByCallSid('CA-NEW', '+5511', TENANT_NUMBER);
+
+      // companyId in the WHERE is the cross-tenant guard: a stale default id pointing at a
+      // user of ANOTHER tenant must resolve to nothing, not to that foreign user.
+      expect(mockPrismaService.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: 'preferred-user',
+            companyId: 'company-123',
+          }),
+        }),
+      );
+      expect(mockPrismaService.call.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            companyId: 'company-123',
+            userId: 'preferred-user',
+          }),
+        }),
+      );
+    });
+
+    it('falls back to the OWNER when voiceDefaultUserId does not resolve', async () => {
+      mockPrismaService.call.findFirst.mockResolvedValue(null);
+      mockPrismaService.company.findFirst.mockResolvedValue({
+        id: 'company-123',
+        voiceDefaultUserId: 'ghost-user',
+      });
+      // 1st lookup (the stale default) misses; 2nd (the OWNER) hits.
+      mockPrismaService.user.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'owner-1' });
+      mockPrismaService.call.upsert.mockResolvedValue({
+        ...mockCall,
+        twilioCallSid: 'CA-NEW',
+        direction: 'INBOUND',
+      });
+
+      await service.findOrCreateByCallSid('CA-NEW', '+5511', TENANT_NUMBER);
+
+      expect(mockPrismaService.user.findFirst).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ companyId: 'company-123', role: 'OWNER' }),
+        }),
+      );
+      expect(mockPrismaService.call.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ userId: 'owner-1' }),
+        }),
       );
     });
 
     it('upserts atomic and emits contact.touch event on new call', async () => {
       mockPrismaService.call.findFirst.mockResolvedValue(null);
-      mockPrismaService.company.findFirst.mockResolvedValue({ id: 'company-123' });
+      mockPrismaService.company.findFirst.mockResolvedValue({
+        id: 'company-123',
+        voiceDefaultUserId: null,
+      });
       mockPrismaService.user.findFirst.mockResolvedValue({ id: 'user-123' });
       mockPrismaService.call.upsert.mockResolvedValue({
         ...mockCall,
@@ -519,7 +720,7 @@ describe('CallsService', () => {
         direction: 'INBOUND',
       });
 
-      const result = await service.findOrCreateByCallSid('CA-NEW', '+5511');
+      const result = await service.findOrCreateByCallSid('CA-NEW', '+5511', TENANT_NUMBER);
 
       expect(result.direction).toBe('INBOUND');
       expect(mockPrismaService.call.upsert).toHaveBeenCalledWith(

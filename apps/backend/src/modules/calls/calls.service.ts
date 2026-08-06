@@ -16,6 +16,8 @@ import {
   CallStatus,
   CsatTrigger,
   SuggestionType,
+  UserRole,
+  UserStatus,
   WebhookEvent,
 } from '@prisma/client';
 import { promiseAllWithTimeout } from '../../common/resilience/promise-timeout';
@@ -185,7 +187,14 @@ export class CallsService {
       throw new ServiceUnavailableException('Twilio not configured');
     }
 
-    this.logger.log(`Initiating call to ${phoneNumber}`);
+    // ADR-018 §4.1 — the caller ID is the tenant's own number, never a shared global one.
+    // `TWILIO_PHONE_NUMBER` survives only as the TheIAdvisor demo line and is deliberately
+    // NOT used as a fallback here: dialling a customer's lead from another tenant's number
+    // is both a data-protection problem and a caller-reputation one (Release It! — bulkhead:
+    // one tenant's spam complaints must not sink every other tenant's number).
+    const callerId = await this.resolveOutboundCallerId(companyId);
+
+    this.logger.log(`Initiating call to ${phoneNumber} from ${callerId} (company ${companyId})`);
 
     let callId: string | null = null;
 
@@ -207,7 +216,7 @@ export class CallsService {
       try {
         twilioCall = await this.twilioClient.calls.create({
           to: phoneNumber,
-          from: this.twilioPhoneNumber,
+          from: callerId,
           url: `${webhookUrl}/api/calls/webhook/voice/${call.id}`,
           statusCallback: `${webhookUrl}/api/calls/webhook/status/${call.id}`,
           statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
@@ -267,24 +276,82 @@ export class CallsService {
     }
   }
 
-  async findOrCreateByCallSid(callSid: string, fromNumber: string) {
-    // Use upsert to prevent race condition when two webhooks arrive simultaneously
+  /**
+   * Resolves the tenant that owns an inbound call and records it.
+   *
+   * ADR-018 §2.2 — until 06/08/2026 this method resolved the tenant with
+   * `company.findFirst({ where: { isActive: true }, orderBy: { createdAt: 'asc' } })`,
+   * i.e. it attached EVERY inbound call to the oldest active Company regardless of which
+   * number was dialled. With more than one tenant that is a cross-tenant data leak: the
+   * recording, transcript, sentiment and AI suggestions of one customer's call would land in
+   * another customer's account. It never misfired only because production has had exactly one
+   * Company since the ACME seed was purged in S61 — with n=1, "the first" is always right.
+   *
+   * The tenant is now resolved by the dialled number (`toNumber`), which is UNIQUE GLOBALLY on
+   * `Company.voicePhoneNumber`. There is deliberately **no fallback**: an unrecognised number
+   * throws, and the caller rejects the call. Falling back to "some tenant" is exactly the bug
+   * this replaces (Release It! — Fail Fast beats silently doing the wrong thing).
+   *
+   * @param callSid    Twilio CallSid, the idempotency key for the webhook
+   * @param fromNumber E.164 number that originated the call — the lead
+   * @param toNumber   E.164 number that was dialled — the tenant's own number, the routing key
+   * @throws NotFoundException when no active tenant owns `toNumber`
+   */
+  async findOrCreateByCallSid(callSid: string, fromNumber: string, toNumber: string) {
+    // Idempotency first: Twilio retries webhooks, and two can land concurrently.
     // (DDIA Cap. 7 — preventing write skew with atomic operations)
     const existing = await this.prisma.call.findFirst({
       where: { twilioCallSid: callSid },
     });
     if (existing) return existing;
 
-    const company = await this.prisma.company.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    if (!company) throw new NotFoundException('No active company found');
+    if (!toNumber) {
+      // Defensive: Twilio always sends `To`, but an empty value must never degrade into the
+      // old "pick the first company" behaviour.
+      throw new NotFoundException('Inbound call without destination number — cannot route');
+    }
 
-    const user = await this.prisma.user.findFirst({
-      where: { companyId: company.id },
+    const company = await this.prisma.company.findFirst({
+      where: {
+        voicePhoneNumber: toNumber,
+        isActive: true,
+        deletedAt: null,
+      },
     });
-    if (!user) throw new NotFoundException('No user found for company');
+    if (!company) {
+      // Logged at warn, not error: an unknown number is an expected condition (a released
+      // number still receiving traffic, or a probing call), not a system fault.
+      this.logger.warn(
+        `Inbound call ${callSid} to unregistered number ${toNumber} — rejecting, no tenant owns it`,
+      );
+      throw new NotFoundException(`No active company owns the number ${toNumber}`);
+    }
+
+    // Ownership of the call inside the tenant.
+    //
+    // `Call.userId` is NOT NULL in the schema, so an inbound call must be attributed to
+    // someone. The previous code used `user.findFirst({ where: { companyId } })` — an
+    // arbitrary user decided by insertion order. That is not wrong in the cross-tenant sense,
+    // but it is unpredictable, and unpredictable ownership of a recorded customer call is not
+    // acceptable at this tier.
+    //
+    // Resolution order, explicit and deterministic:
+    //   1. `Company.voiceDefaultUserId` — the tenant's own stated choice
+    //   2. the oldest OWNER of the tenant — a defined fallback, not a coincidence
+    //   3. reject the call — better than guessing who owns a customer conversation
+    //
+    // DEBT (ADR-018 §4.2): the honest model is a nullable `Call.userId` with an unassigned
+    // queue that AssignmentRules can claim, mirroring how WhatsApp chats already work. That
+    // is a schema change with a wide blast radius (`onDelete: Cascade` would have to become
+    // `SetNull`, and every Call query assumes a user) and is deliberately not bundled into
+    // this security fix.
+    const ownerUserId = await this.resolveInboundCallOwner(company.id, company.voiceDefaultUserId);
+    if (!ownerUserId) {
+      this.logger.error(
+        `Company ${company.id} owns number ${toNumber} but has no assignable user — rejecting call ${callSid}`,
+      );
+      throw new NotFoundException(`Company ${company.id} has no user able to own inbound calls`);
+    }
 
     // Upsert: atomic create-or-return — eliminates TOCTOU race condition
     const call = await this.prisma.call.upsert({
@@ -292,7 +359,7 @@ export class CallsService {
       update: {}, // Already exists — return as-is
       create: {
         companyId: company.id,
-        userId: user.id,
+        userId: ownerUserId,
         phoneNumber: fromNumber,
         direction: 'INBOUND',
         status: CallStatus.INITIATED,
@@ -302,6 +369,81 @@ export class CallsService {
     });
     this.emitContactTouch(company.id, fromNumber, call.id);
     return call;
+  }
+
+  /**
+   * Returns the caller ID an outbound call must originate from, for a given tenant.
+   *
+   * ADR-018 §4.1. There is intentionally **no fallback** to `TWILIO_PHONE_NUMBER`: a tenant
+   * without a provisioned number is a provisioning gap that must surface loudly at the moment
+   * of the call, not be papered over by dialling from someone else's line. The failure is a
+   * 4xx (`BadRequestException`), not a 5xx — nothing is broken, the tenant simply is not set
+   * up yet, and the message says exactly that.
+   *
+   * @throws BadRequestException when the tenant has no voice number provisioned
+   * @throws NotFoundException when the company does not exist or is inactive
+   */
+  private async resolveOutboundCallerId(companyId: string): Promise<string> {
+    const company = await this.prisma.company.findFirst({
+      where: { id: companyId, isActive: true, deletedAt: null },
+      select: { voicePhoneNumber: true },
+    });
+
+    if (!company) {
+      throw new NotFoundException(`Company ${companyId} not found or inactive`);
+    }
+
+    if (!company.voicePhoneNumber) {
+      throw new BadRequestException(
+        'This company has no voice phone number provisioned. Configure one before placing calls.',
+      );
+    }
+
+    return company.voicePhoneNumber;
+  }
+
+  /**
+   * Picks the user an inbound call is attributed to, deterministically.
+   *
+   * Every query here is scoped by `companyId` — a user from another tenant must never be
+   * returned even if a stale `voiceDefaultUserId` points at one (CLAUDE.md §9: tenant
+   * isolation lives in the repository layer, not the controller).
+   *
+   * @returns the user id, or `null` when the tenant has nobody able to own the call
+   */
+  private async resolveInboundCallOwner(
+    companyId: string,
+    voiceDefaultUserId: string | null,
+  ): Promise<string | null> {
+    if (voiceDefaultUserId) {
+      const preferred = await this.prisma.user.findFirst({
+        where: {
+          id: voiceDefaultUserId,
+          companyId, // cross-tenant guard: a stale id pointing elsewhere resolves to nothing
+          deletedAt: null,
+          status: UserStatus.ACTIVE,
+        },
+        select: { id: true },
+      });
+      if (preferred) return preferred.id;
+
+      this.logger.warn(
+        `Company ${companyId} has voiceDefaultUserId ${voiceDefaultUserId} that is missing, inactive, deleted or from another tenant — falling back to OWNER`,
+      );
+    }
+
+    const owner = await this.prisma.user.findFirst({
+      where: {
+        companyId,
+        role: UserRole.OWNER,
+        deletedAt: null,
+        status: UserStatus.ACTIVE,
+      },
+      orderBy: { createdAt: 'asc' }, // stable tie-break when a tenant has several OWNERs
+      select: { id: true },
+    });
+
+    return owner?.id ?? null;
   }
 
   async handleStatusWebhookBySid(

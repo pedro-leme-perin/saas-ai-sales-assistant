@@ -52,6 +52,26 @@ model Company {
   whatsappAccessToken   String? @map("whatsapp_access_token")
   whatsappVerifyToken   String? @map("whatsapp_verify_token")
 
+  // Voice channel — per-tenant Twilio number (ADR-018).
+  //
+  // `voicePhoneNumber` is UNIQUE GLOBALLY, not per-company, and that is the whole point:
+  // it makes the inbound tenant-resolution bug of ADR-018 §2.2 impossible by construction.
+  // A phone number belongs to exactly one tenant, enforced by the database, so no amount of
+  // application-level sloppiness can route an inbound call to the wrong Company again.
+  // Stored in E.164 (`+5516...`) — the exact format Twilio sends in the `To` webhook param,
+  // so the lookup is a direct index hit with no normalisation step to get wrong.
+  voicePhoneNumber String? @unique @map("voice_phone_number")
+
+  // Twilio IncomingPhoneNumber SID (`PN...`). Needed to release or reconfigure the number
+  // via API on tenant offboarding. Not unique-constrained: a null SID with a set number is a
+  // legitimate state for numbers provisioned manually before automation existed.
+  voicePhoneSid String? @map("voice_phone_sid")
+
+  // User who owns inbound calls that arrive with no other routing rule. Nullable because a
+  // tenant may legitimately have none yet; when null, inbound calls are parked unassigned
+  // rather than silently attached to an arbitrary user (ADR-018 §3.1).
+  voiceDefaultUserId String? @map("voice_default_user_id")
+
   // Status
   isActive  Boolean   @default(true) @map("is_active")
   deletedAt DateTime? @map("deleted_at")
