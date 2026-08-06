@@ -23,6 +23,34 @@ projeto**. A diferença para o Cowork é simples:
 Na dúvida, pergunte. Nenhuma escolha errada quebra nada — no pior caso o Claude
 avisa que precisa da outra ferramenta.
 
+### 1.1 A diferença que importa de verdade
+
+O Cowork **não consegue rodar os testes nem o compilador**. Ele escreve o código,
+manda para o GitHub, e só descobre se está certo quando o CI responde — uns 5
+minutos depois, e só o CI diz sim ou não. Isso funciona bem para mudança pequena
+e bem entendida. É ruim para mudança grande, porque cada erro custa um ciclo
+inteiro.
+
+O Claude Code roda tudo na sua máquina, na hora. Erro aparece em segundos.
+
+> **Regra prática:** se a mudança mexe em **mais de três arquivos de código**, ou
+> se ninguém sabe de antemão se vai funcionar, é **Claude Code**. Se é
+> documentação, decisão, ADR, ou um ajuste pequeno e óbvio, é **Cowork**.
+
+### 1.2 Tabela de decisão — o que está em aberto hoje
+
+| Trabalho pendente                                          | Onde            | Por quê                                         |
+| ---------------------------------------------------------- | --------------- | ----------------------------------------------- |
+| Termos de Uso da coexistência (ADR-016 §5.1)               | Cowork          | É texto jurídico, não código                    |
+| Teste de integração com **dois** inquilinos (ADR-018 §4.2) | **Claude Code** | Precisa de banco de teste rodando de verdade    |
+| `Call.userId` virar nulável + fila de não-atribuídos       | **Claude Code** | Migration + refatoração ampla, tem que compilar |
+| Os 144 erros de tipo nos testes do backend                 | **Claude Code** | Só o `tsc` local mostra; o CI nem enxerga       |
+| Cobertura de testes até 80%                                | **Claude Code** | O `jest` precisa rodar para medir               |
+| Duas variáveis novas na Railway                            | Cowork          | Painel com login                                |
+| Triagem dos PRs do Dependabot                              | **Claude Code** | Cada bump precisa de build local antes do push  |
+| Conferir se um e-mail/alerta chegou                        | Cowork          | Precisa abrir o navegador logado                |
+| Escrever ou revisar ADR, histórico, esta fila              | Cowork          | Documentação; o CI não valida texto             |
+
 ---
 
 ## 2. Como abrir (uma vez por sessão)
@@ -55,7 +83,7 @@ Sempre comece uma sessão nova colando **este texto**:
 Pasta: C:\Users\pedro\Dev\PROJETO SAAS IA OFICIAL
 
 Leia antes de tudo: LEIA-ME SEMPRE.txt, CLAUDE.md,
-docs/operations/s85-next-session-prompt.md e a cauda de PROJECT_HISTORY.md.
+docs/operations/s91-next-session-prompt.md e a cauda de PROJECT_HISTORY.md.
 
 Depois rode: git log -3 --oneline e git status -sb
 
@@ -127,6 +155,15 @@ pelo assistente. Se algum assistente pedir, recuse e me avise.
 
 Copie e cole a que quiser fazer.
 
+**Teste de dois inquilinos no canal de voz (o mais importante hoje):**
+
+```
+Leia docs/adr/018-canal-de-voz-multi-inquilino.md, seção 4.2. Escreva o teste de
+integração com DOIS inquilinos reais que ele exige: duas companies com números de
+voz diferentes, e prove que uma chamada recebida no número de A nunca cria Call em
+B. Rode localmente e me mostre o resultado antes de commitar.
+```
+
 **Limpar os pedidos de atualização pendentes:**
 
 ```
@@ -167,13 +204,16 @@ Essa última é a mais importante do guia. Use sem constrangimento.
 
 ## 7. Quando voltar para o Cowork
 
-Volte para cá quando o trabalho for em site com login:
+Volte para cá quando o trabalho for em site com login, ou for escrita:
 
-- alertas de billing em Cloudflare, Neon e Upstash
-- migrar as contas para o e-mail institucional (`pedro.perin@theiadvisor.com`)
-- as fases restantes do Stripe
+- concluir a migração das contas para `pedro.perin@theiadvisor.com` (falta Neon,
+  Vercel, Resend, Sentry, Deepgram, OpenAI e Anthropic)
+- configurar `TWILIO_BR_REGULATORY_BUNDLE_SID` e `TWILIO_BR_ADDRESS_SID` na Railway
+- as fases restantes do Stripe e a resposta da verificação
 - provisionar o ambiente de staging
 - conferir se um alerta chegou de verdade no e-mail
+- escrever os Termos de Uso da coexistência do WhatsApp
+- qualquer ADR, atualização de histórico ou revisão da fila de tarefas
 
 ---
 
@@ -207,5 +247,5 @@ Não é urgente e não é fracasso. É como todo produto sério funciona.
 
 ---
 
-_Criado em 2026-07-31 (S84). Se o projeto mudar de estrutura, peça ao Claude para
+_Criado em 2026-07-31 (S84). Atualizado em 2026-08-06 (S90) com a tabela de decisão. Se o projeto mudar de estrutura, peça ao Claude para
 atualizar este guia._

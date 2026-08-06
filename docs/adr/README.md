@@ -6,26 +6,26 @@ Title → Status → Context → Decision → Consequences → Compliance → No
 
 ## Index
 
-| #   | Title                                                                                                                          | Status       | Inline ref                |
-| --- | ------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- |
-| 001 | Monolith Modular + Event-Driven Architecture                                                                                   | Aceito       | CLAUDE.md                 |
-| 002 | PostgreSQL como banco principal                                                                                                | Aceito       | CLAUDE.md                 |
-| 003 | Multi-tenancy por shared DB + companyId                                                                                        | Aceito       | CLAUDE.md                 |
-| 004 | Redis adapter para WebSocket horizontal scaling                                                                                | Aceito       | CLAUDE.md                 |
-| 005 | Clerk para auth (não construir próprio)                                                                                        | Aceito       | CLAUDE.md                 |
-| 006 | Deepgram para STT                                                                                                              | Aceito       | CLAUDE.md                 |
-| 007 | Circuit breaker em integrações externas                                                                                        | Aceito       | CLAUDE.md                 |
-| 008 | [SQL-level aggregation over app-level](./008-sql-level-aggregation.md)                                                         | Aceito       | this dir                  |
-| 009 | [Multi-tenancy via shared DB + companyId](./009-multi-tenancy-shared-db.md)                                                    | Aceito       | this dir (formaliza #003) |
-| 010 | [Observability stack — Sentry + OTel + Axiom](./010-observability-stack.md)                                                    | Aceito       | this dir                  |
-| 011 | [AI provider abstraction with automatic fallback](./011-ai-provider-abstraction.md)                                            | Aceito       | this dir                  |
-| 012 | [Pre-commit hooks (husky + lint-staged + guards)](./012-pre-commit-hooks.md)                                                   | Aceito       | this dir                  |
-| 013 | [Conventional Commits enforcement (commitlint)](./013-conventional-commits.md)                                                 | Aceito       | this dir                  |
-| 014 | [CVE-2026-44902 mitigation via exporter-prometheus override](./014-otel-prometheus-cve-2026-44902.md)                          | Aceito       | this dir                  |
-| 015 | [Allowlist de advisories sem correção aplicável (jaeger, brace-expansion)](./015-advisory-allowlist-jaeger-brace-expansion.md) | Aceito       | this dir                  |
-| 016 | [Canal WhatsApp migra da Twilio para a Cloud API da Meta (coexistência)](./016-whatsapp-cloud-api-coexistence.md)              | Aceito       | this dir                  |
-| 017 | [WhatsApp vai à Cloud API através da 360dialog, não direto na Meta](./017-whatsapp-via-360dialog-solution-partner.md)          | Aceito       | this dir                  |
-| 018 | [Canal de voz não é multi-inquilino — entrada vaza entre clientes](./018-canal-de-voz-multi-inquilino.md)                      | **Proposto** | this dir                  |
+| #   | Title                                                                                                                          | Status | Inline ref                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------ | ------ | ------------------------- |
+| 001 | Monolith Modular + Event-Driven Architecture                                                                                   | Aceito | CLAUDE.md                 |
+| 002 | PostgreSQL como banco principal                                                                                                | Aceito | CLAUDE.md                 |
+| 003 | Multi-tenancy por shared DB + companyId                                                                                        | Aceito | CLAUDE.md                 |
+| 004 | Redis adapter para WebSocket horizontal scaling                                                                                | Aceito | CLAUDE.md                 |
+| 005 | Clerk para auth (não construir próprio)                                                                                        | Aceito | CLAUDE.md                 |
+| 006 | Deepgram para STT                                                                                                              | Aceito | CLAUDE.md                 |
+| 007 | Circuit breaker em integrações externas                                                                                        | Aceito | CLAUDE.md                 |
+| 008 | [SQL-level aggregation over app-level](./008-sql-level-aggregation.md)                                                         | Aceito | this dir                  |
+| 009 | [Multi-tenancy via shared DB + companyId](./009-multi-tenancy-shared-db.md)                                                    | Aceito | this dir (formaliza #003) |
+| 010 | [Observability stack — Sentry + OTel + Axiom](./010-observability-stack.md)                                                    | Aceito | this dir                  |
+| 011 | [AI provider abstraction with automatic fallback](./011-ai-provider-abstraction.md)                                            | Aceito | this dir                  |
+| 012 | [Pre-commit hooks (husky + lint-staged + guards)](./012-pre-commit-hooks.md)                                                   | Aceito | this dir                  |
+| 013 | [Conventional Commits enforcement (commitlint)](./013-conventional-commits.md)                                                 | Aceito | this dir                  |
+| 014 | [CVE-2026-44902 mitigation via exporter-prometheus override](./014-otel-prometheus-cve-2026-44902.md)                          | Aceito | this dir                  |
+| 015 | [Allowlist de advisories sem correção aplicável (jaeger, brace-expansion)](./015-advisory-allowlist-jaeger-brace-expansion.md) | Aceito | this dir                  |
+| 016 | [Canal WhatsApp migra da Twilio para a Cloud API da Meta (coexistência)](./016-whatsapp-cloud-api-coexistence.md)              | Aceito | this dir                  |
+| 017 | [WhatsApp vai à Cloud API através da 360dialog, não direto na Meta](./017-whatsapp-via-360dialog-solution-partner.md)          | Aceito | this dir                  |
+| 018 | [Canal de voz não é multi-inquilino — entrada vaza entre clientes](./018-canal-de-voz-multi-inquilino.md)                      | Aceito | this dir                  |
 
 ## When to create an ADR
 

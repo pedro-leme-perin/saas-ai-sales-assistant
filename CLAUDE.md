@@ -1,7 +1,9 @@
 # SaaS AI Sales Assistant — Project Instructions
 
-**Versão:** 7.16
-**Atualização:** Agosto 2026 (S89 — o canal WhatsApp passa a ser servido pela Cloud API **através da 360dialog**, Solution Partner da Meta, e não por registro direto no Tech Provider Program. ADR-017. O ADR-016 não é revogado: mudou o **como**, não o **quê**. A justificativa que descartava a terceira via no ADR-016 §3 era um palpite de custo nunca verificado — refutada no adendo §8 dele)
+**Versão:** 7.17
+**Atualização:** Agosto 2026 (S90 — o canal de **voz** não era multi-inquilino: chamada recebida caía na empresa mais antiga por `findFirst`, e chamada feita saía de um número global. ADR-018. Corrigido com `Company.voicePhoneNumber @unique` **global** — a garantia passou da disciplina do serviço para o banco. Módulo `voice-numbers` provisiona o número por inquilino com ação compensatória)
+
+_Anterior 7.16 (S89 — o canal WhatsApp passa a ser servido pela Cloud API **através da 360dialog**, Solution Partner da Meta, e não por registro direto no Tech Provider Program. ADR-017. O ADR-016 não é revogado: mudou o **como**, não o **quê**. A justificativa que descartava a terceira via no ADR-016 §3 era um palpite de custo nunca verificado — refutada no adendo §8 dele)
 
 _Anterior 7.15 (S85 — correção factual: a conta Stripe de produção `acct_1T6DHFJ1Cbnf5voG` **não** foi perdida e está em LIVE mode; o canal WhatsApp roda sobre Twilio, não sobre a Graph API da Meta. Duas premissas de S83 revogadas contra evidência de painel)
 **Referência técnica:** 19 livros (ver `MASTER_KNOWLEDGE_BASE_INDEX_v2.2 CORRETA FINAL.md`)
@@ -429,6 +431,7 @@ Infrastructure (Prisma, API Clients, Redis)
 │   │       │   ├── tags/           # ConversationTag library + CallTag/ChatTag joins + cross-channel search (pg_trgm)
 │   │       │   ├── upload/         # R2 presigned URLs, file validation
 │   │       │   ├── usage-quotas/   # Metered quotas monthly (month-anchored UTC + PLAN_DEFAULTS + threshold 80/95/100 @OnEvent fan-out email/webhook/notif + fail-open metering + cron rollover)
+│   │       │   ├── voice-numbers/  # ADR-018 — número de voz por inquilino (busca/compra/libera na Twilio, grava Company.voicePhoneNumber sob @unique global, ação compensatória, POST/DELETE só OWNER)
 │   │       │   ├── users/          # CRUD, invites, roles, RBAC, LGPD
 │   │       │   ├── webhooks/       # Outbound signed webhooks (HMAC + retry cron + CB per-URL + DLQ)
 │   │       │   └── whatsapp/       # WhatsApp API, chat, messages
@@ -572,6 +575,10 @@ RAG_DEFAULT_TOP_K, RAG_DEFAULT_MIN_SCORE, RAG_ENABLED
 
 # Telephony (Twilio)
 TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, TWILIO_WEBHOOK_URL
+# ADR-018 - TWILIO_PHONE_NUMBER deixou de ser o caller ID operacional (agora e
+# Company.voicePhoneNumber, por inquilino); segue apenas como linha de demonstracao.
+# As duas abaixo sao exigidas pela Anatel para comprar numero local brasileiro.
+TWILIO_BR_REGULATORY_BUNDLE_SID, TWILIO_BR_ADDRESS_SID
 
 # STT (Deepgram)
 DEEPGRAM_API_KEY
@@ -820,15 +827,18 @@ Node.js 22 · pnpm v9 · Cancel-in-progress on same ref
 
 ## 14. ADRs (Architecture Decision Records)
 
-| #   | Decisão                                          | Status | Referência                                            |
-| --- | ------------------------------------------------ | ------ | ----------------------------------------------------- |
-| 001 | Monolith Modular + Event-Driven                  | Aceito | _Building Microservices_ Cap.1, _Fundamentals_ Cap.13 |
-| 002 | PostgreSQL como banco principal                  | Aceito | _DDIA_ Cap.2,7                                        |
-| 003 | Multi-tenancy por shared DB + companyId          | Aceito | _DDIA_ Cap.2                                          |
-| 004 | Redis adapter para WebSocket horizontal scaling  | Aceito | _SDI_ Cap.12                                          |
-| 005 | Clerk para auth (não construir próprio)          | Aceito | _Building Microservices_ Cap.9                        |
-| 006 | Deepgram para STT (não Whisper self-hosted)      | Aceito | _Designing ML Systems_ — latência crítica             |
-| 007 | Circuit breaker em todas as integrações externas | Aceito | _Release It!_ — Stability Patterns                    |
+| #   | Decisão                                                       | Status | Referência                                            |
+| --- | ------------------------------------------------------------- | ------ | ----------------------------------------------------- |
+| 001 | Monolith Modular + Event-Driven                               | Aceito | _Building Microservices_ Cap.1, _Fundamentals_ Cap.13 |
+| 002 | PostgreSQL como banco principal                               | Aceito | _DDIA_ Cap.2,7                                        |
+| 003 | Multi-tenancy por shared DB + companyId                       | Aceito | _DDIA_ Cap.2                                          |
+| 004 | Redis adapter para WebSocket horizontal scaling               | Aceito | _SDI_ Cap.12                                          |
+| 005 | Clerk para auth (não construir próprio)                       | Aceito | _Building Microservices_ Cap.9                        |
+| 006 | Deepgram para STT (não Whisper self-hosted)                   | Aceito | _Designing ML Systems_ — latência crítica             |
+| 007 | Circuit breaker em todas as integrações externas              | Aceito | _Release It!_ — Stability Patterns                    |
+| 016 | WhatsApp migra da Twilio para a Cloud API (coexistência)      | Aceito | `docs/adr/016-…`                                      |
+| 017 | WhatsApp vai à Cloud API através da 360dialog                 | Aceito | `docs/adr/017-…`                                      |
+| 018 | Canal de voz por inquilino — número próprio, `@unique` global | Aceito | `docs/adr/018-…`                                      |
 
 Novos ADRs obrigatórios antes de implementar decisões arquiteturais.
 

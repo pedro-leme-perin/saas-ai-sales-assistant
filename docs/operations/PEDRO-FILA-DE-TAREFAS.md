@@ -425,7 +425,23 @@ Fica registrado, sem virar tarefa.
 Railway, Cloudflare, Neon, Upstash, GitHub, Google Workspace. Mesmo padrão da Stripe: dois
 fatores independentes mais código de recuperação guardado fora do computador.
 
-### ▶ ATIVA — Tarefa 14: falar com a 360dialog (comercial)
+### ~~Tarefa 14: falar com a 360dialog (comercial)~~ — RESPONDIDA em 04/08, parcialmente
+
+> **Enviada em 04/08, respondida em 04/08.** Três das quatro perguntas foram respondidas. A
+> mais importante — se o registro como Meta Tech Provider é pré-requisito de abertura de
+> conta — voltou **ambígua**, e por isso a pré-condição do ADR-017 §7 continua aberta.
+>
+> | Pergunta                         | Resposta recebida                                                          |
+> | -------------------------------- | -------------------------------------------------------------------------- |
+> | Tech Provider é pré-requisito?   | _"Yes you have to become tech provider to onboard more numbers"_ — ambígua |
+> | Coexistência funciona no Brasil? | **Sim**, com as limitações já documentadas no ADR-016                      |
+> | Starter custa €25 ou €49?        | **não respondeu** — encaminhou ao comercial                                |
+> | PLBV está incluso no Starter?    | **Não.** Exige Growth ou Premium — confirma os €500/mês do custeio         |
+>
+> **Não vira tarefa nova agora.** A implementação do canal não depende desta resposta para
+> começar: os Termos de Uso da coexistência (ADR-016 §5.1) são obrigação contratual
+> independente e já estão na fila do Claude Code. Reabrir com a 360dialog só quando houver
+> data de integração.
 
 **Criada em 04/08 (S89), pela decisão do ADR-017.** Assume a frente da fila; a tarefa 13 sai
 do caminho crítico.
@@ -744,7 +760,23 @@ sem intervalo. O erro foi o tempo entre pedir e clicar.
 gerenciador de senhas, junto da nota de que o login também funciona por Google pessoal e por
 GitHub.
 
-### Tarefa 9 — NFS-e com o contador
+### ▶ ATIVA — Tarefa 9: enviar o pedido ao contador
+
+**É a única tarefa da fila com prazo real.** O PGDAS-D pode estar em atraso desde junho — a
+empresa está ativa e optante pelo Simples desde 01/06, e a obrigação mensal existe mesmo com
+faturamento zero. Multa mínima de R$ 50 por mês de atraso, por declaração.
+
+**O que fazer, em um passo:** enviar ao contador o arquivo
+[`docs/operations/s89/PEDIDO-AO-CONTADOR.md`](s89/PEDIDO-AO-CONTADOR.md). Ele já está escrito
+como pedido pronto — 16 perguntas em 5 blocos, com todos os dados da empresa preenchidos.
+Não precisa editar nada.
+
+**Como saber que terminou:** o contador confirmou o recebimento e disse em quanto tempo
+responde.
+
+---
+
+### Tarefa 9b — NFS-e com o contador (depende da resposta acima)
 
 **Passo zero concluído em 03/08 (S89): o portal está liberado e a empresa pode emitir.**
 Verificado por leitura direta do painel, não por suposição.
@@ -807,6 +839,33 @@ Runbook: `docs/operations/s61/STAGING_SETUP_RUNBOOK.md`.
 | Smoke E2E do WhatsApp                                  | diagnóstico do dashboard, em aberto no Claude Code |
 | Compra real de uma assinatura (checkout ponta a ponta) | tarefas 2 e 3 desta fila                           |
 | Confirmar traces no Axiom                              | Claude Code precisa confirmar o deploy primeiro    |
+
+---
+
+## Gatilhos registrados — coisas que voltam a ser tarefa sozinhas
+
+### Religar a recarga automática da Twilio
+
+**Desligada em 06/08/2026 (S90), por decisão sua.** Estava em US$ 40,33 e o cartão foi
+recusado pelo emissor em 02/08. O aviso chegou no Gmail pessoal e ficou quatro dias sem ser
+visto — mesma causa raiz do incidente de junho.
+
+Não é problema hoje: o gasto fixo é de **~US$ 1,15/mês** (o número de demonstração), e o
+saldo cobre meses. Com a recarga desligada, o cartão para de ser tentado, e de bater no
+antifraude do emissor a cada tentativa.
+
+**Volta a ser tarefa quando qualquer um destes acontecer — não antes:**
+
+1. **O primeiro cliente real comprar um número de voz.** Aí passam a existir chamadas
+   tarifadas por minuto, e saldo zerado significa telefone mudo para um cliente pagante.
+2. **O saldo cair abaixo de US$ 5.** Antes disso não há urgência.
+3. **Um segundo número for comprado**, por qualquer motivo.
+
+**Antes de religar, resolva a causa:** o cartão que falhou precisa ser trocado ou liberado no
+emissor. Religar com o mesmo cartão recusado só reproduz o incidente.
+
+**Enquanto estiver desligada, o risco é este e só este:** se o saldo acabar, a Twilio suspende
+sem aviso prévio útil. Por isso o gatilho 2 existe.
 
 ---
 

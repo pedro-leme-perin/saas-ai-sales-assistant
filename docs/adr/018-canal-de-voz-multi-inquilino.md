@@ -1,8 +1,9 @@
 # ADR-018 — O canal de voz não é multi-inquilino, e a entrada vaza entre clientes
 
 **Data:** 2026-08-06 (S90)
-**Status:** **Proposto** — a decisão de desenho é do Pedro; o achado de vazamento não é
-opcional e vira correção obrigatória em qualquer um dos desenhos
+**Status:** **ACEITO e IMPLEMENTADO** em 06/08/2026, mesma sessão. Desenho **A** escolhido
+pelo Pedro. Correção do vazamento em `b0dfed5` (CI #463 verde), provisionamento em `9b9c640`
+(CI #464 verde).
 **Origem:** uma pergunta do Pedro — _"mas afinal, pra que servirá esse número?"_ — feita
 enquanto ele estava a um clique de comprar um número brasileiro na Twilio
 
@@ -145,14 +146,84 @@ do produto". Com essa moldura, $4,25/mês é barato e não urgente.
 
 Comprar **em série**, um por cliente, só depois desta decisão.
 
+## 4.4 O que foi de fato implementado — 06/08/2026
+
+Duas entregas, na mesma sessão em que este ADR foi escrito.
+
+### `b0dfed5` — a correção do vazamento
+
+| Camada              | Antes                                      | Depois                                                |
+| ------------------- | ------------------------------------------ | ----------------------------------------------------- |
+| Entrada             | `findFirst` pela empresa mais antiga       | resolve por `voicePhoneNumber = To`, **sem fallback** |
+| Número desconhecido | atendia, gravava e transcrevia assim mesmo | TwiML de rejeição, nada é gravado                     |
+| Saída               | `TWILIO_PHONE_NUMBER` global               | número do inquilino, sem fallback                     |
+| Dono da chamada     | primeiro usuário por ordem de inserção     | `voiceDefaultUserId` → OWNER mais antigo → recusa     |
+
+**Uma correção de rumo em relação à §3.1 deste ADR:** a §3.1 propunha resolver o inquilino na
+lógica do serviço. Isso é frágil — depende de alguém sempre escrever a query certa, que é
+exatamente o descuido que criou o bug. O que foi implementado põe a garantia no banco:
+`Company.voicePhoneNumber` é `@unique` **global**, não por empresa. O Postgres recusa dois
+inquilinos reivindicando o mesmo número, e o roteamento deixa de depender de disciplina da
+camada de aplicação.
+
+O detalhe mais grave que a §2.2 não capturou: o `catch` do controller **engolia o erro e
+atendia a chamada assim mesmo**. Gravar e transcrever uma conversa que não se consegue
+atribuir a ninguém é o pior resultado possível sob LGPD, pior do que não atender.
+
+### `9b9c640` — o provisionamento, que faltava para o desenho existir na prática
+
+O commit anterior deixou campos que **ninguém conseguia preencher**: um cliente novo não
+ligava, e não havia caminho para resolver exceto editar o banco à mão. Módulo
+`voice-numbers` com quatro endpoints, todos escopados pelo `@CompanyId` do chamador — não
+existe "provisionar para a empresa X", porque endpoint assim vira buraco cross-tenant e este
+ADR existe justamente para parar de tratar identidade de inquilino como algo que o chamador
+informa.
+
+`POST` e `DELETE` são **OWNER apenas**. Não pelo dinheiro — ADMIN e MANAGER já gastam em
+outros lugares. É porque o número é a identidade pública do inquilino perante os clientes
+_dele_, e trocá-lo é mais perto de mudar a razão social do que de editar uma configuração.
+
+**A janela perigosa, e como foi fechada.** Comprar custa dinheiro e não desfaz. Se o `update`
+falhar depois da compra, sobra um número pago, sem dono, cobrando todo mês, invisível. Não há
+transação distribuída com terceiro (_DDIA_ Cap. 9), então há ação compensatória: liberar o
+número na Twilio dentro do `catch`. Se a compensação também falhar, loga `ORPHANED` com o SID
+— o único estado que exige intervenção humana.
+
+**No release a ordem é a inversa, de propósito:** limpa o banco **antes** de liberar na
+Twilio. A ordem oposta deixaria o `Company` apontando para um número que outra pessoa pode
+comprar, e chamadas de entrada de um estranho resolveriam para este inquilino — recriando o
+bug deste ADR por outro caminho.
+
+Erro `21422` da Twilio traduzido para `ConflictException` com mensagem útil. É exatamente a
+falha que perdeu o número de Ribeirão Preto na manhã de 06/08, vendido entre a listagem e o
+clique. Com a API, buscar e comprar acontecem no mesmo segundo.
+
+### Ainda falta, para usar de verdade
+
+Duas variáveis na Railway, ambas opcionais no boot: `TWILIO_BR_REGULATORY_BUNDLE_SID` =
+`BU610d433afc68938b42d7d06b29de2bdb` e `TWILIO_BR_ADDRESS_SID` =
+`ADa4e54481f62543ec5caa5d40a3095c55`. Sem elas, comprar número brasileiro falha com mensagem
+explícita — de propósito, porque Anatel exige o bundle e a Twilio recusa com erro opaco.
+
 ## 5. Pendência de fato — não medido
 
-**Custo de chamada no Brasil pela Twilio não foi levantado.** Só a assinatura do número
+**1. Custo de chamada no Brasil pela Twilio não foi levantado.** Só a assinatura do número
 ($4,25/mês) está confirmada. O preço por minuto de chamada de saída para fixo e para móvel no
 Brasil precisa entrar na conta antes de qualquer promessa de margem — e é a parte variável, a
 que realmente pesa com volume.
 
-Registrado aqui em vez de estimado, pelo mesmo motivo que originou o adendo §8 do ADR-016.
+**2. `Call.userId` é `NOT NULL`, então "chamada sem dono" não existe no schema.** O modelo
+honesto é `userId` nulável com fila de não-atribuídos, como o WhatsApp já faz com chats. É
+mudança de raio grande (`onDelete: Cascade` viraria `SetNull`, e toda query de `Call` assume
+um usuário), e misturá-la numa correção de segurança seria errado. Enquanto isso, a atribuição
+é determinística e explícita em vez de arbitrária, o que já é uma melhora — mas não é o
+desenho certo.
+
+**3. Nenhum teste de integração cobre dois inquilinos reais.** Os 9 testes de `b0dfed5` são
+unit com Prisma mockado: provam a intenção do código, não o comportamento do índice único sob
+concorrência real. A §4.2 exige teste de integração para isolamento — continua devendo.
+
+Registrados aqui em vez de estimados, pelo mesmo motivo que originou o adendo §8 do ADR-016.
 
 ## 6. Referências
 

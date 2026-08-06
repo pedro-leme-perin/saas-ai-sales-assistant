@@ -9022,3 +9022,127 @@ de retomada.
 - `CLAUDE.md` termina truncado na §15 — a §16 citada como invariante não existe
 - Repositório público com licença proprietária
 - `CLERK_SECRET_KEY` exposta, rotação recusada conscientemente
+
+---
+
+## S90 — 2026-08-06 · Uma pergunta do Pedro achou vazamento entre inquilinos (Cowork)
+
+**Como começou:** conferência de rotina do que chegou desde S89. Terminou com dois ADRs
+fechados, uma migration, um módulo novo e um bug de isolamento corrigido.
+
+### O que voltou de fora
+
+**360dialog respondeu** (04/08). Quatro perguntas, três respondidas:
+
+| Pergunta                       | Resposta                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Tech Provider é pré-requisito? | _"Yes you have to become tech provider to onboard more numbers"_ — **ambígua**, não diz o limiar |
+| Coexistência no Brasil?        | **Sim**, com limitações documentadas                                                             |
+| €25 ou €49 no Starter?         | **não respondeu** — empurrou para o comercial                                                    |
+| PLBV no Starter?               | **Não. Exige Growth ou Premium** — confirma os €500/mês do custeio                               |
+
+A pergunta 1, que era a pré-condição do ADR-017 §7, **continua sem resposta inequívoca**. A
+frase é consistente com "só acima de 3 números", mas não afirma isso. Confiança segue média.
+
+**Bundle da Twilio aprovado** em 04/08 19:48. E um achado de método: a **lista** de bundles
+mostrou `Sent for review` por dois dias depois da aprovação — só a **página de detalhe** diz
+"Aceito". Quase levou à conclusão errada de que o prazo tinha estourado.
+
+### O susto do Google Workspace, e o que ele revelou
+
+O Pedro relatou a conta como possivelmente desativada. Verificação: **Ativo**, 1 licença,
+Business Starter. O que o assustou foi a coluna "Pagamento pendente", que é o nome fixo da
+coluna, não um aviso.
+
+Mas a verificação expôs duas coisas reais:
+
+1. **O relógio do sandbox estava dois dias atrasado.** Eu vinha operando como se fosse 04/08.
+2. **75 e-mails não lidos na caixa institucional** — incluindo a aprovação do bundle e a
+   resposta da 360dialog, ambas paradas ali desde 04/08.
+
+### O e-mail que ninguém viu — Twilio, 02/08
+
+`URGENT: Your Twilio account couldn't be recharged`. A recarga automática de **$40,33**
+falhou; o cartão foi recusado pelo emissor. Chegou no **Gmail pessoal**, quatro dias antes,
+mesma causa raiz de junho: aviso importante em caixa que não é canal operacional. A migração
+da tarefa 15 teria evitado — foi feita um dia tarde demais.
+
+A conta do valor fecha exata: saldo em $9,67 cruzou o gatilho de $10, e a Twilio tentou cobrar
+a diferença até $50. Não era dívida nem multa.
+
+**Recarga automática desligada**, por decisão do Pedro depois de perguntar se era necessária
+agora. Não era: gasto fixo de ~$1,15/mês em pré-lançamento, e a automática só servia para
+bater no antifraude do emissor a cada tentativa. Registrada com **gatilhos explícitos** de
+religamento, não com "lembrar depois".
+
+### A pergunta que virou ADR-018
+
+Com o bundle aprovado, o número `+55 16 2398 0155` de Ribeirão Preto foi encontrado — **um
+único disponível**, $4,25/mês, contra a estimativa de $1-2 que eu havia dado. E sumiu entre a
+busca e a compra, vendido a outro cliente da Twilio.
+
+Aí o Pedro perguntou: **"mas afinal, pra que servirá esse número?"**
+
+A pergunta forçou a leitura do código, e o que se achou é pior do que o custo:
+
+**Saída** — `from` vinha de `TWILIO_PHONE_NUMBER`, variável global. Um número para todos os
+clientes.
+
+**Entrada** — `findOrCreateByCallSid` fazia `company.findFirst({ isActive: true, orderBy:
+createdAt asc })`. **Não resolvia inquilino nenhum.** Toda chamada recebida seria atribuída à
+empresa mais antiga, com gravação, transcrição e sugestões de IA junto. Vazamento entre
+clientes, violando `CLAUDE.md` §9 e §11.1 e LGPD Art. 46.
+
+Nunca disparou porque há **uma única company** em produção desde a limpeza do seed em S61 —
+com `n = 1`, "a primeira" é sempre a certa. Invisível até o segundo cliente, e silencioso,
+porque nada dá erro.
+
+E o `catch` do controller **engolia o erro e atendia a chamada assim mesmo**.
+
+### As duas entregas
+
+**`b0dfed5` — correção do vazamento.** `Company.voicePhoneNumber` `@unique` **global**, não
+por empresa: o banco recusa dois inquilinos com o mesmo número, e o roteamento deixa de
+depender de disciplina da aplicação. Entrada resolve pelo `To`, sem fallback; número
+desconhecido → TwiML de rejeição. Saída usa o número do inquilino, sem fallback para o global.
+Dono da chamada: `voiceDefaultUserId` → OWNER mais antigo → recusa. +9 testes.
+
+**`9b9c640` — provisionamento.** O commit anterior deixou campos que ninguém conseguia
+preencher. Módulo `voice-numbers`, 4 endpoints, todos escopados pelo `@CompanyId` do chamador.
+Ação compensatória na janela entre "a Twilio cobrou" e "o banco sabe": libera o número no
+`catch`; se a compensação falhar, loga `ORPHANED`. No release a ordem é invertida de propósito.
++21 testes, com peso nos modos de falha. CI verde nos dois.
+
+### Lições
+
+- **#102 — A pergunta ingênua do não-especialista é auditoria.** _"Pra que servirá esse
+  número?"_ era a pergunta certa, feita pela pessoa que menos conhecia o código, no momento em
+  que eu estava prestes a fazê-lo gastar. Nenhuma das três sessões anteriores fez essa
+  pergunta. Quando o Pedro pergunta "por quê", a resposta certa é ler a fonte, não explicar.
+- **#103 — Bug de isolamento com um inquilino é indistinguível de código correto.** `findFirst`
+  pela empresa mais antiga funcionou perfeitamente por meses porque `n = 1`. Nenhum teste,
+  nenhum log, nenhum alerta acusaria. Todo código multi-inquilino precisa de teste com **dois**
+  inquilinos, ou a garantia é acidental.
+- **#104 — Garantia de isolamento pertence ao banco, não ao serviço.** A §3.1 do próprio
+  ADR-018 propunha resolver o inquilino na lógica do serviço. Isso é frágil pela mesma razão
+  que criou o bug. `@unique` global torna o estado inválido irrepresentável — a diferença entre
+  "evitado por disciplina" e "impossível por construção".
+- **#105 — Metade de uma mudança de schema é pior que nenhuma.** `b0dfed5` criou campos que
+  ninguém conseguia preencher: parecia pronto e não estava. Mudança de schema sem caminho de
+  escrita é armadilha para a próxima sessão.
+- **#106 — Sem transação distribuída, projete a compensação antes de escrever o happy path.**
+  Comprar na Twilio custa dinheiro e não desfaz. A pergunta "o que acontece se o passo seguinte
+  falhar?" mudou a ordem das operações em provisionar **e** em liberar — em direções opostas.
+- **#107 — Listagem de painel mente; página de detalhe não.** A lista de bundles da Twilio
+  ficou dois dias desatualizada. Conferir sempre o detalhe do recurso, nunca a listagem.
+
+### Aberto ao fim de S90
+
+- **Termos de Uso da coexistência** — obrigação contratual do ADR-016 §5.1, não depende da 360dialog
+- **Duas variáveis na Railway** — `TWILIO_BR_REGULATORY_BUNDLE_SID` e `TWILIO_BR_ADDRESS_SID`
+- **Teste de integração com dois inquilinos** — a §4.2 do ADR-018 exige, os 9 testes são unit
+- **`Call.userId` deveria ser nulável** — fila de não-atribuídos, ADR-018 §5.2
+- **Custo por minuto de chamada no Brasil** — nunca levantado
+- **Cartão da Twilio recusado** — resolver antes de religar a recarga
+- Documento ao contador, resposta da 360dialog à pergunta 1, verificação da Stripe
+- Tarefa 16: Neon a retomar; Vercel, Resend, Sentry, Deepgram, OpenAI e Anthropic sem auditoria
