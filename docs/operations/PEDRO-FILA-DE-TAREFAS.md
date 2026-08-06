@@ -573,21 +573,93 @@ A produção nunca dependeu disso — o backend fala com a Twilio por `TWILIO_AC
 > Resend, Deepgram, OpenAI e Anthropic **não foram verificados** — a tarefa 5 tratou três
 > provedores e a lista nunca foi fechada. Vale uma varredura antes do primeiro cliente.
 
+### ⏰ LEMBRETE COM GATILHO — religar a recarga automática da Twilio
+
+**Desligada em 06/08/2026 (S90), por decisão do Pedro, com data de retorno em aberto.**
+
+**Estado atual da conta Twilio:**
+
+| Item                   | Valor                                                              |
+| ---------------------- | ------------------------------------------------------------------ |
+| Saldo                  | $9,67 (congelado desde 02/08)                                      |
+| Gasto mensal hoje      | ~$1,15 — só a assinatura do número americano                       |
+| Gasto após o número BR | ~$5,40/mês                                                         |
+| Recarga automática     | **DESLIGADA**                                                      |
+| Config anterior        | gatilho em $10, recarregar até $50 → cobrança de **$40,33**        |
+| Cartão                 | Visa final 2414, val. 02/2031 — **recusado pelo emissor** em 02/08 |
+
+**Por que foi desligada.** O gasto é fixo e previsível em pré-lançamento. A automática só
+serviria para tentar de novo a cobrança que o banco recusa, e **cada recusa piora a reputação
+do cartão no antifraude do emissor**. Sem clientes, não há gasto variável a proteger.
+
+**RELIGAR QUANDO QUALQUER UM DESTES ACONTECER — o que vier primeiro:**
+
+1. **Primeiro cliente real fizer a primeira ligação.** É o gatilho principal. A partir daí o
+   gasto vira variável, um dia de uso intenso pode consumir em horas o que hoje leva um mês, e
+   saldo zerado **faz a Twilio liberar os números** — o canal cai no meio do expediente e o
+   número brasileiro pode ser perdido para outro cliente da Twilio.
+2. **Saldo cair abaixo de $5.**
+3. **Qualquer teste de carga** que gere volume real de chamadas.
+
+**Como religar, quando for a hora:** `console.twilio.com/us1/billing/manage-billing/payment-settings`
+→ aba `Auto Recharge`. Sugestão de configuração, mais baixa que a anterior: gatilho em **$10**,
+recarregar até **$25**. A cobrança cai de $40 para ~$15 — valor menos sujeito a recusa por
+antifraude, e ainda assim ~4 meses de folga.
+
+**Pré-condição para religar:** o cartão precisa estar funcionando. Ver bloco abaixo.
+
+**Enquanto estiver desligada:** configurar `Balance Notifications` (aba ao lado) para avisar
+saldo baixo. Sem isso, nada avisa que o saldo acabou.
+
+### 💳 Pendência — cartão da Twilio recusado pelo emissor
+
+Em 02/08 a Twilio tentou cobrar $40,33 e o **banco emissor recusou**. O cartão não está
+vencido (val. 02/2031) e segue cadastrado como método principal. A Twilio nunca informa o
+motivo — quem recusa é o emissor.
+
+Causas prováveis, não verificadas: antifraude do banco sobre compra internacional, limite
+indisponível no momento, ou função de compra internacional desabilitada.
+
+**Não é urgente hoje** — com $9,67 e a automática desligada, nada quebra. Vira urgente quando
+a recarga tiver de voltar.
+
+**Duas saídas, a decidir quando chegar a hora:**
+
+1. Autorizar a compra internacional no app do banco e testar com recarga manual.
+2. **Trocar pelo cartão da conta Inter PJ.** Resolve a recusa e também a coerência contábil —
+   despesa da empresa no cartão da empresa. Hoje a Twilio está no cartão pessoal do Pedro com
+   endereço da empresa, o que o contador vai questionar.
+
 ### 🕐 Tarefa 8 — Twilio, número brasileiro — BUNDLE ENVIADO 03/08 (S89), aguardando análise
 
 **Estado verificado no painel, não inferido:**
 
-| Campo   | Valor                                |
-| ------- | ------------------------------------ |
-| Nome    | `TheIAdvisor - BR Local - Voz`       |
-| SID     | `BU610d433afc68938b42d7d06b29de2bdb` |
-| País    | Brazil                               |
-| Tipo    | Local - Business                     |
-| Status  | **Sent for review**                  |
-| Enviado | 03/08/2026 ~23h30 BRT                |
+| Campo    | Valor                                         |
+| -------- | --------------------------------------------- |
+| Nome     | `TheIAdvisor - BR Local - Voz`                |
+| SID      | `BU610d433afc68938b42d7d06b29de2bdb`          |
+| País     | Brazil                                        |
+| Tipo     | Local - Business                              |
+| Status   | ✅ **APROVADO** — "Aceito" na pág. de detalhe |
+| Enviado  | 03/08/2026 ~23h30 BRT                         |
+| Aprovado | **04/08/2026 19:48**                          |
 
-**Prazo:** até 3 dias úteis. Resposta esperada entre 05 e 06/08.
-**Aviso chega em:** `pedro.perin@theiadvisor.com` (por isso a tarefa 15 veio antes).
+> ⚠️ **A LISTA de bundles mostrou `Sent for review` por dois dias depois da aprovação.** Só a
+> **página de detalhe** do bundle diz "Aceito", e o e-mail de
+> `numbers-regulatory-review@twilio.com` confirma. **Conferir sempre o detalhe, nunca a
+> listagem** — em S90 isso quase levou à conclusão errada de que o prazo tinha estourado.
+
+**Aviso chegou em:** `pedro.perin@theiadvisor.com`. A migração da tarefa 15, feita horas antes
+do envio, funcionou exatamente como planejado (lição #99).
+
+**Número disponível, verificado em 06/08:** `+55 16 2398 0155`, Ribeirão Preto/SP, **só Voz**,
+**$4,25/mês**. Havia **apenas um** número na busca. Ausência de SMS é o esperado — número fixo
+brasileiro não faz SMS por regra da Anatel, e o produto usa esse número para ligações.
+
+**Ainda NÃO comprado, de propósito.** O custo real ($4,25 contra a estimativa de $1–2) leva o
+gasto total a ~$5,40/mês. Com saldo de $9,67 e o cartão recusando, são menos de 2 meses de
+folga — e saldo zerado faz a Twilio **liberar os números**. Perder um número BR já divulgado a
+cliente é pior do que ainda não tê-lo. Ver os dois blocos acima.
 
 **Escolhas feitas, e por quê:**
 
