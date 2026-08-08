@@ -40,7 +40,7 @@
     "@anthropic-ai/sdk": "^0.72.1",
     "@clerk/backend": "^2.29.5",
     "@clerk/clerk-sdk-node": "^5.1.6",
-    "@deepgram/sdk": "^4.11.3",
+    "@deepgram/sdk": "^5.7.0",
     "@google/generative-ai": "^0.24.1",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.57.0",
