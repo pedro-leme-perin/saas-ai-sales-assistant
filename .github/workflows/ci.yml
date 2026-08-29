@@ -39,7 +39,7 @@ jobs:
         run: pnpm --filter @saas/shared run build
 
       - name: Cache pnpm store & node_modules
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.local/share/pnpm/store
@@ -72,7 +72,7 @@ jobs:
           cache: pnpm
 
       - name: Restore cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.local/share/pnpm/store
@@ -204,7 +204,7 @@ jobs:
           cache: pnpm
 
       - name: Restore cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.local/share/pnpm/store
@@ -299,7 +299,7 @@ jobs:
           cache: pnpm
 
       - name: Restore cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.local/share/pnpm/store
